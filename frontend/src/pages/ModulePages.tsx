@@ -1,0 +1,204 @@
+import { createCrudPage } from './CrudPageFactory';
+import { departmentsAPI, partiesAPI, rolesAPI, currenciesAPI, accountsAPI, itemsAPI, salesAPI, transactionsAPI, stocksAPI, productionAPI } from '../services/api';
+
+// ─── DEPARTMENTS ───
+export const DepartmentsPage = createCrudPage({
+  title: 'Departmanlar',
+  apiModule: departmentsAPI,
+  columns: [
+    { key: 'id', label: 'ID' },
+    { key: 'name', label: 'Ad', render: (r: any) => <strong style={{ color: 'var(--text-primary)' }}>{r.name}</strong> },
+    { key: 'abbreviation', label: 'Kısaltma' },
+    { key: 'description', label: 'Açıklama', render: (r: any) => r.description || '—' },
+    { key: 'state', label: 'Durum', render: (r: any) => <span className={`badge ${r.state === 1 ? 'badge-success' : 'badge-danger'}`}>{r.state === 1 ? 'Aktif' : 'Pasif'}</span> },
+  ],
+  formFields: [
+    { key: 'name', label: 'Departman Adı', required: true },
+    { key: 'abbreviation', label: 'Kısaltma' },
+    { key: 'description', label: 'Açıklama' },
+  ],
+  defaultForm: { name: '', abbreviation: '', description: '' },
+});
+
+// ─── PARTIES (CRM) ───
+export const PartiesPage = createCrudPage({
+  title: 'Cari Hesaplar',
+  apiModule: partiesAPI,
+  columns: [
+    { key: 'id', label: 'ID' },
+    { key: 'name', label: 'Ad', render: (r: any) => <strong style={{ color: 'var(--text-primary)' }}>{r.name}</strong> },
+    { key: 'type', label: 'Tür', render: (r: any) => <span className="badge badge-info">{r.type === 'customer' ? 'Müşteri' : r.type === 'provider' ? 'Tedarikçi' : 'Her İkisi'}</span> },
+    { key: 'phone1', label: 'Telefon', render: (r: any) => r.phone1 || '—' },
+    { key: 'email', label: 'E-posta', render: (r: any) => r.email || '—' },
+    { key: 'balance', label: 'Bakiye', render: (r: any) => <span style={{ color: Number(r.balance) > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>{Number(r.balance || 0).toLocaleString('tr-TR')} ₺</span> },
+    { key: 'state', label: 'Durum', render: (r: any) => <span className={`badge ${r.state === 1 ? 'badge-success' : 'badge-danger'}`}>{r.state === 1 ? 'Aktif' : 'Pasif'}</span> },
+  ],
+  formFields: [
+    { key: 'type', label: 'Tür', options: [{ value: 'customer', label: 'Müşteri' }, { value: 'provider', label: 'Tedarikçi' }, { value: 'both', label: 'Her İkisi' }] },
+    { key: 'name', label: 'Ad Soyad / Firma', required: true },
+    { key: 'phone1', label: 'Telefon' },
+    { key: 'email', label: 'E-posta' },
+    { key: 'taxNumber', label: 'Vergi No' },
+    { key: 'address', label: 'Adres' },
+    { key: 'creditLimit', label: 'Kredi Limiti', type: 'number' },
+  ],
+  defaultForm: { type: 'customer', name: '', phone1: '', email: '', taxNumber: '', address: '', creditLimit: '' },
+});
+
+// ─── ROLES ───
+export const RolesPage = createCrudPage({
+  title: 'Roller',
+  apiModule: rolesAPI,
+  columns: [
+    { key: 'id', label: 'ID' },
+    { key: 'name', label: 'Rol Adı', render: (r: any) => <strong style={{ color: 'var(--text-primary)' }}>{r.name}</strong> },
+    { key: 'permissions', label: 'Yetki Sayısı', render: (r: any) => <span className="badge badge-accent">{r.permissions?.length || 0} yetki</span> },
+    { key: 'state', label: 'Durum', render: (r: any) => <span className={`badge ${r.state === 1 ? 'badge-success' : 'badge-danger'}`}>{r.state === 1 ? 'Aktif' : 'Pasif'}</span> },
+  ],
+  formFields: [
+    { key: 'name', label: 'Rol Adı', required: true },
+  ],
+  defaultForm: { name: '' },
+});
+
+// ─── CURRENCIES ───
+export const CurrenciesPage = createCrudPage({
+  title: 'Para Birimleri',
+  apiModule: currenciesAPI,
+  columns: [
+    { key: 'id', label: 'ID' },
+    { key: 'code', label: 'Kod', render: (r: any) => <strong style={{ color: 'var(--text-primary)' }}>{r.code}</strong> },
+    { key: 'name', label: 'Ad' },
+    { key: 'symbol', label: 'Sembol' },
+    { key: 'exchangeRate', label: 'Kur', render: (r: any) => Number(r.exchangeRate || 1).toFixed(4) },
+    { key: 'isDefault', label: 'Varsayılan', render: (r: any) => r.isDefault === 1 ? <span className="badge badge-success">Evet</span> : '—' },
+  ],
+  formFields: [
+    { key: 'code', label: 'Kod (ör: TRY)', required: true },
+    { key: 'name', label: 'Ad', required: true },
+    { key: 'symbol', label: 'Sembol', required: true },
+    { key: 'exchangeRate', label: 'Döviz Kuru', type: 'number' },
+  ],
+  defaultForm: { code: '', name: '', symbol: '', exchangeRate: '1' },
+});
+
+// ─── ACCOUNTS ───
+export const AccountsPage = createCrudPage({
+  title: 'Banka Hesapları',
+  apiModule: accountsAPI,
+  columns: [
+    { key: 'id', label: 'ID' },
+    { key: 'name', label: 'Hesap Adı', render: (r: any) => <strong style={{ color: 'var(--text-primary)' }}>{r.name}</strong> },
+    { key: 'bankName', label: 'Banka', render: (r: any) => r.bankName || '—' },
+    { key: 'iban', label: 'IBAN', render: (r: any) => r.iban || '—' },
+    { key: 'balance', label: 'Bakiye', render: (r: any) => <span style={{ fontWeight: 600 }}>{Number(r.balance || 0).toLocaleString('tr-TR')} ₺</span> },
+  ],
+  formFields: [
+    { key: 'name', label: 'Hesap Adı', required: true },
+    { key: 'bankName', label: 'Banka Adı' },
+    { key: 'iban', label: 'IBAN' },
+    { key: 'ibanName', label: 'IBAN Sahibi' },
+    { key: 'description', label: 'Açıklama' },
+  ],
+  defaultForm: { name: '', bankName: '', iban: '', ibanName: '', description: '' },
+});
+
+// ─── ITEMS ───
+export const ItemsPage = createCrudPage({
+  title: 'Ürünler',
+  apiModule: itemsAPI,
+  columns: [
+    { key: 'id', label: 'ID' },
+    { key: 'code', label: 'Kod', render: (r: any) => <span className="badge badge-accent">{r.code}</span> },
+    { key: 'name', label: 'Ürün Adı', render: (r: any) => <strong style={{ color: 'var(--text-primary)' }}>{r.name}</strong> },
+    { key: 'itemType', label: 'Türü', render: (r: any) => r.itemType?.name || '—' },
+    { key: 'purchasePrice', label: 'Alış', render: (r: any) => `${Number(r.purchasePrice || 0).toLocaleString('tr-TR')} ₺` },
+    { key: 'salePrice', label: 'Satış', render: (r: any) => `${Number(r.salePrice || 0).toLocaleString('tr-TR')} ₺` },
+    { key: 'quantityType', label: 'Birim', render: (r: any) => r.quantityType?.abbreviation || '—' },
+    { key: 'state', label: 'Durum', render: (r: any) => <span className={`badge ${r.state === 1 ? 'badge-success' : 'badge-danger'}`}>{r.state === 1 ? 'Aktif' : 'Pasif'}</span> },
+  ],
+  formFields: [
+    { key: 'name', label: 'Ürün Adı', required: true },
+    { key: 'purchasePrice', label: 'Alış Fiyatı', type: 'number' },
+    { key: 'salePrice', label: 'Satış Fiyatı', type: 'number' },
+    { key: 'kdv', label: 'KDV (%)', type: 'number' },
+    { key: 'description', label: 'Açıklama' },
+  ],
+  defaultForm: { name: '', purchasePrice: '', salePrice: '', kdv: '20', description: '' },
+});
+
+// ─── STOCKS ───
+export const StocksPage = createCrudPage({
+  title: 'Stok Durumu',
+  apiModule: stocksAPI,
+  columns: [
+    { key: 'id', label: 'ID' },
+    { key: 'item', label: 'Ürün', render: (r: any) => <strong style={{ color: 'var(--text-primary)' }}>{r.item?.name || '—'}</strong> },
+    { key: 'itemCode', label: 'Kod', render: (r: any) => <span className="badge badge-accent">{r.item?.code || '—'}</span> },
+    { key: 'department', label: 'Departman', render: (r: any) => r.department?.name || '—' },
+    { key: 'quantity', label: 'Miktar', render: (r: any) => {
+      const qty = Number(r.quantity || 0);
+      const critical = Number(r.item?.criticalLimit || 0);
+      return <span style={{ fontWeight: 700, color: qty <= critical && critical > 0 ? 'var(--danger)' : 'var(--text-primary)' }}>{qty} {r.item?.quantityType?.abbreviation || ''}</span>;
+    }},
+  ],
+  formFields: [],
+  defaultForm: {},
+});
+
+// ─── SALES ───
+export const SalesPage = createCrudPage({
+  title: 'Siparişler',
+  apiModule: salesAPI,
+  columns: [
+    { key: 'id', label: 'ID' },
+    { key: 'code', label: 'Sipariş No', render: (r: any) => <strong style={{ color: 'var(--accent)' }}>{r.code}</strong> },
+    { key: 'party', label: 'Müşteri', render: (r: any) => r.party?.name || '—' },
+    { key: 'grandTotal', label: 'Toplam', render: (r: any) => <span style={{ fontWeight: 600 }}>{Number(r.grandTotal || 0).toLocaleString('tr-TR')} ₺</span> },
+    { key: 'status', label: 'Durum', render: (r: any) => {
+      const map: Record<string, string> = { draft: 'badge-default', approved: 'badge-success', shipped: 'badge-info', cancelled: 'badge-danger', invoiced: 'badge-warning' };
+      const labels: Record<string, string> = { draft: 'Taslak', approved: 'Onaylı', shipped: 'Sevk', cancelled: 'İptal', invoiced: 'Faturalı' };
+      return <span className={`badge ${map[r.status] || 'badge-default'}`}>{labels[r.status] || r.status}</span>;
+    }},
+    { key: 'createdAt', label: 'Tarih', render: (r: any) => new Date(r.createdAt).toLocaleDateString('tr-TR') },
+  ],
+  formFields: [],
+  defaultForm: {},
+});
+
+// ─── TRANSACTIONS ───
+export const TransactionsPage = createCrudPage({
+  title: 'Finansal İşlemler',
+  apiModule: transactionsAPI,
+  columns: [
+    { key: 'id', label: 'ID' },
+    { key: 'code', label: 'İşlem No', render: (r: any) => <strong style={{ color: 'var(--text-primary)' }}>{r.code}</strong> },
+    { key: 'party', label: 'Cari', render: (r: any) => r.party?.name || '—' },
+    { key: 'type', label: 'Tür', render: (r: any) => <span className={`badge ${r.type === 'in' ? 'badge-success' : 'badge-danger'}`}>{r.type === 'in' ? 'Tahsilat' : 'Tediye'}</span> },
+    { key: 'amount', label: 'Tutar', render: (r: any) => <span style={{ fontWeight: 600 }}>{Number(r.amount || 0).toLocaleString('tr-TR')} ₺</span> },
+    { key: 'date', label: 'Tarih', render: (r: any) => new Date(r.date).toLocaleDateString('tr-TR') },
+    { key: 'status', label: 'Durum', render: (r: any) => <span className="badge badge-success">{r.status}</span> },
+  ],
+  formFields: [],
+  defaultForm: {},
+});
+
+// ─── PRODUCTION ───
+export const ProductionPage = createCrudPage({
+  title: 'Üretim Emirleri',
+  apiModule: { ...productionAPI, getAll: productionAPI.getOrders, create: productionAPI.createOrder, update: productionAPI.updateOrder, delete: productionAPI.deleteOrder },
+  columns: [
+    { key: 'id', label: 'ID' },
+    { key: 'code', label: 'Emir No', render: (r: any) => <strong style={{ color: 'var(--text-primary)' }}>{r.code}</strong> },
+    { key: 'bom', label: 'BOM', render: (r: any) => r.bom?.name || '—' },
+    { key: 'plannedQuantity', label: 'Planlanan', render: (r: any) => Number(r.plannedQuantity || 0).toLocaleString('tr-TR') },
+    { key: 'producedQuantity', label: 'Üretilen', render: (r: any) => Number(r.producedQuantity || 0).toLocaleString('tr-TR') },
+    { key: 'status', label: 'Durum', render: (r: any) => {
+      const map: Record<string, string> = { draft: 'badge-default', planned: 'badge-info', in_progress: 'badge-warning', completed: 'badge-success', cancelled: 'badge-danger' };
+      const labels: Record<string, string> = { draft: 'Taslak', planned: 'Planlandı', in_progress: 'Üretimde', completed: 'Tamamlandı', cancelled: 'İptal' };
+      return <span className={`badge ${map[r.status] || 'badge-default'}`}>{labels[r.status] || r.status}</span>;
+    }},
+  ],
+  formFields: [],
+  defaultForm: {},
+});
