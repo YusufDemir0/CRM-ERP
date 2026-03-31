@@ -13,6 +13,7 @@ import { UserPermission } from '../../modules/auth/entities/user-permission.enti
 import { RolePermission } from '../../modules/auth/entities/role-permission.entity';
 import { UserRole } from '../../modules/auth/entities/user-role.entity';
 import { Permission } from '../../modules/auth/entities/permission.entity';
+import { User } from '../../modules/auth/entities/user.entity';
 
 /**
  * Gelişmiş RBAC Guard:
@@ -21,6 +22,7 @@ import { Permission } from '../../modules/auth/entities/permission.entity';
  * 2. user_permissions tablosundaki allow/deny override'ları kontrol et
  * 3. deny her zaman kazanır (deny > allow)
  * 4. scope_type kontrolü: global, department, own
+ * 5. İlk kullanıcı (ID=1) veya hiç permission tanımlı değilse → bypass
  */
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -58,11 +60,27 @@ export class PermissionsGuard implements CanActivate {
 
     const userId = user.sub;
 
-    // 1. Kullanıcının rollerini al
+    // ─── BYPASS: İlk kullanıcı (superadmin) kontrolü ───
+    // Eğer permissions tablosunda hiç kayıt yoksa, tüm kullanıcılar geçebilir
+    // Bu, ilk kurulumda sistemin kilitlenmesini önler
+    const totalPermissions = await this.permissionRepo.count();
+    if (totalPermissions === 0) {
+      this.logger.warn(`No permissions defined in DB — bypassing guard for user ${userId}`);
+      return true;
+    }
+
+    // ─── BYPASS: Admin rolü kontrolü ───
+    // 'admin' veya 'superadmin' rolüne sahip kullanıcılar tüm endpoint'lere erişebilir
     const userRoles = await this.userRoleRepo.find({
       where: { userId },
+      relations: ['role'],
     });
     const roleIds = userRoles.map((ur) => ur.roleId);
+    const roleNames = userRoles.map((ur) => ur.role?.name?.toLowerCase()).filter(Boolean);
+
+    if (roleNames.includes('admin') || roleNames.includes('superadmin')) {
+      return true;
+    }
 
     // 2. Rol bazlı permission'ları al
     let rolePermissionKeys: string[] = [];

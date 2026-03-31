@@ -1,4 +1,4 @@
-import { Entity, PrimaryColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
 import { User } from './user.entity';
 import { Role } from './role.entity';
 
@@ -9,6 +9,15 @@ export class UserRole {
 
   @PrimaryColumn({ name: 'role_id', type: 'bigint' })
   roleId: number;
+
+  @Column({ type: 'tinyint', default: 1 })
+  state: number;
+
+  @Column({ name: 'created_by', type: 'bigint', nullable: true })
+  createdBy: number | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+  createdAt: Date;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'user_id' })

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, ReactNode } from 'react';
 import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
 import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
@@ -24,18 +24,37 @@ export function createCrudPage(config: CrudConfig) {
     const [editing, setEditing] = useState<any>(null);
     const [form, setForm] = useState<Record<string, any>>(config.defaultForm);
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
       setLoading(true);
       try {
         const res = await config.apiModule.getAll({ page, search, limit: 20 });
-        setData(res.data.data || res.data || []);
-        setTotal(res.data.meta?.total || (res.data.data || res.data || []).length);
-      } catch { /* ignore */ } finally { setLoading(false); }
-    };
+        const responseData = res.data;
+        // Handle both paginated {data: [], meta: {}} and plain array responses
+        if (responseData?.data && Array.isArray(responseData.data)) {
+          setData(responseData.data);
+          setTotal(responseData.meta?.total || responseData.data.length);
+        } else if (Array.isArray(responseData)) {
+          setData(responseData);
+          setTotal(responseData.length);
+        } else {
+          setData([]);
+          setTotal(0);
+        }
+      } catch (e: any) {
+        console.error(`${config.title} fetch error:`, e);
+        setData([]);
+        setTotal(0);
+        if (e.response?.status !== 401) {
+          toast.error(e.response?.data?.message || `${config.title} yüklenemedi`);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }, [page, search]);
 
-    useEffect(() => { fetchData(); }, [page, search]);
+    useEffect(() => { fetchData(); }, [fetchData]);
 
-    const openCreate = () => { setEditing(null); setForm(config.defaultForm); setModalOpen(true); };
+    const openCreate = () => { setEditing(null); setForm({ ...config.defaultForm }); setModalOpen(true); };
     const openEdit = (item: any) => {
       setEditing(item);
       const f: Record<string, any> = {};
@@ -50,7 +69,7 @@ export function createCrudPage(config: CrudConfig) {
       try {
         const payload: Record<string, any> = {};
         for (const field of config.formFields) {
-          if (form[field.key]) {
+          if (form[field.key] !== '' && form[field.key] !== undefined) {
             payload[field.key] = field.type === 'number' ? Number(form[field.key]) : form[field.key];
           }
         }
@@ -79,14 +98,17 @@ export function createCrudPage(config: CrudConfig) {
       }
     };
 
+    const hasDeleteAction = !!config.apiModule.delete;
+    const hasFormFields = config.formFields.length > 0;
+
     const allColumns = [
       ...config.columns,
-      { key: 'actions', label: 'İşlem', render: (r: any) => (
+      ...(hasFormFields || hasDeleteAction ? [{ key: 'actions', label: 'İşlem', render: (r: any) => (
         <div style={{ display: 'flex', gap: 4 }}>
-          <button className="btn-icon" onClick={() => openEdit(r)}><FiEdit2 size={14} /></button>
-          <button className="btn-icon" onClick={() => handleDelete(r.id)} style={{ color: 'var(--danger)' }}><FiTrash2 size={14} /></button>
+          {hasFormFields && <button className="btn-icon" onClick={() => openEdit(r)}><FiEdit2 size={14} /></button>}
+          {hasDeleteAction && <button className="btn-icon" onClick={() => handleDelete(r.id)} style={{ color: 'var(--danger)' }}><FiTrash2 size={14} /></button>}
         </div>
-      )},
+      )}] : []),
     ];
 
     return (
@@ -96,30 +118,32 @@ export function createCrudPage(config: CrudConfig) {
           columns={allColumns} data={data} total={total} page={page}
           search={search} onSearchChange={setSearch} onPageChange={setPage}
           loading={loading}
-          actions={<button className="btn btn-primary btn-sm" onClick={openCreate}><FiPlus /> Yeni Ekle</button>}
+          actions={hasFormFields ? <button className="btn btn-primary btn-sm" onClick={openCreate}><FiPlus /> Yeni Ekle</button> : undefined}
         />
-        <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Düzenle' : 'Yeni Kayıt'}
-          footer={<>
-            <button className="btn btn-secondary" onClick={() => setModalOpen(false)}>İptal</button>
-            <button className="btn btn-primary" onClick={handleSave}>Kaydet</button>
-          </>}
-        >
-          {config.formFields.map((field) => (
-            <div className="form-group" key={field.key}>
-              <label>{field.label}</label>
-              {field.options ? (
-                <select className="form-input" value={form[field.key] || ''} onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}>
-                  <option value="">Seçiniz</option>
-                  {field.options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                </select>
-              ) : (
-                <input className="form-input" type={field.type || 'text'} value={form[field.key] || ''}
-                  onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
-                  required={field.required} />
-              )}
-            </div>
-          ))}
-        </Modal>
+        {hasFormFields && (
+          <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Düzenle' : 'Yeni Kayıt'}
+            footer={<>
+              <button className="btn btn-secondary" onClick={() => setModalOpen(false)}>İptal</button>
+              <button className="btn btn-primary" onClick={handleSave}>Kaydet</button>
+            </>}
+          >
+            {config.formFields.map((field) => (
+              <div className="form-group" key={field.key}>
+                <label>{field.label}</label>
+                {field.options ? (
+                  <select className="form-input" value={form[field.key] || ''} onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}>
+                    <option value="">Seçiniz</option>
+                    {field.options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                  </select>
+                ) : (
+                  <input className="form-input" type={field.type || 'text'} value={form[field.key] || ''}
+                    onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
+                    required={field.required} />
+                )}
+              </div>
+            ))}
+          </Modal>
+        )}
       </div>
     );
   };

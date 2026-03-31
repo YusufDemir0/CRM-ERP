@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
 import { usersAPI, departmentsAPI, rolesAPI } from '../services/api';
@@ -14,28 +14,35 @@ export default function UsersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [departments, setDepartments] = useState<any[]>([]);
-  const [roles, setRoles] = useState<any[]>([]);
 
   const [form, setForm] = useState({ username: '', password: '', fullName: '', email: '', phone: '', departmentId: '' });
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await usersAPI.getAll({ page, search, limit: 20 });
-      setData(res.data.data || []);
-      setTotal(res.data.meta?.total || 0);
+      const responseData = res.data;
+      setData(responseData?.data || []);
+      setTotal(responseData?.meta?.total || 0);
     } catch (e: any) {
-      toast.error(e.response?.data?.message || 'Veri yüklenemedi');
+      console.error('Users fetch error:', e);
+      // Don't crash on error — just show empty state
+      setData([]);
+      setTotal(0);
+      if (e.response?.status !== 401) {
+        toast.error(e.response?.data?.message || 'Kullanıcılar yüklenemedi');
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, search]);
 
-  useEffect(() => { fetchData(); }, [page, search]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   useEffect(() => {
-    departmentsAPI.getAll({ limit: 100 }).then(r => setDepartments(r.data.data || [])).catch(() => {});
-    rolesAPI.getAll({ limit: 100 }).then(r => setRoles(r.data.data || [])).catch(() => {});
+    departmentsAPI.getAll({ limit: 100 })
+      .then(r => setDepartments(r.data?.data || r.data || []))
+      .catch(() => setDepartments([]));
   }, []);
 
   const openCreate = () => {
@@ -60,11 +67,26 @@ export default function UsersPage() {
   const handleSave = async () => {
     try {
       if (editingUser) {
-        const { password, username, ...updateData } = form;
-        await usersAPI.update(editingUser.id, { ...updateData, departmentId: form.departmentId ? Number(form.departmentId) : undefined });
+        await usersAPI.update(editingUser.id, {
+          fullName: form.fullName,
+          email: form.email,
+          phone: form.phone || undefined,
+          departmentId: form.departmentId ? Number(form.departmentId) : undefined,
+        });
         toast.success('Kullanıcı güncellendi');
       } else {
-        await usersAPI.create({ ...form, departmentId: form.departmentId ? Number(form.departmentId) : undefined });
+        if (!form.username || !form.password) {
+          toast.error('Kullanıcı adı ve şifre zorunludur');
+          return;
+        }
+        await usersAPI.create({
+          username: form.username,
+          password: form.password,
+          fullName: form.fullName,
+          email: form.email,
+          phone: form.phone || undefined,
+          departmentId: form.departmentId ? Number(form.departmentId) : undefined,
+        });
         toast.success('Kullanıcı oluşturuldu');
       }
       setModalOpen(false);
@@ -91,9 +113,6 @@ export default function UsersPage() {
     { key: 'fullName', label: 'Ad Soyad' },
     { key: 'email', label: 'E-posta' },
     { key: 'department', label: 'Departman', render: (r: any) => r.department?.name || '—' },
-    { key: 'roles', label: 'Roller', render: (r: any) => r.roles?.map((role: any) => (
-      <span key={role.id} className="badge badge-accent" style={{ marginRight: 4 }}>{role.name}</span>
-    )) || '—' },
     { key: 'state', label: 'Durum', render: (r: any) => (
       <span className={`badge ${r.state === 1 ? 'badge-success' : 'badge-danger'}`}>
         {r.state === 1 ? 'Aktif' : 'Pasif'}
@@ -142,25 +161,25 @@ export default function UsersPage() {
       >
         <div className="form-group">
           <label>Kullanıcı Adı</label>
-          <input className="form-input" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} disabled={!!editingUser} />
+          <input className="form-input" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} disabled={!!editingUser} placeholder="admin" />
         </div>
         {!editingUser && (
           <div className="form-group">
             <label>Şifre</label>
-            <input className="form-input" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+            <input className="form-input" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" />
           </div>
         )}
         <div className="form-group">
           <label>Ad Soyad</label>
-          <input className="form-input" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
+          <input className="form-input" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} placeholder="Ad Soyad" />
         </div>
         <div className="form-group">
           <label>E-posta</label>
-          <input className="form-input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <input className="form-input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@firma.com" />
         </div>
         <div className="form-group">
           <label>Telefon</label>
-          <input className="form-input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          <input className="form-input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="05XX XXX XXXX" />
         </div>
         <div className="form-group">
           <label>Departman</label>
