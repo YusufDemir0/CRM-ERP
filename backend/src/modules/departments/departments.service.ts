@@ -1,0 +1,55 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Department } from './entities/department.entity';
+import { CreateDepartmentDto, UpdateDepartmentDto } from './dto/department.dto';
+import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+
+@Injectable()
+export class DepartmentsService {
+  constructor(
+    @InjectRepository(Department)
+    private deptRepo: Repository<Department>,
+  ) {}
+
+  async findAll(query: PaginationDto): Promise<PaginatedResult<Department>> {
+    const qb = this.deptRepo.createQueryBuilder('dept')
+      .leftJoinAndSelect('dept.commercialAccount', 'account');
+
+    if (query.search) {
+      qb.where('(dept.name LIKE :s OR dept.abbreviation LIKE :s)', { s: `%${query.search}%` });
+    }
+
+    qb.orderBy(`dept.${query.sortBy || 'name'}`, query.sortOrder || 'ASC');
+    qb.skip(query.skip).take(query.limit);
+
+    const [data, total] = await qb.getManyAndCount();
+    return {
+      data,
+      meta: { total, page: query.page || 1, limit: query.limit || 20, totalPages: Math.ceil(total / (query.limit || 20)) },
+    };
+  }
+
+  async findOne(id: number): Promise<Department> {
+    const dept = await this.deptRepo.findOne({ where: { id }, relations: ['commercialAccount'] });
+    if (!dept) throw new NotFoundException('Departman bulunamadı');
+    return dept;
+  }
+
+  async create(dto: CreateDepartmentDto, userId?: number): Promise<Department> {
+    const dept = this.deptRepo.create({ ...dto, createdBy: userId });
+    return this.deptRepo.save(dept);
+  }
+
+  async update(id: number, dto: UpdateDepartmentDto, userId?: number): Promise<Department> {
+    const dept = await this.findOne(id);
+    Object.assign(dept, dto);
+    dept.updatedBy = userId || null;
+    return this.deptRepo.save(dept);
+  }
+
+  async softDelete(id: number): Promise<void> {
+    await this.findOne(id);
+    await this.deptRepo.softDelete(id);
+  }
+}

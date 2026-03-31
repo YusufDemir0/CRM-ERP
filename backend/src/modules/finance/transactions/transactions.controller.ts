@@ -1,0 +1,29 @@
+import { Controller, Get, Post, Body, Param, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { TransactionsService } from './transactions.service';
+import { CreateTransactionDto } from '../dto/finance.dto';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
+
+@Controller('transactions')
+@UseGuards(AuthGuard('jwt'))
+export class TransactionsController {
+  constructor(private readonly txService: TransactionsService) {}
+
+  @Get()
+  @RequirePermissions('finans_goruntuleme')
+  findAll(@Query() query: PaginationDto & { partyId?: number; type?: string; status?: string }) {
+    return this.txService.findAll(query);
+  }
+
+  @Get(':id')
+  @RequirePermissions('finans_goruntuleme')
+  findOne(@Param('id', ParseIntPipe) id: number) { return this.txService.findOne(id); }
+
+  @Post()
+  @RequirePermissions('finans_islem')
+  create(@Body() dto: CreateTransactionDto, @CurrentUser('sub') userId: number) {
+    return this.txService.create(dto, userId);
+  }
+}
