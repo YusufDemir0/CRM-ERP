@@ -43,10 +43,20 @@ let PermissionsGuard = PermissionsGuard_1 = class PermissionsGuard {
             throw new common_1.ForbiddenException('Yetkilendirme bilgisi bulunamadı');
         }
         const userId = user.sub;
+        const totalPermissions = await this.permissionRepo.count();
+        if (totalPermissions === 0) {
+            this.logger.warn(`No permissions defined in DB — bypassing guard for user ${userId}`);
+            return true;
+        }
         const userRoles = await this.userRoleRepo.find({
             where: { userId },
+            relations: ['role'],
         });
         const roleIds = userRoles.map((ur) => ur.roleId);
+        const roleNames = userRoles.map((ur) => ur.role?.name?.toLowerCase()).filter(Boolean);
+        if (roleNames.includes('admin') || roleNames.includes('superadmin')) {
+            return true;
+        }
         let rolePermissionKeys = [];
         if (roleIds.length > 0) {
             const rolePerms = await this.rolePermRepo.find({

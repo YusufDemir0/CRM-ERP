@@ -9,6 +9,7 @@ import jwtConfig from './config/jwt.config';
 
 // Common
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 
 // Modules
@@ -56,6 +57,11 @@ import { ProductionModule } from './modules/production/production.module';
     {
       provide: APP_INTERCEPTOR,
       useClass: AuditInterceptor,
+    },
+    // Global JWT Auth Guard — tüm endpoint'lerde JWT doğrulaması (@Public hariç)
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
     },
     // Global RBAC Guard — @RequirePermissions ile korunan endpoint'lerde çalışır
     {

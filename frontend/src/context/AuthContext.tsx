@@ -20,6 +20,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+// Normalize roles — backend may return string[] or {id, name}[]
+function normalizeRoles(roles: any): string[] {
+  if (!roles || !Array.isArray(roles)) return [];
+  return roles.map((r: any) => typeof r === 'string' ? r : r.name || '');
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('erp_token'));
@@ -28,7 +34,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (token) {
       authAPI.profile()
-        .then((res) => setUser(res.data))
+        .then((res) => {
+          const u = res.data;
+          setUser({ ...u, roles: normalizeRoles(u.roles) });
+        })
         .catch(() => { logout(); })
         .finally(() => setIsLoading(false));
     } else {
@@ -40,9 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await authAPI.login({ username, password });
     const { access_token, user: userData } = res.data;
     localStorage.setItem('erp_token', access_token);
-    localStorage.setItem('erp_user', JSON.stringify(userData));
+    const normalized = { ...userData, roles: normalizeRoles(userData.roles) };
+    localStorage.setItem('erp_user', JSON.stringify(normalized));
     setToken(access_token);
-    setUser(userData);
+    setUser(normalized);
   };
 
   const logout = () => {

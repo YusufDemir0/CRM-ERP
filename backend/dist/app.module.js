@@ -17,6 +17,7 @@ const core_1 = require("@nestjs/core");
 const database_config_1 = __importDefault(require("./config/database.config"));
 const jwt_config_1 = __importDefault(require("./config/jwt.config"));
 const audit_interceptor_1 = require("./common/interceptors/audit.interceptor");
+const jwt_auth_guard_1 = require("./common/guards/jwt-auth.guard");
 const permissions_guard_1 = require("./common/guards/permissions.guard");
 const auth_module_1 = require("./modules/auth/auth.module");
 const users_module_1 = require("./modules/users/users.module");
@@ -59,6 +60,10 @@ exports.AppModule = AppModule = __decorate([
             {
                 provide: core_1.APP_INTERCEPTOR,
                 useClass: audit_interceptor_1.AuditInterceptor,
+            },
+            {
+                provide: core_1.APP_GUARD,
+                useClass: jwt_auth_guard_1.JwtAuthGuard,
             },
             {
                 provide: core_1.APP_GUARD,

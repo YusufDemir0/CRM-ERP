@@ -1,11 +1,9 @@
-import { Controller, Get, Post, Put, Body, Param, UseGuards, ParseIntPipe } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
+import { Controller, Get, Post, Put, Body, Param, ParseIntPipe } from '@nestjs/common';
 import { CurrenciesService } from './currencies.service';
 import { CreateCurrencyDto, UpdateCurrencyDto } from '../dto/finance.dto';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 
 @Controller('currencies')
-@UseGuards(AuthGuard('jwt'))
 export class CurrenciesController {
   constructor(private readonly currenciesService: CurrenciesService) {}
 

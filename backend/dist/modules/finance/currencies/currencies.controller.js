@@ -14,7 +14,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CurrenciesController = void 0;
 const common_1 = require("@nestjs/common");
-const passport_1 = require("@nestjs/passport");
 const currencies_service_1 = require("./currencies.service");
 const finance_dto_1 = require("../dto/finance.dto");
 const current_user_decorator_1 = require("../../../common/decorators/current-user.decorator");
@@ -69,7 +68,6 @@ __decorate([
 ], CurrenciesController.prototype, "update", null);
 exports.CurrenciesController = CurrenciesController = __decorate([
     (0, common_1.Controller)('currencies'),
-    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __metadata("design:paramtypes", [currencies_service_1.CurrenciesService])
 ], CurrenciesController);
 //# sourceMappingURL=currencies.controller.js.map

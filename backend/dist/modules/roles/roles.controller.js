@@ -14,7 +14,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RolesController = void 0;
 const common_1 = require("@nestjs/common");
-const passport_1 = require("@nestjs/passport");
 const roles_service_1 = require("./roles.service");
 const role_dto_1 = require("./dto/role.dto");
 const pagination_dto_1 = require("../../common/dto/pagination.dto");
@@ -154,7 +153,6 @@ __decorate([
 ], RolesController.prototype, "getUserPermissions", null);
 exports.RolesController = RolesController = __decorate([
     (0, common_1.Controller)('roles'),
-    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __metadata("design:paramtypes", [roles_service_1.RolesService])
 ], RolesController);
 //# sourceMappingURL=roles.controller.js.map

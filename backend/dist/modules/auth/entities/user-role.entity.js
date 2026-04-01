@@ -25,6 +25,18 @@ __decorate([
     __metadata("design:type", Number)
 ], UserRole.prototype, "roleId", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'tinyint', default: 1 }),
+    __metadata("design:type", Number)
+], UserRole.prototype, "state", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'created_by', type: 'bigint', nullable: true }),
+    __metadata("design:type", Object)
+], UserRole.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.CreateDateColumn)({ name: 'created_at', type: 'timestamp' }),
+    __metadata("design:type", Date)
+], UserRole.prototype, "createdAt", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => user_entity_1.User),
     (0, typeorm_1.JoinColumn)({ name: 'user_id' }),
     __metadata("design:type", user_entity_1.User)

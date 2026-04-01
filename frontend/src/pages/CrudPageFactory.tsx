@@ -4,15 +4,34 @@ import Modal from '../components/Modal';
 import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-// Generic CRUD page factory — tüm basit tablo sayfaları için
+// ─── Types ───
+interface FormField {
+  key: string;
+  label: string;
+  type?: string;           // 'text' | 'number' | 'date' | 'textarea' | 'select'
+  options?: { value: string; label: string }[];  // Static options
+  apiOptions?: {           // Dynamic options loaded from API
+    apiFn: () => Promise<any>;
+    valueKey: string;      // e.g. 'id'
+    labelKey: string;      // e.g. 'name'
+    labelFn?: (item: any) => string;  // Custom label builder
+  };
+  required?: boolean;
+  disabled?: boolean;
+  disabledOnEdit?: boolean;
+  placeholder?: string;
+}
+
 interface CrudConfig {
   title: string;
   apiModule: any;
   columns: any[];
-  formFields: { key: string; label: string; type?: string; options?: any[]; required?: boolean }[];
+  formFields: FormField[];
   defaultForm: Record<string, any>;
+  readOnly?: boolean;      // No create/edit/delete at all
 }
 
+// ─── Factory ───
 export function createCrudPage(config: CrudConfig) {
   return function CrudPage() {
     const [data, setData] = useState<any[]>([]);
@@ -24,6 +43,10 @@ export function createCrudPage(config: CrudConfig) {
     const [editing, setEditing] = useState<any>(null);
     const [form, setForm] = useState<Record<string, any>>(config.defaultForm);
 
+    // Dynamic dropdown options loaded from API
+    const [dynamicOptions, setDynamicOptions] = useState<Record<string, { value: string; label: string }[]>>({});
+
+    // ─── Fetch table data ───
     const fetchData = useCallback(async () => {
       setLoading(true);
       try {
@@ -54,7 +77,36 @@ export function createCrudPage(config: CrudConfig) {
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
-    const openCreate = () => { setEditing(null); setForm({ ...config.defaultForm }); setModalOpen(true); };
+    // ─── Load dynamic dropdown options ───
+    useEffect(() => {
+      const fieldsWithApi = config.formFields.filter((f) => f.apiOptions);
+      if (fieldsWithApi.length === 0) return;
+
+      fieldsWithApi.forEach(async (field) => {
+        try {
+          const res = await field.apiOptions!.apiFn();
+          const items = res.data?.data || res.data || [];
+          const opts = (Array.isArray(items) ? items : []).map((item: any) => ({
+            value: String(item[field.apiOptions!.valueKey]),
+            label: field.apiOptions!.labelFn
+              ? field.apiOptions!.labelFn(item)
+              : String(item[field.apiOptions!.labelKey] || ''),
+          }));
+          setDynamicOptions((prev) => ({ ...prev, [field.key]: opts }));
+        } catch (e) {
+          console.error(`Failed to load options for ${field.key}:`, e);
+          setDynamicOptions((prev) => ({ ...prev, [field.key]: [] }));
+        }
+      });
+    }, []);
+
+    // ─── Modal handlers ───
+    const openCreate = () => {
+      setEditing(null);
+      setForm({ ...config.defaultForm });
+      setModalOpen(true);
+    };
+
     const openEdit = (item: any) => {
       setEditing(item);
       const f: Record<string, any> = {};
@@ -98,18 +150,72 @@ export function createCrudPage(config: CrudConfig) {
       }
     };
 
-    const hasDeleteAction = !!config.apiModule.delete;
-    const hasFormFields = config.formFields.length > 0;
+    // ─── Computed flags ───
+    const hasDeleteAction = !!config.apiModule.delete && !config.readOnly;
+    const hasFormFields = config.formFields.length > 0 && !config.readOnly;
 
     const allColumns = [
       ...config.columns,
-      ...(hasFormFields || hasDeleteAction ? [{ key: 'actions', label: 'İşlem', render: (r: any) => (
-        <div style={{ display: 'flex', gap: 4 }}>
-          {hasFormFields && <button className="btn-icon" onClick={() => openEdit(r)}><FiEdit2 size={14} /></button>}
-          {hasDeleteAction && <button className="btn-icon" onClick={() => handleDelete(r.id)} style={{ color: 'var(--danger)' }}><FiTrash2 size={14} /></button>}
-        </div>
-      )}] : []),
+      ...(hasFormFields || hasDeleteAction ? [{
+        key: 'actions', label: 'İşlem', render: (r: any) => (
+          <div style={{ display: 'flex', gap: 4 }}>
+            {hasFormFields && <button className="btn-icon" onClick={() => openEdit(r)} title="Düzenle"><FiEdit2 size={14} /></button>}
+            {hasDeleteAction && <button className="btn-icon" onClick={() => handleDelete(r.id)} style={{ color: 'var(--danger)' }} title="Sil"><FiTrash2 size={14} /></button>}
+          </div>
+        ),
+      }] : []),
     ];
+
+    // ─── Render a single form field ───
+    const renderField = (field: FormField) => {
+      const isDisabled = field.disabled || (field.disabledOnEdit && !!editing);
+
+      // Merge static options with dynamic API options
+      const allOptions = field.options || dynamicOptions[field.key] || null;
+
+      if (field.type === 'textarea') {
+        return (
+          <textarea
+            className="form-input"
+            value={form[field.key] || ''}
+            onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
+            required={field.required}
+            disabled={isDisabled}
+            placeholder={field.placeholder}
+            rows={3}
+          />
+        );
+      }
+
+      if (allOptions || field.apiOptions) {
+        const opts = allOptions || [];
+        return (
+          <select
+            className="form-input"
+            value={form[field.key] || ''}
+            onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
+            disabled={isDisabled}
+          >
+            <option value="">{field.placeholder || 'Seçiniz'}</option>
+            {opts.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        );
+      }
+
+      return (
+        <input
+          className="form-input"
+          type={field.type || 'text'}
+          value={form[field.key] || ''}
+          onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
+          required={field.required}
+          disabled={isDisabled}
+          placeholder={field.placeholder}
+        />
+      );
+    };
 
     return (
       <div>
@@ -129,17 +235,8 @@ export function createCrudPage(config: CrudConfig) {
           >
             {config.formFields.map((field) => (
               <div className="form-group" key={field.key}>
-                <label>{field.label}</label>
-                {field.options ? (
-                  <select className="form-input" value={form[field.key] || ''} onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}>
-                    <option value="">Seçiniz</option>
-                    {field.options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </select>
-                ) : (
-                  <input className="form-input" type={field.type || 'text'} value={form[field.key] || ''}
-                    onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
-                    required={field.required} />
-                )}
+                <label>{field.label}{field.required && <span style={{ color: 'var(--danger)', marginLeft: 4 }}>*</span>}</label>
+                {renderField(field)}
               </div>
             ))}
           </Modal>
