@@ -132,15 +132,22 @@ export const transactionsAPI = {
 };
 
 // ─── PRODUCTION ───
+export const bomsAPI = {
+  getAll: (params?: Record<string, any>) => api.get('/production/boms', { params }),
+  getOne: (id: number) => api.get(`/production/boms/${id}`),
+  create: (data: any) => api.post('/production/boms', data),
+  update: (id: number, data: any) => api.put(`/production/boms/${id}`, data),
+  delete: (id: number) => api.delete(`/production/boms/${id}`),
+};
+
+export const productionOrdersAPI = {
+  getAll: (params?: Record<string, any>) => api.get('/production/orders', { params }),
+  getOne: (id: number) => api.get(`/production/orders/${id}`),
+  create: (data: any) => api.post('/production/orders', data),
+  update: (id: number, data: any) => api.put(`/production/orders/${id}`, data),
+  delete: (id: number) => api.delete(`/production/orders/${id}`),
+};
+
 export const productionAPI = {
-  getBoms: (params?: Record<string, any>) => api.get('/production/boms', { params }),
-  getOneBom: (id: number) => api.get(`/production/boms/${id}`),
-  createBom: (data: any) => api.post('/production/boms', data),
-  updateBom: (id: number, data: any) => api.put(`/production/boms/${id}`, data),
-  deleteBom: (id: number) => api.delete(`/production/boms/${id}`),
-  getOrders: (params?: Record<string, any>) => api.get('/production/orders', { params }),
-  getOneOrder: (id: number) => api.get(`/production/orders/${id}`),
-  createOrder: (data: any) => api.post('/production/orders', data),
-  updateOrder: (id: number, data: any) => api.put(`/production/orders/${id}`, data),
-  deleteOrder: (id: number) => api.delete(`/production/orders/${id}`),
+  getBoms: bomsAPI.getAll, // For backward compatibility where used
 };

@@ -31,7 +31,8 @@ const navItems = [
     { to: '/transactions', icon: <FiRepeat />, label: 'İşlemler' },
   ]},
   { section: 'Üretim', items: [
-    { to: '/production', icon: <FiTool />, label: 'Üretim' },
+    { to: '/boms', icon: <FiBox />, label: 'Ürün Reçeteleri' },
+    { to: '/production', icon: <FiTool />, label: 'Üretim Emirleri' },
   ]},
 ];
 

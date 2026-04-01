@@ -1,5 +1,17 @@
 import { createCrudPage } from './CrudPageFactory';
-import { departmentsAPI, partiesAPI, rolesAPI, currenciesAPI, accountsAPI, itemsAPI, salesAPI, transactionsAPI, stocksAPI, productionAPI } from '../services/api';
+import {
+  departmentsAPI,
+  partiesAPI,
+  rolesAPI,
+  currenciesAPI,
+  accountsAPI,
+  itemsAPI,
+  salesAPI,
+  transactionsAPI,
+  stocksAPI,
+  bomsAPI,
+  productionOrdersAPI,
+} from '../services/api';
 
 // ─── DEPARTMENTS ───
 export const DepartmentsPage = createCrudPage({
@@ -175,6 +187,13 @@ export const SalesPage = createCrudPage({
     { key: 'deliveryDate', label: 'Teslim Tarihi', type: 'date' },
     { key: 'deposit', label: 'Peşinat', type: 'number' },
     { key: 'notes', label: 'Notlar', type: 'textarea' },
+    { key: 'items', label: 'Sipariş Kalemleri', type: 'subtable', subFields: [
+      { key: 'itemId', label: 'Ürün', apiOptions: { apiFn: itemsAPI.getAll, valueKey: 'id', labelKey: 'name' }, required: true, gridCols: 3 },
+      { key: 'quantity', label: 'Miktar', type: 'number', required: true, gridCols: 1 },
+      { key: 'price', label: 'Birim Fiyat', type: 'number', required: true, gridCols: 1 },
+      { key: 'discountAmount', label: 'İndirim Tutar', type: 'number', gridCols: 1 },
+      { key: 'kdvRate', label: 'KDV (%)', type: 'number', gridCols: 1 },
+    ]},
   ],
   defaultForm: { partyId: '', saleTypeId: '', currencyId: '', deliveryDate: '', deposit: '', notes: '', items: [] },
 });
@@ -204,24 +223,46 @@ export const TransactionsPage = createCrudPage({
   defaultForm: { partyId: '', commercialAccountId: '', type: 'in', amount: '', currencyId: '', date: new Date().toISOString().split('T')[0], description: '' },
 });
 
-// ─── PRODUCTION ───
+// ─── PRODUCTION BOMS ───
+export const BomsPage = createCrudPage({
+  title: 'Ürün Reçeteleri (BOM)',
+  apiModule: bomsAPI,
+  columns: [
+    { key: 'id', label: 'ID' },
+    { key: 'name', label: 'Reçete Adı' },
+    { key: 'description', label: 'Açıklama' },
+  ],
+  formFields: [
+    { key: 'name', label: 'Reçete Adı', required: true },
+    { key: 'description', label: 'Açıklama', type: 'textarea' },
+    { key: 'items', label: 'Reçete (BOM) Kalemleri', type: 'subtable', subFields: [
+      { key: 'itemId', label: 'Malzeme / Ürün', apiOptions: { apiFn: itemsAPI.getAll, valueKey: 'id', labelKey: 'name' }, required: true },
+      { key: 'quantity', label: 'Miktar', type: 'number', required: true },
+      { key: 'description', label: 'Açıklama' },
+    ]},
+  ],
+  defaultForm: { name: '', description: '', items: [] },
+});
+
+// ─── PRODUCTION ORDERS ───
 export const ProductionPage = createCrudPage({
   title: 'Üretim Emirleri',
-  apiModule: { ...productionAPI, getAll: productionAPI.getOrders, create: productionAPI.createOrder, update: productionAPI.updateOrder, delete: productionAPI.deleteOrder },
+  apiModule: productionOrdersAPI,
   columns: [
     { key: 'id', label: 'ID' },
     { key: 'code', label: 'Emir No', render: (r: any) => <strong style={{ color: 'var(--text-primary)' }}>{r.code}</strong> },
-    { key: 'bom', label: 'BOM', render: (r: any) => r.bom?.name || '—' },
-    { key: 'plannedQuantity', label: 'Planlanan', render: (r: any) => Number(r.plannedQuantity || 0).toLocaleString('tr-TR') },
-    { key: 'producedQuantity', label: 'Üretilen', render: (r: any) => Number(r.producedQuantity || 0).toLocaleString('tr-TR') },
+    { key: 'bom', label: 'Ürün Reçetesi', render: (r: any) => r.bom?.name || '—' },
+    { key: 'plannedQuantity', label: 'Planlanan' },
+    { key: 'producedQuantity', label: 'Üretilen' },
+    { key: 'wastageQuantity', label: 'Fire' },
     { key: 'status', label: 'Durum', render: (r: any) => {
-      const map: Record<string, string> = { draft: 'badge-default', planned: 'badge-info', in_progress: 'badge-warning', completed: 'badge-success', cancelled: 'badge-danger' };
+      const map: Record<string, string> = { 'draft': 'badge-warning', 'planned': 'badge-info', 'in_progress': 'badge-primary', 'completed': 'badge-success', 'cancelled': 'badge-danger' };
       const labels: Record<string, string> = { draft: 'Taslak', planned: 'Planlandı', in_progress: 'Üretimde', completed: 'Tamamlandı', cancelled: 'İptal' };
       return <span className={`badge ${map[r.status] || 'badge-default'}`}>{labels[r.status] || r.status}</span>;
     }},
   ],
   formFields: [
-    { key: 'bomId', label: 'Ürün Reçetesi (BOM) Şablonu', apiOptions: { apiFn: productionAPI.getBoms, valueKey: 'id', labelKey: 'name' }, required: true },
+    { key: 'bomId', label: 'Ürün Reçetesi (BOM) Şablonu', apiOptions: { apiFn: bomsAPI.getAll, valueKey: 'id', labelKey: 'name' }, required: true },
     { key: 'plannedQuantity', label: 'Planlanan Üretim Miktarı', type: 'number', required: true },
     { key: 'startDate', label: 'Başlangıç Tarihi', type: 'date' },
     { key: 'endDate', label: 'Bitiş Tarihi', type: 'date' },

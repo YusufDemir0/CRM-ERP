@@ -8,7 +8,8 @@ import toast from 'react-hot-toast';
 interface FormField {
   key: string;
   label: string;
-  type?: string;           // 'text' | 'number' | 'date' | 'textarea' | 'select'
+  type?: string;           // 'text' | 'number' | 'date' | 'textarea' | 'select' | 'subtable'
+  subFields?: FormField[]; // used when type === 'subtable'
   options?: { value: string; label: string }[];  // Static options
   apiOptions?: {           // Dynamic options loaded from API
     apiFn: () => Promise<any>;
@@ -20,6 +21,7 @@ interface FormField {
   disabled?: boolean;
   disabledOnEdit?: boolean;
   placeholder?: string;
+  gridCols?: number;       // For UI styling
 }
 
 interface CrudConfig {
@@ -79,7 +81,16 @@ export function createCrudPage(config: CrudConfig) {
 
     // ─── Load dynamic dropdown options ───
     useEffect(() => {
-      const fieldsWithApi = config.formFields.filter((f) => f.apiOptions);
+      const fieldsWithApi: FormField[] = [];
+      config.formFields.forEach(f => {
+        if (f.apiOptions) fieldsWithApi.push(f);
+        if (f.subFields) {
+          f.subFields.forEach(sf => {
+            if (sf.apiOptions) fieldsWithApi.push(sf);
+          });
+        }
+      });
+
       if (fieldsWithApi.length === 0) return;
 
       fieldsWithApi.forEach(async (field) => {
@@ -111,7 +122,14 @@ export function createCrudPage(config: CrudConfig) {
       setEditing(item);
       const f: Record<string, any> = {};
       for (const field of config.formFields) {
-        f[field.key] = item[field.key]?.toString() ?? '';
+        if (field.type === 'subtable') {
+          // Clone the array deeply
+          f[field.key] = Array.isArray(item[field.key]) 
+            ? item[field.key].map((subItem: any) => ({ ...subItem }))
+            : [];
+        } else {
+          f[field.key] = item[field.key]?.toString() ?? '';
+        }
       }
       setForm(f);
       setModalOpen(true);
@@ -121,10 +139,22 @@ export function createCrudPage(config: CrudConfig) {
       try {
         const payload: Record<string, any> = {};
         for (const field of config.formFields) {
-          if (form[field.key] !== '' && form[field.key] !== undefined) {
+          if (field.type === 'subtable') {
+            const list = form[field.key] || [];
+            payload[field.key] = list.map((item: any) => {
+              const row: any = {};
+              field.subFields?.forEach(sf => {
+                if (item[sf.key] !== '' && item[sf.key] !== undefined) {
+                  row[sf.key] = sf.type === 'number' ? Number(item[sf.key]) : item[sf.key];
+                }
+              });
+              return row;
+            });
+          } else if (form[field.key] !== '' && form[field.key] !== undefined) {
             payload[field.key] = field.type === 'number' ? Number(form[field.key]) : form[field.key];
           }
         }
+
         if (editing) {
           await config.apiModule.update(editing.id, payload);
           toast.success('Güncellendi');
@@ -170,7 +200,91 @@ export function createCrudPage(config: CrudConfig) {
     const renderField = (field: FormField) => {
       const isDisabled = field.disabled || (field.disabledOnEdit && !!editing);
 
-      // Merge static options with dynamic API options
+      // --- SUBTABLE RENDER ---
+      if (field.type === 'subtable') {
+        const list = form[field.key] || [];
+        return (
+          <div className="subtable-container" style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '12px', marginTop: 8, background: 'var(--surface)' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 600 }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    {field.subFields?.map(sf => (
+                      <th key={sf.key} style={{ textAlign: 'left', padding: '0 8px 8px 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        {sf.label} {sf.required && <span style={{ color: 'var(--danger)' }}>*</span>}
+                      </th>
+                    ))}
+                    <th style={{ width: 40 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {list.map((rowItem: any, rowIndex: number) => (
+                    <tr key={rowIndex} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                      {field.subFields?.map(sf => {
+                        const allOptions = sf.options || dynamicOptions[sf.key] || null;
+                        return (
+                          <td key={sf.key} style={{ padding: '8px 8px 8px 0' }}>
+                            {allOptions || sf.apiOptions ? (
+                              <select
+                                className="form-input"
+                                value={rowItem[sf.key] || ''}
+                                onChange={(e) => {
+                                  const newList = [...list];
+                                  newList[rowIndex] = { ...newList[rowIndex], [sf.key]: e.target.value };
+                                  setForm({ ...form, [field.key]: newList });
+                                }}
+                                required={sf.required}
+                              >
+                                <option value="">{sf.placeholder || 'Seçiniz'}</option>
+                                {(allOptions || []).map((opt) => (
+                                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                className="form-input"
+                                type={sf.type || 'text'}
+                                value={rowItem[sf.key] || ''}
+                                onChange={(e) => {
+                                  const newList = [...list];
+                                  newList[rowIndex] = { ...newList[rowIndex], [sf.key]: e.target.value };
+                                  setForm({ ...form, [field.key]: newList });
+                                }}
+                                required={sf.required}
+                                placeholder={sf.placeholder}
+                              />
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td style={{ textAlign: 'right', padding: '8px 0' }}>
+                        <button type="button" className="btn-icon" onClick={() => {
+                          const newList = list.filter((_: any, i: number) => i !== rowIndex);
+                          setForm({ ...form, [field.key]: newList });
+                        }}><FiTrash2 color="var(--danger)" /></button>
+                      </td>
+                    </tr>
+                  ))}
+                  {list.length === 0 && (
+                    <tr>
+                      <td colSpan={(field.subFields?.length || 0) + 1} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)' }}>
+                        Kayıt Yok
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop: 12 }} onClick={() => {
+              setForm({ ...form, [field.key]: [...list, {}] });
+            }}>
+              <FiPlus /> Satır Ekle
+            </button>
+          </div>
+        );
+      }
+
+      // --- STANDARD RENDER ---
       const allOptions = field.options || dynamicOptions[field.key] || null;
 
       if (field.type === 'textarea') {
@@ -228,14 +342,21 @@ export function createCrudPage(config: CrudConfig) {
         />
         {hasFormFields && (
           <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Düzenle' : 'Yeni Kayıt'}
+            // Add custom width for forms that have subtables
+            width={config.formFields.some(f => f.type === 'subtable') ? '900px' : undefined}
             footer={<>
               <button className="btn btn-secondary" onClick={() => setModalOpen(false)}>İptal</button>
               <button className="btn btn-primary" onClick={handleSave}>Kaydet</button>
             </>}
           >
             {config.formFields.map((field) => (
-              <div className="form-group" key={field.key}>
-                <label>{field.label}{field.required && <span style={{ color: 'var(--danger)', marginLeft: 4 }}>*</span>}</label>
+              <div className="form-group" key={field.key} style={{ gridColumn: field.type === 'subtable' ? '1 / -1' : undefined }}>
+                <label style={{ display: field.type === 'subtable' ? 'none' : 'block' }}>
+                  {field.label}{field.required && <span style={{ color: 'var(--danger)', marginLeft: 4 }}>*</span>}
+                </label>
+                {field.type === 'subtable' && (
+                  <h3 style={{ margin: '16px 0 8px 0', fontSize: '1.1rem' }}>{field.label}</h3>
+                )}
                 {renderField(field)}
               </div>
             ))}

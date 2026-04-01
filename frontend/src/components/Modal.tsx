@@ -7,19 +7,22 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   footer?: ReactNode;
+  width?: string;
 }
 
-export default function Modal({ isOpen, onClose, title, children, footer }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, children, footer, width }: ModalProps) {
   if (!isOpen) return null;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: width || '500px', width: '100%' }}>
         <div className="modal-header">
           <h3>{title}</h3>
           <button className="btn-icon" onClick={onClose}><FiX /></button>
         </div>
-        <div className="modal-body">{children}</div>
+        <div className="modal-body" style={{ display: 'grid', gap: '16px', gridTemplateColumns: '1fr' }}>
+          {children}
+        </div>
         {footer && <div className="modal-footer">{footer}</div>}
       </div>
     </div>

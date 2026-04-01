@@ -8,7 +8,7 @@ import UsersPage from './pages/UsersPage';
 import {
   DepartmentsPage, PartiesPage, RolesPage,
   CurrenciesPage, AccountsPage, ItemsPage,
-  StocksPage, SalesPage, TransactionsPage, ProductionPage,
+  StocksPage, SalesPage, TransactionsPage, ProductionPage, BomsPage
 } from './pages/ModulePages';
 
 export default function App() {
@@ -29,6 +29,7 @@ export default function App() {
             <Route path="currencies" element={<CurrenciesPage />} />
             <Route path="accounts" element={<AccountsPage />} />
             <Route path="transactions" element={<TransactionsPage />} />
+            <Route path="boms" element={<BomsPage />} />
             <Route path="production" element={<ProductionPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
