@@ -48,6 +48,14 @@ export default function Sidebar() {
     ? user.fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : 'U';
 
+  const isAdmin = user?.roles?.some(r => ['admin', 'superadmin'].includes(r.toLowerCase()));
+
+  // Filter sections
+  const visibleNavItems = navItems.filter(section => {
+    if (section.section === 'Yönetim' && !isAdmin) return false;
+    return true;
+  });
+
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
@@ -56,7 +64,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        {navItems.map((section) => (
+        {visibleNavItems.map((section) => (
           <div className="nav-section" key={section.section}>
             <div className="nav-section-title">{section.section}</div>
             {section.items.map((item) => (
