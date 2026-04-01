@@ -111,7 +111,7 @@ export const salesAPI = {
 
 // ─── FINANCE ───
 export const currenciesAPI = {
-  getAll: () => api.get('/currencies'),
+  getAll: (params?: any) => api.get('/currencies', { params }),
   getDefault: () => api.get('/currencies/default'),
   create: (data: any) => api.post('/currencies', data),
   update: (id: number, data: any) => api.put(`/currencies/${id}`, data),
