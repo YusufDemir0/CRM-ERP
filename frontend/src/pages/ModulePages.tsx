@@ -98,9 +98,10 @@ export const AccountsPage = createCrudPage({
     { key: 'bankName', label: 'Banka Adı' },
     { key: 'iban', label: 'IBAN' },
     { key: 'ibanName', label: 'IBAN Sahibi' },
-    { key: 'description', label: 'Açıklama' },
+    { key: 'currencyId', label: 'Para Birimi', apiOptions: { apiFn: currenciesAPI.getAll, valueKey: 'id', labelKey: 'code' }, required: true },
+    { key: 'description', label: 'Açıklama', type: 'textarea' },
   ],
-  defaultForm: { name: '', bankName: '', iban: '', ibanName: '', description: '' },
+  defaultForm: { name: '', bankName: '', iban: '', ibanName: '', currencyId: '', description: '' },
 });
 
 // ─── ITEMS ───
@@ -119,18 +120,23 @@ export const ItemsPage = createCrudPage({
   ],
   formFields: [
     { key: 'name', label: 'Ürün Adı', required: true },
+    { key: 'itemTypeId', label: 'Ürün Türü', apiOptions: { apiFn: itemsAPI.getTypes, valueKey: 'id', labelKey: 'name' }, required: true },
+    { key: 'quantityTypeId', label: 'Birim', apiOptions: { apiFn: itemsAPI.getQuantityTypes, valueKey: 'id', labelKey: 'name' }, required: true },
+    { key: 'providerId', label: 'Tedarikçi', apiOptions: { apiFn: () => partiesAPI.getAll({ type: 'provider' }), valueKey: 'id', labelKey: 'name' } },
+    { key: 'currencyId', label: 'Para Birimi', apiOptions: { apiFn: currenciesAPI.getAll, valueKey: 'id', labelKey: 'code' } },
     { key: 'purchasePrice', label: 'Alış Fiyatı', type: 'number' },
     { key: 'salePrice', label: 'Satış Fiyatı', type: 'number' },
     { key: 'kdv', label: 'KDV (%)', type: 'number' },
-    { key: 'description', label: 'Açıklama' },
+    { key: 'description', label: 'Açıklama', type: 'textarea' },
   ],
-  defaultForm: { name: '', purchasePrice: '', salePrice: '', kdv: '20', description: '' },
+  defaultForm: { name: '', itemTypeId: '', quantityTypeId: '', providerId: '', currencyId: '', purchasePrice: '', salePrice: '', kdv: '20', description: '' },
 });
 
 // ─── STOCKS ───
 export const StocksPage = createCrudPage({
   title: 'Stok Durumu',
   apiModule: stocksAPI,
+  readOnly: true,
   columns: [
     { key: 'id', label: 'ID' },
     { key: 'item', label: 'Ürün', render: (r: any) => <strong style={{ color: 'var(--text-primary)' }}>{r.item?.name || '—'}</strong> },
@@ -162,8 +168,15 @@ export const SalesPage = createCrudPage({
     }},
     { key: 'createdAt', label: 'Tarih', render: (r: any) => new Date(r.createdAt).toLocaleDateString('tr-TR') },
   ],
-  formFields: [],
-  defaultForm: {},
+  formFields: [
+    { key: 'partyId', label: 'Cari Hesap (Müşteri)', apiOptions: { apiFn: () => partiesAPI.getAll({ type: 'customer' }), valueKey: 'id', labelKey: 'name' }, required: true },
+    { key: 'saleTypeId', label: 'Satış Tipi', apiOptions: { apiFn: salesAPI.getTypes, valueKey: 'id', labelKey: 'name' }, required: true },
+    { key: 'currencyId', label: 'Para Birimi', apiOptions: { apiFn: currenciesAPI.getAll, valueKey: 'id', labelKey: 'code' } },
+    { key: 'deliveryDate', label: 'Teslim Tarihi', type: 'date' },
+    { key: 'deposit', label: 'Peşinat', type: 'number' },
+    { key: 'notes', label: 'Notlar', type: 'textarea' },
+  ],
+  defaultForm: { partyId: '', saleTypeId: '', currencyId: '', deliveryDate: '', deposit: '', notes: '', items: [] },
 });
 
 // ─── TRANSACTIONS ───
@@ -179,8 +192,16 @@ export const TransactionsPage = createCrudPage({
     { key: 'date', label: 'Tarih', render: (r: any) => new Date(r.date).toLocaleDateString('tr-TR') },
     { key: 'status', label: 'Durum', render: (r: any) => <span className="badge badge-success">{r.status}</span> },
   ],
-  formFields: [],
-  defaultForm: {},
+  formFields: [
+    { key: 'partyId', label: 'Cari Hesap', apiOptions: { apiFn: partiesAPI.getAll, valueKey: 'id', labelKey: 'name' }, required: true },
+    { key: 'commercialAccountId', label: 'Banka Hesabı', apiOptions: { apiFn: accountsAPI.getAll, valueKey: 'id', labelKey: 'name' }, required: true },
+    { key: 'type', label: 'İşlem Tipi', options: [{ value: 'in', label: 'Tahsilat (Giriş)' }, { value: 'out', label: 'Ödeme (Çıkış)' }], required: true },
+    { key: 'amount', label: 'Tutar', type: 'number', required: true },
+    { key: 'currencyId', label: 'Para Birimi', apiOptions: { apiFn: currenciesAPI.getAll, valueKey: 'id', labelKey: 'code' } },
+    { key: 'date', label: 'İşlem Tarihi', type: 'date', required: true },
+    { key: 'description', label: 'Açıklama', type: 'textarea' },
+  ],
+  defaultForm: { partyId: '', commercialAccountId: '', type: 'in', amount: '', currencyId: '', date: new Date().toISOString().split('T')[0], description: '' },
 });
 
 // ─── PRODUCTION ───
@@ -199,6 +220,12 @@ export const ProductionPage = createCrudPage({
       return <span className={`badge ${map[r.status] || 'badge-default'}`}>{labels[r.status] || r.status}</span>;
     }},
   ],
-  formFields: [],
-  defaultForm: {},
+  formFields: [
+    { key: 'bomId', label: 'Ürün Reçetesi (BOM) Şablonu', apiOptions: { apiFn: productionAPI.getBoms, valueKey: 'id', labelKey: 'name' }, required: true },
+    { key: 'plannedQuantity', label: 'Planlanan Üretim Miktarı', type: 'number', required: true },
+    { key: 'startDate', label: 'Başlangıç Tarihi', type: 'date' },
+    { key: 'endDate', label: 'Bitiş Tarihi', type: 'date' },
+    { key: 'notes', label: 'Notlar', type: 'textarea' },
+  ],
+  defaultForm: { bomId: '', plannedQuantity: '', startDate: '', endDate: '', notes: '' },
 });
