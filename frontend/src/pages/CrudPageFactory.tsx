@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, ReactNode } from 'react';
+import { useState, useEffect, useCallback, ReactNode, useDeferredValue } from 'react';
 import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
 import { FiPlus, FiEdit2, FiTrash2 } from 'react-icons/fi';
@@ -40,6 +40,7 @@ export function createCrudPage(config: CrudConfig) {
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
+    const deferredSearch = useDeferredValue(search);
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<any>(null);
@@ -52,7 +53,7 @@ export function createCrudPage(config: CrudConfig) {
     const fetchData = useCallback(async () => {
       setLoading(true);
       try {
-        const res = await config.apiModule.getAll({ page, search, limit: 20 });
+        const res = await config.apiModule.getAll({ page, search: deferredSearch, limit: 20 });
         const responseData = res.data;
         // Handle both paginated {data: [], meta: {}} and plain array responses
         if (responseData?.data && Array.isArray(responseData.data)) {
@@ -75,7 +76,7 @@ export function createCrudPage(config: CrudConfig) {
       } finally {
         setLoading(false);
       }
-    }, [page, search]);
+    }, [page, deferredSearch]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -135,6 +136,8 @@ export function createCrudPage(config: CrudConfig) {
       setModalOpen(true);
     };
 
+    const [confirmAction, setConfirmAction] = useState<{ id: number, type: 'delete' } | null>(null);
+
     const handleSave = async () => {
       try {
         const payload: Record<string, any> = {};
@@ -169,14 +172,20 @@ export function createCrudPage(config: CrudConfig) {
       }
     };
 
-    const handleDelete = async (id: number) => {
-      if (!confirm('Silmek istediğinize emin misiniz?')) return;
+    const handleDelete = (id: number) => {
+      setConfirmAction({ id, type: 'delete' });
+    };
+
+    const confirmDelete = async () => {
+      if (!confirmAction) return;
       try {
-        await config.apiModule.delete(id);
-        toast.success('Silindi');
+        await config.apiModule.delete(confirmAction.id);
+        toast.success('Kayit silindi');
         fetchData();
       } catch (e: any) {
         toast.error(e.response?.data?.message || 'Silme başarısız');
+      } finally {
+        setConfirmAction(null);
       }
     };
 
@@ -345,23 +354,41 @@ export function createCrudPage(config: CrudConfig) {
             // Add custom width for forms that have subtables
             width={config.formFields.some(f => f.type === 'subtable') ? '900px' : undefined}
             footer={<>
-              <button className="btn btn-secondary" onClick={() => setModalOpen(false)}>İptal</button>
-              <button className="btn btn-primary" onClick={handleSave}>Kaydet</button>
+              <button type="button" className="btn btn-secondary" onClick={() => setModalOpen(false)}>İptal</button>
+              <button type="submit" form="crud-form" className="btn btn-primary">Kaydet</button>
             </>}
           >
-            {config.formFields.map((field) => (
-              <div className="form-group" key={field.key} style={{ gridColumn: field.type === 'subtable' ? '1 / -1' : undefined }}>
-                <label style={{ display: field.type === 'subtable' ? 'none' : 'block' }}>
-                  {field.label}{field.required && <span style={{ color: 'var(--danger)', marginLeft: 4 }}>*</span>}
-                </label>
-                {field.type === 'subtable' && (
-                  <h3 style={{ margin: '16px 0 8px 0', fontSize: '1.1rem' }}>{field.label}</h3>
-                )}
-                {renderField(field)}
-              </div>
-            ))}
+            <form id="crud-form" onSubmit={(e) => { e.preventDefault(); handleSave(); }} style={{ display: 'grid', gap: '16px' }}>
+              {config.formFields.map((field) => (
+                <div className="form-group" key={field.key} style={{ gridColumn: field.type === 'subtable' ? '1 / -1' : undefined }}>
+                  <label style={{ display: field.type === 'subtable' ? 'none' : 'block' }}>
+                    {field.label}{field.required && <span style={{ color: 'var(--danger)', marginLeft: 4 }}>*</span>}
+                  </label>
+                  {field.type === 'subtable' && (
+                    <h3 style={{ margin: '16px 0 8px 0', fontSize: '1.1rem' }}>{field.label}</h3>
+                  )}
+                  {renderField(field)}
+                </div>
+              ))}
+            </form>
           </Modal>
         )}
+
+        <Modal
+          isOpen={!!confirmAction}
+          onClose={() => setConfirmAction(null)}
+          title="Emin misiniz?"
+          footer={<>
+            <button className="btn btn-secondary" onClick={() => setConfirmAction(null)}>İptal</button>
+            <button className="btn btn-primary" style={{ backgroundColor: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={confirmDelete}>
+              Evet, Sil
+            </button>
+          </>}
+        >
+          <p>
+            Bu kaydı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+          </p>
+        </Modal>
       </div>
     );
   };
