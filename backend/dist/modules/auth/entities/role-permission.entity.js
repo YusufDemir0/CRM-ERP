@@ -25,18 +25,6 @@ __decorate([
     __metadata("design:type", Number)
 ], RolePermission.prototype, "permissionId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'tinyint', default: 1 }),
-    __metadata("design:type", Number)
-], RolePermission.prototype, "state", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ name: 'created_by', type: 'bigint', nullable: true }),
-    __metadata("design:type", Object)
-], RolePermission.prototype, "createdBy", void 0);
-__decorate([
-    (0, typeorm_1.CreateDateColumn)({ name: 'created_at', type: 'timestamp' }),
-    __metadata("design:type", Date)
-], RolePermission.prototype, "createdAt", void 0);
-__decorate([
     (0, typeorm_1.ManyToOne)(() => role_entity_1.Role),
     (0, typeorm_1.JoinColumn)({ name: 'role_id' }),
     __metadata("design:type", role_entity_1.Role)
