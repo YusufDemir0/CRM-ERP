@@ -38,7 +38,7 @@ __decorate([
     (0, permissions_decorator_1.RequirePermissions)('musteri_goruntuleme'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [party_dto_1.PartiesQueryDto]),
     __metadata("design:returntype", void 0)
 ], PartiesController.prototype, "findAll", null);
 __decorate([

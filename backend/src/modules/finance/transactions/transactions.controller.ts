@@ -1,8 +1,7 @@
 import { Controller, Get, Post, Body, Param, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { TransactionsService } from './transactions.service';
-import { CreateTransactionDto } from '../dto/finance.dto';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { CreateTransactionDto, TransactionsQueryDto } from '../dto/finance.dto';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
 
@@ -13,7 +12,7 @@ export class TransactionsController {
 
   @Get()
   @RequirePermissions('finans_goruntuleme')
-  findAll(@Query() query: PaginationDto & { partyId?: number; type?: string; status?: string }) {
+  findAll(@Query() query: TransactionsQueryDto) {
     return this.txService.findAll(query);
   }
 

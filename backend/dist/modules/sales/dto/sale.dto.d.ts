@@ -34,3 +34,8 @@ export declare class CreateSaleTypeDto {
 export declare class ApproveSaleDto {
     departmentId: number;
 }
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+export declare class SalesQueryDto extends PaginationDto {
+    status?: string;
+    partyId?: number;
+}

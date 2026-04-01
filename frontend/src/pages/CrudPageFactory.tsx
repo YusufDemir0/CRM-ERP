@@ -71,7 +71,10 @@ export function createCrudPage(config: CrudConfig) {
         setData([]);
         setTotal(0);
         if (e.response?.status !== 401) {
-          toast.error(e.response?.data?.message || `${config.title} yüklenemedi`);
+          let msg = e.response?.data?.message || e.response?.data?.error || `${config.title} yüklenemedi`;
+          if (Array.isArray(msg)) msg = msg.join(', ');
+          else if (typeof msg === 'object') msg = JSON.stringify(msg);
+          toast.error(msg);
         }
       } finally {
         setLoading(false);
@@ -168,7 +171,10 @@ export function createCrudPage(config: CrudConfig) {
         setModalOpen(false);
         fetchData();
       } catch (e: any) {
-        toast.error(e.response?.data?.message || 'İşlem başarısız');
+        let msg = e.response?.data?.message || e.response?.data?.error || 'İşlem başarısız';
+        if (Array.isArray(msg)) msg = msg.join(', ');
+        else if (typeof msg === 'object') msg = JSON.stringify(msg);
+        toast.error(msg);
       }
     };
 
@@ -183,7 +189,10 @@ export function createCrudPage(config: CrudConfig) {
         toast.success('Kayit silindi');
         fetchData();
       } catch (e: any) {
-        toast.error(e.response?.data?.message || 'Silme başarısız');
+        let msg = e.response?.data?.message || e.response?.data?.error || 'Silme başarısız';
+        if (Array.isArray(msg)) msg = msg.join(', ');
+        else if (typeof msg === 'object') msg = JSON.stringify(msg);
+        toast.error(msg);
       } finally {
         setConfirmAction(null);
       }

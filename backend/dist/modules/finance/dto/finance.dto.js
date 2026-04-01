@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateTransactionDto = exports.UpdateAccountDto = exports.CreateAccountDto = exports.UpdateCurrencyDto = exports.CreateCurrencyDto = void 0;
+exports.TransactionsQueryDto = exports.CreateTransactionDto = exports.UpdateAccountDto = exports.CreateAccountDto = exports.UpdateCurrencyDto = exports.CreateCurrencyDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateCurrencyDto {
 }
@@ -185,4 +185,25 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateTransactionDto.prototype, "description", void 0);
+const pagination_dto_1 = require("../../../common/dto/pagination.dto");
+const class_transformer_1 = require("class-transformer");
+class TransactionsQueryDto extends pagination_dto_1.PaginationDto {
+}
+exports.TransactionsQueryDto = TransactionsQueryDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], TransactionsQueryDto.prototype, "partyId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TransactionsQueryDto.prototype, "type", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TransactionsQueryDto.prototype, "status", void 0);
 //# sourceMappingURL=finance.dto.js.map

@@ -1,8 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PartiesService } from './parties.service';
-import { CreatePartyDto, UpdatePartyDto } from './dto/party.dto';
-import { PaginationDto } from '../../common/dto/pagination.dto';
+import { CreatePartyDto, UpdatePartyDto, PartiesQueryDto } from './dto/party.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 
@@ -13,7 +12,7 @@ export class PartiesController {
 
   @Get()
   @RequirePermissions('musteri_goruntuleme')
-  findAll(@Query() query: PaginationDto & { type?: string }) { return this.partiesService.findAll(query); }
+  findAll(@Query() query: PartiesQueryDto) { return this.partiesService.findAll(query); }
 
   @Get(':id')
   @RequirePermissions('musteri_goruntuleme')

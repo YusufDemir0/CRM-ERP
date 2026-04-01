@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UpdatePartyDto = exports.CreatePartyDto = void 0;
+exports.PartiesQueryDto = exports.UpdatePartyDto = exports.CreatePartyDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreatePartyDto {
 }
@@ -131,4 +131,13 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], UpdatePartyDto.prototype, "state", void 0);
+const pagination_dto_1 = require("../../../common/dto/pagination.dto");
+class PartiesQueryDto extends pagination_dto_1.PaginationDto {
+}
+exports.PartiesQueryDto = PartiesQueryDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], PartiesQueryDto.prototype, "type", void 0);
 //# sourceMappingURL=party.dto.js.map

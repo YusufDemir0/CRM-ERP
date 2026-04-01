@@ -70,7 +70,7 @@ __decorate([
     (0, permissions_decorator_1.RequirePermissions)('satis_goruntuleme'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [sale_dto_1.SalesQueryDto]),
     __metadata("design:returntype", void 0)
 ], SalesController.prototype, "findAll", null);
 __decorate([

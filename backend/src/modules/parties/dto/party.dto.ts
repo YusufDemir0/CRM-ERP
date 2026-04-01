@@ -33,3 +33,8 @@ export class UpdatePartyDto {
   @IsOptional() @IsString() notes?: string;
   @IsOptional() @IsNumber() state?: number;
 }
+
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+export class PartiesQueryDto extends PaginationDto {
+  @IsOptional() @IsString() type?: string;
+}

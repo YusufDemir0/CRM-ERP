@@ -49,3 +49,10 @@ export class CreateSaleTypeDto {
 export class ApproveSaleDto {
   @IsNumber() departmentId: number;
 }
+
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+
+export class SalesQueryDto extends PaginationDto {
+  @IsOptional() @IsString() status?: string;
+  @IsOptional() @Type(() => Number) @IsNumber() partyId?: number;
+}

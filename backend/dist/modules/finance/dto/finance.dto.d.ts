@@ -41,3 +41,9 @@ export declare class CreateTransactionDto {
     date: string;
     description?: string;
 }
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+export declare class TransactionsQueryDto extends PaginationDto {
+    partyId?: number;
+    type?: string;
+    status?: string;
+}

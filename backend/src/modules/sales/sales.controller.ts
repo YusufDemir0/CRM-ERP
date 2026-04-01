@@ -1,8 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { SalesService } from './sales.service';
-import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto } from './dto/sale.dto';
-import { PaginationDto } from '../../common/dto/pagination.dto';
+import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto, SalesQueryDto } from './dto/sale.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 
@@ -24,7 +23,7 @@ export class SalesController {
   // ────── SALES ──────
   @Get()
   @RequirePermissions('satis_goruntuleme')
-  findAll(@Query() query: PaginationDto & { status?: string; partyId?: number }) {
+  findAll(@Query() query: SalesQueryDto) {
     return this.salesService.findAll(query);
   }
 

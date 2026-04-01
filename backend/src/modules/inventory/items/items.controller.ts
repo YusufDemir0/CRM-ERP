@@ -1,8 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ItemsService } from './items.service';
-import { CreateItemDto, UpdateItemDto, CreateItemTypeDto, CreateQuantityTypeDto } from '../dto/inventory.dto';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { CreateItemDto, UpdateItemDto, CreateItemTypeDto, CreateQuantityTypeDto, ItemsQueryDto } from '../dto/inventory.dto';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
 
@@ -13,7 +12,7 @@ export class ItemsController {
 
   @Get()
   @RequirePermissions('stok_goruntuleme')
-  findAll(@Query() query: PaginationDto & { itemTypeId?: number }) { return this.itemsService.findAll(query); }
+  findAll(@Query() query: ItemsQueryDto) { return this.itemsService.findAll(query); }
 
   @Get('types')
   findAllItemTypes() { return this.itemsService.findAllItemTypes(); }

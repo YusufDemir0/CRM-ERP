@@ -25,3 +25,7 @@ export declare class UpdatePartyDto {
     notes?: string;
     state?: number;
 }
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+export declare class PartiesQueryDto extends PaginationDto {
+    type?: string;
+}

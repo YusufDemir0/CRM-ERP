@@ -41,7 +41,7 @@ __decorate([
     (0, permissions_decorator_1.RequirePermissions)('stok_goruntuleme'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [inventory_dto_1.ItemsQueryDto]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "findAll", null);
 __decorate([

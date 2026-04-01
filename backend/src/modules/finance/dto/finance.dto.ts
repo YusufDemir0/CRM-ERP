@@ -47,3 +47,12 @@ export class CreateTransactionDto {
   @IsDateString() date: string;
   @IsOptional() @IsString() description?: string;
 }
+
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { Type } from 'class-transformer';
+
+export class TransactionsQueryDto extends PaginationDto {
+  @IsOptional() @Type(() => Number) @IsNumber() partyId?: number;
+  @IsOptional() @IsString() type?: string;
+  @IsOptional() @IsString() status?: string;
+}

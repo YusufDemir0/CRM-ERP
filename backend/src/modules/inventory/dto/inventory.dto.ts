@@ -50,3 +50,14 @@ export class StockAdjustmentDto {
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsString() notes?: string;
 }
+
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { Type } from 'class-transformer';
+
+export class ItemsQueryDto extends PaginationDto {
+  @IsOptional() @Type(() => Number) @IsNumber() itemTypeId?: number;
+}
+export class StocksQueryDto extends PaginationDto {
+  @IsOptional() @Type(() => Number) @IsNumber() departmentId?: number;
+  @IsOptional() @Type(() => Number) @IsNumber() itemId?: number;
+}

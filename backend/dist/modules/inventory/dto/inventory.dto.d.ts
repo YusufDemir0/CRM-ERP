@@ -44,3 +44,11 @@ export declare class StockAdjustmentDto {
     description?: string;
     notes?: string;
 }
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+export declare class ItemsQueryDto extends PaginationDto {
+    itemTypeId?: number;
+}
+export declare class StocksQueryDto extends PaginationDto {
+    departmentId?: number;
+    itemId?: number;
+}

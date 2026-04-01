@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.StockAdjustmentDto = exports.CreateQuantityTypeDto = exports.CreateItemTypeDto = exports.UpdateItemDto = exports.CreateItemDto = void 0;
+exports.StocksQueryDto = exports.ItemsQueryDto = exports.StockAdjustmentDto = exports.CreateQuantityTypeDto = exports.CreateItemTypeDto = exports.UpdateItemDto = exports.CreateItemDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateItemDto {
 }
@@ -200,4 +200,30 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], StockAdjustmentDto.prototype, "notes", void 0);
+const pagination_dto_1 = require("../../../common/dto/pagination.dto");
+const class_transformer_1 = require("class-transformer");
+class ItemsQueryDto extends pagination_dto_1.PaginationDto {
+}
+exports.ItemsQueryDto = ItemsQueryDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], ItemsQueryDto.prototype, "itemTypeId", void 0);
+class StocksQueryDto extends pagination_dto_1.PaginationDto {
+}
+exports.StocksQueryDto = StocksQueryDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], StocksQueryDto.prototype, "departmentId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], StocksQueryDto.prototype, "itemId", void 0);
 //# sourceMappingURL=inventory.dto.js.map

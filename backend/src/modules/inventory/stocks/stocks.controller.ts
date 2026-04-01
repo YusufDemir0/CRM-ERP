@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { StocksService } from './stocks.service';
-import { StockAdjustmentDto } from '../dto/inventory.dto';
+import { StockAdjustmentDto, StocksQueryDto } from '../dto/inventory.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
@@ -13,7 +13,7 @@ export class StocksController {
 
   @Get()
   @RequirePermissions('stok_goruntuleme')
-  findAll(@Query() query: PaginationDto & { departmentId?: number; itemId?: number }) {
+  findAll(@Query() query: StocksQueryDto) {
     return this.stocksService.findAll(query);
   }
 
