@@ -7,7 +7,8 @@ export declare class PartiesController {
     findOne(id: number): Promise<import("./entities/party.entity").Party>;
     getBalance(id: number): Promise<{
         balance: number;
-        creditLimit: number;
+        creditLimitPlus: number;
+        creditLimitMinus: number;
         available: number;
     }>;
     create(dto: CreatePartyDto, userId: number): Promise<import("./entities/party.entity").Party>;

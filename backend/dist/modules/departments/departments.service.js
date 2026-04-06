@@ -17,15 +17,21 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const department_entity_1 = require("./entities/department.entity");
+const department_type_entity_1 = require("./entities/department-type.entity");
 let DepartmentsService = class DepartmentsService {
-    constructor(deptRepo) {
+    constructor(deptRepo, typeRepo) {
         this.deptRepo = deptRepo;
+        this.typeRepo = typeRepo;
     }
     async findAll(query) {
         const qb = this.deptRepo.createQueryBuilder('dept')
+            .leftJoinAndSelect('dept.departmentType', 'type')
             .leftJoinAndSelect('dept.commercialAccount', 'account');
         if (query.search) {
             qb.where('(dept.name LIKE :s OR dept.abbreviation LIKE :s)', { s: `%${query.search}%` });
+        }
+        if (query.state !== undefined) {
+            qb.andWhere('dept.state = :state', { state: query.state });
         }
         qb.orderBy(`dept.${query.sortBy || 'name'}`, query.sortOrder || 'ASC');
         qb.skip(query.skip).take(query.limit);
@@ -36,7 +42,10 @@ let DepartmentsService = class DepartmentsService {
         };
     }
     async findOne(id) {
-        const dept = await this.deptRepo.findOne({ where: { id }, relations: ['commercialAccount'] });
+        const dept = await this.deptRepo.findOne({
+            where: { id },
+            relations: ['commercialAccount', 'departmentType']
+        });
         if (!dept)
             throw new common_1.NotFoundException('Departman bulunamadı');
         return dept;
@@ -55,11 +64,20 @@ let DepartmentsService = class DepartmentsService {
         await this.findOne(id);
         await this.deptRepo.softDelete(id);
     }
+    async findAllTypes() {
+        return this.typeRepo.find({ where: { state: 1 } });
+    }
+    async createType(dto, userId) {
+        const type = this.typeRepo.create({ ...dto, createdBy: userId });
+        return this.typeRepo.save(type);
+    }
 };
 exports.DepartmentsService = DepartmentsService;
 exports.DepartmentsService = DepartmentsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(department_entity_1.Department)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(1, (0, typeorm_1.InjectRepository)(department_type_entity_1.DepartmentType)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository])
 ], DepartmentsService);
 //# sourceMappingURL=departments.service.js.map

@@ -14,7 +14,8 @@ export declare class PartiesService {
     softDelete(id: number): Promise<void>;
     getBalance(id: number): Promise<{
         balance: number;
-        creditLimit: number;
+        creditLimitPlus: number;
+        creditLimitMinus: number;
         available: number;
     }>;
 }

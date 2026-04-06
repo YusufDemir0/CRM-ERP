@@ -18,6 +18,7 @@ export class CreateItemDto {
 
 export class UpdateItemDto {
   @IsOptional() @IsString() name?: string;
+  @IsOptional() @IsNumber() itemTypeId?: number;
   @IsOptional() @IsNumber() providerId?: number;
   @IsOptional() @IsNumber() criticalLimit?: number;
   @IsOptional() @IsString() image?: string;

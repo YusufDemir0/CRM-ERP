@@ -4,6 +4,7 @@ export declare class PaginationDto {
     search?: string;
     sortBy?: string;
     sortOrder?: 'ASC' | 'DESC';
+    state?: number;
     get skip(): number;
 }
 export interface PaginatedResult<T> {

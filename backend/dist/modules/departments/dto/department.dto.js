@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UpdateDepartmentDto = exports.CreateDepartmentDto = void 0;
+exports.UpdateDepartmentTypeDto = exports.CreateDepartmentTypeDto = exports.UpdateDepartmentDto = exports.CreateDepartmentDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateDepartmentDto {
 }
@@ -29,6 +29,11 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateDepartmentDto.prototype, "abbreviation", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateDepartmentDto.prototype, "departmentTypeId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
@@ -56,10 +61,46 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
+], UpdateDepartmentDto.prototype, "departmentTypeId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
 ], UpdateDepartmentDto.prototype, "commercialAccountId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], UpdateDepartmentDto.prototype, "state", void 0);
+class CreateDepartmentTypeDto {
+}
+exports.CreateDepartmentTypeDto = CreateDepartmentTypeDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateDepartmentTypeDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateDepartmentTypeDto.prototype, "abbreviation", void 0);
+class UpdateDepartmentTypeDto {
+}
+exports.UpdateDepartmentTypeDto = UpdateDepartmentTypeDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateDepartmentTypeDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateDepartmentTypeDto.prototype, "abbreviation", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], UpdateDepartmentTypeDto.prototype, "state", void 0);
 //# sourceMappingURL=department.dto.js.map

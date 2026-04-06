@@ -34,6 +34,9 @@ const navItems = [
     { to: '/boms', icon: <FiBox />, label: 'Ürün Reçeteleri' },
     { to: '/production', icon: <FiTool />, label: 'Üretim Emirleri' },
   ]},
+  { section: 'Sistem', items: [
+    { to: '/settings', icon: <FiSettings />, label: 'Ayarlar' },
+  ]},
 ];
 
 export default function Sidebar() {
@@ -51,11 +54,14 @@ export default function Sidebar() {
 
   const isAdmin = user?.roles?.some(r => ['admin', 'superadmin'].includes(r.toLowerCase()));
 
-  // Filter sections
-  const visibleNavItems = navItems.filter(section => {
-    if (section.section === 'Yönetim' && !isAdmin) return false;
-    return true;
-  });
+  // Filter items within sections
+  const filteredNavItems = navItems.map(section => ({
+    ...section,
+    items: section.items.filter(item => {
+      if (item.to === '/roles' && !isAdmin) return false;
+      return true;
+    })
+  })).filter(section => section.items.length > 0);
 
   return (
     <aside className="sidebar">
@@ -65,7 +71,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        {visibleNavItems.map((section) => (
+        {filteredNavItems.map((section) => (
           <div className="nav-section" key={section.section}>
             <div className="nav-section-title">{section.section}</div>
             {section.items.map((item) => (

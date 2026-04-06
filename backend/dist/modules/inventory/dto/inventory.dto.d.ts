@@ -15,6 +15,7 @@ export declare class CreateItemDto {
 }
 export declare class UpdateItemDto {
     name?: string;
+    itemTypeId?: number;
     providerId?: number;
     criticalLimit?: number;
     image?: string;

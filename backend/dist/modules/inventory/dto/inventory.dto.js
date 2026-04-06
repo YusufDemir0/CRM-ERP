@@ -89,6 +89,11 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
+], UpdateItemDto.prototype, "itemTypeId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
 ], UpdateItemDto.prototype, "providerId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),

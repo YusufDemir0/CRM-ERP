@@ -21,12 +21,12 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Geçersiz kullanıcı adı veya şifre');
+      throw new UnauthorizedException('INVALID_USERNAME');
     }
 
     const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isMatch) {
-      throw new UnauthorizedException('Geçersiz kullanıcı adı veya şifre');
+      throw new UnauthorizedException('INVALID_PASSWORD');
     }
 
     if (user.state !== 1) {

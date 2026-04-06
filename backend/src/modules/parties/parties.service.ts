@@ -57,12 +57,21 @@ export class PartiesService {
     await this.partyRepo.softDelete(id);
   }
 
-  async getBalance(id: number): Promise<{ balance: number; creditLimit: number; available: number }> {
+  async getBalance(id: number): Promise<{ balance: number; creditLimitPlus: number; creditLimitMinus: number; available: number }> {
     const party = await this.findOne(id);
+    const balance = Number(party.balance || 0);
+    const plus = Number(party.creditLimitPlus || 0);
+    const minus = Number(party.creditLimitMinus || 0);
+    
+    // Basit bir müsait limit hesabı: Alacak limitinden bakiyeyi çıkarıyoruz (Müşteri için)
+    // Borç tarafında ise borç limitine ne kadar yaklaşıldığını gösterir.
+    const available = plus - balance;
+
     return {
-      balance: Number(party.balance),
-      creditLimit: Number(party.creditLimit),
-      available: Number(party.creditLimit) - Number(party.balance),
+      balance,
+      creditLimitPlus: plus,
+      creditLimitMinus: minus,
+      available,
     };
   }
 }

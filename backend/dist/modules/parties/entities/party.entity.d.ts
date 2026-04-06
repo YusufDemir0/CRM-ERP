@@ -9,7 +9,8 @@ export declare class Party extends BaseEntity {
     email: string | null;
     address: string | null;
     balance: number;
-    creditLimit: number;
+    creditLimitPlus: number;
+    creditLimitMinus: number;
     paymentTerms: string | null;
     currencyId: number | null;
     notes: string | null;

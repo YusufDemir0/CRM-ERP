@@ -2,7 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Department } from './entities/department.entity';
-import { CreateDepartmentDto, UpdateDepartmentDto } from './dto/department.dto';
+import { DepartmentType } from './entities/department-type.entity';
+import { CreateDepartmentDto, UpdateDepartmentDto, CreateDepartmentTypeDto, UpdateDepartmentTypeDto } from './dto/department.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
 
 @Injectable()
@@ -10,14 +11,21 @@ export class DepartmentsService {
   constructor(
     @InjectRepository(Department)
     private deptRepo: Repository<Department>,
+    @InjectRepository(DepartmentType)
+    private typeRepo: Repository<DepartmentType>,
   ) {}
 
   async findAll(query: PaginationDto): Promise<PaginatedResult<Department>> {
     const qb = this.deptRepo.createQueryBuilder('dept')
+      .leftJoinAndSelect('dept.departmentType', 'type')
       .leftJoinAndSelect('dept.commercialAccount', 'account');
 
     if (query.search) {
       qb.where('(dept.name LIKE :s OR dept.abbreviation LIKE :s)', { s: `%${query.search}%` });
+    }
+
+    if (query.state !== undefined) {
+      qb.andWhere('dept.state = :state', { state: query.state });
     }
 
     qb.orderBy(`dept.${query.sortBy || 'name'}`, query.sortOrder || 'ASC');
@@ -31,7 +39,10 @@ export class DepartmentsService {
   }
 
   async findOne(id: number): Promise<Department> {
-    const dept = await this.deptRepo.findOne({ where: { id }, relations: ['commercialAccount'] });
+    const dept = await this.deptRepo.findOne({ 
+      where: { id }, 
+      relations: ['commercialAccount', 'departmentType'] 
+    });
     if (!dept) throw new NotFoundException('Departman bulunamadı');
     return dept;
   }
@@ -51,5 +62,15 @@ export class DepartmentsService {
   async softDelete(id: number): Promise<void> {
     await this.findOne(id);
     await this.deptRepo.softDelete(id);
+  }
+
+  // ─── DEPARTMENT TYPES ───
+  async findAllTypes(): Promise<DepartmentType[]> {
+    return this.typeRepo.find({ where: { state: 1 } });
+  }
+
+  async createType(dto: CreateDepartmentTypeDto, userId?: number): Promise<DepartmentType> {
+    const type = this.typeRepo.create({ ...dto, createdBy: userId });
+    return this.typeRepo.save(type);
   }
 }

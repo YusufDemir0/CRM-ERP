@@ -13,7 +13,8 @@ export class CreatePartyDto {
   @IsOptional() @IsString() taxNumber?: string;
   @IsOptional() @IsEmail() email?: string;
   @IsOptional() @IsString() address?: string;
-  @IsOptional() @IsNumber() creditLimit?: number;
+  @IsOptional() @IsNumber() creditLimitPlus?: number;
+  @IsOptional() @IsNumber() creditLimitMinus?: number;
   @IsOptional() @IsString() paymentTerms?: string;
   @IsOptional() @IsNumber() currencyId?: number;
   @IsOptional() @IsString() notes?: string;
@@ -27,7 +28,8 @@ export class UpdatePartyDto {
   @IsOptional() @IsString() taxNumber?: string;
   @IsOptional() @IsEmail() email?: string;
   @IsOptional() @IsString() address?: string;
-  @IsOptional() @IsNumber() creditLimit?: number;
+  @IsOptional() @IsNumber() creditLimitPlus?: number;
+  @IsOptional() @IsNumber() creditLimitMinus?: number;
   @IsOptional() @IsString() paymentTerms?: string;
   @IsOptional() @IsNumber() currencyId?: number;
   @IsOptional() @IsString() notes?: string;

@@ -62,6 +62,7 @@ export const rolesAPI = {
 // ─── DEPARTMENTS ───
 export const departmentsAPI = {
   getAll: (params?: Record<string, any>) => api.get('/departments', { params }),
+  getTypes: () => api.get('/departments/types'),
   getOne: (id: number) => api.get(`/departments/${id}`),
   create: (data: any) => api.post('/departments', data),
   update: (id: number, data: any) => api.put(`/departments/${id}`, data),

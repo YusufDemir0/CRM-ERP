@@ -63,11 +63,11 @@ let AuthService = class AuthService {
             relations: ['roles'],
         });
         if (!user) {
-            throw new common_1.UnauthorizedException('Geçersiz kullanıcı adı veya şifre');
+            throw new common_1.UnauthorizedException('INVALID_USERNAME');
         }
         const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
         if (!isMatch) {
-            throw new common_1.UnauthorizedException('Geçersiz kullanıcı adı veya şifre');
+            throw new common_1.UnauthorizedException('INVALID_PASSWORD');
         }
         if (user.state !== 1) {
             throw new common_1.UnauthorizedException('Hesabınız devre dışı bırakılmıştır');

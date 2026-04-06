@@ -6,7 +6,8 @@ export declare class CreatePartyDto {
     taxNumber?: string;
     email?: string;
     address?: string;
-    creditLimit?: number;
+    creditLimitPlus?: number;
+    creditLimitMinus?: number;
     paymentTerms?: string;
     currencyId?: number;
     notes?: string;
@@ -19,7 +20,8 @@ export declare class UpdatePartyDto {
     taxNumber?: string;
     email?: string;
     address?: string;
-    creditLimit?: number;
+    creditLimitPlus?: number;
+    creditLimitMinus?: number;
     paymentTerms?: string;
     currencyId?: number;
     notes?: string;

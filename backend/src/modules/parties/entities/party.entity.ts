@@ -28,8 +28,11 @@ export class Party extends BaseEntity {
   @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
   balance: number;
 
-  @Column({ name: 'credit_limit', type: 'decimal', precision: 15, scale: 2, default: 0 })
-  creditLimit: number;
+  @Column({ name: 'credit_limit_plus', type: 'decimal', precision: 15, scale: 2, default: 0 })
+  creditLimitPlus: number;
+
+  @Column({ name: 'credit_limit_minus', type: 'decimal', precision: 15, scale: 2, default: 0 })
+  creditLimitMinus: number;
 
   @Column({ name: 'payment_terms', type: 'varchar', length: 50, nullable: true })
   paymentTerms: string | null;

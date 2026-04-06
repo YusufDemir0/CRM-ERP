@@ -49,9 +49,13 @@ __decorate([
     __metadata("design:type", Number)
 ], Party.prototype, "balance", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'credit_limit', type: 'decimal', precision: 15, scale: 2, default: 0 }),
+    (0, typeorm_1.Column)({ name: 'credit_limit_plus', type: 'decimal', precision: 15, scale: 2, default: 0 }),
     __metadata("design:type", Number)
-], Party.prototype, "creditLimit", void 0);
+], Party.prototype, "creditLimitPlus", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'credit_limit_minus', type: 'decimal', precision: 15, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Party.prototype, "creditLimitMinus", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'payment_terms', type: 'varchar', length: 50, nullable: true }),
     __metadata("design:type", Object)

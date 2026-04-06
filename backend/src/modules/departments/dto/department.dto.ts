@@ -15,6 +15,10 @@ export class CreateDepartmentDto {
 
   @IsOptional()
   @IsNumber()
+  departmentTypeId?: number;
+
+  @IsOptional()
+  @IsNumber()
   commercialAccountId?: number;
 }
 
@@ -33,7 +37,35 @@ export class UpdateDepartmentDto {
 
   @IsOptional()
   @IsNumber()
+  departmentTypeId?: number;
+
+  @IsOptional()
+  @IsNumber()
   commercialAccountId?: number;
+
+  @IsOptional()
+  @IsNumber()
+  state?: number;
+}
+
+export class CreateDepartmentTypeDto {
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsString()
+  @IsNotEmpty()
+  abbreviation: string;
+}
+
+export class UpdateDepartmentTypeDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  abbreviation?: string;
 
   @IsOptional()
   @IsNumber()

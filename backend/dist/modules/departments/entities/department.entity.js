@@ -13,6 +13,7 @@ exports.Department = void 0;
 const typeorm_1 = require("typeorm");
 const base_entity_1 = require("../../../common/entities/base.entity");
 const commercial_account_entity_1 = require("../../finance/accounts/entities/commercial-account.entity");
+const department_type_entity_1 = require("./department-type.entity");
 let Department = class Department extends base_entity_1.BaseEntity {
 };
 exports.Department = Department;
@@ -28,6 +29,15 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 20, nullable: true }),
     __metadata("design:type", Object)
 ], Department.prototype, "abbreviation", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'department_type_id', type: 'bigint', nullable: true }),
+    __metadata("design:type", Object)
+], Department.prototype, "departmentTypeId", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => department_type_entity_1.DepartmentType, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: 'department_type_id' }),
+    __metadata("design:type", department_type_entity_1.DepartmentType)
+], Department.prototype, "departmentType", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'commercial_account_id', type: 'bigint', nullable: true }),
     __metadata("design:type", Object)
