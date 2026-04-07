@@ -24,6 +24,7 @@ let AccountsController = class AccountsController {
         this.accService = accService;
     }
     findAll(query) { return this.accService.findAll(query); }
+    getStatus() { return this.accService.getStatus(); }
     findOne(id) { return this.accService.findOne(id); }
     create(dto, userId) { return this.accService.create(dto, userId); }
     update(id, dto, userId) {
@@ -39,6 +40,12 @@ __decorate([
     __metadata("design:paramtypes", [pagination_dto_1.PaginationDto]),
     __metadata("design:returntype", void 0)
 ], AccountsController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('status'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AccountsController.prototype, "getStatus", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),

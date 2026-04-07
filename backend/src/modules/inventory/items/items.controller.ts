@@ -14,6 +14,10 @@ export class ItemsController {
   @RequirePermissions('stok_goruntuleme')
   findAll(@Query() query: ItemsQueryDto) { return this.itemsService.findAll(query); }
 
+  @Get('status')
+  @RequirePermissions('stok_goruntuleme')
+  getStatus() { return this.itemsService.getStatus(); }
+
   @Get('types')
   findAllItemTypes() { return this.itemsService.findAllItemTypes(); }
 

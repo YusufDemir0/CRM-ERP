@@ -61,4 +61,8 @@ export class ProductionController {
   @Delete('orders/:id')
   @RequirePermissions('uretim_silme')
   deleteOrder(@Param('id', ParseIntPipe) id: number) { return this.prodService.deleteOrder(id); }
+
+  @Get('status')
+  @RequirePermissions('uretim_goruntuleme')
+  getStatus() { return this.prodService.getStatus(); }
 }

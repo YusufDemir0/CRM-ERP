@@ -34,6 +34,7 @@ let StocksController = class StocksController {
     adjustStock(dto, userId) {
         return this.stocksService.adjustStock(dto, userId);
     }
+    getStatus() { return this.stocksService.getStatus(); }
 };
 exports.StocksController = StocksController;
 __decorate([
@@ -69,6 +70,13 @@ __decorate([
     __metadata("design:paramtypes", [inventory_dto_1.StockAdjustmentDto, Number]),
     __metadata("design:returntype", void 0)
 ], StocksController.prototype, "adjustStock", null);
+__decorate([
+    (0, common_1.Get)('status'),
+    (0, permissions_decorator_1.RequirePermissions)('stok_goruntuleme'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], StocksController.prototype, "getStatus", null);
 exports.StocksController = StocksController = __decorate([
     (0, common_1.Controller)('stocks'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),

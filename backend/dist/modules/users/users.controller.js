@@ -26,6 +26,9 @@ let UsersController = class UsersController {
     findAll(query) {
         return this.usersService.findAll(query);
     }
+    getStatus() {
+        return this.usersService.getStatus();
+    }
     findOne(id) {
         return this.usersService.findOne(id);
     }
@@ -48,6 +51,13 @@ __decorate([
     __metadata("design:paramtypes", [pagination_dto_1.PaginationDto]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('status'),
+    (0, permissions_decorator_1.RequirePermissions)('kullanici_goruntuleme'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "getStatus", null);
 __decorate([
     (0, common_1.Get)(':id'),
     (0, permissions_decorator_1.RequirePermissions)('kullanici_goruntuleme'),

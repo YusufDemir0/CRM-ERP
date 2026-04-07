@@ -22,6 +22,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { ProductionModule } from './modules/production/production.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { ProductionModule } from './modules/production/production.module';
     SalesModule,
     FinanceModule,
     ProductionModule,
+    DashboardModule,
   ],
   providers: [
     // Global Audit Interceptor — tüm request'lerde çalışır

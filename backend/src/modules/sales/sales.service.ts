@@ -368,4 +368,26 @@ export class SalesService {
     }
     await this.saleRepo.softDelete(id);
   }
+
+  async getStatus() {
+    const firstDayOfMonth = new Date();
+    firstDayOfMonth.setDate(1);
+    firstDayOfMonth.setHours(0, 0, 0, 0);
+
+    const [stats, pending] = await Promise.all([
+      this.saleRepo.createQueryBuilder('sale')
+        .select("SUM(sale.grandTotal)", "revenue")
+        .addSelect("COUNT(*)", "total")
+        .where("sale.createdAt >= :date", { date: firstDayOfMonth.toISOString() })
+        .andWhere("sale.status != 'cancelled'")
+        .getRawOne(),
+      this.saleRepo.count({ where: { status: 'draft' } }), // Pending = Draft for now
+    ]);
+
+    return {
+      monthlyRevenue: Number(stats.revenue || 0),
+      monthlyOrders: Number(stats.total || 0),
+      pendingOrders: Number(pending || 0),
+    };
+  }
 }

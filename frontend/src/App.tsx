@@ -3,22 +3,30 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { SettingsProvider } from './context/SettingsContext';
 import Layout from './components/Layout';
-import LoginPage from './pages/LoginPage';
-import DashboardPage from './pages/DashboardPage';
-import UsersPage from './pages/UsersPage';
-import SettingsPage from './pages/SettingsPage';
-import {
-  DepartmentsPage, PartiesPage, RolesPage,
-  CurrenciesPage, AccountsPage, ItemsPage,
-  StocksPage, SalesPage, TransactionsPage, ProductionPage, BomsPage
-} from './pages/ModulePages';
+import LoginPage from './pages/modules/LoginPage';
+import DashboardPage from './pages/modules/DashboardPage';
+import UsersPage from './pages/modules/UsersPage';
+import SettingsPage from './pages/modules/SettingsPage';
+import { RolesPage } from './pages/modules/RolesPage';
+import DepartmentsPage from "./pages/modules/DepartmentsPage"
+import PartiesPage  from './pages/modules/PartiesPage';
+import ItemsPage from './pages/modules/ItemsPage';
+import {StocksPage} from './pages/modules/StocksPage';
+import SalesPage from './pages/SalesPage';
+import {CurrenciesPage} from './pages/modules/CurrenciesPage';
+import AccountsPage from './pages/modules/AccountsPage';
+import TransactionsPage from './pages/modules/TransactionsPage';
+import {BomsPage} from './pages/modules/BomsPage';
+import {ProductionPage} from './pages/modules/ProductionPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import GlobalLoader from './components/GlobalLoader';
 
 export default function App() {
   return (
     <SettingsProvider>
       <AuthProvider>
         <BrowserRouter>
+          <GlobalLoader />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
@@ -42,12 +50,22 @@ export default function App() {
           <Toaster
             position="top-right"
             toastOptions={{
-              duration: 3000,
+              duration: 4000,
               style: {
-                background: '#1c1f2e',
-                color: '#e8eaed',
-                border: '1px solid #2a2f45',
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
                 fontSize: '14px',
+                fontWeight: '600',
+                padding: '12px 16px',
+                boxShadow: 'var(--shadow-lg)',
+              },
+              success: {
+                iconTheme: { primary: 'var(--success)', secondary: '#fff' },
+              },
+              error: {
+                iconTheme: { primary: 'var(--danger)', secondary: '#fff' },
               },
             }}
           />

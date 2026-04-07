@@ -7,10 +7,11 @@ import { BomItem } from './entities/bom-item.entity';
 import { ProductionOrder } from './entities/production-order.entity';
 import { ProductionSequence } from './entities/production-sequence.entity';
 import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
+import { Item } from '../inventory/items/entities/item.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Bom, BomItem, ProductionOrder, ProductionSequence]),
+    TypeOrmModule.forFeature([Bom, BomItem, ProductionOrder, ProductionSequence, Item]),
   ],
   controllers: [ProductionController],
   providers: [ProductionService, SequenceGeneratorService],

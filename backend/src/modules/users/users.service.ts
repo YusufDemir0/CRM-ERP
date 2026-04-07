@@ -25,7 +25,7 @@ export class UsersService {
       ]);
 
     if (query.search) {
-      qb.where('(user.fullName LIKE :search OR user.username LIKE :search OR user.email LIKE :search)', {
+      qb.where('(user.fullName LIKE :search OR user.username LIKE :search OR user.email LIKE :search OR department.name LIKE :search OR roles.name LIKE :search)', {
         search: `%${query.search}%`,
       });
     }
@@ -88,5 +88,18 @@ export class UsersService {
     user.updatedBy = currentUserId || null;
     await this.userRepo.save(user);
     await this.userRepo.softDelete(id);
+  }
+
+  async getStatus() {
+    const [active, passive, total, adminCount] = await Promise.all([
+      this.userRepo.count({ where: { state: 1 } }),
+      this.userRepo.count({ where: { state: 0 } }),
+      this.userRepo.count(),
+      this.userRepo.createQueryBuilder('user')
+        .innerJoin('user.roles', 'role')
+        .where('role.name = :role', { role: 'admin' })
+        .getCount(),
+    ]);
+    return { active, passive, total, adminCount };
   }
 }

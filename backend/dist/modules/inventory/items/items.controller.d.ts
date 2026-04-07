@@ -4,6 +4,12 @@ export declare class ItemsController {
     private readonly itemsService;
     constructor(itemsService: ItemsService);
     findAll(query: ItemsQueryDto): Promise<import("../../../common/dto/pagination.dto").PaginatedResult<import("./entities/item.entity").Item>>;
+    getStatus(): Promise<{
+        active: number;
+        passive: number;
+        total: number;
+        lowStock: number;
+    }>;
     findAllItemTypes(): Promise<import("./entities/item-type.entity").ItemType[]>;
     findAllQuantityTypes(): Promise<import("./entities/quantity-type.entity").QuantityType[]>;
     findOne(id: number): Promise<import("./entities/item.entity").Item>;

@@ -17,4 +17,11 @@ export declare class TransactionsService {
     }): Promise<PaginatedResult<Transaction>>;
     findOne(id: number): Promise<Transaction>;
     create(dto: CreateTransactionDto, userId?: number): Promise<Transaction>;
+    getStatus(): Promise<{
+        monthlyIncome: number;
+        monthlyExpense: number;
+        count: number;
+        totalVolume: number;
+    }>;
+    getDailyTrends(): Promise<any[]>;
 }

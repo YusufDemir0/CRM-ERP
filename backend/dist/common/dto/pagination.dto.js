@@ -35,7 +35,7 @@ __decorate([
     (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsInt)(),
     (0, class_validator_1.Min)(1),
-    (0, class_validator_1.Max)(100),
+    (0, class_validator_1.Max)(1000),
     __metadata("design:type", Number)
 ], PaginationDto.prototype, "limit", void 0);
 __decorate([

@@ -35,7 +35,7 @@ let ItemsService = class ItemsService {
             .leftJoinAndSelect('item.provider', 'provider')
             .leftJoinAndSelect('item.currency', 'currency');
         if (query.search) {
-            qb.where('(item.name LIKE :s OR item.code LIKE :s)', { s: `%${query.search}%` });
+            qb.where('(item.name LIKE :s OR item.code LIKE :s OR item.description LIKE :s OR item.brand LIKE :s OR item.model LIKE :s OR itemType.name LIKE :s OR provider.name LIKE :s)', { s: `%${query.search}%` });
         }
         if (query.itemTypeId) {
             qb.andWhere('item.itemTypeId = :typeId', { typeId: query.itemTypeId });
@@ -103,6 +103,14 @@ let ItemsService = class ItemsService {
     async createQuantityType(dto, userId) {
         const type = this.qtyTypeRepo.create({ ...dto, createdBy: userId });
         return this.qtyTypeRepo.save(type);
+    }
+    async getStatus() {
+        const [active, passive, lowStock] = await Promise.all([
+            this.itemRepo.count({ where: { state: 1 } }),
+            this.itemRepo.count({ where: { state: 0 } }),
+            this.itemRepo.count({ where: { state: 1, criticalLimit: (0, typeorm_2.MoreThan)(0) } }),
+        ]);
+        return { active, passive, total: active + passive, lowStock };
     }
 };
 exports.ItemsService = ItemsService;

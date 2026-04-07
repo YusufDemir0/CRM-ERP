@@ -16,4 +16,11 @@ export declare class ProductionController {
     createOrder(dto: CreateProductionOrderDto, userId: number): Promise<import("./entities/production-order.entity").ProductionOrder>;
     updateOrder(id: number, dto: UpdateProductionOrderDto, userId: number): Promise<import("./entities/production-order.entity").ProductionOrder>;
     deleteOrder(id: number): Promise<void>;
+    getStatus(): Promise<{
+        draft: number;
+        planned: number;
+        inProgress: number;
+        completed: number;
+        total: number;
+    }>;
 }

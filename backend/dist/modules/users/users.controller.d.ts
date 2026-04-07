@@ -5,6 +5,12 @@ export declare class UsersController {
     private readonly usersService;
     constructor(usersService: UsersService);
     findAll(query: PaginationDto): Promise<import("../../common/dto/pagination.dto").PaginatedResult<import("../auth/entities/user.entity").User>>;
+    getStatus(): Promise<{
+        active: number;
+        passive: number;
+        total: number;
+        adminCount: number;
+    }>;
     findOne(id: number): Promise<import("../auth/entities/user.entity").User>;
     create(dto: CreateUserDto, userId: number): Promise<import("../auth/entities/user.entity").User>;
     update(id: number, dto: UpdateUserDto, userId: number): Promise<import("../auth/entities/user.entity").User>;

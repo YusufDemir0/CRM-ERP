@@ -8,4 +8,9 @@ export declare class StocksController {
     getCriticalStocks(): Promise<import("./entities/stock.entity").Stock[]>;
     getMovements(id: number, query: PaginationDto): Promise<import("../../../common/dto/pagination.dto").PaginatedResult<import("./entities/stock-movement.entity").StockMovement>>;
     adjustStock(dto: StockAdjustmentDto, userId: number): Promise<import("./entities/stock-movement.entity").StockMovement>;
+    getStatus(): Promise<{
+        totalItems: number;
+        totalQuantity: number;
+        criticalCount: number;
+    }>;
 }

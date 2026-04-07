@@ -33,7 +33,7 @@ let RolesService = class RolesService {
         const qb = this.roleRepo.createQueryBuilder('role')
             .leftJoinAndSelect('role.permissions', 'permissions');
         if (query.search) {
-            qb.where('role.name LIKE :search', { search: `%${query.search}%` });
+            qb.where('(role.name LIKE :search OR permissions.name LIKE :search)', { search: `%${query.search}%` });
         }
         qb.orderBy('role.createdAt', query.sortOrder || 'DESC');
         qb.skip(query.skip).take(query.limit);
@@ -72,7 +72,7 @@ let RolesService = class RolesService {
         return this.roleRepo.save(role);
     }
     async deleteRole(id) {
-        await this.findOneRole(id);
+        const role = await this.findOneRole(id);
         await this.roleRepo.softDelete(id);
     }
     async findAllPermissions(query) {
@@ -133,6 +133,20 @@ let RolesService = class RolesService {
             where: { userId },
             relations: ['permission'],
         });
+    }
+    async getStatus() {
+        const [active, passive] = await Promise.all([
+            this.roleRepo.count({ where: { state: 1 } }),
+            this.roleRepo.count({ where: { state: 0 } }),
+        ]);
+        return { active, passive, total: active + passive };
+    }
+    async getMatrixPresets() {
+        return {
+            viewOnly: ['dashboard.view', 'items.view', 'parties.view'],
+            manager: ['dashboard.view', 'items.all', 'parties.all', 'reports.view'],
+            architect: ['*']
+        };
     }
 };
 exports.RolesService = RolesService;

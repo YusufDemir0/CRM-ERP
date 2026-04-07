@@ -15,4 +15,9 @@ export declare class StocksService {
     getMovements(stockId: number, query: PaginationDto): Promise<PaginatedResult<StockMovement>>;
     adjustStock(dto: StockAdjustmentDto, userId?: number): Promise<StockMovement>;
     getCriticalStocks(): Promise<Stock[]>;
+    getStatus(): Promise<{
+        totalItems: number;
+        totalQuantity: number;
+        criticalCount: number;
+    }>;
 }

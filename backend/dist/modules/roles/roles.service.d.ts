@@ -24,4 +24,14 @@ export declare class RolesService {
     removeRole(dto: AssignRoleDto): Promise<void>;
     setUserPermission(dto: SetUserPermissionDto, currentUserId?: number): Promise<UserPermission>;
     getUserPermissions(userId: number): Promise<UserPermission[]>;
+    getStatus(): Promise<{
+        active: number;
+        passive: number;
+        total: number;
+    }>;
+    getMatrixPresets(): Promise<{
+        viewOnly: string[];
+        manager: string[];
+        architect: string[];
+    }>;
 }

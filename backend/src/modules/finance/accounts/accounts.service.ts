@@ -1,13 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { CommercialAccount } from './entities/commercial-account.entity';
 import { CreateAccountDto, UpdateAccountDto } from '../dto/finance.dto';
 import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
+import { Transaction } from '../transactions/entities/transaction.entity';
 
 @Injectable()
 export class AccountsService {
-  constructor(@InjectRepository(CommercialAccount) private accRepo: Repository<CommercialAccount>) {}
+  constructor(
+    @InjectRepository(CommercialAccount) private accRepo: Repository<CommercialAccount>,
+    private dataSource: DataSource,
+  ) {}
 
   async findAll(query: PaginationDto): Promise<PaginatedResult<CommercialAccount>> {
     const qb = this.accRepo.createQueryBuilder('acc')
@@ -46,5 +50,25 @@ export class AccountsService {
   async softDelete(id: number): Promise<void> {
     await this.findOne(id);
     await this.accRepo.softDelete(id);
+  }
+
+  async getStatus() {
+    const [counts, balances] = await Promise.all([
+      this.accRepo.createQueryBuilder('acc')
+        .select("COUNT(*)", "total")
+        .addSelect("SUM(CASE WHEN acc.state = 1 THEN 1 ELSE 0 END)", "active")
+        .addSelect("SUM(CASE WHEN acc.state = 0 THEN 1 ELSE 0 END)", "passive")
+        .getRawOne(),
+      this.dataSource.getRepository(Transaction).createQueryBuilder('tx')
+        .select("SUM(CASE WHEN tx.type = 'in' THEN tx.amount ELSE -tx.amount END)", "balance")
+        .getRawOne(),
+    ]);
+
+    return {
+      active: Number(counts.active || 0),
+      passive: Number(counts.passive || 0),
+      total: Number(counts.total || 0),
+      totalBalance: Number(balances.balance || 0),
+    };
   }
 }

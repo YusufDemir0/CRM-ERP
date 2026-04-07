@@ -25,7 +25,7 @@ let PartiesService = class PartiesService {
         const qb = this.partyRepo.createQueryBuilder('party')
             .leftJoinAndSelect('party.currency', 'currency');
         if (query.search) {
-            qb.where('(party.name LIKE :s OR party.phone1 LIKE :s OR party.email LIKE :s OR party.taxNumber LIKE :s)', { s: `%${query.search}%` });
+            qb.where('(party.name LIKE :s OR party.phone1 LIKE :s OR party.email LIKE :s OR party.taxNumber LIKE :s OR party.taxOffice LIKE :s OR party.city LIKE :s OR party.address LIKE :s OR party.notes LIKE :s OR currency.name LIKE :s)', { s: `%${query.search}%` });
         }
         if (query.type) {
             qb.andWhere('party.type = :type', { type: query.type });
@@ -60,15 +60,47 @@ let PartiesService = class PartiesService {
     }
     async getBalance(id) {
         const party = await this.findOne(id);
-        const balance = Number(party.balance || 0);
-        const plus = Number(party.creditLimitPlus || 0);
-        const minus = Number(party.creditLimitMinus || 0);
-        const available = plus - balance;
         return {
-            balance,
-            creditLimitPlus: plus,
-            creditLimitMinus: minus,
-            available,
+            balance: Number(party.balance || 0),
+            creditLimit: Number(party.creditLimitPlus || 0),
+            currency: party.currency?.code || 'TRY',
+            symbol: party.currency?.symbol || '₺'
+        };
+    }
+    async getStatus() {
+        const [active, passive, all] = await Promise.all([
+            this.partyRepo.count({ where: { state: 1 } }),
+            this.partyRepo.count({ where: { state: 0 } }),
+            this.partyRepo.find(),
+        ]);
+        const totalReceivable = all.reduce((sum, p) => sum + Number(p.balance || 0), 0);
+        const totalCreditLimit = all.reduce((sum, p) => sum + Number(p.creditLimitPlus || 0), 0);
+        const atRisk = all.filter(p => p.state === 1 && Number(p.balance) >= Number(p.creditLimitPlus) * 0.9);
+        return {
+            active,
+            passive,
+            totalReceivable,
+            exposurePercentage: totalCreditLimit > 0 ? Math.round((totalReceivable / totalCreditLimit) * 100) : 0,
+            atRiskCount: atRisk.length
+        };
+    }
+    async getGlobalExposure() {
+        const all = await this.partyRepo.find();
+        const totalReceivable = all.reduce((sum, p) => sum + Number(p.balance || 0), 0);
+        const totalCreditLimit = all.reduce((sum, p) => sum + Number(p.creditLimitPlus || 0), 0);
+        return {
+            totalReceivable,
+            totalCreditLimit,
+            exposurePercentage: totalCreditLimit > 0 ? (totalReceivable / totalCreditLimit) * 100 : 0
+        };
+    }
+    async getHealthMetrics() {
+        const all = await this.partyRepo.find({ where: { state: 1 } });
+        const atRisk = all.filter(p => Number(p.balance) >= Number(p.creditLimitPlus) * 0.9);
+        return {
+            healthyCount: all.length - atRisk.length,
+            atRiskCount: atRisk.length,
+            requiresAttention: atRisk.map(p => ({ id: p.id, name: p.name, balance: p.balance, limit: p.creditLimitPlus }))
         };
     }
 };

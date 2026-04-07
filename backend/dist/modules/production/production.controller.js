@@ -40,6 +40,7 @@ let ProductionController = class ProductionController {
         return this.prodService.updateOrder(id, dto, userId);
     }
     deleteOrder(id) { return this.prodService.deleteOrder(id); }
+    getStatus() { return this.prodService.getStatus(); }
 };
 exports.ProductionController = ProductionController;
 __decorate([
@@ -128,6 +129,13 @@ __decorate([
     __metadata("design:paramtypes", [Number]),
     __metadata("design:returntype", void 0)
 ], ProductionController.prototype, "deleteOrder", null);
+__decorate([
+    (0, common_1.Get)('status'),
+    (0, permissions_decorator_1.RequirePermissions)('uretim_goruntuleme'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], ProductionController.prototype, "getStatus", null);
 exports.ProductionController = ProductionController = __decorate([
     (0, common_1.Controller)('production'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),

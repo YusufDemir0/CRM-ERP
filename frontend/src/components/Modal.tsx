@@ -15,12 +15,12 @@ export default function Modal({ isOpen, onClose, title, children, footer, width 
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: width || '500px', width: '100%' }}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: width || '500px' }}>
         <div className="modal-header">
           <h3>{title}</h3>
           <button className="btn-icon" onClick={onClose}><FiX /></button>
         </div>
-        <div className="modal-body" style={{ display: 'grid', gap: '16px', gridTemplateColumns: '1fr' }}>
+        <div className="modal-body">
           {children}
         </div>
         {footer && <div className="modal-footer">{footer}</div>}

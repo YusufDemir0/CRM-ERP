@@ -5,23 +5,45 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// JWT token interceptor
+// Request interceptor: İstek atılmadan önce loader'ı tetikle ve token'ı ekle
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('erp_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // POST, PUT, DELETE işlemlerinde işleniyor ekranını göster
+  if (config.method &&['post', 'put', 'delete'].includes(config.method.toLowerCase())) {
+    window.dispatchEvent(new CustomEvent('show-loader'));
+  }
+
   return config;
 });
 
-// Response interceptor — 401 durumunda login'e yönlendir
+// Response interceptor: Başarılı istekte onay ver ve F5 yap, hatada işlemi sonlandır
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // İşlem başarılıysa loader'ı gizle ve teyit alıp F5 at
+    if (response.config.method && ['post', 'put', 'delete'].includes(response.config.method.toLowerCase())) {
+      window.dispatchEvent(new Event('hide-loader'));
+      
+      // Login endpoint'ini F5 döngüsüne sokmamak için hariç tutuyoruz
+      if (response.config.url && !response.config.url.includes('/auth/login')) {
+        alert("İşlem Başarılı!");
+        window.location.reload();
+      }
+    }
+    return response;
+  },
   (error) => {
+    window.dispatchEvent(new Event('hide-loader'));
+
     if (error.response?.status === 401) {
-      localStorage.removeItem('erp_token');
-      localStorage.removeItem('erp_user');
-      window.location.href = '/login';
+      if (error.config.url && !error.config.url.includes('/auth/login')) {
+        localStorage.removeItem('erp_token');
+        localStorage.removeItem('erp_user');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
@@ -39,8 +61,10 @@ export const authAPI = {
 export const usersAPI = {
   getAll: (params?: Record<string, any>) => api.get('/users', { params }),
   getOne: (id: number) => api.get(`/users/${id}`),
+  getStatus: () => api.get('/users/status'),
   create: (data: any) => api.post('/users', data),
   update: (id: number, data: any) => api.put(`/users/${id}`, data),
+  toggleState: (id: number, currentState: number) => api.put(`/users/${id}`, { state: currentState === 1 ? 0 : 1 }),
   delete: (id: number) => api.delete(`/users/${id}`),
 };
 
@@ -48,8 +72,10 @@ export const usersAPI = {
 export const rolesAPI = {
   getAll: (params?: Record<string, any>) => api.get('/roles', { params }),
   getOne: (id: number) => api.get(`/roles/${id}`),
+  getStatus: () => api.get('/roles/status'),
   create: (data: any) => api.post('/roles', data),
   update: (id: number, data: any) => api.put(`/roles/${id}`, data),
+  toggleState: (id: number, currentState: number) => api.put(`/roles/${id}`, { state: currentState === 1 ? 0 : 1 }),
   delete: (id: number) => api.delete(`/roles/${id}`),
   getPermissions: (params?: Record<string, any>) => api.get('/roles/permissions/all', { params }),
   createPermission: (data: any) => api.post('/roles/permissions', data),
@@ -63,9 +89,11 @@ export const rolesAPI = {
 export const departmentsAPI = {
   getAll: (params?: Record<string, any>) => api.get('/departments', { params }),
   getTypes: () => api.get('/departments/types'),
+  getStatus: () => api.get('/departments/status'),
   getOne: (id: number) => api.get(`/departments/${id}`),
   create: (data: any) => api.post('/departments', data),
   update: (id: number, data: any) => api.put(`/departments/${id}`, data),
+  toggleState: (id: number, currentState: number) => api.put(`/departments/${id}`, { state: currentState === 1 ? 0 : 1 }),
   delete: (id: number) => api.delete(`/departments/${id}`),
 };
 
@@ -74,8 +102,10 @@ export const partiesAPI = {
   getAll: (params?: Record<string, any>) => api.get('/parties', { params }),
   getOne: (id: number) => api.get(`/parties/${id}`),
   getBalance: (id: number) => api.get(`/parties/${id}/balance`),
+  getStatus: () => api.get('/parties/status'),
   create: (data: any) => api.post('/parties', data),
   update: (id: number, data: any) => api.put(`/parties/${id}`, data),
+  toggleState: (id: number, currentState: number) => api.put(`/parties/${id}`, { state: currentState === 1 ? 0 : 1 }),
   delete: (id: number) => api.delete(`/parties/${id}`),
 };
 
@@ -83,16 +113,20 @@ export const partiesAPI = {
 export const itemsAPI = {
   getAll: (params?: Record<string, any>) => api.get('/items', { params }),
   getOne: (id: number) => api.get(`/items/${id}`),
+  getStatus: () => api.get('/items/status'),
   create: (data: any) => api.post('/items', data),
   update: (id: number, data: any) => api.put(`/items/${id}`, data),
+  toggleState: (id: number, currentState: number) => api.put(`/items/${id}`, { state: currentState === 1 ? 0 : 1 }),
   delete: (id: number) => api.delete(`/items/${id}`),
   getTypes: () => api.get('/items/types'),
   createType: (data: any) => api.post('/items/types', data),
   getQuantityTypes: () => api.get('/items/quantity-types'),
+  createQuantityType: (data: any) => api.post('/items/quantity-types', data),
 };
 
 export const stocksAPI = {
   getAll: (params?: Record<string, any>) => api.get('/stocks', { params }),
+  getStatus: () => api.get('/stocks/status'),
   getCritical: () => api.get('/stocks/critical'),
   getMovements: (stockId: number, params?: Record<string, any>) => api.get(`/stocks/${stockId}/movements`, { params }),
   adjust: (data: any) => api.post('/stocks/adjust', data),
@@ -108,6 +142,7 @@ export const salesAPI = {
   cancel: (id: number) => api.post(`/sales/${id}/cancel`),
   delete: (id: number) => api.delete(`/sales/${id}`),
   getTypes: () => api.get('/sales/types'),
+  getStatus: () => api.get('/sales/status'),
 };
 
 // ─── FINANCE ───
@@ -121,13 +156,22 @@ export const currenciesAPI = {
 export const accountsAPI = {
   getAll: (params?: Record<string, any>) => api.get('/accounts', { params }),
   getOne: (id: number) => api.get(`/accounts/${id}`),
+  getStatus: () => api.get('/accounts/status'),
   create: (data: any) => api.post('/accounts', data),
   update: (id: number, data: any) => api.put(`/accounts/${id}`, data),
+  toggleState: (id: number, currentState: number) => api.put(`/accounts/${id}`, { state: currentState === 1 ? 0 : 1 }),
   delete: (id: number) => api.delete(`/accounts/${id}`),
+};
+
+// ─── DASHBOARD ───
+export const dashboardAPI = {
+  getSummary: () => api.get('/dashboard/summary'),
 };
 
 export const transactionsAPI = {
   getAll: (params?: Record<string, any>) => api.get('/transactions', { params }),
+  getStatus: () => api.get('/transactions/status'),
+  getTrends: () => api.get('/transactions/trends'),
   getOne: (id: number) => api.get(`/transactions/${id}`),
   create: (data: any) => api.post('/transactions', data),
 };
@@ -147,8 +191,9 @@ export const productionOrdersAPI = {
   create: (data: any) => api.post('/production/orders', data),
   update: (id: number, data: any) => api.put(`/production/orders/${id}`, data),
   delete: (id: number) => api.delete(`/production/orders/${id}`),
+  getStatus: () => api.get('/production/status'),
 };
 
 export const productionAPI = {
-  getBoms: bomsAPI.getAll, // For backward compatibility where used
+  getBoms: bomsAPI.getAll,
 };

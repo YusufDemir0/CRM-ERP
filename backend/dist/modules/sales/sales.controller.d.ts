@@ -12,4 +12,9 @@ export declare class SalesController {
     approve(id: number, dto: ApproveSaleDto, userId: number): Promise<import("./entities/sale.entity").Sale>;
     cancel(id: number, userId: number): Promise<import("./entities/sale.entity").Sale>;
     remove(id: number): Promise<void>;
+    getStatus(): Promise<{
+        monthlyRevenue: number;
+        monthlyOrders: number;
+        pendingOrders: number;
+    }>;
 }

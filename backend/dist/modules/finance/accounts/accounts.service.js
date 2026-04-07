@@ -17,9 +17,11 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const commercial_account_entity_1 = require("./entities/commercial-account.entity");
+const transaction_entity_1 = require("../transactions/entities/transaction.entity");
 let AccountsService = class AccountsService {
-    constructor(accRepo) {
+    constructor(accRepo, dataSource) {
         this.accRepo = accRepo;
+        this.dataSource = dataSource;
     }
     async findAll(query) {
         const qb = this.accRepo.createQueryBuilder('acc')
@@ -54,11 +56,30 @@ let AccountsService = class AccountsService {
         await this.findOne(id);
         await this.accRepo.softDelete(id);
     }
+    async getStatus() {
+        const [counts, balances] = await Promise.all([
+            this.accRepo.createQueryBuilder('acc')
+                .select("COUNT(*)", "total")
+                .addSelect("SUM(CASE WHEN acc.state = 1 THEN 1 ELSE 0 END)", "active")
+                .addSelect("SUM(CASE WHEN acc.state = 0 THEN 1 ELSE 0 END)", "passive")
+                .getRawOne(),
+            this.dataSource.getRepository(transaction_entity_1.Transaction).createQueryBuilder('tx')
+                .select("SUM(CASE WHEN tx.type = 'in' THEN tx.amount ELSE -tx.amount END)", "balance")
+                .getRawOne(),
+        ]);
+        return {
+            active: Number(counts.active || 0),
+            passive: Number(counts.passive || 0),
+            total: Number(counts.total || 0),
+            totalBalance: Number(balances.balance || 0),
+        };
+    }
 };
 exports.AccountsService = AccountsService;
 exports.AccountsService = AccountsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(commercial_account_entity_1.CommercialAccount)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.DataSource])
 ], AccountsService);
 //# sourceMappingURL=accounts.service.js.map

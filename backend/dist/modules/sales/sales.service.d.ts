@@ -25,4 +25,9 @@ export declare class SalesService {
     approveSale(saleId: number, dto: ApproveSaleDto, userId?: number): Promise<Sale>;
     cancelSale(saleId: number, userId?: number): Promise<Sale>;
     softDelete(id: number): Promise<void>;
+    getStatus(): Promise<{
+        monthlyRevenue: number;
+        monthlyOrders: number;
+        pendingOrders: number;
+    }>;
 }

@@ -24,6 +24,7 @@ let ItemsController = class ItemsController {
         this.itemsService = itemsService;
     }
     findAll(query) { return this.itemsService.findAll(query); }
+    getStatus() { return this.itemsService.getStatus(); }
     findAllItemTypes() { return this.itemsService.findAllItemTypes(); }
     findAllQuantityTypes() { return this.itemsService.findAllQuantityTypes(); }
     findOne(id) { return this.itemsService.findOne(id); }
@@ -44,6 +45,13 @@ __decorate([
     __metadata("design:paramtypes", [inventory_dto_1.ItemsQueryDto]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('status'),
+    (0, permissions_decorator_1.RequirePermissions)('stok_goruntuleme'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], ItemsController.prototype, "getStatus", null);
 __decorate([
     (0, common_1.Get)('types'),
     __metadata("design:type", Function),

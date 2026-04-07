@@ -16,6 +16,18 @@ export class TransactionsController {
     return this.txService.findAll(query);
   }
 
+  @Get('status')
+  @RequirePermissions('finans_goruntuleme')
+  getStatus() {
+    return this.txService.getStatus();
+  }
+
+  @Get('trends')
+  @RequirePermissions('finans_goruntuleme')
+  getDailyTrends() {
+    return this.txService.getDailyTrends();
+  }
+
   @Get(':id')
   @RequirePermissions('finans_goruntuleme')
   findOne(@Param('id', ParseIntPipe) id: number) { return this.txService.findOne(id); }

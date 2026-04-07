@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, MoreThan } from 'typeorm';
 import { Item } from './entities/item.entity';
 import { ItemType } from './entities/item-type.entity';
 import { QuantityType } from './entities/quantity-type.entity';
@@ -28,7 +28,7 @@ export class ItemsService {
       .leftJoinAndSelect('item.currency', 'currency');
 
     if (query.search) {
-      qb.where('(item.name LIKE :s OR item.code LIKE :s)', { s: `%${query.search}%` });
+      qb.where('(item.name LIKE :s OR item.code LIKE :s OR item.description LIKE :s OR item.brand LIKE :s OR item.model LIKE :s OR itemType.name LIKE :s OR provider.name LIKE :s)', { s: `%${query.search}%` });
     }
     if (query.itemTypeId) {
       qb.andWhere('item.itemTypeId = :typeId', { typeId: query.itemTypeId });
@@ -116,5 +116,14 @@ export class ItemsService {
   async createQuantityType(dto: CreateQuantityTypeDto, userId?: number): Promise<QuantityType> {
     const type = this.qtyTypeRepo.create({ ...dto, createdBy: userId });
     return this.qtyTypeRepo.save(type);
+  }
+
+  async getStatus() {
+    const [active, passive, lowStock] = await Promise.all([
+      this.itemRepo.count({ where: { state: 1 } }),
+      this.itemRepo.count({ where: { state: 0 } }),
+      this.itemRepo.count({ where: { state: 1, criticalLimit: MoreThan(0) } }), // Simple placeholder, ideally joins with stocks
+    ]);
+    return { active, passive, total: active + passive, lowStock };
   }
 }

@@ -23,4 +23,10 @@ export declare class ItemsService {
     createItemType(dto: CreateItemTypeDto, userId?: number): Promise<ItemType>;
     findAllQuantityTypes(): Promise<QuantityType[]>;
     createQuantityType(dto: CreateQuantityTypeDto, userId?: number): Promise<QuantityType>;
+    getStatus(): Promise<{
+        active: number;
+        passive: number;
+        total: number;
+        lowStock: number;
+    }>;
 }

@@ -16,6 +16,12 @@ export class RolesController {
     return this.rolesService.findAllRoles(query);
   }
 
+  @Get('status')
+  @RequirePermissions('rol_goruntuleme')
+  getStatus() {
+    return this.rolesService.getStatus();
+  }
+
   @Get(':id')
   @RequirePermissions('rol_goruntuleme')
   findOneRole(@Param('id', ParseIntPipe) id: number) {

@@ -5,6 +5,13 @@ export declare class DepartmentsController {
     private readonly deptService;
     constructor(deptService: DepartmentsService);
     findAll(query: PaginationDto): Promise<import("../../common/dto/pagination.dto").PaginatedResult<import("./entities/department.entity").Department>>;
+    getStatus(): Promise<{
+        active: number;
+        passive: number;
+        total: number;
+        withAccount: number;
+        structureScore: number;
+    }>;
     findAllTypes(): Promise<import("./entities/department-type.entity").DepartmentType[]>;
     createType(dto: CreateDepartmentTypeDto, userId: number): Promise<import("./entities/department-type.entity").DepartmentType>;
     findOne(id: number): Promise<import("./entities/department.entity").Department>;

@@ -21,7 +21,7 @@ export class DepartmentsService {
       .leftJoinAndSelect('dept.commercialAccount', 'account');
 
     if (query.search) {
-      qb.where('(dept.name LIKE :s OR dept.abbreviation LIKE :s)', { s: `%${query.search}%` });
+      qb.where('(dept.name LIKE :s OR dept.abbreviation LIKE :s OR dept.description LIKE :s OR type.name LIKE :s OR account.name LIKE :s)', { s: `%${query.search}%` });
     }
 
     if (query.state !== undefined) {
@@ -66,11 +66,28 @@ export class DepartmentsService {
 
   // ─── DEPARTMENT TYPES ───
   async findAllTypes(): Promise<DepartmentType[]> {
-    return this.typeRepo.find({ where: { state: 1 } });
+    return this.typeRepo.find();
   }
 
   async createType(dto: CreateDepartmentTypeDto, userId?: number): Promise<DepartmentType> {
     const type = this.typeRepo.create({ ...dto, createdBy: userId });
     return this.typeRepo.save(type);
+  }
+
+  async getStatus() {
+    const [active, passive, withAccount] = await Promise.all([
+      this.deptRepo.count({ where: { state: 1 } }),
+      this.deptRepo.count({ where: { state: 0 } }),
+      this.deptRepo.createQueryBuilder('dept')
+        .where('dept.commercialAccountId IS NOT NULL')
+        .getCount(),
+    ]);
+    return { 
+      active, 
+      passive, 
+      total: active + passive,
+      withAccount,
+      structureScore: Math.min(100, Math.round(((active + withAccount) / ( (active + passive) * 2 || 1)) * 100))
+    };
   }
 }

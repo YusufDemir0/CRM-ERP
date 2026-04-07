@@ -15,6 +15,12 @@ export class UsersController {
     return this.usersService.findAll(query);
   }
 
+  @Get('status')
+  @RequirePermissions('kullanici_goruntuleme')
+  getStatus() {
+    return this.usersService.getStatus();
+  }
+
   @Get(':id')
   @RequirePermissions('kullanici_goruntuleme')
   findOne(@Param('id', ParseIntPipe) id: number) {

@@ -14,8 +14,30 @@ export declare class PartiesService {
     softDelete(id: number): Promise<void>;
     getBalance(id: number): Promise<{
         balance: number;
-        creditLimitPlus: number;
-        creditLimitMinus: number;
-        available: number;
+        creditLimit: number;
+        currency: string;
+        symbol: string;
+    }>;
+    getStatus(): Promise<{
+        active: number;
+        passive: number;
+        totalReceivable: number;
+        exposurePercentage: number;
+        atRiskCount: number;
+    }>;
+    getGlobalExposure(): Promise<{
+        totalReceivable: number;
+        totalCreditLimit: number;
+        exposurePercentage: number;
+    }>;
+    getHealthMetrics(): Promise<{
+        healthyCount: number;
+        atRiskCount: number;
+        requiresAttention: {
+            id: number;
+            name: string;
+            balance: number;
+            limit: number;
+        }[];
     }>;
 }

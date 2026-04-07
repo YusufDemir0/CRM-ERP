@@ -28,6 +28,7 @@ const inventory_module_1 = require("./modules/inventory/inventory.module");
 const sales_module_1 = require("./modules/sales/sales.module");
 const finance_module_1 = require("./modules/finance/finance.module");
 const production_module_1 = require("./modules/production/production.module");
+const dashboard_module_1 = require("./modules/dashboard/dashboard.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -55,6 +56,7 @@ exports.AppModule = AppModule = __decorate([
             sales_module_1.SalesModule,
             finance_module_1.FinanceModule,
             production_module_1.ProductionModule,
+            dashboard_module_1.DashboardModule,
         ],
         providers: [
             {

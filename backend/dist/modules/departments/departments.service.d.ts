@@ -14,4 +14,11 @@ export declare class DepartmentsService {
     softDelete(id: number): Promise<void>;
     findAllTypes(): Promise<DepartmentType[]>;
     createType(dto: CreateDepartmentTypeDto, userId?: number): Promise<DepartmentType>;
+    getStatus(): Promise<{
+        active: number;
+        passive: number;
+        total: number;
+        withAccount: number;
+        structureScore: number;
+    }>;
 }

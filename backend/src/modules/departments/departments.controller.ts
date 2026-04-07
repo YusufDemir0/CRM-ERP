@@ -13,6 +13,9 @@ export class DepartmentsController {
   @Get()
   findAll(@Query() query: PaginationDto) { return this.deptService.findAll(query); }
 
+  @Get('status')
+  getStatus() { return this.deptService.getStatus(); }
+
   @Get('types')
   findAllTypes() { return this.deptService.findAllTypes(); }
 

@@ -7,7 +7,8 @@ export declare class Item extends BaseEntity {
     name: string;
     itemTypeId: number;
     code: string;
-    providerId: number | null;
+    code1: string | null;
+    code2: string | null;
     criticalLimit: number;
     image: string | null;
     purchasePrice: number | null;

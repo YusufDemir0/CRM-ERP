@@ -14,6 +14,10 @@ export class PartiesController {
   @RequirePermissions('musteri_goruntuleme')
   findAll(@Query() query: PartiesQueryDto) { return this.partiesService.findAll(query); }
 
+  @Get('status')
+  @RequirePermissions('musteri_goruntuleme')
+  getStatus() { return this.partiesService.getStatus(); }
+
   @Get(':id')
   @RequirePermissions('musteri_goruntuleme')
   findOne(@Param('id', ParseIntPipe) id: number) { return this.partiesService.findOne(id); }

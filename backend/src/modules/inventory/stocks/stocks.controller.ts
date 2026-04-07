@@ -32,4 +32,8 @@ export class StocksController {
   adjustStock(@Body() dto: StockAdjustmentDto, @CurrentUser('sub') userId: number) {
     return this.stocksService.adjustStock(dto, userId);
   }
+
+  @Get('status')
+  @RequirePermissions('stok_goruntuleme')
+  getStatus() { return this.stocksService.getStatus(); }
 }

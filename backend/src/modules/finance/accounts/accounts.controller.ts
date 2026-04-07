@@ -13,6 +13,9 @@ export class AccountsController {
   @Get()
   findAll(@Query() query: PaginationDto) { return this.accService.findAll(query); }
 
+  @Get('status')
+  getStatus() { return this.accService.getStatus(); }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) { return this.accService.findOne(id); }
 

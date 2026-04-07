@@ -29,7 +29,7 @@ export class RolesService {
       .leftJoinAndSelect('role.permissions', 'permissions');
 
     if (query.search) {
-      qb.where('role.name LIKE :search', { search: `%${query.search}%` });
+      qb.where('(role.name LIKE :search OR permissions.name LIKE :search)', { search: `%${query.search}%` });
     }
 
     qb.orderBy('role.createdAt', query.sortOrder || 'DESC');
@@ -75,7 +75,7 @@ export class RolesService {
   }
 
   async deleteRole(id: number): Promise<void> {
-    await this.findOneRole(id);
+    const role = await this.findOneRole(id);
     await this.roleRepo.softDelete(id);
   }
 
@@ -125,7 +125,6 @@ export class RolesService {
   // ────── USER PERMISSION OVERRIDE ──────
 
   async setUserPermission(dto: SetUserPermissionDto, currentUserId?: number): Promise<UserPermission> {
-    // Upsert: aynı user + permission + scope_type varsa güncelle
     let up = await this.userPermRepo.findOne({
       where: { userId: dto.userId, permissionId: dto.permissionId, scopeType: dto.scopeType },
     });
@@ -153,5 +152,24 @@ export class RolesService {
       where: { userId },
       relations: ['permission'],
     });
+  }
+
+  // ────── V2 REFINEMENTS ──────
+
+  async getStatus() {
+    const [active, passive] = await Promise.all([
+      this.roleRepo.count({ where: { state: 1 } }),
+      this.roleRepo.count({ where: { state: 0 } }),
+    ]);
+    return { active, passive, total: active + passive };
+  }
+
+  async getMatrixPresets() {
+    // This provides the default templates for the V2 Capability Matrix
+    return {
+      viewOnly: ['dashboard.view', 'items.view', 'parties.view'],
+      manager: ['dashboard.view', 'items.all', 'parties.all', 'reports.view'],
+      architect: ['*'] // Full access
+    };
   }
 }

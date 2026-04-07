@@ -24,6 +24,7 @@ let PartiesController = class PartiesController {
         this.partiesService = partiesService;
     }
     findAll(query) { return this.partiesService.findAll(query); }
+    getStatus() { return this.partiesService.getStatus(); }
     findOne(id) { return this.partiesService.findOne(id); }
     getBalance(id) { return this.partiesService.getBalance(id); }
     create(dto, userId) { return this.partiesService.create(dto, userId); }
@@ -41,6 +42,13 @@ __decorate([
     __metadata("design:paramtypes", [party_dto_1.PartiesQueryDto]),
     __metadata("design:returntype", void 0)
 ], PartiesController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('status'),
+    (0, permissions_decorator_1.RequirePermissions)('musteri_goruntuleme'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], PartiesController.prototype, "getStatus", null);
 __decorate([
     (0, common_1.Get)(':id'),
     (0, permissions_decorator_1.RequirePermissions)('musteri_goruntuleme'),

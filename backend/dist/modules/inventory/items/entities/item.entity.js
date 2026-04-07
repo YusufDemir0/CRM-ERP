@@ -28,13 +28,17 @@ __decorate([
     __metadata("design:type", Number)
 ], Item.prototype, "itemTypeId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'varchar', length: 50 }),
+    (0, typeorm_1.Column)({ name: 'code', type: 'varchar', length: 50, unique: true }),
     __metadata("design:type", String)
 ], Item.prototype, "code", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'provider_id', type: 'bigint', nullable: true }),
+    (0, typeorm_1.Column)({ name: 'code1', type: 'varchar', length: 50, nullable: true }),
     __metadata("design:type", Object)
-], Item.prototype, "providerId", void 0);
+], Item.prototype, "code1", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'code2', type: 'varchar', length: 50, nullable: true }),
+    __metadata("design:type", Object)
+], Item.prototype, "code2", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'critical_limit', type: 'decimal', precision: 15, scale: 4, default: 0 }),
     __metadata("design:type", Number)

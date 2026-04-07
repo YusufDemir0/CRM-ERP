@@ -5,6 +5,12 @@ export declare class AccountsController {
     private readonly accService;
     constructor(accService: AccountsService);
     findAll(query: PaginationDto): Promise<import("../../../common/dto/pagination.dto").PaginatedResult<import("./entities/commercial-account.entity").CommercialAccount>>;
+    getStatus(): Promise<{
+        active: number;
+        passive: number;
+        total: number;
+        totalBalance: number;
+    }>;
     findOne(id: number): Promise<import("./entities/commercial-account.entity").CommercialAccount>;
     create(dto: CreateAccountDto, userId: number): Promise<import("./entities/commercial-account.entity").CommercialAccount>;
     update(id: number, dto: UpdateAccountDto, userId: number): Promise<import("./entities/commercial-account.entity").CommercialAccount>;

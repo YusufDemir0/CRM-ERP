@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Bom } from './entities/bom.entity';
@@ -10,6 +10,7 @@ import {
   CreateProductionOrderDto, UpdateProductionOrderDto,
 } from './dto/production.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { Item } from '../inventory/items/entities/item.entity';
 
 @Injectable()
 export class ProductionService {
@@ -17,6 +18,7 @@ export class ProductionService {
     @InjectRepository(Bom) private bomRepo: Repository<Bom>,
     @InjectRepository(BomItem) private bomItemRepo: Repository<BomItem>,
     @InjectRepository(ProductionOrder) private poRepo: Repository<ProductionOrder>,
+    @InjectRepository(Item) private itemRepo: Repository<Item>,
     private dataSource: DataSource,
     private sequenceGenerator: SequenceGeneratorService,
   ) {}
@@ -55,6 +57,11 @@ export class ProductionService {
     const savedBom = await this.bomRepo.save(bom);
 
     for (const itemDto of dto.items) {
+      const item = await this.itemRepo.findOne({ where: { id: itemDto.itemId } });
+      if (!item || item.state !== 1) {
+        throw new BadRequestException(`Ürün '${item?.name || 'Bilinmeyen'}' pasif (arşivlenmiş) olduğundan reçeteye eklenemez.`);
+      }
+
       const bomItem = this.bomItemRepo.create({
         bomId: savedBom.id,
         itemId: itemDto.itemId,
@@ -149,5 +156,15 @@ export class ProductionService {
   async deleteOrder(id: number): Promise<void> {
     await this.findOneOrder(id);
     await this.poRepo.softDelete(id);
+  }
+
+  async getStatus() {
+    const [draft, planned, inProgress, completed] = await Promise.all([
+      this.poRepo.count({ where: { status: 'draft' } }),
+      this.poRepo.count({ where: { status: 'planned' } }),
+      this.poRepo.count({ where: { status: 'in_progress' } }),
+      this.poRepo.count({ where: { status: 'completed' } }),
+    ]);
+    return { draft, planned, inProgress, completed, total: draft + planned + inProgress + completed };
   }
 }

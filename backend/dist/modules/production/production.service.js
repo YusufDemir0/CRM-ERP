@@ -20,11 +20,13 @@ const bom_entity_1 = require("./entities/bom.entity");
 const bom_item_entity_1 = require("./entities/bom-item.entity");
 const production_order_entity_1 = require("./entities/production-order.entity");
 const sequence_generator_service_1 = require("../../common/services/sequence-generator.service");
+const item_entity_1 = require("../inventory/items/entities/item.entity");
 let ProductionService = class ProductionService {
-    constructor(bomRepo, bomItemRepo, poRepo, dataSource, sequenceGenerator) {
+    constructor(bomRepo, bomItemRepo, poRepo, itemRepo, dataSource, sequenceGenerator) {
         this.bomRepo = bomRepo;
         this.bomItemRepo = bomItemRepo;
         this.poRepo = poRepo;
+        this.itemRepo = itemRepo;
         this.dataSource = dataSource;
         this.sequenceGenerator = sequenceGenerator;
     }
@@ -57,6 +59,10 @@ let ProductionService = class ProductionService {
         bom.createdBy = userId ?? null;
         const savedBom = await this.bomRepo.save(bom);
         for (const itemDto of dto.items) {
+            const item = await this.itemRepo.findOne({ where: { id: itemDto.itemId } });
+            if (!item || item.state !== 1) {
+                throw new common_1.BadRequestException(`Ürün '${item?.name || 'Bilinmeyen'}' pasif (arşivlenmiş) olduğundan reçeteye eklenemez.`);
+            }
             const bomItem = this.bomItemRepo.create({
                 bomId: savedBom.id,
                 itemId: itemDto.itemId,
@@ -139,6 +145,15 @@ let ProductionService = class ProductionService {
         await this.findOneOrder(id);
         await this.poRepo.softDelete(id);
     }
+    async getStatus() {
+        const [draft, planned, inProgress, completed] = await Promise.all([
+            this.poRepo.count({ where: { status: 'draft' } }),
+            this.poRepo.count({ where: { status: 'planned' } }),
+            this.poRepo.count({ where: { status: 'in_progress' } }),
+            this.poRepo.count({ where: { status: 'completed' } }),
+        ]);
+        return { draft, planned, inProgress, completed, total: draft + planned + inProgress + completed };
+    }
 };
 exports.ProductionService = ProductionService;
 exports.ProductionService = ProductionService = __decorate([
@@ -146,7 +161,9 @@ exports.ProductionService = ProductionService = __decorate([
     __param(0, (0, typeorm_1.InjectRepository)(bom_entity_1.Bom)),
     __param(1, (0, typeorm_1.InjectRepository)(bom_item_entity_1.BomItem)),
     __param(2, (0, typeorm_1.InjectRepository)(production_order_entity_1.ProductionOrder)),
+    __param(3, (0, typeorm_1.InjectRepository)(item_entity_1.Item)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.DataSource,

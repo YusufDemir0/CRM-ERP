@@ -26,6 +26,9 @@ let RolesController = class RolesController {
     findAllRoles(query) {
         return this.rolesService.findAllRoles(query);
     }
+    getStatus() {
+        return this.rolesService.getStatus();
+    }
     findOneRole(id) {
         return this.rolesService.findOneRole(id);
     }
@@ -66,6 +69,13 @@ __decorate([
     __metadata("design:paramtypes", [pagination_dto_1.PaginationDto]),
     __metadata("design:returntype", void 0)
 ], RolesController.prototype, "findAllRoles", null);
+__decorate([
+    (0, common_1.Get)('status'),
+    (0, permissions_decorator_1.RequirePermissions)('rol_goruntuleme'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], RolesController.prototype, "getStatus", null);
 __decorate([
     (0, common_1.Get)(':id'),
     (0, permissions_decorator_1.RequirePermissions)('rol_goruntuleme'),

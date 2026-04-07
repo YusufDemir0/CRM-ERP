@@ -129,4 +129,25 @@ export class StocksService {
       .andWhere('item.criticalLimit > 0')
       .getMany();
   }
+
+  async getStatus() {
+    const [total, critical] = await Promise.all([
+      this.stockRepo.createQueryBuilder('stock')
+        .select("COUNT(DISTINCT stock.itemId)", "items")
+        .addSelect("SUM(stock.quantity)", "quantity")
+        .getRawOne(),
+      this.stockRepo.createQueryBuilder('stock')
+        .innerJoin('stock.item', 'item')
+        .where('stock.quantity <= item.criticalLimit')
+        .andWhere('item.criticalLimit > 0')
+        .select("COUNT(*)", "count")
+        .getRawOne(),
+    ]);
+
+    return {
+      totalItems: Number(total.items || 0),
+      totalQuantity: Number(total.quantity || 0),
+      criticalCount: Number(critical.count || 0),
+    };
+  }
 }

@@ -104,4 +104,40 @@ export class TransactionsService {
       await queryRunner.release();
     }
   }
+
+  async getStatus() {
+    const firstDayOfMonth = new Date();
+    firstDayOfMonth.setDate(1);
+    firstDayOfMonth.setHours(0, 0, 0, 0);
+
+    const stats = await this.txRepo.createQueryBuilder('tx')
+      .select("SUM(CASE WHEN tx.type = 'in' THEN tx.amount ELSE 0 END)", "income")
+      .addSelect("SUM(CASE WHEN tx.type = 'out' THEN tx.amount ELSE 0 END)", "expense")
+      .addSelect("COUNT(*)", "count")
+      .where("tx.date >= :date", { date: firstDayOfMonth.toISOString().split('T')[0] })
+      .getRawOne();
+
+    return {
+      monthlyIncome: Number(stats.income || 0),
+      monthlyExpense: Number(stats.expense || 0),
+      count: Number(stats.count || 0),
+      totalVolume: Number(stats.income || 0) + Number(stats.expense || 0),
+    };
+  }
+
+  async getDailyTrends() {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const results = await this.txRepo.createQueryBuilder('tx')
+      .select("DATE(tx.date)", "day")
+      .addSelect("SUM(CASE WHEN tx.type = 'in' THEN tx.amount ELSE 0 END)", "income")
+      .addSelect("SUM(CASE WHEN tx.type = 'out' THEN tx.amount ELSE 0 END)", "expense")
+      .where("tx.date >= :date", { date: sevenDaysAgo.toISOString().split('T')[0] })
+      .groupBy("DATE(tx.date)")
+      .orderBy("day", "ASC")
+      .getRawMany();
+
+    return results;
+  }
 }

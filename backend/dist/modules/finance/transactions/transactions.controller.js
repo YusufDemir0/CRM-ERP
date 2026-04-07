@@ -26,6 +26,12 @@ let TransactionsController = class TransactionsController {
     findAll(query) {
         return this.txService.findAll(query);
     }
+    getStatus() {
+        return this.txService.getStatus();
+    }
+    getDailyTrends() {
+        return this.txService.getDailyTrends();
+    }
     findOne(id) { return this.txService.findOne(id); }
     create(dto, userId) {
         return this.txService.create(dto, userId);
@@ -40,6 +46,20 @@ __decorate([
     __metadata("design:paramtypes", [finance_dto_1.TransactionsQueryDto]),
     __metadata("design:returntype", void 0)
 ], TransactionsController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('status'),
+    (0, permissions_decorator_1.RequirePermissions)('finans_goruntuleme'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], TransactionsController.prototype, "getStatus", null);
+__decorate([
+    (0, common_1.Get)('trends'),
+    (0, permissions_decorator_1.RequirePermissions)('finans_goruntuleme'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], TransactionsController.prototype, "getDailyTrends", null);
 __decorate([
     (0, common_1.Get)(':id'),
     (0, permissions_decorator_1.RequirePermissions)('finans_goruntuleme'),

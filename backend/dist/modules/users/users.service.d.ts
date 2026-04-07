@@ -10,4 +10,10 @@ export declare class UsersService {
     create(dto: CreateUserDto, currentUserId?: number): Promise<User>;
     update(id: number, dto: UpdateUserDto, currentUserId?: number): Promise<User>;
     softDelete(id: number, currentUserId?: number): Promise<void>;
+    getStatus(): Promise<{
+        active: number;
+        passive: number;
+        total: number;
+        adminCount: number;
+    }>;
 }

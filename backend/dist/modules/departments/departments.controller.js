@@ -24,6 +24,7 @@ let DepartmentsController = class DepartmentsController {
         this.deptService = deptService;
     }
     findAll(query) { return this.deptService.findAll(query); }
+    getStatus() { return this.deptService.getStatus(); }
     findAllTypes() { return this.deptService.findAllTypes(); }
     createType(dto, userId) {
         return this.deptService.createType(dto, userId);
@@ -43,6 +44,12 @@ __decorate([
     __metadata("design:paramtypes", [pagination_dto_1.PaginationDto]),
     __metadata("design:returntype", void 0)
 ], DepartmentsController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('status'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], DepartmentsController.prototype, "getStatus", null);
 __decorate([
     (0, common_1.Get)('types'),
     __metadata("design:type", Function),

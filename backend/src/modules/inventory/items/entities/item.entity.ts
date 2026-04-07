@@ -14,11 +14,14 @@ export class Item extends BaseEntity {
   @Column({ name: 'item_type_id', type: 'bigint' })
   itemTypeId: number;
 
-  @Column({ type: 'varchar', length: 50 })
+  @Column({ name: 'code', type: 'varchar', length: 50, unique: true })
   code: string;
 
-  @Column({ name: 'provider_id', type: 'bigint', nullable: true })
-  providerId: number | null;
+  @Column({ name: 'code1', type: 'varchar', length: 50, nullable: true })
+  code1: string | null;
+
+  @Column({ name: 'code2', type: 'varchar', length: 50, nullable: true })
+  code2: string | null;
 
   @Column({ name: 'critical_limit', type: 'decimal', precision: 15, scale: 4, default: 0 })
   criticalLimit: number;
