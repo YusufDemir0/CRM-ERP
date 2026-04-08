@@ -32,9 +32,14 @@ let TransactionsController = class TransactionsController {
     getDailyTrends() {
         return this.txService.getDailyTrends();
     }
-    findOne(id) { return this.txService.findOne(id); }
+    findOne(id) {
+        return this.txService.findOne(id);
+    }
     create(dto, userId) {
         return this.txService.create(dto, userId);
+    }
+    cancel(id, userId) {
+        return this.txService.cancel(id, userId);
     }
 };
 exports.TransactionsController = TransactionsController;
@@ -77,6 +82,15 @@ __decorate([
     __metadata("design:paramtypes", [finance_dto_1.CreateTransactionDto, Number]),
     __metadata("design:returntype", void 0)
 ], TransactionsController.prototype, "create", null);
+__decorate([
+    (0, common_1.Post)(':id/cancel'),
+    (0, permissions_decorator_1.RequirePermissions)('finans_islem'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Number]),
+    __metadata("design:returntype", void 0)
+], TransactionsController.prototype, "cancel", null);
 exports.TransactionsController = TransactionsController = __decorate([
     (0, common_1.Controller)('transactions'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),

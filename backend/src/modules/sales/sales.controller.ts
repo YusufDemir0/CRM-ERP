@@ -20,6 +20,12 @@ export class SalesController {
     return this.salesService.createSaleType(dto, userId);
   }
 
+  @Get('status')
+  @RequirePermissions('satis_goruntuleme')
+  getStatus() {
+    return this.salesService.getStatus();
+  }
+
   // ────── SALES ──────
   @Get()
   @RequirePermissions('satis_goruntuleme')
@@ -70,11 +76,5 @@ export class SalesController {
   @RequirePermissions('satis_silme')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.salesService.softDelete(id);
-  }
-
-  @Get('status')
-  @RequirePermissions('satis_goruntuleme')
-  getStatus() {
-    return this.salesService.getStatus();
   }
 }

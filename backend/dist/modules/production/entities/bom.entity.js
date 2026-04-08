@@ -13,6 +13,7 @@ exports.Bom = void 0;
 const typeorm_1 = require("typeorm");
 const base_entity_1 = require("../../../common/entities/base.entity");
 const bom_item_entity_1 = require("./bom-item.entity");
+const item_entity_1 = require("../../inventory/items/entities/item.entity");
 let Bom = class Bom extends base_entity_1.BaseEntity {
 };
 exports.Bom = Bom;
@@ -21,9 +22,18 @@ __decorate([
     __metadata("design:type", String)
 ], Bom.prototype, "name", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'target_item_id', type: 'bigint', nullable: true }),
+    __metadata("design:type", Object)
+], Bom.prototype, "targetItemId", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", Object)
 ], Bom.prototype, "description", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => item_entity_1.Item, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: 'target_item_id' }),
+    __metadata("design:type", item_entity_1.Item)
+], Bom.prototype, "targetItem", void 0);
 __decorate([
     (0, typeorm_1.OneToMany)(() => bom_item_entity_1.BomItem, (bi) => bi.bom),
     __metadata("design:type", Array)

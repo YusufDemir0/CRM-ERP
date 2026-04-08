@@ -39,6 +39,10 @@ __decorate([
     __metadata("design:type", Object)
 ], Transaction.prototype, "currencyId", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'exchange_rate', type: 'decimal', precision: 15, scale: 6, default: 1 }),
+    __metadata("design:type", Number)
+], Transaction.prototype, "exchangeRate", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'enum', enum: ['in', 'out'] }),
     __metadata("design:type", String)
 ], Transaction.prototype, "type", void 0);

@@ -1,6 +1,8 @@
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 export declare class CreateItemDto {
     name: string;
     itemTypeId: number;
+    itemCodeGroupId: number;
     providerId?: number;
     criticalLimit?: number;
     image?: string;
@@ -16,6 +18,7 @@ export declare class CreateItemDto {
 export declare class UpdateItemDto {
     name?: string;
     itemTypeId?: number;
+    itemCodeGroupId?: number;
     providerId?: number;
     criticalLimit?: number;
     image?: string;
@@ -37,6 +40,10 @@ export declare class CreateQuantityTypeDto {
     name: string;
     abbreviation: string;
 }
+export declare class CreateItemCodeGroupDto {
+    name: string;
+    prefix: string;
+}
 export declare class StockAdjustmentDto {
     itemId: number;
     departmentId: number;
@@ -45,7 +52,13 @@ export declare class StockAdjustmentDto {
     description?: string;
     notes?: string;
 }
-import { PaginationDto } from '../../../common/dto/pagination.dto';
+export declare class TransferStockDto {
+    itemId: number;
+    fromDepartmentId: number;
+    toDepartmentId: number;
+    quantity: number;
+    description?: string;
+}
 export declare class ItemsQueryDto extends PaginationDto {
     itemTypeId?: number;
 }

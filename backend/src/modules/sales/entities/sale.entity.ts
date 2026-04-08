@@ -20,6 +20,9 @@ export class Sale extends BaseEntity {
   @Column({ name: 'currency_id', type: 'bigint', nullable: true })
   currencyId: number | null;
 
+  @Column({ name: 'exchange_rate', type: 'decimal', precision: 15, scale: 6, default: 1 })
+  exchangeRate: number;
+
   @Column({ name: 'delivery_date', type: 'date', nullable: true })
   deliveryDate: string | null;
 
@@ -38,7 +41,7 @@ export class Sale extends BaseEntity {
   @Column({ name: 'discount_percent', type: 'decimal', precision: 5, scale: 2, default: 0 })
   discountPercent: number;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
+  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
   kdv: number;
 
   @Column({ name: 'grand_total', type: 'decimal', precision: 15, scale: 2, default: 0 })

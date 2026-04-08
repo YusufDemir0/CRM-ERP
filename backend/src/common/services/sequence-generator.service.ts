@@ -29,33 +29,32 @@ export class SequenceGeneratorService {
    */
   async generateItemCode(
     queryRunner: QueryRunner,
-    itemTypeId: number,
+    itemCodeGroupId: number,
   ): Promise<string> {
-    // 1. item_type'ın abbreviation'ını al
-    const itemType = await queryRunner.query(
-      `SELECT abbreviation FROM item_types WHERE id = ? AND deleted_at IS NULL`,
-      [itemTypeId],
+    // 1. Kod grubunun abbreviation'ını (prefix) al
+    const codeGroup = await queryRunner.query(
+      `SELECT prefix FROM item_code_groups WHERE id = ? AND deleted_at IS NULL`,
+      [itemCodeGroupId],
     );
 
-    if (!itemType || itemType.length === 0) {
-      throw new Error(`Item type bulunamadı: ${itemTypeId}`);
+    if (!codeGroup || codeGroup.length === 0) {
+      throw new Error(`Item code group bulunamadı: ${itemCodeGroupId}`);
     }
 
-    const prefix = itemType[0].abbreviation;
+    const prefix = codeGroup[0].prefix;
 
-    // 2. Sequence satırını pessimistic lock ile kilitle
+    // 2. Sequence satırını pessimistic lock ile kilitle (Ayrı bir sequence tablosu: item_code_sequences)
     const sequences = await queryRunner.query(
-      `SELECT id, current_number FROM item_sequences WHERE item_type_id = ? FOR UPDATE`,
-      [itemTypeId],
+      `SELECT id, current_number FROM item_code_sequences WHERE item_code_group_id = ? FOR UPDATE`,
+      [itemCodeGroupId],
     );
 
     let currentNumber: number;
 
     if (sequences.length === 0) {
-      // İlk kez oluşturuluyor
       await queryRunner.query(
-        `INSERT INTO item_sequences (item_type_id, current_number) VALUES (?, 1)`,
-        [itemTypeId],
+        `INSERT INTO item_code_sequences (item_code_group_id, current_number) VALUES (?, 1)`,
+        [itemCodeGroupId],
       );
       currentNumber = 1;
     } else {
@@ -67,8 +66,8 @@ export class SequenceGeneratorService {
 
     // 4. current_number'ı artır
     await queryRunner.query(
-      `UPDATE item_sequences SET current_number = current_number + 1 WHERE item_type_id = ?`,
-      [itemTypeId],
+      `UPDATE item_code_sequences SET current_number = current_number + 1 WHERE item_code_group_id = ?`,
+      [itemCodeGroupId],
     );
 
     this.logger.debug(`Generated item code: ${code}`);

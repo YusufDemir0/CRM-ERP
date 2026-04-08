@@ -11,6 +11,8 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TransactionsQueryDto = exports.CreateTransactionDto = exports.UpdateAccountDto = exports.CreateAccountDto = exports.UpdateCurrencyDto = exports.CreateCurrencyDto = void 0;
 const class_validator_1 = require("class-validator");
+const pagination_dto_1 = require("../../../common/dto/pagination.dto");
+const class_transformer_1 = require("class-transformer");
 class CreateCurrencyDto {
 }
 exports.CreateCurrencyDto = CreateCurrencyDto;
@@ -32,6 +34,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateCurrencyDto.prototype, "exchangeRate", void 0);
 __decorate([
@@ -55,6 +58,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], UpdateCurrencyDto.prototype, "exchangeRate", void 0);
 __decorate([
@@ -155,6 +159,7 @@ __decorate([
 ], CreateTransactionDto.prototype, "commercialAccountId", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0.01),
     __metadata("design:type", Number)
 ], CreateTransactionDto.prototype, "amount", void 0);
 __decorate([
@@ -185,8 +190,6 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateTransactionDto.prototype, "description", void 0);
-const pagination_dto_1 = require("../../../common/dto/pagination.dto");
-const class_transformer_1 = require("class-transformer");
 class TransactionsQueryDto extends pagination_dto_1.PaginationDto {
 }
 exports.TransactionsQueryDto = TransactionsQueryDto;

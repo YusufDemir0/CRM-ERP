@@ -13,23 +13,23 @@ let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGenera
     constructor() {
         this.logger = new common_1.Logger(SequenceGeneratorService_1.name);
     }
-    async generateItemCode(queryRunner, itemTypeId) {
-        const itemType = await queryRunner.query(`SELECT abbreviation FROM item_types WHERE id = ? AND deleted_at IS NULL`, [itemTypeId]);
-        if (!itemType || itemType.length === 0) {
-            throw new Error(`Item type bulunamadı: ${itemTypeId}`);
+    async generateItemCode(queryRunner, itemCodeGroupId) {
+        const codeGroup = await queryRunner.query(`SELECT prefix FROM item_code_groups WHERE id = ? AND deleted_at IS NULL`, [itemCodeGroupId]);
+        if (!codeGroup || codeGroup.length === 0) {
+            throw new Error(`Item code group bulunamadı: ${itemCodeGroupId}`);
         }
-        const prefix = itemType[0].abbreviation;
-        const sequences = await queryRunner.query(`SELECT id, current_number FROM item_sequences WHERE item_type_id = ? FOR UPDATE`, [itemTypeId]);
+        const prefix = codeGroup[0].prefix;
+        const sequences = await queryRunner.query(`SELECT id, current_number FROM item_code_sequences WHERE item_code_group_id = ? FOR UPDATE`, [itemCodeGroupId]);
         let currentNumber;
         if (sequences.length === 0) {
-            await queryRunner.query(`INSERT INTO item_sequences (item_type_id, current_number) VALUES (?, 1)`, [itemTypeId]);
+            await queryRunner.query(`INSERT INTO item_code_sequences (item_code_group_id, current_number) VALUES (?, 1)`, [itemCodeGroupId]);
             currentNumber = 1;
         }
         else {
             currentNumber = sequences[0].current_number;
         }
         const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
-        await queryRunner.query(`UPDATE item_sequences SET current_number = current_number + 1 WHERE item_type_id = ?`, [itemTypeId]);
+        await queryRunner.query(`UPDATE item_code_sequences SET current_number = current_number + 1 WHERE item_code_group_id = ?`, [itemCodeGroupId]);
         this.logger.debug(`Generated item code: ${code}`);
         return code;
     }

@@ -1,6 +1,7 @@
 import { Entity, Column, ManyToOne, JoinColumn, Unique } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { Bom } from './bom.entity';
+import { Department } from '../../departments/entities/department.entity';
 
 @Entity('production_orders')
 @Unique(['code'])
@@ -10,6 +11,12 @@ export class ProductionOrder extends BaseEntity {
 
   @Column({ name: 'bom_id', type: 'bigint' })
   bomId: number;
+
+  @Column({ name: 'source_department_id', type: 'bigint', nullable: true })
+  sourceDepartmentId: number | null;
+
+  @Column({ name: 'target_department_id', type: 'bigint', nullable: true })
+  targetDepartmentId: number | null;
 
   @Column({ name: 'planned_quantity', type: 'decimal', precision: 15, scale: 4 })
   plannedQuantity: number;
@@ -35,4 +42,12 @@ export class ProductionOrder extends BaseEntity {
   @ManyToOne(() => Bom)
   @JoinColumn({ name: 'bom_id' })
   bom: Bom;
+
+  @ManyToOne(() => Department)
+  @JoinColumn({ name: 'source_department_id' })
+  sourceDepartment: Department;
+
+  @ManyToOne(() => Department)
+  @JoinColumn({ name: 'target_department_id' })
+  targetDepartment: Department;
 }

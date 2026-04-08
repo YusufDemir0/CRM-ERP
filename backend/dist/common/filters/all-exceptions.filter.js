@@ -27,10 +27,7 @@ let AllExceptionsFilter = AllExceptionsFilter_1 = class AllExceptionsFilter {
         }
         else if (exception instanceof typeorm_1.QueryFailedError) {
             status = common_1.HttpStatus.BAD_REQUEST;
-            message = {
-                error: 'Database Error',
-                detail: exception.message,
-            };
+            message = `Database Error: ${exception.message}`;
             this.logger.error(`DB Error: ${exception.message}`, exception.stack);
         }
         else if (exception instanceof Error) {

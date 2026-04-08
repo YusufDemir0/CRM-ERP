@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { accountsAPI, currenciesAPI } from '../../services/api';
+import { FiEdit2, FiArchive, FiRefreshCw } from 'react-icons/fi';
+import toast from 'react-hot-toast';
 import { usePersistentForm } from '../../hooks/usePersistentForm';
 import { navHub } from '../../utils/navHub';
+import { confirmDialog } from '../../utils/confirmDialog';
 
 export default function AccountsPage() {
   const location = useLocation();
@@ -38,8 +41,8 @@ export default function AccountsPage() {
       
       // Default currency sets only if not already set
       if (!formData.currencyId && curList.length > 0) {
-        const tryCur = curList.find((c: any) => c.code === 'TRY');
-        if (tryCur) setFormData(prev => ({ ...prev, currencyId: tryCur.id }));
+        const defaultCur = curList.find((c: any) => c.isDefault === 1);
+        if (defaultCur) setFormData(prev => ({ ...prev, currencyId: defaultCur.id }));
       }
     } catch (error) {
       console.error(error);
@@ -91,7 +94,7 @@ export default function AccountsPage() {
     // Validasyonlar: IBAN length kontrolü
     const rawIban = formData.iban.replace(/\s/g, '');
     if (rawIban.length > 0 && rawIban.length !== 26) {
-      alert("IBAN eksik veya fazla girilmiş. TR + 24 rakam olmalıdır.");
+      toast.error("IBAN eksik veya fazla girilmiş. TR + 24 rakam olmalıdır.");
       return;
     }
 
@@ -128,7 +131,8 @@ export default function AccountsPage() {
   };
 
   const toggleState = async (id: number, currentState: number) => {
-    if (window.confirm(currentState === 1 ? 'Hesap pasife alınacak (arşivlenecek). Emin misiniz?' : 'Hesap tekrar aktifleştirilecek. Emin misiniz?')) {
+    const confirmed = await confirmDialog(currentState === 1 ? 'Hesap pasife alınacak (arşivlenecek). Emin misiniz?' : 'Hesap tekrar aktifleştirilecek. Emin misiniz?', currentState === 1);
+    if (confirmed) {
       await accountsAPI.toggleState(id, currentState);
       fetchData();
     }
@@ -167,7 +171,6 @@ export default function AccountsPage() {
               <th>HESAP ADI</th>
               <th>BANKA BİLGİSİ</th>
               <th>IBAN</th>
-              <th>PARA BİRİMİ</th>
               <th>KRİTİK LİMİT</th>
               <th>AÇIKLAMA</th>
               <th>İŞLEMLER</th>
@@ -179,20 +182,21 @@ export default function AccountsPage() {
                 <td><strong>{acc.name}</strong> {acc.state === 0 && <span className="badge" style={{ background: '#e2e8f0' }}>PASİF</span>}</td>
                 <td>{acc.bankName}</td>
                 <td className="tabular-nums">{acc.iban || '-'}</td>
-                <td>{acc.currency?.code || 'TL'}</td>
                 <td className="tabular-nums" style={{ color: acc.criticalLimit < 0 ? 'red' : 'inherit' }}>
                   {Number(acc.criticalLimit).toLocaleString('tr-TR')} {acc.currency?.symbol || '₺'}
                 </td>
                 <td style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{acc.description}</td>
-                <td>
-                  <button className="btn" style={{ padding: '0 10px', height: '30px', marginRight: '5px' }} onClick={() => handleEdit(acc)}>✎ Düzenle</button>
-                  <button className="btn" style={{ padding: '0 10px', height: '30px', color: acc.state === 1 ? 'var(--error)' : 'var(--success)' }} onClick={() => toggleState(acc.id, acc.state)}>
-                    {acc.state === 1 ? 'Arşivle' : 'Aktif Et'}
+                <td style={{ display: 'flex', gap: '5px' }}>
+                  <button className="btn-icon" title="Düzenle" onClick={() => handleEdit(acc)}>
+                    <FiEdit2 size={16} />
+                  </button>
+                  <button className="btn-icon" title={acc.state === 1 ? 'Arşivle' : 'Aktif Et'} style={{ color: acc.state === 1 ? 'var(--error)' : 'var(--success)' }} onClick={() => toggleState(acc.id, acc.state)}>
+                    {acc.state === 1 ? <FiArchive size={16} /> : <FiRefreshCw size={16} />}
                   </button>
                 </td>
               </tr>
             ))}
-            {filteredAccounts.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center' }}>Kayıt bulunamadı.</td></tr>}
+            {filteredAccounts.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center' }}>Kayıt bulunamadı.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -205,18 +209,17 @@ export default function AccountsPage() {
               
               <div className="form-group">
                 <label>Hesap Adı (Zorunlu)</label>
-                <input required className="uppercase-input" value={formData.name} onChange={e => setFormData({...formData, name: removeNumbers(e.target.value).toUpperCase()})} placeholder="ÖR: MERKEZ NAKİT KASA" />
+                <input required className="uppercase-input" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value.replace(/[0-9]/g, '').toLocaleUpperCase('tr-TR')})} placeholder="ÖR: MERKEZ NAKİT KASA" />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                 <div className="form-group">
                   <label>Banka Adı</label>
-                  <input className="uppercase-input" value={formData.bankName} onChange={e => setFormData({...formData, bankName: removeNumbers(e.target.value).toUpperCase()})} placeholder="ÖR: ZİRAAT BANKASI" />
+                  <input className="uppercase-input" value={formData.bankName} onChange={e => setFormData({...formData, bankName: e.target.value.replace(/[0-9]/g, '').toLocaleUpperCase('tr-TR')})} placeholder="ÖR: ZİRAAT BANKASI" />
                 </div>
                 <div className="form-group">
                   <label>Para Birimi</label>
-                  <select required className="uppercase-input" value={formData.currencyId} onChange={e => setFormData({...formData, currencyId: e.target.value})} style={{ appearance: 'none' }} disabled={true}>
-                    {/* TL Sabit ve Seçili */}
+                  <select required className="uppercase-input" value={formData.currencyId} onChange={e => setFormData({...formData, currencyId: e.target.value})}>
                     {currencies.map(c => <option key={c.id} value={c.id}>{c.code} ({c.symbol})</option>)}
                   </select>
                 </div>
@@ -229,7 +232,7 @@ export default function AccountsPage() {
 
               <div className="form-group">
                 <label>IBAN Sahibi Ad-Soyad</label>
-                <input className="uppercase-input" value={formData.ibanName} onChange={e => setFormData({...formData, ibanName: removeNumbers(e.target.value).toUpperCase()})} placeholder="AD SOYAD" />
+                <input className="uppercase-input" value={formData.ibanName} onChange={e => setFormData({...formData, ibanName: e.target.value.replace(/[0-9]/g, '').toLocaleUpperCase('tr-TR')})} placeholder="AD SOYAD" />
               </div>
 
               <div className="form-group">
@@ -249,7 +252,7 @@ export default function AccountsPage() {
 
               <div className="form-group">
                 <label>Kısa Açıklama</label>
-                <input className="uppercase-input" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value.toUpperCase()})} placeholder="..." />
+                <input className="uppercase-input" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value.toLocaleUpperCase('tr-TR')})} placeholder="..." />
               </div>
 
               <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>

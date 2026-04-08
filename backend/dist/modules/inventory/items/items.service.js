@@ -19,28 +19,36 @@ const typeorm_2 = require("typeorm");
 const item_entity_1 = require("./entities/item.entity");
 const item_type_entity_1 = require("./entities/item-type.entity");
 const quantity_type_entity_1 = require("./entities/quantity-type.entity");
+const item_code_group_entity_1 = require("./entities/item-code-group.entity");
 const sequence_generator_service_1 = require("../../../common/services/sequence-generator.service");
 let ItemsService = class ItemsService {
-    constructor(itemRepo, itemTypeRepo, qtyTypeRepo, dataSource, sequenceGenerator) {
+    constructor(itemRepo, itemTypeRepo, qtyTypeRepo, codeGroupRepo, dataSource, sequenceGenerator) {
         this.itemRepo = itemRepo;
         this.itemTypeRepo = itemTypeRepo;
         this.qtyTypeRepo = qtyTypeRepo;
+        this.codeGroupRepo = codeGroupRepo;
         this.dataSource = dataSource;
         this.sequenceGenerator = sequenceGenerator;
     }
     async findAll(query) {
         const qb = this.itemRepo.createQueryBuilder('item')
             .leftJoinAndSelect('item.itemType', 'itemType')
+            .leftJoinAndSelect('item.itemCodeGroup', 'itemCodeGroup')
             .leftJoinAndSelect('item.quantityType', 'quantityType')
             .leftJoinAndSelect('item.provider', 'provider')
             .leftJoinAndSelect('item.currency', 'currency');
         if (query.search) {
-            qb.where('(item.name LIKE :s OR item.code LIKE :s OR item.description LIKE :s OR item.brand LIKE :s OR item.model LIKE :s OR itemType.name LIKE :s OR provider.name LIKE :s)', { s: `%${query.search}%` });
+            qb.where('(item.name LIKE :s OR item.code LIKE :s OR item.description LIKE :s OR itemType.name LIKE :s OR provider.name LIKE :s)', { s: `%${query.search}%` });
         }
         if (query.itemTypeId) {
             qb.andWhere('item.itemTypeId = :typeId', { typeId: query.itemTypeId });
         }
-        qb.orderBy(`item.${query.sortBy || 'createdAt'}`, query.sortOrder || 'DESC');
+        if (query.state !== undefined) {
+            qb.andWhere('item.state = :state', { state: query.state });
+        }
+        const allowedSortCols = ['createdAt', 'name', 'code', 'purchasePrice', 'salePrice', 'criticalLimit'];
+        const sortCol = allowedSortCols.includes(query.sortBy || '') ? query.sortBy : 'createdAt';
+        qb.orderBy(`item.${sortCol}`, query.sortOrder || 'DESC');
         qb.skip(query.skip).take(query.limit);
         const [data, total] = await qb.getManyAndCount();
         return {
@@ -51,7 +59,7 @@ let ItemsService = class ItemsService {
     async findOne(id) {
         const item = await this.itemRepo.findOne({
             where: { id },
-            relations: ['itemType', 'quantityType', 'provider', 'currency'],
+            relations: ['itemType', 'itemCodeGroup', 'quantityType', 'provider', 'currency'],
         });
         if (!item)
             throw new common_1.NotFoundException('Ürün bulunamadı');
@@ -62,7 +70,7 @@ let ItemsService = class ItemsService {
         await queryRunner.connect();
         await queryRunner.startTransaction();
         try {
-            const code = await this.sequenceGenerator.generateItemCode(queryRunner, dto.itemTypeId);
+            const code = await this.sequenceGenerator.generateItemCode(queryRunner, dto.itemCodeGroupId);
             const item = queryRunner.manager.create(item_entity_1.Item, {
                 ...dto,
                 code,
@@ -97,6 +105,55 @@ let ItemsService = class ItemsService {
         const type = this.itemTypeRepo.create({ ...dto, createdBy: userId });
         return this.itemTypeRepo.save(type);
     }
+    async updateItemType(id, dto, userId) {
+        const type = await this.itemTypeRepo.findOne({ where: { id } });
+        if (!type)
+            throw new common_1.NotFoundException('Ürün tipi bulunamadı');
+        if (dto.state === 0) {
+            const activeItems = await this.itemRepo.count({ where: { itemTypeId: id, state: 1 } });
+            if (activeItems > 0) {
+                throw new common_1.BadRequestException(`Bu türde ${activeItems} adet aktif ürün bulunduğu için pasife alınamaz.`);
+            }
+        }
+        Object.assign(type, dto);
+        type.updatedBy = userId || null;
+        return this.itemTypeRepo.save(type);
+    }
+    async softDeleteItemType(id) {
+        const activeItems = await this.itemRepo.count({ where: { itemTypeId: id, state: 1 } });
+        if (activeItems > 0) {
+            throw new common_1.BadRequestException('Bu türde aktif ürünler bulunduğu için silinemez.');
+        }
+        await this.itemTypeRepo.softDelete(id);
+    }
+    async findAllItemCodeGroups() {
+        return this.codeGroupRepo.find();
+    }
+    async createItemCodeGroup(dto, userId) {
+        const group = this.codeGroupRepo.create({ ...dto, createdBy: userId });
+        return this.codeGroupRepo.save(group);
+    }
+    async updateItemCodeGroup(id, dto, userId) {
+        const group = await this.codeGroupRepo.findOne({ where: { id } });
+        if (!group)
+            throw new common_1.NotFoundException('Ürün kod grubu bulunamadı');
+        if (dto.state === 0) {
+            const activeItems = await this.itemRepo.count({ where: { itemCodeGroupId: id, state: 1 } });
+            if (activeItems > 0) {
+                throw new common_1.BadRequestException(`Bu grupta ${activeItems} adet aktif ürün bulunduğu için pasife alınamaz.`);
+            }
+        }
+        Object.assign(group, dto);
+        group.updatedBy = userId || null;
+        return this.codeGroupRepo.save(group);
+    }
+    async softDeleteItemCodeGroup(id) {
+        const activeItems = await this.itemRepo.count({ where: { itemCodeGroupId: id, state: 1 } });
+        if (activeItems > 0) {
+            throw new common_1.BadRequestException('Bu grupta aktif ürünler bulunduğu için silinemez.');
+        }
+        await this.codeGroupRepo.softDelete(id);
+    }
     async findAllQuantityTypes() {
         return this.qtyTypeRepo.find();
     }
@@ -119,7 +176,9 @@ exports.ItemsService = ItemsService = __decorate([
     __param(0, (0, typeorm_1.InjectRepository)(item_entity_1.Item)),
     __param(1, (0, typeorm_1.InjectRepository)(item_type_entity_1.ItemType)),
     __param(2, (0, typeorm_1.InjectRepository)(quantity_type_entity_1.QuantityType)),
+    __param(3, (0, typeorm_1.InjectRepository)(item_code_group_entity_1.ItemCodeGroup)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.DataSource,

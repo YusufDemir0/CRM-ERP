@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { StocksService } from './stocks.service';
-import { StockAdjustmentDto, StocksQueryDto } from '../dto/inventory.dto';
+import { StockAdjustmentDto, StocksQueryDto, TransferStockDto } from '../dto/inventory.dto';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
@@ -31,6 +31,13 @@ export class StocksController {
   @RequirePermissions('stok_duzenleme')
   adjustStock(@Body() dto: StockAdjustmentDto, @CurrentUser('sub') userId: number) {
     return this.stocksService.adjustStock(dto, userId);
+  }
+
+  // YENİ EKLENEN ENDPOINT
+  @Post('transfer')
+  @RequirePermissions('stok_duzenleme')
+  transferStock(@Body() dto: TransferStockDto, @CurrentUser('sub') userId: number) {
+    return this.stocksService.transferStock(dto, userId);
   }
 
   @Get('status')

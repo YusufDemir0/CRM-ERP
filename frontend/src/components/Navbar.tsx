@@ -31,8 +31,24 @@ export default function Navbar() {
         setIsSearchOpen(false);
       }
     };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        const input = searchRef.current?.querySelector('input');
+        input?.focus();
+      }
+      if (e.key === 'Escape') {
+        setIsSearchOpen(false);
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -74,32 +90,69 @@ export default function Navbar() {
           </form>
           <FiCommand size={14} style={{ opacity: 0.3, marginLeft: '8px' }} />
           
-          {isSearchOpen && filteredItems.length > 0 && (
+          {isSearchOpen && searchQuery.trim() !== '' && (
             <div className="table-card" style={{ 
               position: 'absolute', 
               top: '50px', 
               left: 0, 
-              width: '100%', 
+              width: '450px', 
               zIndex: 1000, 
-              padding: '8px',
-              maxHeight: '300px',
-              overflowY: 'auto'
+              padding: '12px',
+              maxHeight: '400px',
+              overflowY: 'auto',
+              boxShadow: 'var(--shadow-lg)',
+              border: '1px solid var(--border)'
             }}>
-              {filteredItems.map(item => (
-                <div 
-                  key={item.to} 
-                  className="nav-link" 
-                  style={{ cursor: 'pointer', borderRadius: '8px' }}
-                  onClick={() => {
-                    navigate(item.to);
-                    setSearchQuery('');
-                    setIsSearchOpen(false);
-                  }}
-                >
-                  {item.icon}
-                  <span style={{ fontSize: '13px', fontWeight: 600 }}>{item.label}</span>
+              {/* NAVİGASYON SONUÇLARI */}
+              {filteredItems.length > 0 && (
+                <div style={{ marginBottom: '15px' }}>
+                  <p style={{ fontSize: '11px', fontWeight: 800, color: 'var(--primary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sayfalar / Menü</p>
+                  {filteredItems.map(item => (
+                    <div 
+                      key={item.to} 
+                      className="nav-link" 
+                      style={{ cursor: 'pointer', borderRadius: '8px', padding: '8px 12px' }}
+                      onClick={() => {
+                        navigate(item.to);
+                        setSearchQuery('');
+                        setIsSearchOpen(false);
+                      }}
+                    >
+                      {item.icon}
+                      <span style={{ fontSize: '13px', fontWeight: 600 }}>{item.label}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
+
+              {/* MODÜLLERDE ARA (DINAMIK YONLENDIRME) */}
+              <div>
+                <p style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase' }}>Hızlı Arama</p>
+                <div 
+                   className="nav-link" 
+                   style={{ cursor: 'pointer', borderRadius: '8px', padding: '10px' }}
+                   onClick={() => { navigate(`/items?search=${searchQuery}`); setSearchQuery(''); setIsSearchOpen(false); }}
+                >
+                  <FiSearch size={14} />
+                  <span style={{ fontSize: '13px' }}><strong>"{searchQuery}"</strong> ürünlerde ara...</span>
+                </div>
+                <div 
+                   className="nav-link" 
+                   style={{ cursor: 'pointer', borderRadius: '8px', padding: '10px' }}
+                   onClick={() => { navigate(`/parties?search=${searchQuery}`); setSearchQuery(''); setIsSearchOpen(false); }}
+                >
+                  <FiSearch size={14} />
+                  <span style={{ fontSize: '13px' }}><strong>"{searchQuery}"</strong> carilerde ara...</span>
+                </div>
+                <div 
+                   className="nav-link" 
+                   style={{ cursor: 'pointer', borderRadius: '8px', padding: '10px' }}
+                   onClick={() => { navigate(`/sales?search=${searchQuery}`); setSearchQuery(''); setIsSearchOpen(false); }}
+                >
+                  <FiSearch size={14} />
+                  <span style={{ fontSize: '13px' }}><strong>"{searchQuery}"</strong> satışlarda ara...</span>
+                </div>
+              </div>
             </div>
           )}
         </div>

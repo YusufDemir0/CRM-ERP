@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Transaction } from './entities/transaction.entity';
 import { Party } from '../../parties/entities/party.entity';
+import { Currency } from '../currencies/entities/currency.entity';
 import { SequenceGeneratorService } from '../../../common/services/sequence-generator.service';
 import { CreateTransactionDto } from '../dto/finance.dto';
 import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
@@ -11,7 +12,6 @@ import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.d
 export class TransactionsService {
   constructor(
     @InjectRepository(Transaction) private txRepo: Repository<Transaction>,
-    @InjectRepository(Party) private partyRepo: Repository<Party>,
     private dataSource: DataSource,
     private sequenceGenerator: SequenceGeneratorService,
   ) {}
@@ -46,54 +46,41 @@ export class TransactionsService {
     return tx;
   }
 
-  /**
-   * Yeni finansal işlem (Tahsilat/Tediye) — Transaction içinde
-   * 1. Otomatik kod üretimi (pessimistic lock)
-   * 2. Cari bakiye güncelleme
-   */
   async create(dto: CreateTransactionDto, userId?: number): Promise<Transaction> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // Prefix: Tahsilat = MKB, Tediye = TDY
-      const prefix = dto.type === 'in' ? 'MKB' : 'TDY';
-      const code = await this.sequenceGenerator.generateTransactionCode(queryRunner, prefix);
-
-      // İşlem oluştur
-      const tx = queryRunner.manager.create(Transaction, {
-        code,
-        partyId: dto.partyId,
-        commercialAccountId: dto.commercialAccountId,
-        amount: dto.amount,
-        currencyId: dto.currencyId || null,
-        type: dto.type,
-        referenceType: dto.referenceType || null,
-        referenceId: dto.referenceId || null,
-        date: dto.date,
-        description: dto.description || null,
-        status: 'completed' as const,
-        createdBy: userId,
-      });
-
-      const savedTx = await queryRunner.manager.save(tx);
-
-      // Cari bakiye güncelle
       const party = await queryRunner.manager.findOne(Party, { where: { id: dto.partyId } });
       if (!party) throw new NotFoundException('Cari hesap bulunamadı');
 
-      const currentBalance = Number(party.balance);
-      // Tahsilat (in) → bakiye azalır (müşteri borcunu ödüyor)
-      // Tediye (out) → bakiye artar (biz borç alıyoruz / ödeme yapıyoruz)
-      const newBalance = dto.type === 'in'
-        ? currentBalance - dto.amount
-        : currentBalance + dto.amount;
+      const currency = await queryRunner.manager.findOne(Currency, { where: { id: dto.currencyId }});
+      const exchangeRate = currency ? Number(currency.exchangeRate) : 1;
+      const tlAmount = dto.amount * exchangeRate;
 
-      await queryRunner.manager.update(Party, party.id, {
-        balance: newBalance,
-        updatedBy: userId,
+      const currentBalance = Number(party.balance);
+
+      // In = Tahsilat (Borçtan düşer/bakiye eksiye gider), Out = Ödeme (Bakiye artıya gider)
+      const newBalance = dto.type === 'in' ? currentBalance - tlAmount : currentBalance + tlAmount;
+
+      // KREDİ LİMİTİ KONTROLÜ SADECE ÖDEMELER/ÇIKIŞLAR İÇİN (TEDİYE)
+      if (dto.type === 'out' && Number(party.creditLimitPlus) > 0 && newBalance > Number(party.creditLimitPlus)) {
+         throw new BadRequestException(`İşlem limit engeline takıldı. Yapılacak ödeme/harcama firmanın belirlediğiniz limitini aşıyor.`);
+      }
+
+      const prefix = dto.type === 'in' ? 'MKB' : 'TDY';
+      const code = await this.sequenceGenerator.generateTransactionCode(queryRunner, prefix);
+
+      const tx = queryRunner.manager.create(Transaction, {
+        code, partyId: dto.partyId, commercialAccountId: dto.commercialAccountId,
+        amount: dto.amount, currencyId: dto.currencyId || null, exchangeRate,
+        type: dto.type, referenceType: dto.referenceType || null, referenceId: dto.referenceId || null,
+        date: dto.date, description: dto.description || null, status: 'completed', createdBy: userId,
       });
+
+      const savedTx = await queryRunner.manager.save(tx);
+      await queryRunner.manager.update(Party, party.id, { balance: newBalance, updatedBy: userId });
 
       await queryRunner.commitTransaction();
       return this.findOne(savedTx.id);
@@ -105,16 +92,49 @@ export class TransactionsService {
     }
   }
 
+  // TERS KAYIT (REVERT) - EVRAK İPTALİ (Cari bakiyeyi geri alır)
+  async cancel(id: number, userId?: number): Promise<{ success: boolean; message: string }> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const tx = await queryRunner.manager.findOne(Transaction, { where: { id }});
+      if (!tx || tx.status === 'cancelled') throw new BadRequestException('Sadece tamamlanmış aktif işlemler iptal edilebilir.');
+
+      const party = await queryRunner.manager.findOne(Party, { where: { id: tx.partyId } });
+      if (!party) throw new NotFoundException('Cari hesap bulunamadı, işlem iptal edilemez.');
+
+      const tlAmount = Number(tx.amount) * Number(tx.exchangeRate);
+      const currentBalance = Number(party.balance);
+
+      // İptal/Ters işlem. In -> parayı cariden çıkar, Out -> parayı cariye ekle
+      const newBalance = tx.type === 'in' ? currentBalance + tlAmount : currentBalance - tlAmount;
+
+      await queryRunner.manager.update(Party, party.id, { balance: newBalance, updatedBy: userId });
+      await queryRunner.manager.update(Transaction, tx.id, { status: 'cancelled', updatedBy: userId });
+
+      await queryRunner.commitTransaction();
+      return { success: true, message: 'Muhasebe fişi ve cari hareketi geri alındı.' };
+    } catch (e) {
+      await queryRunner.rollbackTransaction();
+      throw e;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   async getStatus() {
     const firstDayOfMonth = new Date();
     firstDayOfMonth.setDate(1);
     firstDayOfMonth.setHours(0, 0, 0, 0);
 
     const stats = await this.txRepo.createQueryBuilder('tx')
-      .select("SUM(CASE WHEN tx.type = 'in' THEN tx.amount ELSE 0 END)", "income")
-      .addSelect("SUM(CASE WHEN tx.type = 'out' THEN tx.amount ELSE 0 END)", "expense")
+      .select("SUM(CASE WHEN tx.type = 'in' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "income")
+      .addSelect("SUM(CASE WHEN tx.type = 'out' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "expense")
       .addSelect("COUNT(*)", "count")
       .where("tx.date >= :date", { date: firstDayOfMonth.toISOString().split('T')[0] })
+      .andWhere("tx.status != 'cancelled'")
       .getRawOne();
 
     return {
@@ -129,15 +149,14 @@ export class TransactionsService {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const results = await this.txRepo.createQueryBuilder('tx')
+    return await this.txRepo.createQueryBuilder('tx')
       .select("DATE(tx.date)", "day")
-      .addSelect("SUM(CASE WHEN tx.type = 'in' THEN tx.amount ELSE 0 END)", "income")
-      .addSelect("SUM(CASE WHEN tx.type = 'out' THEN tx.amount ELSE 0 END)", "expense")
+      .addSelect("SUM(CASE WHEN tx.type = 'in' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "income")
+      .addSelect("SUM(CASE WHEN tx.type = 'out' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "expense")
       .where("tx.date >= :date", { date: sevenDaysAgo.toISOString().split('T')[0] })
+      .andWhere("tx.status != 'cancelled'")
       .groupBy("DATE(tx.date)")
       .orderBy("day", "ASC")
       .getRawMany();
-
-    return results;
   }
 }

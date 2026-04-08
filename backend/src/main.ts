@@ -11,7 +11,12 @@ async function bootstrap() {
 
   // CORS
   app.enableCors({
-    origin: '*',
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://127.0.0.1:5173',
+      'http://localhost:5143',
+    ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
@@ -31,7 +36,7 @@ async function bootstrap() {
   // Global exception filter
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  const port = process.env.APP_PORT || 3000;
+  const port = process.env.APP_PORT || 5143;
   await app.listen(port);
   console.log(`🚀 ERP Backend running on http://localhost:${port}/api`);
 }

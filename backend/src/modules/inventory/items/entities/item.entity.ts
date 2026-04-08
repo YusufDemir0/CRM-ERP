@@ -1,6 +1,7 @@
 import { Entity, Column, ManyToOne, JoinColumn, Unique } from 'typeorm';
 import { BaseEntity } from '../../../../common/entities/base.entity';
 import { ItemType } from './item-type.entity';
+import { ItemCodeGroup } from './item-code-group.entity';
 import { Party } from '../../../parties/entities/party.entity';
 import { Currency } from '../../../finance/currencies/entities/currency.entity';
 import { QuantityType } from './quantity-type.entity';
@@ -13,6 +14,9 @@ export class Item extends BaseEntity {
 
   @Column({ name: 'item_type_id', type: 'bigint' })
   itemTypeId: number;
+
+  @Column({ name: 'item_code_group_id', type: 'bigint', nullable: true })
+  itemCodeGroupId: number | null;
 
   @Column({ name: 'code', type: 'varchar', length: 50, unique: true })
   code: string;
@@ -56,6 +60,13 @@ export class Item extends BaseEntity {
   @ManyToOne(() => ItemType)
   @JoinColumn({ name: 'item_type_id' })
   itemType: ItemType;
+
+  @ManyToOne(() => ItemCodeGroup, { nullable: true })
+  @JoinColumn({ name: 'item_code_group_id' })
+  itemCodeGroup: ItemCodeGroup;
+
+  @Column({ name: 'provider_id', type: 'bigint', nullable: true })
+  providerId: number | null;
 
   @ManyToOne(() => Party, { nullable: true })
   @JoinColumn({ name: 'provider_id' })

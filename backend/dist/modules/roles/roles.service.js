@@ -54,7 +54,7 @@ let RolesService = class RolesService {
         if (existing)
             throw new common_1.ConflictException('Bu isimde bir rol zaten mevcut');
         const role = this.roleRepo.create({ name: dto.name, createdBy: currentUserId });
-        if (dto.permissionIds?.length) {
+        if (dto.permissionIds && dto.permissionIds.length > 0) {
             role.permissions = await this.permRepo.findBy({ id: (0, typeorm_2.In)(dto.permissionIds) });
         }
         return this.roleRepo.save(role);
@@ -66,8 +66,13 @@ let RolesService = class RolesService {
         if (dto.state !== undefined)
             role.state = dto.state;
         role.updatedBy = currentUserId || null;
-        if (dto.permissionIds) {
-            role.permissions = await this.permRepo.findBy({ id: (0, typeorm_2.In)(dto.permissionIds) });
+        if (dto.permissionIds !== undefined) {
+            if (dto.permissionIds.length > 0) {
+                role.permissions = await this.permRepo.findBy({ id: (0, typeorm_2.In)(dto.permissionIds) });
+            }
+            else {
+                role.permissions = [];
+            }
         }
         return this.roleRepo.save(role);
     }

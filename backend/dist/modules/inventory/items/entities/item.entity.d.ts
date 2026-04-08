@@ -1,11 +1,13 @@
 import { BaseEntity } from '../../../../common/entities/base.entity';
 import { ItemType } from './item-type.entity';
+import { ItemCodeGroup } from './item-code-group.entity';
 import { Party } from '../../../parties/entities/party.entity';
 import { Currency } from '../../../finance/currencies/entities/currency.entity';
 import { QuantityType } from './quantity-type.entity';
 export declare class Item extends BaseEntity {
     name: string;
     itemTypeId: number;
+    itemCodeGroupId: number | null;
     code: string;
     code1: string | null;
     code2: string | null;
@@ -20,6 +22,8 @@ export declare class Item extends BaseEntity {
     description: string | null;
     notes: string | null;
     itemType: ItemType;
+    itemCodeGroup: ItemCodeGroup;
+    providerId: number | null;
     provider: Party;
     currency: Currency;
     quantityType: QuantityType;

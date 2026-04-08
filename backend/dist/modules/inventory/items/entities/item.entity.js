@@ -13,6 +13,7 @@ exports.Item = void 0;
 const typeorm_1 = require("typeorm");
 const base_entity_1 = require("../../../../common/entities/base.entity");
 const item_type_entity_1 = require("./item-type.entity");
+const item_code_group_entity_1 = require("./item-code-group.entity");
 const party_entity_1 = require("../../../parties/entities/party.entity");
 const currency_entity_1 = require("../../../finance/currencies/entities/currency.entity");
 const quantity_type_entity_1 = require("./quantity-type.entity");
@@ -27,6 +28,10 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'item_type_id', type: 'bigint' }),
     __metadata("design:type", Number)
 ], Item.prototype, "itemTypeId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'item_code_group_id', type: 'bigint', nullable: true }),
+    __metadata("design:type", Object)
+], Item.prototype, "itemCodeGroupId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'code', type: 'varchar', length: 50, unique: true }),
     __metadata("design:type", String)
@@ -84,6 +89,15 @@ __decorate([
     (0, typeorm_1.JoinColumn)({ name: 'item_type_id' }),
     __metadata("design:type", item_type_entity_1.ItemType)
 ], Item.prototype, "itemType", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => item_code_group_entity_1.ItemCodeGroup, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: 'item_code_group_id' }),
+    __metadata("design:type", item_code_group_entity_1.ItemCodeGroup)
+], Item.prototype, "itemCodeGroup", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'provider_id', type: 'bigint', nullable: true }),
+    __metadata("design:type", Object)
+], Item.prototype, "providerId", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => party_entity_1.Party, { nullable: true }),
     (0, typeorm_1.JoinColumn)({ name: 'provider_id' }),

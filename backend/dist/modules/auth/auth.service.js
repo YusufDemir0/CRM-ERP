@@ -52,9 +52,15 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const bcrypt = __importStar(require("bcrypt"));
 const user_entity_1 = require("./entities/user.entity");
+const user_role_entity_1 = require("./entities/user-role.entity");
+const role_permission_entity_1 = require("./entities/role-permission.entity");
+const user_permission_entity_1 = require("./entities/user-permission.entity");
 let AuthService = class AuthService {
-    constructor(userRepo, jwtService) {
+    constructor(userRepo, userRoleRepo, rolePermRepo, userPermRepo, jwtService) {
         this.userRepo = userRepo;
+        this.userRoleRepo = userRoleRepo;
+        this.rolePermRepo = rolePermRepo;
+        this.userPermRepo = userPermRepo;
         this.jwtService = jwtService;
     }
     async login(dto) {
@@ -122,6 +128,20 @@ let AuthService = class AuthService {
         if (!user) {
             throw new common_1.UnauthorizedException('Kullanıcı bulunamadı');
         }
+        const userRoles = await this.userRoleRepo.find({ where: { userId }, relations: ['role'] });
+        const roleIds = userRoles.map(ur => ur.roleId);
+        let permissions = [];
+        if (roleIds.length > 0) {
+            const rolePerms = await this.rolePermRepo.find({
+                where: { roleId: (0, typeorm_2.In)(roleIds) },
+                relations: ['permission']
+            });
+            permissions = rolePerms.map(rp => rp.permission?.key).filter(Boolean);
+        }
+        const userPerms = await this.userPermRepo.find({ where: { userId }, relations: ['permission'] });
+        const userAllowKeys = userPerms.filter(up => up.effect === 'allow').map(up => up.permission?.key);
+        const userDenyKeys = userPerms.filter(up => up.effect === 'deny').map(up => up.permission?.key);
+        const finalPermissions = Array.from(new Set([...permissions, ...userAllowKeys])).filter(key => !userDenyKeys.includes(key));
         return {
             id: user.id,
             username: user.username,
@@ -131,6 +151,7 @@ let AuthService = class AuthService {
             departmentId: user.departmentId,
             department: user.department,
             roles: user.roles?.map((r) => ({ id: r.id, name: r.name })) || [],
+            permissions: finalPermissions
         };
     }
 };
@@ -138,7 +159,13 @@ exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
+    __param(1, (0, typeorm_1.InjectRepository)(user_role_entity_1.UserRole)),
+    __param(2, (0, typeorm_1.InjectRepository)(role_permission_entity_1.RolePermission)),
+    __param(3, (0, typeorm_1.InjectRepository)(user_permission_entity_1.UserPermission)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         jwt_1.JwtService])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

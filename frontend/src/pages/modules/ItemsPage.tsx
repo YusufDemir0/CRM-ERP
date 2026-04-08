@@ -1,111 +1,129 @@
-import React, { useState, useEffect } from 'react';
-import { itemsAPI, currenciesAPI, bomsAPI } from '../../services/api';
+import React, { useState, useEffect, useMemo } from 'react';
+import { itemsAPI, currenciesAPI, bomsAPI, partiesAPI } from '../../services/api';
+import { usePersistentForm } from '../../hooks/usePersistentForm';
+import { navHub } from '../../utils/navHub';
+import { useNavigate } from 'react-router-dom';
+import { FiEdit2, FiArchive, FiRefreshCw, FiAlertTriangle, FiSearch, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import { confirmDialog } from '../../utils/confirmDialog';
 
 export default function ItemsPage() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<any[]>([]);
   const [itemTypes, setItemTypes] = useState<any[]>([]);
+  const [itemCodeGroups, setItemCodeGroups] = useState<any[]>([]);
   const [quantityTypes, setQuantityTypes] = useState<any[]>([]);
   const [currencies, setCurrencies] = useState<any[]>([]);
+  const [providers, setProviders] = useState<any[]>([]);
 
   const [filterTab, setFilterTab] = useState<'active' | 'passive' | 'all'>('active');
   const [searchTerm, setSearchTerm] = useState('');
-
-  // 'select_type' = Excel vs Manuel seçim ekranı | 'form' = Ekle/Güncelle Formu | 'excel' = Excel mock ekranı
   const [modalMode, setModalMode] = useState<'none' | 'select_type' | 'form' | 'excel'>('none');
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [warningMessage, setWarningMessage] = useState<{ text: string, linkText?: string, linkUrl?: string } | null>(null);
+  const [customKdv, setCustomKdv] = useState<number | null>(null);
+  
+  // Sıralama State
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'name', direction: 'asc' });
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData, clearFormData] = usePersistentForm('form_item_new', {
     name: '',
     itemTypeId: '',
-    code1: '',
-    code2: '',
+    itemCodeGroupId: '',
     criticalLimit: 0,
     purchasePrice: 0,
     salePrice: 0,
     currencyId: '',
     quantityTypeId: '',
-    kdv: 20,
-    description: ''
+    providerId: '', 
+    kdv: 20 as number | string,
+    image: '', 
+    description: '',
+    notes: '' 
   });
 
   const fetchData = async () => {
     try {
-      const [itRes, itTypesRes, qtyTypesRes, curRes] = await Promise.all([
-        itemsAPI.getAll({ limit: 500 }), // Yüksek limit
+      const [itRes, itTypesRes, codeGroupsRes, qtyTypesRes, curRes, provRes] = await Promise.all([
+        itemsAPI.getAll({ limit: 1000 }),
         itemsAPI.getTypes(),
+        itemsAPI.getCodeGroups(),
         itemsAPI.getQuantityTypes(),
-        currenciesAPI.getAll()
+        currenciesAPI.getAll(),
+        partiesAPI.getAll({ limit: 1000, state: 1 })
       ]);
+      
       setItems(itRes.data.data);
       setItemTypes(itTypesRes.data);
+      setItemCodeGroups(codeGroupsRes.data);
       setQuantityTypes(qtyTypesRes.data);
       setCurrencies(curRes.data);
+      setProviders(provRes.data.data.filter((p: any) => p.type !== 'customer'));
     } catch (error) {
       console.error(error);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  // Filtreleme: Arama (Ad, Kod1, Kod2) ve Tab(Aktif/Pasif/Tümü). Tümü'nde 1 olanlar üstte.
-  const filteredItems = items
-    .filter(i => {
+  // Gelişmiş Arama ve Filtreleme
+  const searchingItems = useMemo(() => {
+    return items.filter(i => {
       const s = searchTerm.toLowerCase();
-      const matchSearch = i.name?.toLowerCase().includes(s) || i.code?.toLowerCase().includes(s) || i.code1?.toLowerCase().includes(s);
-
-      if (!matchSearch) return false;
-      if (filterTab === 'active') return i.state === 1;
-      if (filterTab === 'passive') return i.state === 0;
-      return true;
-    })
-    .sort((a, b) => b.state - a.state);
-
-  const handleOpenNew = () => {
-    setEditingId(null);
-    setFormData({
-      name: '',
-      itemTypeId: itemTypes.length > 0 ? itemTypes[0].id : '',
-      code1: '',
-      code2: '',
-      criticalLimit: 0,
-      purchasePrice: 0,
-      salePrice: 0,
-      currencyId: currencies.find(c => c.code === 'TRY')?.id || '',
-      quantityTypeId: quantityTypes.length > 0 ? quantityTypes[0].id : '',
-      kdv: 20,
-      description: ''
+      const matchSearch = i.name?.toLowerCase().includes(s) || i.code?.toLowerCase().includes(s);
+      const tabMatch = filterTab === 'all' || (filterTab === 'active' ? i.state === 1 : i.state === 0);
+      return matchSearch && tabMatch;
     });
-    setModalMode('select_type'); // Önce Nasıl ekleyeceğini sor
+  }, [items, searchTerm, filterTab]);
+
+  // Sıralama Mantığı
+  const sortedItems = useMemo(() => {
+    if (!sortConfig) return searchingItems;
+    return [...searchingItems].sort((a, b) => {
+      let aValue = a[sortConfig.key];
+      let bValue = b[sortConfig.key];
+      
+      if (['purchasePrice', 'salePrice', 'criticalLimit'].includes(sortConfig.key)) {
+        aValue = Number(aValue);
+        bValue = Number(bValue);
+      } else {
+        aValue = String(aValue || '').toLocaleLowerCase('tr-TR');
+        bValue = String(bValue || '').toLocaleLowerCase('tr-TR');
+      }
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [searchingItems, sortConfig]);
+
+  const requestSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Temiz Veri Hazırlığı (Düzenleme Hatalarını Engellemek İçin)
     const payload = {
-      name: formData.name,
+      ...formData,
       itemTypeId: Number(formData.itemTypeId),
-      code1: formData.code1 || undefined,
-      code2: formData.code2 || undefined,
-      criticalLimit: Number(formData.criticalLimit),
-      purchasePrice: Number(formData.purchasePrice),
-      salePrice: Number(formData.salePrice),
-      currencyId: Number(formData.currencyId) || undefined,
-      quantityTypeId: Number(formData.quantityTypeId),
-      kdv: Number(formData.kdv),
-      description: formData.description
+      itemCodeGroupId: Number(formData.itemCodeGroupId),
+      kdv: customKdv !== null ? customKdv : Number(formData.kdv),
+      providerId: formData.providerId ? Number(formData.providerId) : null,
+      currencyId: Number(formData.currencyId),
+      quantityTypeId: Number(formData.quantityTypeId)
     };
 
     try {
-      if (editingId) {
-        await itemsAPI.update(editingId, payload);
-      } else {
-        await itemsAPI.create(payload);
-      }
+      if (editingId) await itemsAPI.update(editingId, payload);
+      else await itemsAPI.create(payload);
       setModalMode('none');
-      fetchData(); // F5 işlemi interceptor'da olacak
+      clearFormData();
+      setCustomKdv(null);
+      fetchData();
     } catch (error) {
       console.error(error);
     }
@@ -115,90 +133,73 @@ export default function ItemsPage() {
     setEditingId(item.id);
     setFormData({
       name: item.name || '',
-      itemTypeId: item.itemTypeId || itemTypes[0]?.id || '',
-      code1: item.code1 || '',
-      code2: item.code2 || '',
+      itemTypeId: item.itemTypeId || '',
+      itemCodeGroupId: item.itemCodeGroupId || '',
       criticalLimit: Number(item.criticalLimit) || 0,
       purchasePrice: Number(item.purchasePrice) || 0,
       salePrice: Number(item.salePrice) || 0,
-      currencyId: item.currencyId || currencies.find(c => c.code === 'TRY')?.id || '',
-      quantityTypeId: item.quantityTypeId || quantityTypes[0]?.id || '',
-      kdv: Number(item.kdv) || 20,
-      description: item.description || ''
+      currencyId: item.currencyId || '',
+      quantityTypeId: item.quantityTypeId || '',
+      providerId: item.providerId || '',
+      kdv: [0, 1, 10, 20].includes(Number(item.kdv)) ? Number(item.kdv) : 'custom' as string,
+      image: item.image || '',
+      description: item.description || '',
+      notes: item.notes || ''
     });
-    setModalMode('form'); // Edit işlemi direkt forma gider
+    if (![0, 1, 10, 20].includes(Number(item.kdv))) {
+      setCustomKdv(Number(item.kdv));
+    }
+    setModalMode('form');
   };
 
-  // 🔥 Kritik Özellik: Ürün Reçetede Varsa Pasife Almayı Engelle
   const toggleState = async (item: any) => {
     const isDeactivating = item.state === 1;
-
     if (isDeactivating) {
-      // Pasife alırken reçete kontrolü (BOM kontrolü)
-      try {
-        const bomsRes = await bomsAPI.getAll({ limit: 1000 });
-        const allBoms = bomsRes.data.data || [];
-
-        // Ürünü barındıran aktif bir reçete (BOM) bul
-        const conflictBom = allBoms.find((b: any) =>
-          b.state === 1 && b.items?.some((bi: any) => bi.itemId === item.id)
-        );
-
-        if (conflictBom) {
-          alert(`UYARI: İşlem Durduruldu!\n\nLÜTFEN ÜRÜNE AİT REÇETE '${conflictBom.name}' DÜZENLEYİNİZ.\n\nBu ürün aktif bir üretim reçetesinde kullanıldığı için arşivlenemez.`);
-          return;
-        }
-
-        if (!window.confirm(`[${item.name}] ürünü arşivlenecektir. Onaylıyor musunuz?`)) return;
-      } catch (err) {
-        alert("Reçete kontrolü yapılamadı, bağlantınızı kontrol edin.");
-        return;
-      }
-    } else {
-      if (!window.confirm('Ürün tekrar aktif edilecek. Onaylıyor musunuz?')) return;
+       const bomsRes = await bomsAPI.getAll({ limit: 1000 });
+       const conflict = bomsRes.data.data?.find((b: any) => b.state === 1 && b.items?.some((bi: any) => bi.itemId === item.id));
+       if (conflict) {
+         setWarningMessage({ text: `Bu ürün aktif bir reçetede kullanılıyor: ${conflict.name}`, linkUrl: '/boms' });
+         return;
+       }
     }
-
-    await itemsAPI.toggleState(item.id, item.state);
-    fetchData();
+    const confirmed = await confirmDialog(item.state === 1 ? 'Arşivlemek istediğinize emin misiniz?' : 'Aktif edilsin mi?', item.state === 1);
+    if (confirmed) {
+      await itemsAPI.toggleState(item.id, item.state);
+      fetchData();
+    }
   };
 
-  // Yeni Birim Ekleme (Modal içinde prompt kullanmak hızlı ve kesindir)
-  const handleAddNewQuantityType = async () => {
-    const unitName = prompt("Yeni Birim Adı (Örn: Gram, Adet, Koli vb.):");
-    if (!unitName) return;
-    const unitAbbrev = prompt(`'${unitName}' için Kısa Kod (Örn: g, ad, kl):`);
-    if (!unitAbbrev) return;
-
-    try {
-      await itemsAPI.createQuantityType({ name: unitName, abbreviation: unitAbbrev });
-      alert('Yeni birim eklendi!');
-      fetchData();
-    } catch (err) {
-      alert("Hata oluştu.");
-    }
+  const sortIcon = (key: string) => {
+    if (sortConfig?.key !== key) return <FiChevronDown style={{ opacity: 0.3 }} />;
+    return sortConfig.direction === 'asc' ? <FiChevronUp /> : <FiChevronDown />;
   };
 
   return (
     <div className="page-container">
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <div>
-          <h2 style={{ color: 'var(--primary)', marginBottom: '10px' }}>Ürünler & Stok Kartları</h2>
+          <h2 style={{ color: 'var(--primary)', marginBottom: '10px' }}>Ürünler & Stok</h2>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button className={`btn ${filterTab === 'active' ? 'btn-primary' : ''}`} onClick={() => setFilterTab('active')}>Aktifler</button>
-            <button className={`btn ${filterTab === 'passive' ? 'btn-primary' : ''}`} onClick={() => setFilterTab('passive')}>Arşiv / Pasif</button>
+            <button className={`btn ${filterTab === 'passive' ? 'btn-primary' : ''}`} onClick={() => setFilterTab('passive')}>Arşiv</button>
             <button className={`btn ${filterTab === 'all' ? 'btn-primary' : ''}`} onClick={() => setFilterTab('all')}>Tümü</button>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '15px' }}>
-          <input
-            type="text"
-            placeholder="Ürün Adı, Kodu, Özel Kod ile Ara..."
-            className="search-bar"
-            style={{ width: '380px' }}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <button className="btn btn-primary" onClick={handleOpenNew}>+ YENİ ÜRÜN OLUŞTUR</button>
+          <div className="search-container" style={{ position: 'relative' }}>
+             <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+             <input type="text" placeholder="Ürün Ara..." className="search-bar" style={{ width: '300px', paddingLeft: '40px' }} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          </div>
+          <button className="btn btn-primary" onClick={() => {
+            setEditingId(null);
+            clearFormData();
+            setFormData(prev => ({
+              ...prev,
+              currencyId: currencies.find(c => c.isDefault === 1)?.id || '',
+              kdv: 20
+            }));
+            setModalMode('form');
+          }}>+ YENİ ÜRÜN</button>
         </div>
       </div>
 
@@ -206,161 +207,124 @@ export default function ItemsPage() {
         <table>
           <thead>
             <tr>
-              <th>SİSTEM KODU</th>
-              <th>ÜRÜN ADI</th>
-              <th>EK KODLAR (1/2)</th>
-              <th>ALIŞ FİYATI</th>
-              <th>SATIŞ FİYATI</th>
-              <th>KRİTİK LİMİT</th>
-              <th>BİRİM / TÜR</th>
-              <th>İŞLEMLER</th>
+              <th onClick={() => requestSort('name')} style={{ cursor: 'pointer' }}>Ürün Adı {sortIcon('name')}</th>
+              <th onClick={() => requestSort('code')} style={{ cursor: 'pointer' }}>Kodu {sortIcon('code')}</th>
+              <th onClick={() => requestSort('purchasePrice')} style={{ cursor: 'pointer' }}>Alış {sortIcon('purchasePrice')}</th>
+              <th onClick={() => requestSort('salePrice')} style={{ cursor: 'pointer' }}>Satış {sortIcon('salePrice')}</th>
+              <th onClick={() => requestSort('criticalLimit')} style={{ cursor: 'pointer' }}>Kritik Limit {sortIcon('criticalLimit')}</th>
+              <th>İşlemler</th>
             </tr>
           </thead>
           <tbody>
-            {filteredItems.map((item) => (
-              <tr key={item.id} style={{ opacity: item.state === 0 ? 0.6 : 1, background: item.state === 0 ? '#f1f5f9' : 'inherit' }}>
-                <td><span className="badge">{item.code || '-'}</span></td>
-                <td><strong>{item.name}</strong> {item.state === 0 && <span style={{ color: 'red', fontSize: '10px', marginLeft: '5px' }}>PASİF</span>}</td>
-                <td>{item.code1 || '-'} / {item.code2 || '-'}</td>
-                <td className="tabular-nums">{Number(item.purchasePrice).toLocaleString('tr-TR')} {item.currency?.symbol || '₺'}</td>
-                <td className="tabular-nums" style={{ color: 'var(--success)', fontWeight: 800 }}>
-                  {Number(item.salePrice).toLocaleString('tr-TR')} {item.currency?.symbol || '₺'}
-                </td>
-                <td className="tabular-nums" style={{ color: item.criticalLimit > 0 ? 'var(--warning)' : 'inherit' }}>
-                  {Number(item.criticalLimit)}
-                </td>
-                <td>{item.quantityType?.abbreviation || '-'} / {item.itemType?.name || '-'}</td>
+            {sortedItems.map((item) => (
+              <tr key={item.id} style={{ opacity: item.state === 0 ? 0.6 : 1 }}>
                 <td>
-                  <button className="btn" style={{ padding: '0 10px', height: '30px', marginRight: '5px' }} onClick={() => handleEdit(item)}>✎ Düzenle</button>
-                  <button className="btn" style={{ padding: '0 10px', height: '30px', color: item.state === 1 ? 'var(--error)' : 'var(--success)' }} onClick={() => toggleState(item)}>
-                    {item.state === 1 ? 'Arşivle' : 'Aktif Et'}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {item.image ? <img src={item.image} style={{ width: '32px', height: '32px', borderRadius: '4px', objectFit: 'cover' }} /> : <div style={{ width: '32px', height: '32px', background: '#e2e8f0', borderRadius:'4px' }} />}
+                    <div>
+                      <strong>{item.name}</strong>
+                      <div style={{ fontSize: '10px', color: 'gray' }}>{item.itemType?.name} / {item.quantityType?.abbreviation}</div>
+                    </div>
+                  </div>
+                </td>
+                <td><span className="badge">{item.code}</span></td>
+                <td className="tabular-nums">{Number(item.purchasePrice).toLocaleString('tr-TR')} {item.currency?.symbol}</td>
+                <td className="tabular-nums" style={{ color: 'var(--success)', fontWeight: 700 }}>{Number(item.salePrice).toLocaleString('tr-TR')} {item.currency?.symbol}</td>
+                <td className="tabular-nums" style={{ color: item.criticalLimit > 0 ? 'var(--error)' : 'inherit' }}>{item.criticalLimit}</td>
+                <td style={{ display: 'flex', gap: '5px' }}>
+                  <button className="btn-icon" onClick={() => handleEdit(item)}><FiEdit2 size={16} /></button>
+                  <button className="btn-icon" style={{ color: item.state === 1 ? 'var(--error)' : 'var(--success)' }} onClick={() => toggleState(item)}>
+                    {item.state === 1 ? <FiArchive size={16} /> : <FiRefreshCw size={16} />}
                   </button>
                 </td>
               </tr>
             ))}
-            {filteredItems.length === 0 && <tr><td colSpan={8} style={{ textAlign: 'center' }}>Ürün bulunamadı.</td></tr>}
           </tbody>
         </table>
       </div>
 
-      {/* --- SEÇİM MODALI (EXCEL Mİ MANUEL Mİ?) --- */}
-      {modalMode === 'select_type' && (
-        <div className="loader-overlay">
-          <div className="login-box" style={{ maxWidth: '450px' }}>
-            <h3 style={{ color: 'var(--primary)', marginBottom: '15px' }}>Nasıl Ürün Eklemek İstersiniz?</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <button className="btn" style={{ height: '60px', background: 'var(--surface-container-low)', fontSize: '15px', justifyContent: 'center' }} onClick={() => setModalMode('excel')}>
-                📄 Bende Excel Tablosu Var (Toplu Yükle)
-              </button>
-              <button className="btn btn-primary" style={{ height: '60px', fontSize: '15px', justifyContent: 'center' }} onClick={() => setModalMode('form')}>
-                ✍️ Sisteme Manuel Ürün Ekle
-              </button>
-            </div>
-            <button className="btn" style={{ marginTop: '20px', width: '100%', justifyContent: 'center', background: '#ffe4e6', color: 'red' }} onClick={() => setModalMode('none')}>İPTAL</button>
-          </div>
-        </div>
-      )}
-
-      {/* --- EXCEL BEKLEME / YAPIM AŞAMASI MODALI --- */}
-      {modalMode === 'excel' && (
-        <div className="loader-overlay">
-          <div className="login-box" style={{ textAlign: 'center' }}>
-            <h3 style={{ color: 'var(--primary)' }}>Excel ile Yükleme</h3>
-            <p style={{ margin: '20px 0', fontSize: '14px', color: 'gray' }}>Excel içe aktarım şablonu arka plan servisine bağlanmaktadır. Yakında aktif edilecektir.</p>
-            <button className="btn" style={{ width: '100%', justifyContent: 'center', background: '#e2e8f0' }} onClick={() => setModalMode('select_type')}>Geri Dön</button>
-          </div>
-        </div>
-      )}
-
-      {/* --- MANUEL FORM MODALI --- */}
       {modalMode === 'form' && (
         <div className="loader-overlay" style={{ alignItems: 'flex-start', paddingTop: '2%', overflowY: 'auto' }}>
-          <div className="login-box" style={{ maxWidth: '700px', width: '100%', marginBottom: '5%' }}>
-            <h3 style={{ marginBottom: '15px', color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
-              {editingId ? 'Stok Kartını Düzenle' : 'Yeni Stok Kartı Oluştur'}
-            </h3>
+          <div className="login-box" style={{ maxWidth: '900px', width: '100%', marginBottom: '5%' }}>
+            <h3 style={{ marginBottom: '15px' }}>{editingId ? 'Ürün Güncelle' : 'Yeni Ürün Kaydı'}</h3>
             <form onSubmit={handleSubmit} className="login-form">
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '15px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: '15px' }}>
                 <div className="form-group">
-                  <label>Ürün / Madde Tipi</label>
-                  <select required className="uppercase-input" value={formData.itemTypeId} onChange={e => setFormData({ ...formData, itemTypeId: e.target.value })} style={{ appearance: 'none' }}>
-                    <option value="">-- SEÇİNİZ --</option>
-                    {itemTypes.map(it => <option key={it.id} value={it.id}>{it.name}</option>)}
+                  <label>Ürün Türü</label>
+                  <select required value={formData.itemTypeId} onChange={e => setFormData({...formData, itemTypeId: e.target.value})}>
+                    <option value="">Seçiniz</option>
+                    {itemTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>Ürün Adı (Zorunlu)</label>
-                  <input required className="uppercase-input" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value.toUpperCase() })} placeholder="ÖR: TAM BUĞDAY UNU" />
+                  <label>Ürün Adı</label>
+                  <input required className="uppercase-input" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value.toLocaleUpperCase('tr-TR').replace(/[0-9]/g, '')})} />
+                </div>
+                <div className="form-group">
+                  <label>Kod Grubu (Prefix)</label>
+                  <select required value={formData.itemCodeGroupId} onChange={e => setFormData({...formData, itemCodeGroupId: e.target.value})}>
+                    <option value="">Seçiniz</option>
+                    {itemCodeGroups.map(g => <option key={g.id} value={g.id}>{g.name} ({g.prefix})</option>)}
+                  </select>
                 </div>
               </div>
 
-              {/* EK KODLAR & BİRİM */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '15px', background: 'var(--surface-container-low)', padding: '15px', borderRadius: '12px' }}>
-                <div className="form-group">
-                  <label>Müşteri Kod-1</label>
-                  <input className="uppercase-input" value={formData.code1} onChange={e => setFormData({ ...formData, code1: e.target.value.toUpperCase() })} placeholder="BARKOD VS." />
-                </div>
-                <div className="form-group">
-                  <label>Müşteri Kod-2</label>
-                  <input className="uppercase-input" value={formData.code2} onChange={e => setFormData({ ...formData, code2: e.target.value.toUpperCase() })} placeholder="RAF VS." />
-                </div>
-                <div className="form-group">
-                  <label>Birim Tipi</label>
-                  <div style={{ display: 'flex', gap: '5px' }}>
-                    <select required className="uppercase-input" value={formData.quantityTypeId} onChange={e => setFormData({ ...formData, quantityTypeId: e.target.value })} style={{ appearance: 'none', flex: 1 }}>
-                      <option value="">-- SEÇİNİZ --</option>
-                      {quantityTypes.map(qt => <option key={qt.id} value={qt.id}>{qt.name} ({qt.abbreviation})</option>)}
-                    </select>
-                    <button type="button" className="btn btn-primary" style={{ padding: '0 15px' }} title="Yeni Birim (kg, metre vb.) Ekle" onClick={handleAddNewQuantityType}>+</button>
-                  </div>
-                </div>
-              </div>
-
-              {/* FİYATLANDIRMA MODÜLÜ */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
                 <div className="form-group">
-                  <label>Alış Fiyatı (KDV Hariç)</label>
-                  <input type="number" step="0.01" className="uppercase-input tabular-nums" value={formData.purchasePrice} onChange={e => setFormData({ ...formData, purchasePrice: Number(e.target.value) })} />
+                  <label>Alış Fiyatı</label>
+                  <input type="number" step="0.01" value={formData.purchasePrice} onChange={e => setFormData({...formData, purchasePrice: Number(e.target.value)})} />
                 </div>
                 <div className="form-group">
-                  <label>Satış Fiyatı (KDV Hariç)</label>
-                  <input type="number" step="0.01" className="uppercase-input tabular-nums" style={{ borderColor: 'var(--success)', borderWidth: '2px' }} value={formData.salePrice} onChange={e => setFormData({ ...formData, salePrice: Number(e.target.value) })} />
+                  <label>Satış Fiyatı</label>
+                  <input type="number" step="0.01" value={formData.salePrice} onChange={e => setFormData({...formData, salePrice: Number(e.target.value)})} />
                 </div>
                 <div className="form-group">
-                  <label>KDV Oranı (%)</label>
-                  <select className="uppercase-input" value={formData.kdv} onChange={e => setFormData({ ...formData, kdv: Number(e.target.value) })} style={{ appearance: 'none' }}>
-                    <option value={0}>%0</option>
-                    <option value={1}>%1</option>
-                    <option value={10}>%10</option>
-                    <option value={20}>%20</option>
+                  <label>Döviz</label>
+                  <select required value={formData.currencyId} onChange={e => setFormData({...formData, currencyId: e.target.value})}>
+                    <option value="">Seçiniz</option>
+                    {currencies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
               </div>
 
-              {/* PARA BİRİMİ VE LİMİT */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
                 <div className="form-group">
-                  <label>Varsayılan Para Birimi</label>
-                  {/* TL SİLİK VE SABİT GELMESİ İSTENDİ */}
-                  <select required className="uppercase-input" value={formData.currencyId} disabled={true} style={{ appearance: 'none', opacity: 0.7 }}>
-                    {currencies.map(c => <option key={c.id} value={c.id}>{c.code} ({c.symbol})</option>)}
+                  <label>Birim</label>
+                  <select required value={formData.quantityTypeId} onChange={e => setFormData({...formData, quantityTypeId: e.target.value})}>
+                    <option value="">Seçiniz</option>
+                    {quantityTypes.map(q => <option key={q.id} value={q.id}>{q.name}</option>)}
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>Kritik Stok Uyarısı</label>
-                  <input type="number" step="1" className="uppercase-input tabular-nums" style={{ color: 'red', fontWeight: '800' }} value={formData.criticalLimit} onChange={e => setFormData({ ...formData, criticalLimit: Number(e.target.value) })} placeholder="0" />
+                  <label>KDV (%)</label>
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    <select style={{ flex: 1 }} value={formData.kdv} onChange={e => {
+                      const val = e.target.value;
+                      setFormData({...formData, kdv: val as string});
+                      if (val !== 'custom') setCustomKdv(null);
+                    }}>
+                      <option value={0}>%0</option><option value={1}>%1</option><option value={10}>%10</option><option value={20}>%20</option>
+                      <option value="custom">Özel...</option>
+                    </select>
+                    {formData.kdv === 'custom' && (
+                      <input type="number" style={{ width: '70px' }} value={customKdv || ''} onChange={e => setCustomKdv(Number(e.target.value))} placeholder="%" />
+                    )}
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Kritik Limit</label>
+                  <input type="number" value={formData.criticalLimit} onChange={e => setFormData({...formData, criticalLimit: Number(e.target.value)})} />
                 </div>
               </div>
 
               <div className="form-group">
-                <label>Notlar ve Açıklamalar</label>
-                <input className="uppercase-input" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value.toUpperCase() })} placeholder="..." />
+                <label>Görsel URL</label>
+                <input type="url" value={formData.image} onChange={e => setFormData({...formData, image: e.target.value})} />
               </div>
 
-              <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1, height: '50px' }}>{editingId ? 'DEĞİŞİKLİKLERİ KAYDET' : 'ÜRÜNÜ SİSTEME EKLE'}</button>
-                <button type="button" className="btn" style={{ flex: 1, background: '#e2e8f0', height: '50px' }} onClick={() => setModalMode('none')}>İPTAL ET</button>
+              <div style={{ display: 'flex', gap: '15px', marginTop: '20px' }}>
+                <button type="submit" className="btn btn-primary" style={{ flex: 2 }}>KAYDET</button>
+                <button type="button" className="btn" style={{ flex: 1 }} onClick={() => setModalMode('none')}>İPTAL</button>
               </div>
             </form>
           </div>

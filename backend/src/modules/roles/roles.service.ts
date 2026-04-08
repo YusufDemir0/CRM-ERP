@@ -54,7 +54,7 @@ export class RolesService {
 
     const role = this.roleRepo.create({ name: dto.name, createdBy: currentUserId });
 
-    if (dto.permissionIds?.length) {
+    if (dto.permissionIds && dto.permissionIds.length > 0) {
       role.permissions = await this.permRepo.findBy({ id: In(dto.permissionIds) });
     }
 
@@ -67,8 +67,12 @@ export class RolesService {
     if (dto.state !== undefined) role.state = dto.state;
     role.updatedBy = currentUserId || null;
 
-    if (dto.permissionIds) {
-      role.permissions = await this.permRepo.findBy({ id: In(dto.permissionIds) });
+    if (dto.permissionIds !== undefined) {
+      if (dto.permissionIds.length > 0) {
+        role.permissions = await this.permRepo.findBy({ id: In(dto.permissionIds) });
+      } else {
+        role.permissions = [];
+      }
     }
 
     return this.roleRepo.save(role);

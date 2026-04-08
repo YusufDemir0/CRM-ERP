@@ -22,6 +22,9 @@ export class Transaction extends BaseEntity {
   @Column({ name: 'currency_id', type: 'bigint', nullable: true })
   currencyId: number | null;
 
+  @Column({ name: 'exchange_rate', type: 'decimal', precision: 15, scale: 6, default: 1 })
+  exchangeRate: number;
+
   @Column({ type: 'enum', enum: ['in', 'out'] })
   type: 'in' | 'out';
 
@@ -37,7 +40,7 @@ export class Transaction extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
-  @Column({ type: 'enum', enum: ['pending', 'completed', 'bounced_check', 'cancelled'], default: 'pending' })
+  @Column({ type: 'enum', enum:['pending', 'completed', 'bounced_check', 'cancelled'], default: 'pending' })
   status: 'pending' | 'completed' | 'bounced_check' | 'cancelled';
 
   @ManyToOne(() => Party)

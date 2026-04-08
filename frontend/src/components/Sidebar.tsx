@@ -4,7 +4,7 @@ import { FiLogOut } from 'react-icons/fi';
 import { navItems } from '../config/navigation';
 
 export default function Sidebar() {
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -16,14 +16,12 @@ export default function Sidebar() {
     ? user.fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : 'U';
 
-  const isAdmin = user?.roles?.some(r => ['admin', 'superadmin'].includes(r.toLowerCase()));
-
   // Filter items within sections
   const filteredNavItems = navItems.map(section => ({
     ...section,
     items: section.items.filter(item => {
-      if (item.to === '/roles' && !isAdmin) return false;
-      return true;
+      if (!item.permission) return true;
+      return hasPermission(item.permission);
     })
   })).filter(section => section.items.length > 0);
 

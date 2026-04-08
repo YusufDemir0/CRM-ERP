@@ -1,39 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { partiesAPI, usersAPI, stocksAPI, salesAPI, currenciesAPI } from '../../services/api';
+import toast from 'react-hot-toast';
 
 export default function SalesWizard() {
-  const [step, setStep] = useState(1);
-  const today = new Date().toISOString().split('T')[0];
-
+  const[step, setStep] = useState(1);
+  const getLocalDateString = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().split('T')[0];
+  };
+  const today = getLocalDateString();
   // ─── VERİLER ───
   const [customers, setCustomers] = useState<any[]>([]);
   const [representatives, setRepresentatives] = useState<any[]>([]);
   const [stocks, setStocks] = useState<any[]>([]);
-  const [saleTypes, setSaleTypes] = useState<any[]>([]);
-  const [currencyTLId, setCurrencyTLId] = useState<number>(1);
+  const[saleTypes, setSaleTypes] = useState<any[]>([]);
+  const [currencies, setCurrencies] = useState<any[]>([]);
 
   // ─── FORM STATES ───
   const [partyId, setPartyId] = useState<string>('');
   const [repId, setRepId] = useState<string>('');
-  const [invoiceType, setInvoiceType] = useState<'billed' | 'unbilled' | null>(null);
-  const [deliveryDate, setDeliveryDate] = useState<string>(today);
+  const[invoiceType, setInvoiceType] = useState<'billed' | 'unbilled' | null>(null);
+  const[deliveryDate, setDeliveryDate] = useState<string>(today);
+  const [saleTypeId, setSaleTypeId] = useState<string>('');
+  const [currencyId, setCurrencyId] = useState<string>('');
 
   // ─── SEPET ───
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<any[]>([]);
 
   // ─── ÖDEME & FİNAL ───
-  const [deposit, setDeposit] = useState<string>(''); // Kapora String (validation için)
+  const [deposit, setDeposit] = useState<string>(''); 
   const [saleNotes, setSaleNotes] = useState<string>('');
+  
+  // Fatura altı Genel İskonto
+  const[genDiscountType, setGenDiscountType] = useState<'amount' | 'percent'>('amount');
+  const[genDiscountValue, setGenDiscountValue] = useState<string>('0');
 
   useEffect(() => {
-    // Sayfa yüklenince tüm gerekli verileri arka planda topla
     const fetchWizardData = async () => {
       try {
-        const [partyRes, userRes, stockRes, typeRes, curRes] = await Promise.all([
-          partiesAPI.getAll({ type: 'customer', state: 1, limit: 100 }), // Sadece aktif müşteriler
-          usersAPI.getAll({ state: 1, limit: 100 }), // Sadece aktif kullanıcılar (temsilciler)
-          stocksAPI.getAll({ limit: 500 }), // Depo stokları
+        const[partyRes, userRes, stockRes, typeRes, curRes] = await Promise.all([
+          partiesAPI.getAll({ type: 'customer', state: 1, limit: 500 }), 
+          usersAPI.getAll({ state: 1, limit: 100 }), 
+          stocksAPI.getAll({ limit: 500 }), 
           salesAPI.getTypes(),
           currenciesAPI.getAll()
         ]);
@@ -42,18 +52,20 @@ export default function SalesWizard() {
         setRepresentatives(userRes.data.data);
         setStocks(stockRes.data.data);
         setSaleTypes(typeRes.data);
+        setCurrencies(curRes.data);
 
+        // Varsayılan Satış Tipi ve TL ataması
+        if (typeRes.data.length > 0) setSaleTypeId(typeRes.data[0].id.toString());
         const tl = curRes.data.find((c: any) => c.code === 'TRY');
-        if (tl) setCurrencyTLId(tl.id);
+        if (tl) setCurrencyId(tl.id.toString());
 
       } catch (error) {
         console.error("Satış sihirbazı veri çekme hatası", error);
       }
     };
     fetchWizardData();
-  }, []);
+  },[]);
 
-  // Stok listesini itemId'ye göre grupla ki ekranda "Depo1: 5 adet, Merkez: 2 Adet" yazabilelim
   const groupedStocks = stocks.reduce((acc: any, stock: any) => {
     const itemName = stock.item?.name;
     if (!itemName) return acc;
@@ -67,16 +79,22 @@ export default function SalesWizard() {
     return acc;
   }, {});
 
-  // Ürün arama fonksiyonu
   const searchResults = Object.keys(groupedStocks).filter(name => name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const handleAddToCart = (group: any) => {
-    // Zaten ekliyse uyarı
     if (cart.find(c => c.item.id === group.item.id)) return;
-    setCart([...cart, { item: group.item, qty: 1, price: group.item.salePrice || 0, maxQtyDesc: group.details.map((d: any) => `${d.deptName}: ${d.qty}`).join(' | ') }]);
+    setCart([...cart, { 
+      item: group.item, 
+      qty: 1, 
+      price: Number(group.item.salePrice) || 0, 
+      discountType: 'amount', 
+      discountValue: 0, 
+      kdvRate: Number(group.item.kdv) || 20,
+      maxQtyDesc: group.details.map((d: any) => `${d.deptName}: ${d.qty}`).join(' | ') 
+    }]);
   };
 
-  const updateCartItem = (itemId: number, field: string, val: number) => {
+  const updateCartItem = (itemId: number, field: string, val: any) => {
     setCart(cart.map(c => c.item.id === itemId ? { ...c, [field]: val } : c));
   };
 
@@ -84,59 +102,96 @@ export default function SalesWizard() {
     setCart(cart.filter(c => c.item.id !== itemId));
   };
 
-  const calculateTotal = () => {
-    let rawTotal = 0;
-    cart.forEach(c => { rawTotal += (c.qty * c.price); });
-    return rawTotal;
+  // Sepet Finansal Hesaplamaları
+  const calculateFinances = () => {
+    let rawTotalAmount = 0;
+    let totalKdv = 0;
+
+    cart.forEach(c => {
+      let netP = Number(c.price) || 0;
+      const dVal = Number(c.discountValue) || 0;
+      
+      // Satır bazlı indirim
+      if (c.discountType === 'amount') netP -= dVal;
+      else if (c.discountType === 'percent') netP *= (1 - dVal / 100);
+      
+      const subtotal = Number(c.qty) * netP;
+      const kdv = subtotal * (Number(c.kdvRate) / 100);
+
+      rawTotalAmount += subtotal;
+      totalKdv += kdv;
+    });
+
+    let discountedTotalAmount = rawTotalAmount;
+    const gDiscountNum = Number(genDiscountValue) || 0;
+
+    // Fatura altı (Genel) İndirim
+    if (genDiscountType === 'amount') {
+      discountedTotalAmount -= gDiscountNum;
+    } else {
+      discountedTotalAmount -= (discountedTotalAmount * (gDiscountNum / 100));
+    }
+
+    const grandTotal = discountedTotalAmount + totalKdv;
+    const kaporaNum = Number(deposit) || 0;
+    const netTotal = grandTotal - kaporaNum;
+
+    return { rawTotalAmount, discountedTotalAmount, totalKdv, grandTotal, netTotal, kaporaNum, gDiscountNum };
   };
 
-  const rawGrandTotal = calculateTotal();
-  const kaporaNum = Number(deposit) || 0;
-  const netTotal = rawGrandTotal - kaporaNum;
+  const finances = calculateFinances();
+  const selectedCurrencySymbol = currencies.find(c => c.id === Number(currencyId))?.symbol || '₺';
 
   const handleSubmit = async () => {
-    if (cart.length === 0) return alert("Sepette ürün yok!");
-    if (kaporaNum > rawGrandTotal) return alert("Kapora, toplam tutardan büyük olamaz!");
+    if (cart.length === 0) {
+      toast.error("Sepette ürün yok!");
+      return;
+    }
+    if (finances.kaporaNum > finances.grandTotal) {
+      toast.error("Kapora, genel toplamdan büyük olamaz!");
+      return;
+    }
 
-    // Backend Not alanına Fatura tipi ve temsilci datasını gizle (Sales tablomuza bu şekilde destek)
     const combinedNotes = `Temsilci: ${representatives.find(r => r.id === Number(repId))?.fullName || 'Bilinmiyor'}\nFatura Durumu: ${invoiceType === 'billed' ? 'FATURALI' : 'FATURASIZ'}\nEk Not: ${saleNotes}`.toUpperCase();
 
     const payload = {
       partyId: Number(partyId),
-      saleTypeId: saleTypes.length > 0 ? saleTypes[0].id : 1, // Sistemde ilk type
-      currencyId: currencyTLId,
+      saleTypeId: Number(saleTypeId),
+      currencyId: Number(currencyId),
       deliveryDate: deliveryDate,
-      deposit: kaporaNum,
+      deposit: finances.kaporaNum,
       notes: combinedNotes,
+      discountAmount: genDiscountType === 'amount' ? finances.gDiscountNum : 0,
+      discountPercent: genDiscountType === 'percent' ? finances.gDiscountNum : 0,
       items: cart.map(c => ({
         itemId: c.item.id,
-        quantity: c.qty,
-        price: c.price,
-        kdvRate: c.item.kdv || 20 // Default KDV
+        quantity: Number(c.qty),
+        price: Number(c.price),
+        kdvRate: Number(c.kdvRate),
+        discountAmount: c.discountType === 'amount' ? Number(c.discountValue) : 0,
+        discountPercent: c.discountType === 'percent' ? Number(c.discountValue) : 0,
       }))
     };
 
     try {
       await salesAPI.create(payload);
-      // Başarı sonrası f5 interceptorda, ama biz wizardı resetleyelim
+      // Optional: Add success toast or navigation
     } catch (err) {
       console.error(err);
-      alert("Satış işlemi kaydedilirken hata oluştu.");
+      toast.error("Satış işlemi kaydedilirken hata oluştu.");
     }
   };
 
   return (
     <div className="page-container" style={{ padding: '0', height: 'calc(100vh - 64px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
 
-      {/* ─── ÜST HEADER (Numara ve Breadcrumb) ─── */}
+      {/* ─── HEADER ─── */}
       <div style={{ background: 'var(--inverse-surface)', color: 'white', padding: '1.5rem 3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <p style={{ color: 'var(--outline)', fontSize: '0.8rem', fontWeight: 800, letterSpacing: '2px', marginBottom: '5px' }}>YENİ SİPARİŞ & SATIŞ FİŞİ</p>
-          {/* KURALLARDAN: DİKKAT ÇEKİCİ SİPARİŞ NUMARASI */}
           <h1 style={{ fontSize: '2.5rem', color: '#ffcc00', letterSpacing: '1px', textShadow: '0 2px 10px rgba(255,204,0,0.2)' }}>SİPARİŞ NO: (OTOMATİK OLUŞTURULACAK)</h1>
         </div>
 
-        {/* Wizard İlerleme Çubuğu */}
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
           {[1, 2, 3, 4].map((num) => (
             <div key={num} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -150,21 +205,17 @@ export default function SalesWizard() {
         </div>
       </div>
 
-      {/* ─── DİNAMİK WIZARD ALANI ─── */}
       <div style={{ flex: 1, background: 'var(--background)', padding: '2.5rem 3rem', overflowY: 'auto' }}>
-        <div className="login-box" style={{ maxWidth: step === 4 ? '1100px' : '700px', margin: '0 auto', width: '100%' }}>
+        <div className="login-box" style={{ maxWidth: step === 4 ? '1100px' : step === 3 ? '1200px' : '700px', margin: '0 auto', width: '100%', transition: 'all 0.3s ease' }}>
 
           {/* ADIM 1: CARİ SEÇİMİ */}
           {step === 1 && (
-            <div className="wizard-step">
+            <div className="wizard-step animate-in">
               <h3 style={{ color: 'var(--primary)', marginBottom: '20px', fontSize: '1.4rem' }}>1. Müşteri (Cari) Seçimi</h3>
-
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label>Satışın Yapılacağı Tarih</label>
-                {/* BUGÜNÜ ÇEKECEK VE DEĞİŞMEYECEK */}
+                <label>Sisteme Giriş Tarihi (Bugün)</label>
                 <input type="text" className="uppercase-input" value={new Date().toLocaleDateString('tr-TR')} disabled style={{ opacity: 0.7 }} />
               </div>
-
               <div className="form-group">
                 <label>Cari Hesap (Müşteri) Seçiniz</label>
                 <select className="uppercase-input" value={partyId} onChange={(e) => setPartyId(e.target.value)}>
@@ -172,53 +223,65 @@ export default function SalesWizard() {
                   {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
-
               <button className="btn btn-primary" style={{ width: '100%', height: '55px', marginTop: '2rem', fontSize: '1rem' }} disabled={!partyId} onClick={() => setStep(2)}>
-                İLERLE: TESLİMAT BİLGİLERİ ➔
+                İLERLE: TESLİMAT & İŞLEM DETAYI ➔
               </button>
             </div>
           )}
 
-          {/* ADIM 2: TESLİMAT VE DETAYLAR */}
+          {/* ADIM 2: TESLİMAT VE SATIŞ ŞARTLARI */}
           {step === 2 && (
-            <div className="wizard-step">
+            <div className="wizard-step animate-in">
               <h3 style={{ color: 'var(--primary)', marginBottom: '20px', fontSize: '1.4rem' }}>2. Satış ve Fatura Detayları</h3>
               <p style={{ background: '#fef3c7', padding: '10px', borderRadius: '8px', color: '#b45309', marginBottom: '20px', fontSize: '12px', fontWeight: 600 }}>
-                Seçili Cari: {customers.find(c => c.id === Number(partyId))?.name} (Değiştirilemez)
+                Seçili Cari: {customers.find(c => c.id === Number(partyId))?.name}
               </p>
 
-              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label>Teslimat Tarihi</label>
-                {/* GEÇMİŞ TARİH SEÇİLEMEYECEK (min={today}) */}
-                <input type="date" className="uppercase-input" value={deliveryDate} min={today} onChange={(e) => setDeliveryDate(e.target.value)} />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '1.5rem' }}>
+                 <div className="form-group">
+                   <label>Satış Türü (Şartlar)</label>
+                   <select className="uppercase-input" style={{ appearance: 'none' }} value={saleTypeId} onChange={(e) => setSaleTypeId(e.target.value)}>
+                     {saleTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.abbreviation})</option>)}
+                   </select>
+                 </div>
+                 <div className="form-group">
+                   <label>İşlem Para Birimi</label>
+                   <select className="uppercase-input" style={{ appearance: 'none' }} value={currencyId} onChange={(e) => setCurrencyId(e.target.value)}>
+                     {currencies.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
+                   </select>
+                 </div>
               </div>
 
-              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label>Satış Temsilcisi (Prim Ataması İçin)</label>
-                <select className="uppercase-input" value={repId} onChange={(e) => setRepId(e.target.value)}>
-                  <option value="">-- TEMSİLCİ SEÇİNİZ --</option>
-                  {representatives.map(r => <option key={r.id} value={r.id}>{r.fullName}</option>)}
-                </select>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '1.5rem' }}>
+                <div className="form-group">
+                  <label>Teslimat Tarihi</label>
+                  <input type="date" className="uppercase-input" value={deliveryDate} min={today} onChange={(e) => setDeliveryDate(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label>Satış Temsilcisi (Sorumlu)</label>
+                  <select className="uppercase-input" style={{ appearance: 'none' }} value={repId} onChange={(e) => setRepId(e.target.value)}>
+                    <option value="">-- TEMSİLCİ SEÇİNİZ --</option>
+                    {representatives.map(r => <option key={r.id} value={r.id}>{r.fullName}</option>)}
+                  </select>
+                </div>
               </div>
 
-              {/* RADYO BUTONLAR ZORUNLU OLACAK */}
               <div className="form-group" style={{ padding: '20px', background: 'var(--surface-container-low)', borderRadius: '12px', border: '1px solid var(--border)' }}>
                 <label style={{ fontSize: '1rem', color: 'var(--error)' }}>Fatura Kesilecek mi? (Zorunlu Seçim)*</label>
                 <div style={{ display: 'flex', gap: '20px', marginTop: '10px' }}>
-                  <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '16px', fontWeight: 700 }}>
-                    <input type="radio" name="inv" checked={invoiceType === 'billed'} onChange={() => setInvoiceType('billed')} style={{ transform: 'scale(1.5)' }} /> FATURALI İŞLEM
+                  <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', fontWeight: 700 }}>
+                    <input type="radio" name="inv" checked={invoiceType === 'billed'} onChange={() => setInvoiceType('billed')} style={{ transform: 'scale(1.4)', accentColor: 'var(--primary)' }} /> FATURALI İŞLEM
                   </label>
-                  <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '16px', fontWeight: 700 }}>
-                    <input type="radio" name="inv" checked={invoiceType === 'unbilled'} onChange={() => setInvoiceType('unbilled')} style={{ transform: 'scale(1.5)' }} /> FATURASIZ İŞLEM
+                  <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', fontWeight: 700 }}>
+                    <input type="radio" name="inv" checked={invoiceType === 'unbilled'} onChange={() => setInvoiceType('unbilled')} style={{ transform: 'scale(1.4)', accentColor: 'var(--primary)' }} /> FATURASIZ (SEVK)
                   </label>
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: '15px', marginTop: '2rem' }}>
                 <button className="btn" style={{ flex: 0.3, background: '#e2e8f0', height: '55px' }} onClick={() => setStep(1)}>GERİ DÖN</button>
-                {/* invoiceType Seçilmeden Alta geçilmeyecek (disabled = !invoiceType || !repId) */}
-                <button className="btn btn-primary" style={{ flex: 1, height: '55px', fontSize: '1rem' }} disabled={!invoiceType || !repId} onClick={() => setStep(3)}>
-                  İLERLE: ÜRÜN SEÇİMİ ➔
+                <button className="btn btn-primary" style={{ flex: 1, height: '55px', fontSize: '1rem' }} disabled={!invoiceType || !repId || !saleTypeId || !currencyId} onClick={() => setStep(3)}>
+                  İLERLE: ÜRÜN SEPETİ ➔
                 </button>
               </div>
             </div>
@@ -226,135 +289,168 @@ export default function SalesWizard() {
 
           {/* ADIM 3: STOK & ÜRÜN SEPETİ */}
           {step === 3 && (
-            <div className="wizard-step" style={{ width: '100%' }}>
-              <h3 style={{ color: 'var(--primary)', marginBottom: '10px', fontSize: '1.4rem' }}>3. Ürün Listesi ve Sepet</h3>
+            <div className="wizard-step animate-in" style={{ width: '100%' }}>
+              <h3 style={{ color: 'var(--primary)', marginBottom: '15px', fontSize: '1.4rem' }}>3. Ürün Listesi ve Sepet</h3>
 
-              {/* Sepete Eklenmiş Ürünler */}
               {cart.length > 0 && (
-                <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '12px', marginBottom: '20px', border: '2px dashed var(--primary)' }}>
-                  <h4 style={{ marginBottom: '10px', fontSize: '0.9rem', color: 'var(--primary)' }}>SEPETİNİZDEKİ ÜRÜNLER</h4>
-                  <table style={{ background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
-                    <thead><tr><th>ÜRÜN ADI</th><th>MİKTAR</th><th>BİRİM FİYAT</th><th>TUTAR</th><th>İŞLEM</th></tr></thead>
+                <div style={{ background: 'var(--surface-container)', padding: '15px', borderRadius: '12px', marginBottom: '20px', border: '1px solid var(--primary-glow)' }}>
+                  <table style={{ background: 'white', borderRadius: '8px', overflow: 'hidden', width: '100%', fontSize: '13px' }}>
+                    <thead><tr><th>ÜRÜN</th><th>MİKTAR</th><th>B.FİYAT</th><th>İNDİRİM</th><th>KDV</th><th>TUTAR ({selectedCurrencySymbol})</th><th></th></tr></thead>
                     <tbody>
-                      {cart.map((c, i) => (
-                        <tr key={i}>
-                          <td style={{ fontWeight: 800 }}>{c.item.name} <br /><span style={{ fontSize: '10px', color: 'gray' }}>Mevcut: {c.maxQtyDesc}</span></td>
-                          <td><input type="number" value={c.qty} min={1} style={{ width: '60px', padding: '5px' }} onChange={(e) => updateCartItem(c.item.id, 'qty', Number(e.target.value))} /></td>
-                          <td><input type="number" step="0.01" value={c.price} style={{ width: '90px', padding: '5px' }} onChange={(e) => updateCartItem(c.item.id, 'price', Number(e.target.value))} /> ₺</td>
-                          <td className="tabular-nums" style={{ color: 'var(--success)', fontWeight: 800 }}>{(c.qty * c.price).toLocaleString('tr-TR')} ₺</td>
-                          <td><button className="btn" style={{ padding: '5px 10px', color: 'red' }} onClick={() => removeCartItem(c.item.id)}>Çıkar</button></td>
-                        </tr>
-                      ))}
+                      {cart.map((c, i) => {
+                        let netP = Number(c.price);
+                        if (c.discountType === 'amount') netP -= Number(c.discountValue) || 0;
+                        else if (c.discountType === 'percent') netP *= (1 - (Number(c.discountValue) || 0) / 100);
+                        const subtotal = Number(c.qty) * netP;
+                        const kdv = subtotal * (Number(c.kdvRate) / 100);
+                        
+                        return (
+                          <tr key={i}>
+                            <td style={{ fontWeight: 700, padding: '10px' }}>{c.item.name} <br /><span style={{ fontSize: '10px', color: 'gray' }}>Mevcut: {c.maxQtyDesc}</span></td>
+                            <td style={{ padding: '10px' }}><input type="number" value={c.qty} min={1} style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #cbd5e1' }} onChange={(e) => updateCartItem(c.item.id, 'qty', e.target.value)} /></td>
+                            <td style={{ padding: '10px' }}><input type="number" step="0.01" value={c.price} style={{ width: '80px', padding: '5px', borderRadius: '4px', border: '1px solid #cbd5e1' }} onChange={(e) => updateCartItem(c.item.id, 'price', e.target.value)} /></td>
+                            <td style={{ padding: '10px' }}>
+                              <div style={{ display: 'flex', gap: '2px', border: '1px solid #cbd5e1', borderRadius: '4px', overflow: 'hidden', background: 'white' }}>
+                                <input type="number" step="any" value={c.discountValue} onChange={e => updateCartItem(c.item.id, 'discountValue', e.target.value)} style={{ width: '50px', padding: '4px', border: 'none', outline: 'none' }} placeholder="0" />
+                                <select value={c.discountType} onChange={e => updateCartItem(c.item.id, 'discountType', e.target.value)} style={{ border: 'none', borderLeft: '1px solid #cbd5e1', background: '#f8fafc', padding: '2px', outline: 'none' }}>
+                                  <option value="amount">{selectedCurrencySymbol}</option>
+                                  <option value="percent">%</option>
+                                </select>
+                              </div>
+                            </td>
+                            <td style={{ padding: '10px' }}>
+                               <select value={c.kdvRate} onChange={e => updateCartItem(c.item.id, 'kdvRate', e.target.value)} style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #cbd5e1' }}>
+                                 <option value="0">%0</option><option value="1">%1</option><option value="10">%10</option><option value="20">%20</option>
+                               </select>
+                            </td>
+                            <td className="tabular-nums" style={{ color: 'var(--success)', fontWeight: 800, padding: '10px' }}>{(subtotal + kdv).toLocaleString('tr-TR', { maximumFractionDigits: 2 })}</td>
+                            <td style={{ padding: '10px' }}><button className="btn" style={{ padding: '4px 8px', color: 'var(--error)', background: '#ffe4e6' }} onClick={() => removeCartItem(c.item.id)}>X</button></td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
               )}
 
               <div className="form-group" style={{ marginBottom: '15px' }}>
-                <input type="text" className="search-bar" placeholder="🔍 Ürün Ara (Adına Göre)..." style={{ width: '100%', height: '50px', fontSize: '1rem' }} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <input type="text" className="search-bar" placeholder="🔍 Stoka Göre Ürün Ara..." style={{ width: '100%', height: '50px', fontSize: '1rem', background: 'white', border: '1px solid var(--border)' }} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
 
-              {/* Aranan Stoklar (Depolara Göre Bölünmüş) */}
-              <div style={{ maxHeight: '250px', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '12px' }}>
+              <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '12px' }}>
                 {searchResults.map((itemName: any) => {
                   const group = groupedStocks[itemName];
                   return (
-                    <div key={group.item.id} style={{ padding: '15px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div key={group.item.id} style={{ padding: '12px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <strong style={{ fontSize: '1rem', color: 'var(--on-surface)' }}>{itemName}</strong>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '5px', fontWeight: 700, letterSpacing: '0.5px' }}>
-                          {group.details.map((d: any) => `${d.deptName}: "${d.qty} Adet"`).join(' --- ')}
-                        </p>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '5px', fontWeight: 700 }}>{group.details.map((d: any) => `${d.deptName}: "${d.qty}"`).join(' / ')}</p>
                       </div>
-                      <button className="btn btn-primary" style={{ padding: '0 20px', height: '40px' }} onClick={() => handleAddToCart(group)}>Sepete Ekle</button>
+                      <button className="btn btn-primary" style={{ padding: '0 15px', height: '36px' }} onClick={() => handleAddToCart(group)}>Ekle</button>
                     </div>
                   )
                 })}
-                {searchResults.length === 0 && <p style={{ padding: '20px', textAlign: 'center', color: 'gray' }}>Ürün aranıyor veya bulunamadı.</p>}
+                {searchResults.length === 0 && <p style={{ padding: '20px', textAlign: 'center', color: 'gray' }}>Ürün bulunamadı veya stoklarda yok.</p>}
               </div>
 
               <div style={{ display: 'flex', gap: '15px', marginTop: '2rem' }}>
                 <button className="btn" style={{ flex: 0.3, background: '#e2e8f0', height: '55px' }} onClick={() => setStep(2)}>GERİ DÖN</button>
                 <button className="btn btn-primary" style={{ flex: 1, height: '55px', fontSize: '1rem' }} disabled={cart.length === 0} onClick={() => setStep(4)}>
-                  SİPARİŞİ TAMAMLA VE ÖDEME AL ➔
+                  ÖDEME & SİPARİŞ ÖZETİ ➔
                 </button>
               </div>
             </div>
           )}
 
-          {/* ADIM 4: FİNAL - KAPORA - İSKONTO - BÜYÜK SATIŞ BUTONU */}
+          {/* ADIM 4: FİNAL - KAPORA - GENEL İSKONTO */}
           {step === 4 && (
-            <div className="wizard-step" style={{ width: '100%' }}>
+            <div className="wizard-step animate-in" style={{ width: '100%' }}>
               <h3 style={{ color: 'var(--primary)', marginBottom: '20px', fontSize: '1.8rem', textAlign: 'center' }}>Sipariş Özeti ve Tamamlama</h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', marginTop: '30px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '40px', marginTop: '30px' }}>
+                {/* SOL TARAF: FORM GİRİŞLERİ (İSKONTO, KAPORA, NOT) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  
+                  {/* FATURA ALTI İNDİRİM BÖLÜMÜ */}
+                  <div style={{ background: 'var(--surface-container-low)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                     <label style={{ fontSize: '13px', fontWeight: 800, color: 'var(--primary)', display: 'block', marginBottom: '10px' }}>GENEL İSKONTO (FATURA ALTI İNDİRİMİ)</label>
+                     <div style={{ display: 'flex', gap: '10px' }}>
+                        <select className="uppercase-input" style={{ width: '80px', appearance: 'none', background: 'white' }} value={genDiscountType} onChange={e => setGenDiscountType(e.target.value as 'amount'|'percent')}>
+                           <option value="amount">{selectedCurrencySymbol}</option>
+                           <option value="percent">%</option>
+                        </select>
+                        <input type="text" className="uppercase-input tabular-nums" placeholder="0" style={{ flex: 1 }} value={genDiscountValue} onChange={e => setGenDiscountValue(e.target.value.replace(/[^0-9.]/g, ''))} />
+                     </div>
+                  </div>
 
-                {/* SOL TARAF: KAPORA ALANI */}
-                <div style={{ background: '#fdf8f6', padding: '2rem', borderRadius: '20px', border: '2px solid #fee2e2' }}>
-                  <h4 style={{ color: 'var(--error)', fontSize: '1.2rem', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    💸 Kapora Tutarı Belirle
-                  </h4>
-                  <p style={{ fontSize: '13px', color: 'gray', marginBottom: '20px' }}>Lütfen müşteriden alınan kapora miktarını giriniz (Harf Girilemez). Tutar yoksa "0" yazınız.</p>
+                  {/* KAPORA ALANI */}
+                  <div style={{ background: '#fdf8f6', padding: '1.5rem', borderRadius: '16px', border: '2px solid #fee2e2' }}>
+                    <h4 style={{ color: 'var(--error)', fontSize: '1.1rem', marginBottom: '10px', display: 'flex', alignItems: 'center' }}>💸 Kapora Alındı Mı?</h4>
+                    <p style={{ fontSize: '12px', color: 'gray', marginBottom: '15px' }}>Satışı sonlandırmak için onay veriyorsanız, kapora bilgisini doldurun. (Tutar yoksa "0" bırakın).</p>
+                    <input type="text" className="uppercase-input tabular-nums" style={{ fontSize: '1.6rem', height: '60px', textAlign: 'center', color: 'var(--error)', fontWeight: 900 }} placeholder="0.00" value={deposit} onChange={(e) => setDeposit(e.target.value.replace(/[^0-9.]/g, ''))} />
+                  </div>
 
                   <div className="form-group">
-                    <input
-                      type="text" // Type text ama regex ile engelli
-                      className="uppercase-input tabular-nums"
-                      style={{ fontSize: '2rem', height: '80px', textAlign: 'center', color: 'var(--error)', fontWeight: 900 }}
-                      placeholder="0.00"
-                      value={deposit}
-                      onChange={(e) => setDeposit(e.target.value.replace(/[^0-9.]/g, ''))}
-                    />
-                  </div>
-                  <p style={{ marginTop: '10px', textAlign: 'center', fontWeight: 800, color: deposit === '' ? 'red' : 'green' }}>
-                    {deposit === '' ? "Satışı tamamlamak için alanı doldurun!" : "Onaylandı, satış detayı yanda açıldı ➔"}
-                  </p>
-
-                  <div className="form-group" style={{ marginTop: '20px' }}>
                     <label>Sipariş Notu</label>
-                    <textarea className="uppercase-input" style={{ height: '80px', padding: '10px', fontFamily: 'inherit' }} value={saleNotes} onChange={e => setSaleNotes(e.target.value.toUpperCase())} placeholder="..." />
+                    <textarea className="uppercase-input" style={{ height: '70px', padding: '10px', fontFamily: 'inherit' }} value={saleNotes} onChange={e => setSaleNotes(e.target.value.toUpperCase())} placeholder="..." />
                   </div>
+
                 </div>
 
-                {/* SAĞ TARAF: FİYAT VE SATIŞ ONAY (Kapora girilmeden şeffaf duracak) */}
-                <div style={{ padding: '2rem', borderRadius: '20px', background: 'var(--surface-container-low)', opacity: deposit === '' ? 0.3 : 1, transition: '0.3s all', pointerEvents: deposit === '' ? 'none' : 'auto' }}>
-                  <h4 style={{ color: 'var(--primary)', fontSize: '1.2rem', marginBottom: '15px' }}>Satış Tutarı Detayları</h4>
+                {/* SAĞ TARAF: FİNANSAL TABLO VE KAYDET */}
+                <div style={{ padding: '2rem', borderRadius: '20px', background: 'var(--inverse-surface)', color: 'white', opacity: deposit === '' ? 0.6 : 1, transition: '0.3s all', display: 'flex', flexDirection: 'column' }}>
+                  <h4 style={{ color: 'var(--outline)', fontSize: '1.1rem', marginBottom: '20px' }}>Tutar Detayları</h4>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '1.1rem' }}>
+                    <span style={{ color: '#cbd5e1' }}>Mal/Hizmet Toplamı:</span>
+                    <span className="tabular-nums" style={{ fontWeight: 600 }}>{finances.rawTotalAmount.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} {selectedCurrencySymbol}</span>
+                  </div>
+
+                  {finances.gDiscountNum > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '1rem', color: '#fca5a5' }}>
+                      <span>Genel İndirim:</span>
+                      <span className="tabular-nums">-{ (finances.rawTotalAmount - finances.discountedTotalAmount).toLocaleString('tr-TR', { maximumFractionDigits: 2 })} {selectedCurrencySymbol}</span>
+                    </div>
+                  )}
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', fontSize: '1.1rem' }}>
-                    <span style={{ color: 'gray', fontWeight: 600 }}>Ara Toplam:</span>
-                    <span className="tabular-nums" style={{ fontWeight: 800 }}>{rawGrandTotal.toLocaleString('tr-TR')} ₺</span>
+                    <span style={{ color: '#cbd5e1' }}>Toplam KDV:</span>
+                    <span className="tabular-nums" style={{ fontWeight: 600 }}>+{finances.totalKdv.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} {selectedCurrencySymbol}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', fontSize: '1.1rem', color: 'var(--error)' }}>
-                    <span style={{ fontWeight: 600 }}>Alınan Kapora:</span>
-                    <span className="tabular-nums" style={{ fontWeight: 800 }}>- {kaporaNum.toLocaleString('tr-TR')} ₺</span>
-                  </div>
+                  
+                  <div style={{ height: '1px', background: 'rgba(255,255,255,0.2)', margin: '15px 0' }} />
 
-                  <div style={{ height: '2px', background: 'var(--border)', margin: '20px 0' }} />
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '25px', fontSize: '1.4rem', color: 'var(--success)' }}>
-                    <span style={{ fontWeight: 800 }}>KALAN (NET TUTAR):</span>
-                    <span className="tabular-nums" style={{ fontWeight: 900 }}>{netTotal.toLocaleString('tr-TR')} ₺</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', fontSize: '1.3rem', color: 'var(--outline)' }}>
+                    <span style={{ fontWeight: 800 }}>GENEL TOPLAM:</span>
+                    <span className="tabular-nums" style={{ fontWeight: 800 }}>{finances.grandTotal.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} {selectedCurrencySymbol}</span>
                   </div>
 
-                  {/* KAPORA BOŞSA BUTON PASİF GRİ, DOLUYSA YEŞİL VE AKTİF */}
+                  {finances.kaporaNum > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', fontSize: '1.1rem', color: '#fca5a5' }}>
+                      <span style={{ fontWeight: 600 }}>Alınan Kapora:</span>
+                      <span className="tabular-nums" style={{ fontWeight: 800 }}>-{finances.kaporaNum.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} {selectedCurrencySymbol}</span>
+                    </div>
+                  )}
+
+                  <div style={{ padding: '15px', background: 'var(--success)', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', marginBottom: '20px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 800 }}>KALAN BAKİYE:</span>
+                    <span className="tabular-nums" style={{ fontSize: '1.6rem', fontWeight: 900 }}>{finances.netTotal.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} {selectedCurrencySymbol}</span>
+                  </div>
+
                   <button
                     className="btn"
                     style={{
-                      width: '100%',
-                      height: '70px',
-                      fontSize: '1.2rem',
-                      fontWeight: 900,
-                      background: deposit === '' ? '#e2e8f0' : '#10b981',
-                      color: deposit === '' ? 'gray' : 'white',
-                      boxShadow: deposit === '' ? 'none' : '0 10px 25px rgba(16, 185, 129, 0.4)'
+                      width: '100%', height: '60px', fontSize: '1.1rem', fontWeight: 900,
+                      background: deposit === '' ? 'rgba(255,255,255,0.2)' : 'white',
+                      color: deposit === '' ? '#cbd5e1' : 'var(--inverse-surface)',
                     }}
                     disabled={deposit === ''}
                     onClick={handleSubmit}
                   >
-                    ✓ SATIŞI ONAYLA VE KAYDET
+                    SİPARİŞİ ONAYLA VE OLUŞTUR
                   </button>
 
-                  <button className="btn" style={{ width: '100%', height: '40px', marginTop: '15px', background: 'transparent', color: 'gray' }} onClick={() => setStep(3)}>Geri Dön</button>
+                  <button className="btn" style={{ width: '100%', height: '40px', marginTop: '10px', background: 'transparent', color: '#cbd5e1' }} onClick={() => setStep(3)}>Geri Dön</button>
                 </div>
 
               </div>

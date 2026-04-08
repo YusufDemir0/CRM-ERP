@@ -13,4 +13,8 @@ export declare class TransactionsController {
     getDailyTrends(): Promise<any[]>;
     findOne(id: number): Promise<import("./entities/transaction.entity").Transaction>;
     create(dto: CreateTransactionDto, userId: number): Promise<import("./entities/transaction.entity").Transaction>;
+    cancel(id: number, userId: number): Promise<{
+        success: boolean;
+        message: string;
+    }>;
 }

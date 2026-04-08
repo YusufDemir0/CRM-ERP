@@ -38,7 +38,7 @@ export class PermissionsGuard implements CanActivate {
     private userPermRepo: Repository<UserPermission>,
     @InjectRepository(Permission)
     private permissionRepo: Repository<Permission>,
-  ) {}
+  ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const requiredPermissions = this.reflector.getAllAndOverride<string[]>(

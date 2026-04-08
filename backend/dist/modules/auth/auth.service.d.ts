@@ -1,11 +1,17 @@
 import { JwtService } from '@nestjs/jwt';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
+import { UserRole } from './entities/user-role.entity';
+import { RolePermission } from './entities/role-permission.entity';
+import { UserPermission } from './entities/user-permission.entity';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 export declare class AuthService {
     private userRepo;
+    private userRoleRepo;
+    private rolePermRepo;
+    private userPermRepo;
     private jwtService;
-    constructor(userRepo: Repository<User>, jwtService: JwtService);
+    constructor(userRepo: Repository<User>, userRoleRepo: Repository<UserRole>, rolePermRepo: Repository<RolePermission>, userPermRepo: Repository<UserPermission>, jwtService: JwtService);
     login(dto: LoginDto): Promise<{
         access_token: string;
         user: {
@@ -35,5 +41,6 @@ export declare class AuthService {
             id: number;
             name: string;
         }[];
+        permissions: string[];
     }>;
 }

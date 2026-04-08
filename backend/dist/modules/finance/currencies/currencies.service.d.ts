@@ -9,4 +9,6 @@ export declare class CurrenciesService {
     create(dto: CreateCurrencyDto, userId?: number): Promise<Currency>;
     update(id: number, dto: UpdateCurrencyDto, userId?: number): Promise<Currency>;
     getDefault(): Promise<Currency>;
+    setDefault(id: number): Promise<Currency>;
+    delete(id: number): Promise<void>;
 }

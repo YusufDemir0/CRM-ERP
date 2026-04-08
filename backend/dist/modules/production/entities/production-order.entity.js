@@ -13,6 +13,7 @@ exports.ProductionOrder = void 0;
 const typeorm_1 = require("typeorm");
 const base_entity_1 = require("../../../common/entities/base.entity");
 const bom_entity_1 = require("./bom.entity");
+const department_entity_1 = require("../../departments/entities/department.entity");
 let ProductionOrder = class ProductionOrder extends base_entity_1.BaseEntity {
 };
 exports.ProductionOrder = ProductionOrder;
@@ -24,6 +25,14 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'bom_id', type: 'bigint' }),
     __metadata("design:type", Number)
 ], ProductionOrder.prototype, "bomId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'source_department_id', type: 'bigint', nullable: true }),
+    __metadata("design:type", Object)
+], ProductionOrder.prototype, "sourceDepartmentId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'target_department_id', type: 'bigint', nullable: true }),
+    __metadata("design:type", Object)
+], ProductionOrder.prototype, "targetDepartmentId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'planned_quantity', type: 'decimal', precision: 15, scale: 4 }),
     __metadata("design:type", Number)
@@ -57,6 +66,16 @@ __decorate([
     (0, typeorm_1.JoinColumn)({ name: 'bom_id' }),
     __metadata("design:type", bom_entity_1.Bom)
 ], ProductionOrder.prototype, "bom", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => department_entity_1.Department),
+    (0, typeorm_1.JoinColumn)({ name: 'source_department_id' }),
+    __metadata("design:type", department_entity_1.Department)
+], ProductionOrder.prototype, "sourceDepartment", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => department_entity_1.Department),
+    (0, typeorm_1.JoinColumn)({ name: 'target_department_id' }),
+    __metadata("design:type", department_entity_1.Department)
+], ProductionOrder.prototype, "targetDepartment", void 0);
 exports.ProductionOrder = ProductionOrder = __decorate([
     (0, typeorm_1.Entity)('production_orders'),
     (0, typeorm_1.Unique)(['code'])

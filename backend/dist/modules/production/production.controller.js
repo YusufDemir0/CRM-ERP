@@ -26,7 +26,9 @@ let ProductionController = class ProductionController {
     }
     findAllBoms(query) { return this.prodService.findAllBoms(query); }
     findOneBom(id) { return this.prodService.findOneBom(id); }
-    createBom(dto, userId) { return this.prodService.createBom(dto, userId); }
+    createBom(dto, userId) {
+        return this.prodService.createBom(dto, userId);
+    }
     updateBom(id, dto, userId) {
         return this.prodService.updateBom(id, dto, userId);
     }

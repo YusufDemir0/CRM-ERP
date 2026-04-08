@@ -7,6 +7,8 @@ import { StocksService } from './stocks/stocks.service';
 import { Item } from './items/entities/item.entity';
 import { ItemType } from './items/entities/item-type.entity';
 import { ItemSequence } from './items/entities/item-sequence.entity';
+import { ItemCodeGroup } from './items/entities/item-code-group.entity';
+import { ItemCodeSequence } from './items/entities/item-code-sequence.entity';
 import { QuantityType } from './items/entities/quantity-type.entity';
 import { Stock } from './stocks/entities/stock.entity';
 import { StockMovement } from './stocks/entities/stock-movement.entity';
@@ -14,7 +16,7 @@ import { SequenceGeneratorService } from '../../common/services/sequence-generat
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Item, ItemType, ItemSequence, QuantityType, Stock, StockMovement]),
+    TypeOrmModule.forFeature([Item, ItemType, ItemSequence, ItemCodeGroup, ItemCodeSequence, QuantityType, Stock, StockMovement]),
   ],
   controllers: [ItemsController, StocksController],
   providers: [ItemsService, StocksService, SequenceGeneratorService],

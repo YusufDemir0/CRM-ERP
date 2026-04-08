@@ -18,11 +18,11 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const transaction_entity_1 = require("./entities/transaction.entity");
 const party_entity_1 = require("../../parties/entities/party.entity");
+const currency_entity_1 = require("../currencies/entities/currency.entity");
 const sequence_generator_service_1 = require("../../../common/services/sequence-generator.service");
 let TransactionsService = class TransactionsService {
-    constructor(txRepo, partyRepo, dataSource, sequenceGenerator) {
+    constructor(txRepo, dataSource, sequenceGenerator) {
         this.txRepo = txRepo;
-        this.partyRepo = partyRepo;
         this.dataSource = dataSource;
         this.sequenceGenerator = sequenceGenerator;
     }
@@ -61,34 +61,27 @@ let TransactionsService = class TransactionsService {
         await queryRunner.connect();
         await queryRunner.startTransaction();
         try {
-            const prefix = dto.type === 'in' ? 'MKB' : 'TDY';
-            const code = await this.sequenceGenerator.generateTransactionCode(queryRunner, prefix);
-            const tx = queryRunner.manager.create(transaction_entity_1.Transaction, {
-                code,
-                partyId: dto.partyId,
-                commercialAccountId: dto.commercialAccountId,
-                amount: dto.amount,
-                currencyId: dto.currencyId || null,
-                type: dto.type,
-                referenceType: dto.referenceType || null,
-                referenceId: dto.referenceId || null,
-                date: dto.date,
-                description: dto.description || null,
-                status: 'completed',
-                createdBy: userId,
-            });
-            const savedTx = await queryRunner.manager.save(tx);
             const party = await queryRunner.manager.findOne(party_entity_1.Party, { where: { id: dto.partyId } });
             if (!party)
                 throw new common_1.NotFoundException('Cari hesap bulunamadı');
+            const currency = await queryRunner.manager.findOne(currency_entity_1.Currency, { where: { id: dto.currencyId } });
+            const exchangeRate = currency ? Number(currency.exchangeRate) : 1;
+            const tlAmount = dto.amount * exchangeRate;
             const currentBalance = Number(party.balance);
-            const newBalance = dto.type === 'in'
-                ? currentBalance - dto.amount
-                : currentBalance + dto.amount;
-            await queryRunner.manager.update(party_entity_1.Party, party.id, {
-                balance: newBalance,
-                updatedBy: userId,
+            const newBalance = dto.type === 'in' ? currentBalance - tlAmount : currentBalance + tlAmount;
+            if (dto.type === 'out' && Number(party.creditLimitPlus) > 0 && newBalance > Number(party.creditLimitPlus)) {
+                throw new common_1.BadRequestException(`İşlem limit engeline takıldı. Yapılacak ödeme/harcama firmanın belirlediğiniz limitini aşıyor.`);
+            }
+            const prefix = dto.type === 'in' ? 'MKB' : 'TDY';
+            const code = await this.sequenceGenerator.generateTransactionCode(queryRunner, prefix);
+            const tx = queryRunner.manager.create(transaction_entity_1.Transaction, {
+                code, partyId: dto.partyId, commercialAccountId: dto.commercialAccountId,
+                amount: dto.amount, currencyId: dto.currencyId || null, exchangeRate,
+                type: dto.type, referenceType: dto.referenceType || null, referenceId: dto.referenceId || null,
+                date: dto.date, description: dto.description || null, status: 'completed', createdBy: userId,
             });
+            const savedTx = await queryRunner.manager.save(tx);
+            await queryRunner.manager.update(party_entity_1.Party, party.id, { balance: newBalance, updatedBy: userId });
             await queryRunner.commitTransaction();
             return this.findOne(savedTx.id);
         }
@@ -100,15 +93,43 @@ let TransactionsService = class TransactionsService {
             await queryRunner.release();
         }
     }
+    async cancel(id, userId) {
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+        try {
+            const tx = await queryRunner.manager.findOne(transaction_entity_1.Transaction, { where: { id } });
+            if (!tx || tx.status === 'cancelled')
+                throw new common_1.BadRequestException('Sadece tamamlanmış aktif işlemler iptal edilebilir.');
+            const party = await queryRunner.manager.findOne(party_entity_1.Party, { where: { id: tx.partyId } });
+            if (!party)
+                throw new common_1.NotFoundException('Cari hesap bulunamadı, işlem iptal edilemez.');
+            const tlAmount = Number(tx.amount) * Number(tx.exchangeRate);
+            const currentBalance = Number(party.balance);
+            const newBalance = tx.type === 'in' ? currentBalance + tlAmount : currentBalance - tlAmount;
+            await queryRunner.manager.update(party_entity_1.Party, party.id, { balance: newBalance, updatedBy: userId });
+            await queryRunner.manager.update(transaction_entity_1.Transaction, tx.id, { status: 'cancelled', updatedBy: userId });
+            await queryRunner.commitTransaction();
+            return { success: true, message: 'Muhasebe fişi ve cari hareketi geri alındı.' };
+        }
+        catch (e) {
+            await queryRunner.rollbackTransaction();
+            throw e;
+        }
+        finally {
+            await queryRunner.release();
+        }
+    }
     async getStatus() {
         const firstDayOfMonth = new Date();
         firstDayOfMonth.setDate(1);
         firstDayOfMonth.setHours(0, 0, 0, 0);
         const stats = await this.txRepo.createQueryBuilder('tx')
-            .select("SUM(CASE WHEN tx.type = 'in' THEN tx.amount ELSE 0 END)", "income")
-            .addSelect("SUM(CASE WHEN tx.type = 'out' THEN tx.amount ELSE 0 END)", "expense")
+            .select("SUM(CASE WHEN tx.type = 'in' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "income")
+            .addSelect("SUM(CASE WHEN tx.type = 'out' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "expense")
             .addSelect("COUNT(*)", "count")
             .where("tx.date >= :date", { date: firstDayOfMonth.toISOString().split('T')[0] })
+            .andWhere("tx.status != 'cancelled'")
             .getRawOne();
         return {
             monthlyIncome: Number(stats.income || 0),
@@ -120,24 +141,22 @@ let TransactionsService = class TransactionsService {
     async getDailyTrends() {
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        const results = await this.txRepo.createQueryBuilder('tx')
+        return await this.txRepo.createQueryBuilder('tx')
             .select("DATE(tx.date)", "day")
-            .addSelect("SUM(CASE WHEN tx.type = 'in' THEN tx.amount ELSE 0 END)", "income")
-            .addSelect("SUM(CASE WHEN tx.type = 'out' THEN tx.amount ELSE 0 END)", "expense")
+            .addSelect("SUM(CASE WHEN tx.type = 'in' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "income")
+            .addSelect("SUM(CASE WHEN tx.type = 'out' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "expense")
             .where("tx.date >= :date", { date: sevenDaysAgo.toISOString().split('T')[0] })
+            .andWhere("tx.status != 'cancelled'")
             .groupBy("DATE(tx.date)")
             .orderBy("day", "ASC")
             .getRawMany();
-        return results;
     }
 };
 exports.TransactionsService = TransactionsService;
 exports.TransactionsService = TransactionsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(transaction_entity_1.Transaction)),
-    __param(1, (0, typeorm_1.InjectRepository)(party_entity_1.Party)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
-        typeorm_2.Repository,
         typeorm_2.DataSource,
         sequence_generator_service_1.SequenceGeneratorService])
 ], TransactionsService);

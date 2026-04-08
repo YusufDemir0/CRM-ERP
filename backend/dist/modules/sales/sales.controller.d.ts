@@ -5,6 +5,11 @@ export declare class SalesController {
     constructor(salesService: SalesService);
     findAllSaleTypes(): Promise<import("./entities/sale-type.entity").SaleType[]>;
     createSaleType(dto: CreateSaleTypeDto, userId: number): Promise<import("./entities/sale-type.entity").SaleType>;
+    getStatus(): Promise<{
+        monthlyRevenue: number;
+        monthlyOrders: number;
+        pendingOrders: number;
+    }>;
     findAll(query: SalesQueryDto): Promise<import("../../common/dto/pagination.dto").PaginatedResult<import("./entities/sale.entity").Sale>>;
     findOne(id: number): Promise<import("./entities/sale.entity").Sale>;
     create(dto: CreateSaleDto, userId: number): Promise<import("./entities/sale.entity").Sale>;
@@ -12,9 +17,4 @@ export declare class SalesController {
     approve(id: number, dto: ApproveSaleDto, userId: number): Promise<import("./entities/sale.entity").Sale>;
     cancel(id: number, userId: number): Promise<import("./entities/sale.entity").Sale>;
     remove(id: number): Promise<void>;
-    getStatus(): Promise<{
-        monthlyRevenue: number;
-        monthlyOrders: number;
-        pendingOrders: number;
-    }>;
 }

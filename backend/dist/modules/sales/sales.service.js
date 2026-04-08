@@ -23,6 +23,8 @@ const sale_type_entity_1 = require("./entities/sale-type.entity");
 const stock_entity_1 = require("../inventory/stocks/entities/stock.entity");
 const stock_movement_entity_1 = require("../inventory/stocks/entities/stock-movement.entity");
 const party_entity_1 = require("../parties/entities/party.entity");
+const currency_entity_1 = require("../finance/currencies/entities/currency.entity");
+const transaction_entity_1 = require("../finance/transactions/entities/transaction.entity");
 const sequence_generator_service_1 = require("../../common/services/sequence-generator.service");
 let SalesService = SalesService_1 = class SalesService {
     constructor(saleRepo, saleItemRepo, saleTypeRepo, dataSource, sequenceGenerator) {
@@ -79,26 +81,26 @@ let SalesService = SalesService_1 = class SalesService {
         await queryRunner.connect();
         await queryRunner.startTransaction();
         try {
+            const party = await queryRunner.manager.findOne(party_entity_1.Party, { where: { id: dto.partyId } });
+            if (!party)
+                throw new common_1.NotFoundException('Cari hesap bulunamadı.');
+            if (party.type === 'provider')
+                throw new common_1.BadRequestException('Sadece Tedarikçi tipindeki bir cariye satış yapılamaz.');
+            const currency = await queryRunner.manager.findOne(currency_entity_1.Currency, { where: { id: dto.currencyId } });
+            const currentExchangeRate = currency ? Number(currency.exchangeRate) : 1;
             const code = await this.sequenceGenerator.generateSaleCode(queryRunner, dto.saleTypeId);
-            let totalAmount = 0;
-            let totalKdv = 0;
+            let rawTotalAmount = 0;
             const saleItems = [];
             for (const itemDto of dto.items) {
-                const kdvRate = itemDto.kdvRate ?? 20;
                 const discountAmount = itemDto.discountAmount || 0;
                 const discountPercent = itemDto.discountPercent || 0;
                 let netPrice = itemDto.price;
-                if (discountAmount > 0) {
+                if (discountAmount > 0)
                     netPrice = itemDto.price - discountAmount;
-                }
-                else if (discountPercent > 0) {
+                else if (discountPercent > 0)
                     netPrice = itemDto.price * (1 - discountPercent / 100);
-                }
                 const subtotal = itemDto.quantity * netPrice;
-                const kdvAmount = subtotal * (kdvRate / 100);
-                const lineTotal = subtotal + kdvAmount;
-                totalAmount += subtotal;
-                totalKdv += kdvAmount;
+                rawTotalAmount += subtotal;
                 saleItems.push({
                     itemId: itemDto.itemId,
                     quantity: itemDto.quantity,
@@ -106,32 +108,38 @@ let SalesService = SalesService_1 = class SalesService {
                     discountAmount,
                     discountPercent,
                     netPrice,
-                    kdvRate,
-                    kdvAmount,
-                    lineTotal,
+                    kdvRate: itemDto.kdvRate ?? 20,
                     description: itemDto.description,
                     createdBy: userId,
                 });
             }
             const headerDiscountAmount = dto.discountAmount || 0;
             const headerDiscountPercent = dto.discountPercent || 0;
-            let grandTotal = totalAmount;
-            if (headerDiscountAmount > 0) {
-                grandTotal -= headerDiscountAmount;
+            let discountToSubtract = headerDiscountAmount;
+            if (headerDiscountPercent > 0) {
+                discountToSubtract = rawTotalAmount * (headerDiscountPercent / 100);
             }
-            else if (headerDiscountPercent > 0) {
-                grandTotal -= grandTotal * (headerDiscountPercent / 100);
-            }
-            grandTotal += totalKdv;
+            const discountedMatrah = rawTotalAmount - discountToSubtract;
+            let totalKdv = 0;
+            saleItems.forEach(item => {
+                const lineRatio = rawTotalAmount > 0 ? (item.quantity * item.netPrice) / rawTotalAmount : 0;
+                const lineMatrah = discountedMatrah * lineRatio;
+                const lineKdv = lineMatrah * (item.kdvRate / 100);
+                item.kdvAmount = lineKdv;
+                item.lineTotal = lineMatrah + lineKdv;
+                totalKdv += lineKdv;
+            });
+            const grandTotal = discountedMatrah + totalKdv;
             const sale = queryRunner.manager.create(sale_entity_1.Sale, {
                 code,
                 partyId: dto.partyId,
                 saleTypeId: dto.saleTypeId,
                 currencyId: dto.currencyId,
+                exchangeRate: currentExchangeRate,
                 deliveryDate: dto.deliveryDate,
                 status: 'draft',
                 deposit: dto.deposit || 0,
-                totalAmount,
+                totalAmount: rawTotalAmount,
                 discountAmount: headerDiscountAmount,
                 discountPercent: headerDiscountPercent,
                 kdv: totalKdv,
@@ -141,11 +149,7 @@ let SalesService = SalesService_1 = class SalesService {
             });
             const savedSale = await queryRunner.manager.save(sale);
             for (const si of saleItems) {
-                const saleItem = queryRunner.manager.create(sale_item_entity_1.SaleItem, {
-                    ...si,
-                    saleId: savedSale.id,
-                });
-                await queryRunner.manager.save(saleItem);
+                await queryRunner.manager.save(queryRunner.manager.create(sale_item_entity_1.SaleItem, { ...si, saleId: savedSale.id }));
             }
             await queryRunner.commitTransaction();
             return this.findOne(savedSale.id);
@@ -161,88 +165,135 @@ let SalesService = SalesService_1 = class SalesService {
     async update(id, dto, userId) {
         const sale = await this.findOne(id);
         if (sale.status !== 'draft') {
-            throw new common_1.BadRequestException('Sadece taslak durumundaki siparişler düzenlenebilir');
+            throw new common_1.BadRequestException('Sadece taslak durumundaki siparişler düzenlenebilir. İptal / İade süreçlerini kullanın.');
         }
-        Object.assign(sale, dto);
-        sale.updatedBy = userId || null;
-        return this.saleRepo.save(sale);
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+        try {
+            if (dto.notes !== undefined)
+                sale.notes = dto.notes;
+            if (dto.deliveryDate !== undefined)
+                sale.deliveryDate = dto.deliveryDate;
+            sale.updatedBy = userId || null;
+            if (dto.items && dto.items.length > 0) {
+                let rawTotalAmount = 0;
+                const saleItems = [];
+                for (const itemDto of dto.items) {
+                    const discountAmount = itemDto.discountAmount || 0;
+                    const discountPercent = itemDto.discountPercent || 0;
+                    let netPrice = itemDto.price;
+                    if (discountAmount > 0)
+                        netPrice = itemDto.price - discountAmount;
+                    else if (discountPercent > 0)
+                        netPrice = itemDto.price * (1 - discountPercent / 100);
+                    rawTotalAmount += itemDto.quantity * netPrice;
+                    saleItems.push({
+                        itemId: itemDto.itemId, quantity: itemDto.quantity, price: itemDto.price,
+                        discountAmount, discountPercent, netPrice, kdvRate: itemDto.kdvRate ?? 20,
+                        description: itemDto.description, createdBy: userId,
+                    });
+                }
+                const headerDiscountAmount = dto.discountAmount !== undefined ? dto.discountAmount : sale.discountAmount;
+                const headerDiscountPercent = dto.discountPercent !== undefined ? dto.discountPercent : sale.discountPercent;
+                let discountToSubtract = headerDiscountAmount;
+                if (headerDiscountPercent > 0)
+                    discountToSubtract = rawTotalAmount * (headerDiscountPercent / 100);
+                const discountedMatrah = rawTotalAmount - discountToSubtract;
+                let totalKdv = 0;
+                saleItems.forEach(item => {
+                    const lineRatio = rawTotalAmount > 0 ? (item.quantity * item.netPrice) / rawTotalAmount : 0;
+                    const lineMatrah = discountedMatrah * lineRatio;
+                    const lineKdv = lineMatrah * (item.kdvRate / 100);
+                    item.kdvAmount = lineKdv;
+                    item.lineTotal = lineMatrah + lineKdv;
+                    totalKdv += lineKdv;
+                });
+                sale.totalAmount = rawTotalAmount;
+                sale.discountAmount = headerDiscountAmount;
+                sale.discountPercent = headerDiscountPercent;
+                sale.kdv = totalKdv;
+                sale.grandTotal = discountedMatrah + totalKdv;
+                sale.deposit = dto.deposit !== undefined ? dto.deposit : sale.deposit;
+                await queryRunner.manager.delete(sale_item_entity_1.SaleItem, { saleId: sale.id });
+                for (const si of saleItems) {
+                    await queryRunner.manager.save(queryRunner.manager.create(sale_item_entity_1.SaleItem, { ...si, saleId: sale.id }));
+                }
+            }
+            else {
+                if (dto.deposit !== undefined)
+                    sale.deposit = dto.deposit;
+            }
+            await queryRunner.manager.save(sale);
+            await queryRunner.commitTransaction();
+            return this.findOne(id);
+        }
+        catch (e) {
+            await queryRunner.rollbackTransaction();
+            throw e;
+        }
+        finally {
+            await queryRunner.release();
+        }
     }
     async approveSale(saleId, dto, userId) {
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();
         try {
-            const sale = await queryRunner.manager.findOne(sale_entity_1.Sale, {
-                where: { id: saleId },
-                relations: ['items'],
-            });
-            if (!sale) {
+            const sale = await queryRunner.manager.findOne(sale_entity_1.Sale, { where: { id: saleId }, relations: ['items'] });
+            if (!sale)
                 throw new common_1.NotFoundException('Satış bulunamadı');
+            if (sale.status !== 'draft')
+                throw new common_1.BadRequestException('Sadece taslak (draft) durumundaki siparişler onaylanabilir.');
+            const party = await queryRunner.manager.findOne(party_entity_1.Party, { where: { id: sale.partyId } });
+            if (!party)
+                throw new common_1.NotFoundException('Cari hesap bulunamadı');
+            const tlGrandTotal = Number(sale.grandTotal) * Number(sale.exchangeRate);
+            const currentPartyBalance = Number(party.balance);
+            if (Number(party.creditLimitPlus) > 0 && (currentPartyBalance + tlGrandTotal) > Number(party.creditLimitPlus)) {
+                throw new common_1.BadRequestException(`Cari limit aşıldı! Firmanın Kredi Limiti: ${party.creditLimitPlus}. Sipariş sonrası bakiye: ${currentPartyBalance + tlGrandTotal} olmaktadır. İşlem gerçekleştirilemez.`);
             }
-            if (sale.status !== 'draft') {
-                throw new common_1.BadRequestException(`Sadece taslak durumundaki siparişler onaylanabilir. Mevcut durum: ${sale.status}`);
-            }
-            if (!sale.items || sale.items.length === 0) {
-                throw new common_1.BadRequestException('Satışta hiç kalem bulunmuyor');
-            }
-            this.logger.log(`🔄 Sale approval başlatıldı: ${sale.code} (${sale.items.length} kalem)`);
             for (const saleItem of sale.items) {
                 let stock = await queryRunner.manager.findOne(stock_entity_1.Stock, {
                     where: { itemId: saleItem.itemId, departmentId: dto.departmentId },
                 });
-                if (!stock) {
-                    throw new common_1.BadRequestException(`Stok kaydı bulunamadı. Item ID: ${saleItem.itemId}, Departman ID: ${dto.departmentId}`);
+                if (!stock || Number(stock.quantity) < Number(saleItem.quantity)) {
+                    throw new common_1.BadRequestException(`Yetersiz stok durumu. (Ürün ID: ${saleItem.itemId}, Depo ID: ${dto.departmentId}) Üretim emri açmanız veya mal alımı yapmanız gerekebilir.`);
                 }
                 const quantityBefore = Number(stock.quantity);
-                const requiredQty = Number(saleItem.quantity);
-                if (quantityBefore < requiredQty) {
-                    throw new common_1.BadRequestException(`Yetersiz stok! Item ID: ${saleItem.itemId}, ` +
-                        `Mevcut: ${quantityBefore}, İstenen: ${requiredQty}`);
+                const quantityAfter = quantityBefore - Number(saleItem.quantity);
+                await queryRunner.manager.update(stock_entity_1.Stock, stock.id, { quantity: quantityAfter, updatedBy: userId });
+                await queryRunner.manager.save(queryRunner.manager.create(stock_movement_entity_1.StockMovement, {
+                    stockId: stock.id, quantity: saleItem.quantity, quantityBefore, quantityAfter,
+                    type: 'out', referenceType: 'sale', referenceId: sale.id, description: `Satış Onayı: ${sale.code}`, createdBy: userId,
+                }));
+            }
+            await queryRunner.manager.update(party_entity_1.Party, party.id, { balance: currentPartyBalance + tlGrandTotal, updatedBy: userId });
+            let finalDepositSaved = 0;
+            if (Number(sale.deposit) > 0) {
+                if (!dto.commercialAccountId) {
+                    throw new common_1.BadRequestException('Siparişte kapora alınmış. Bu paranın gireceği Finans (Kasa/Banka) hesabını seçmelisiniz.');
                 }
-                const quantityAfter = quantityBefore - requiredQty;
-                await queryRunner.manager.update(stock_entity_1.Stock, stock.id, {
-                    quantity: quantityAfter,
-                    updatedBy: userId,
-                });
-                const movement = queryRunner.manager.create(stock_movement_entity_1.StockMovement, {
-                    stockId: stock.id,
-                    quantity: requiredQty,
-                    quantityBefore,
-                    quantityAfter,
-                    type: 'out',
-                    referenceType: 'sale',
-                    referenceId: sale.id,
-                    description: `Satış onayı: ${sale.code}`,
-                    createdBy: userId,
-                });
-                await queryRunner.manager.save(movement);
-                this.logger.debug(`  📦 Stok düşüldü: Item ${saleItem.itemId}, ${quantityBefore} → ${quantityAfter}`);
+                const txCode = await this.sequenceGenerator.generateTransactionCode(queryRunner, 'MKB');
+                const tlDeposit = Number(sale.deposit) * Number(sale.exchangeRate);
+                await queryRunner.manager.save(queryRunner.manager.create(transaction_entity_1.Transaction, {
+                    code: txCode, partyId: party.id, commercialAccountId: dto.commercialAccountId,
+                    amount: Number(sale.deposit), currencyId: sale.currencyId, exchangeRate: sale.exchangeRate,
+                    type: 'in', referenceType: 'sale', referenceId: sale.id, date: new Date().toISOString().split('T')[0],
+                    description: `${sale.code} Nolu Sipariş Peşinat / Kaporası`, status: 'completed', createdBy: userId
+                }));
+                await queryRunner.manager.update(party_entity_1.Party, party.id, { balance: (currentPartyBalance + tlGrandTotal) - tlDeposit, updatedBy: userId });
+                finalDepositSaved = tlDeposit;
             }
-            const party = await queryRunner.manager.findOne(party_entity_1.Party, {
-                where: { id: sale.partyId },
-            });
-            if (!party) {
-                throw new common_1.NotFoundException('Cari hesap bulunamadı');
-            }
-            const currentBalance = Number(party.balance);
-            const grandTotal = Number(sale.grandTotal);
-            const newBalance = currentBalance + grandTotal;
-            await queryRunner.manager.update(party_entity_1.Party, party.id, {
-                balance: newBalance,
-                updatedBy: userId,
-            });
-            this.logger.debug(`  💰 Cari bakiye güncellendi: ${party.name}, ${currentBalance} → ${newBalance} (+${grandTotal})`);
-            await queryRunner.manager.update(sale_entity_1.Sale, sale.id, {
-                status: 'approved',
-                updatedBy: userId,
-            });
+            await queryRunner.manager.update(sale_entity_1.Sale, sale.id, { status: 'approved', updatedBy: userId });
             await queryRunner.commitTransaction();
-            this.logger.log(`✅ Sale onaylandı: ${sale.code}, Grand Total: ${grandTotal}, Party: ${party.name}`);
+            this.logger.log(`✅ Sipariş Onaylandı: ${sale.code}, Satış Tutarı: ${tlGrandTotal}, Kapora Düşüşü: ${finalDepositSaved}`);
             return this.findOne(saleId);
         }
         catch (error) {
             await queryRunner.rollbackTransaction();
-            this.logger.error(`❌ Sale approval ROLLBACK: ${error.message}`);
+            this.logger.error(`❌ Sipariş Onay Hata: ${error.message}`);
             throw error;
         }
         finally {
@@ -250,21 +301,53 @@ let SalesService = SalesService_1 = class SalesService {
         }
     }
     async cancelSale(saleId, userId) {
-        const sale = await this.findOne(saleId);
-        if (sale.status === 'cancelled') {
-            throw new common_1.BadRequestException('Bu satış zaten iptal edilmiş');
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+        try {
+            const sale = await queryRunner.manager.findOne(sale_entity_1.Sale, { where: { id: saleId } });
+            if (!sale)
+                throw new common_1.NotFoundException('Satış bulunamadı');
+            if (sale.status === 'cancelled')
+                throw new common_1.BadRequestException('Sipariş zaten iptal edilmiş.');
+            if (sale.status === 'approved' || sale.status === 'shipped') {
+                const party = await queryRunner.manager.findOne(party_entity_1.Party, { where: { id: sale.partyId } });
+                if (!party)
+                    throw new common_1.NotFoundException('Cari hesap bulunamadı');
+                const outMovements = await queryRunner.manager.find(stock_movement_entity_1.StockMovement, { where: { referenceType: 'sale', referenceId: sale.id, type: 'out' }, relations: ['stock'] });
+                for (const mov of outMovements) {
+                    const stock = await queryRunner.manager.findOne(stock_entity_1.Stock, { where: { id: mov.stockId } });
+                    if (stock) {
+                        const newQty = Number(stock.quantity) + Number(mov.quantity);
+                        await queryRunner.manager.update(stock_entity_1.Stock, stock.id, { quantity: newQty });
+                        await queryRunner.manager.save(queryRunner.manager.create(stock_movement_entity_1.StockMovement, {
+                            stockId: stock.id, quantity: mov.quantity, quantityBefore: stock.quantity, quantityAfter: newQty,
+                            type: 'in', referenceType: 'return', referenceId: sale.id, description: `${sale.code} Sipariş İptaliyle Stoka İade`, createdBy: userId
+                        }));
+                    }
+                }
+                const tlGrandTotal = Number(sale.grandTotal) * Number(sale.exchangeRate);
+                const tlDeposit = Number(sale.deposit) * Number(sale.exchangeRate);
+                const targetBalance = Number(party.balance) - tlGrandTotal + tlDeposit;
+                await queryRunner.manager.update(party_entity_1.Party, party.id, { balance: targetBalance, updatedBy: userId });
+                await queryRunner.manager.update(transaction_entity_1.Transaction, { referenceType: 'sale', referenceId: sale.id }, { status: 'cancelled', updatedBy: userId });
+            }
+            await queryRunner.manager.update(sale_entity_1.Sale, sale.id, { status: 'cancelled', updatedBy: userId });
+            await queryRunner.commitTransaction();
+            return this.findOne(saleId);
         }
-        if (sale.status === 'approved' || sale.status === 'shipped' || sale.status === 'invoiced') {
-            throw new common_1.BadRequestException('Onaylanmış siparişlerin iptali için ayrı bir süreç gereklidir (iade/iptal faturası)');
+        catch (e) {
+            await queryRunner.rollbackTransaction();
+            throw e;
         }
-        sale.status = 'cancelled';
-        sale.updatedBy = userId || null;
-        return this.saleRepo.save(sale);
+        finally {
+            await queryRunner.release();
+        }
     }
     async softDelete(id) {
         const sale = await this.findOne(id);
         if (sale.status !== 'draft') {
-            throw new common_1.BadRequestException('Sadece taslak siparişler silinebilir');
+            throw new common_1.BadRequestException('Sadece taslak siparişler kalıcı silinebilir. Onaylanmış faturalar için "İptal Et / Revert" işlemi yapınız.');
         }
         await this.saleRepo.softDelete(id);
     }
@@ -274,7 +357,7 @@ let SalesService = SalesService_1 = class SalesService {
         firstDayOfMonth.setHours(0, 0, 0, 0);
         const [stats, pending] = await Promise.all([
             this.saleRepo.createQueryBuilder('sale')
-                .select("SUM(sale.grandTotal)", "revenue")
+                .select("SUM(sale.grandTotal * sale.exchangeRate)", "revenue")
                 .addSelect("COUNT(*)", "total")
                 .where("sale.createdAt >= :date", { date: firstDayOfMonth.toISOString() })
                 .andWhere("sale.status != 'cancelled'")

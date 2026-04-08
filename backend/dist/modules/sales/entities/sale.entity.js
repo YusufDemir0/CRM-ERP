@@ -36,6 +36,10 @@ __decorate([
     __metadata("design:type", Object)
 ], Sale.prototype, "currencyId", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'exchange_rate', type: 'decimal', precision: 15, scale: 6, default: 1 }),
+    __metadata("design:type", Number)
+], Sale.prototype, "exchangeRate", void 0);
+__decorate([
     (0, typeorm_1.Column)({ name: 'delivery_date', type: 'date', nullable: true }),
     __metadata("design:type", Object)
 ], Sale.prototype, "deliveryDate", void 0);
@@ -60,7 +64,7 @@ __decorate([
     __metadata("design:type", Number)
 ], Sale.prototype, "discountPercent", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, default: 0 }),
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 2, default: 0 }),
     __metadata("design:type", Number)
 ], Sale.prototype, "kdv", void 0);
 __decorate([

@@ -75,7 +75,8 @@ export function createCrudPage(config: CrudConfig) {
             <button className="btn" style={{ padding: '5px 10px' }} onClick={() => { setEditing(r); setForm(r); setModalOpen(true); }}><FiEdit2 /></button>
             {!config.readOnly && config.apiModule.delete && (
               <button className="btn" style={{ color: 'var(--danger)', padding: '5px 10px' }} onClick={async () => {
-                if (window.confirm('Silmek istediğinize emin misiniz?')) {
+                const confirmed = await import('../utils/confirmDialog').then(m => m.confirmDialog('Silmek istediğinize emin misiniz?', true));
+                if (confirmed) {
                   await config.apiModule.delete(r.id); fetchData();
                 }
               }}><FiTrash2 /></button>

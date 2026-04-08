@@ -16,6 +16,8 @@ const stocks_service_1 = require("./stocks/stocks.service");
 const item_entity_1 = require("./items/entities/item.entity");
 const item_type_entity_1 = require("./items/entities/item-type.entity");
 const item_sequence_entity_1 = require("./items/entities/item-sequence.entity");
+const item_code_group_entity_1 = require("./items/entities/item-code-group.entity");
+const item_code_sequence_entity_1 = require("./items/entities/item-code-sequence.entity");
 const quantity_type_entity_1 = require("./items/entities/quantity-type.entity");
 const stock_entity_1 = require("./stocks/entities/stock.entity");
 const stock_movement_entity_1 = require("./stocks/entities/stock-movement.entity");
@@ -26,7 +28,7 @@ exports.InventoryModule = InventoryModule;
 exports.InventoryModule = InventoryModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([item_entity_1.Item, item_type_entity_1.ItemType, item_sequence_entity_1.ItemSequence, quantity_type_entity_1.QuantityType, stock_entity_1.Stock, stock_movement_entity_1.StockMovement]),
+            typeorm_1.TypeOrmModule.forFeature([item_entity_1.Item, item_type_entity_1.ItemType, item_sequence_entity_1.ItemSequence, item_code_group_entity_1.ItemCodeGroup, item_code_sequence_entity_1.ItemCodeSequence, quantity_type_entity_1.QuantityType, stock_entity_1.Stock, stock_movement_entity_1.StockMovement]),
         ],
         controllers: [items_controller_1.ItemsController, stocks_controller_1.StocksController],
         providers: [items_service_1.ItemsService, stocks_service_1.StocksService, sequence_generator_service_1.SequenceGeneratorService],

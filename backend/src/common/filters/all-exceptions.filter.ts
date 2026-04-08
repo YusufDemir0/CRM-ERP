@@ -27,10 +27,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message = typeof exResponse === 'string' ? exResponse : exResponse;
     } else if (exception instanceof QueryFailedError) {
       status = HttpStatus.BAD_REQUEST;
-      message = {
-        error: 'Database Error',
-        detail: (exception as QueryFailedError).message,
-      };
+      // Convert to string to avoid React "Objects are not valid as a React child" error in UI toasts
+      message = `Database Error: ${(exception as QueryFailedError).message}`;
       this.logger.error(`DB Error: ${exception.message}`, exception.stack);
     } else if (exception instanceof Error) {
       message = exception.message;

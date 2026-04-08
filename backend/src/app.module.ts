@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
 // Config
 import databaseConfig from './config/database.config';
@@ -9,6 +10,7 @@ import jwtConfig from './config/jwt.config';
 
 // Common
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
+import { LogsInterceptor } from './common/interceptors/logs.interceptor';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 
@@ -23,9 +25,18 @@ import { SalesModule } from './modules/sales/sales.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { ProductionModule } from './modules/production/production.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { SettingsModule } from './modules/settings/settings.module';
+import { LogsModule } from './modules/logs/logs.module';
+import { NotesModule } from './modules/notes/notes.module';
 
 @Module({
-  imports: [
+  imports:[
+    // DDOS ve Brute Force Koruması (1 Dakikada maks 30 istek)
+    ThrottlerModule.forRoot([{
+      ttl: 60000, 
+      limit: 30,  
+    }]),
+
     // Global Config
     ConfigModule.forRoot({
       isGlobal: true,
@@ -33,7 +44,6 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
       envFilePath: '.env',
     }),
 
-    // TypeORM — Mevcut MySQL veritabanına bağlan
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -42,7 +52,6 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
       }),
     }),
 
-    // Domain Modules
     AuthModule,
     UsersModule,
     RolesModule,
@@ -53,19 +62,28 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     FinanceModule,
     ProductionModule,
     DashboardModule,
+    SettingsModule,
+    LogsModule,
+    NotesModule,
   ],
-  providers: [
-    // Global Audit Interceptor — tüm request'lerde çalışır
+  providers:[
     {
       provide: APP_INTERCEPTOR,
       useClass: AuditInterceptor,
     },
-    // Global JWT Auth Guard — tüm endpoint'lerde JWT doğrulaması (@Public hariç)
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LogsInterceptor,
+    },
+    // Sistem geneli Throttler (Hız Sınırlayıcı)
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
-    // Global RBAC Guard — @RequirePermissions ile korunan endpoint'lerde çalışır
     {
       provide: APP_GUARD,
       useClass: PermissionsGuard,

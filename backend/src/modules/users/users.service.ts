@@ -78,7 +78,16 @@ export class UsersService {
 
   async update(id: number, dto: UpdateUserDto, currentUserId?: number): Promise<User> {
     const user = await this.findOne(id);
-    Object.assign(user, dto);
+    
+    // Şifre güncellenmek isteniyorsa güvenli şekilde hash'le
+    if (dto.password && dto.password.trim() !== '') {
+      const salt = await bcrypt.genSalt(12);
+      user.passwordHash = await bcrypt.hash(dto.password, salt);
+    }
+    // Geri kalan bilgileri assign ederken password property'sinin user'a doğrudan gitmemesini sağla
+    const { password, ...otherData } = dto;
+    
+    Object.assign(user, otherData);
     user.updatedBy = currentUserId || null;
     return this.userRepo.save(user);
   }
@@ -91,7 +100,7 @@ export class UsersService {
   }
 
   async getStatus() {
-    const [active, passive, total, adminCount] = await Promise.all([
+    const[active, passive, total, adminCount] = await Promise.all([
       this.userRepo.count({ where: { state: 1 } }),
       this.userRepo.count({ where: { state: 0 } }),
       this.userRepo.count(),

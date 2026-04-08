@@ -1,17 +1,19 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, IsDateString, Min } from 'class-validator';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { Type } from 'class-transformer';
 
 export class CreateCurrencyDto {
   @IsString() @IsNotEmpty() code: string;
   @IsString() @IsNotEmpty() name: string;
   @IsString() @IsNotEmpty() symbol: string;
-  @IsOptional() @IsNumber() exchangeRate?: number;
+  @IsOptional() @IsNumber() @Min(0) exchangeRate?: number;
   @IsOptional() @IsNumber() isDefault?: number;
 }
 
 export class UpdateCurrencyDto {
   @IsOptional() @IsString() name?: string;
   @IsOptional() @IsString() symbol?: string;
-  @IsOptional() @IsNumber() exchangeRate?: number;
+  @IsOptional() @IsNumber() @Min(0) exchangeRate?: number;
   @IsOptional() @IsNumber() isDefault?: number;
   @IsOptional() @IsNumber() state?: number;
 }
@@ -22,7 +24,7 @@ export class CreateAccountDto {
   @IsOptional() @IsString() iban?: string;
   @IsOptional() @IsString() ibanName?: string;
   @IsNumber() currencyId: number;
-  @IsOptional() @IsNumber() criticalLimit?: number;
+  @IsOptional() @IsNumber() criticalLimit?: number; 
   @IsOptional() @IsString() description?: string;
 }
 
@@ -39,7 +41,7 @@ export class UpdateAccountDto {
 export class CreateTransactionDto {
   @IsNumber() partyId: number;
   @IsNumber() commercialAccountId: number;
-  @IsNumber() amount: number;
+  @IsNumber() @Min(0.01) amount: number; 
   @IsOptional() @IsNumber() currencyId?: number;
   @IsEnum(['in', 'out']) type: 'in' | 'out';
   @IsOptional() @IsEnum(['sale', 'purchase', 'manual_adjustment']) referenceType?: 'sale' | 'purchase' | 'manual_adjustment';
@@ -47,9 +49,6 @@ export class CreateTransactionDto {
   @IsDateString() date: string;
   @IsOptional() @IsString() description?: string;
 }
-
-import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { Type } from 'class-transformer';
 
 export class TransactionsQueryDto extends PaginationDto {
   @IsOptional() @Type(() => Number) @IsNumber() partyId?: number;

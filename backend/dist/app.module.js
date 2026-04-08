@@ -14,9 +14,11 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const typeorm_1 = require("@nestjs/typeorm");
 const core_1 = require("@nestjs/core");
+const throttler_1 = require("@nestjs/throttler");
 const database_config_1 = __importDefault(require("./config/database.config"));
 const jwt_config_1 = __importDefault(require("./config/jwt.config"));
 const audit_interceptor_1 = require("./common/interceptors/audit.interceptor");
+const logs_interceptor_1 = require("./common/interceptors/logs.interceptor");
 const jwt_auth_guard_1 = require("./common/guards/jwt-auth.guard");
 const permissions_guard_1 = require("./common/guards/permissions.guard");
 const auth_module_1 = require("./modules/auth/auth.module");
@@ -29,12 +31,19 @@ const sales_module_1 = require("./modules/sales/sales.module");
 const finance_module_1 = require("./modules/finance/finance.module");
 const production_module_1 = require("./modules/production/production.module");
 const dashboard_module_1 = require("./modules/dashboard/dashboard.module");
+const settings_module_1 = require("./modules/settings/settings.module");
+const logs_module_1 = require("./modules/logs/logs.module");
+const notes_module_1 = require("./modules/notes/notes.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
+            throttler_1.ThrottlerModule.forRoot([{
+                    ttl: 60000,
+                    limit: 30,
+                }]),
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
                 load: [database_config_1.default, jwt_config_1.default],
@@ -57,11 +66,22 @@ exports.AppModule = AppModule = __decorate([
             finance_module_1.FinanceModule,
             production_module_1.ProductionModule,
             dashboard_module_1.DashboardModule,
+            settings_module_1.SettingsModule,
+            logs_module_1.LogsModule,
+            notes_module_1.NotesModule,
         ],
         providers: [
             {
                 provide: core_1.APP_INTERCEPTOR,
                 useClass: audit_interceptor_1.AuditInterceptor,
+            },
+            {
+                provide: core_1.APP_INTERCEPTOR,
+                useClass: logs_interceptor_1.LogsInterceptor,
+            },
+            {
+                provide: core_1.APP_GUARD,
+                useClass: throttler_1.ThrottlerGuard,
             },
             {
                 provide: core_1.APP_GUARD,

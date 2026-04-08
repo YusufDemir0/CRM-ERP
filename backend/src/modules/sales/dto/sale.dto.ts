@@ -1,13 +1,14 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsArray, ValidateNested, IsDateString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 
 export class CreateSaleItemDto {
   @IsNumber() itemId: number;
-  @IsNumber() quantity: number;
-  @IsNumber() price: number;
-  @IsOptional() @IsNumber() discountAmount?: number;
-  @IsOptional() @IsNumber() discountPercent?: number;
-  @IsOptional() @IsNumber() kdvRate?: number;
+  @IsNumber() @Min(0.0001) quantity: number;
+  @IsNumber() @Min(0) price: number;
+  @IsOptional() @IsNumber() @Min(0) discountAmount?: number;
+  @IsOptional() @IsNumber() @Min(0) discountPercent?: number;
+  @IsOptional() @IsNumber() @Min(0) kdvRate?: number;
   @IsOptional() @IsString() description?: string;
 }
 
@@ -16,9 +17,9 @@ export class CreateSaleDto {
   @IsNumber() saleTypeId: number;
   @IsOptional() @IsNumber() currencyId?: number;
   @IsOptional() @IsDateString() deliveryDate?: string;
-  @IsOptional() @IsNumber() deposit?: number;
-  @IsOptional() @IsNumber() discountAmount?: number;
-  @IsOptional() @IsNumber() discountPercent?: number;
+  @IsOptional() @IsNumber() @Min(0) deposit?: number;
+  @IsOptional() @IsNumber() @Min(0) discountAmount?: number;
+  @IsOptional() @IsNumber() @Min(0) discountPercent?: number;
   @IsOptional() @IsString() notes?: string;
 
   @IsArray()
@@ -31,10 +32,16 @@ export class UpdateSaleDto {
   @IsOptional() @IsNumber() partyId?: number;
   @IsOptional() @IsNumber() currencyId?: number;
   @IsOptional() @IsDateString() deliveryDate?: string;
-  @IsOptional() @IsNumber() deposit?: number;
-  @IsOptional() @IsNumber() discountAmount?: number;
-  @IsOptional() @IsNumber() discountPercent?: number;
+  @IsOptional() @IsNumber() @Min(0) deposit?: number;
+  @IsOptional() @IsNumber() @Min(0) discountAmount?: number;
+  @IsOptional() @IsNumber() @Min(0) discountPercent?: number;
   @IsOptional() @IsString() notes?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateSaleItemDto)
+  items?: CreateSaleItemDto[];
 }
 
 export class CreateSaleTypeDto {
@@ -42,15 +49,10 @@ export class CreateSaleTypeDto {
   @IsString() @IsNotEmpty() abbreviation: string;
 }
 
-/**
- * Sipariş onaylama DTO'su.
- * departmentId: Stok hangi departmandan düşülecek (kullanıcının departmanı varsayılanır).
- */
 export class ApproveSaleDto {
   @IsNumber() departmentId: number;
+  @IsOptional() @IsNumber() commercialAccountId?: number;
 }
-
-import { PaginationDto } from '../../../common/dto/pagination.dto';
 
 export class SalesQueryDto extends PaginationDto {
   @IsOptional() @IsString() status?: string;

@@ -1,10 +1,11 @@
-import { Entity, Column, ManyToOne, JoinColumn, Unique } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Unique, Check } from 'typeorm';
 import { BaseEntity } from '../../../../common/entities/base.entity';
 import { Item } from '../../items/entities/item.entity';
 import { Department } from '../../../departments/entities/department.entity';
 
 @Entity('stocks')
 @Unique(['itemId', 'departmentId'])
+@Check(`"quantity" >= 0`)
 export class Stock extends BaseEntity {
   @Column({ name: 'item_id', type: 'bigint' })
   itemId: number;

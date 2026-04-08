@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe } from '@nestjs/common';
 import { CurrenciesService } from './currencies.service';
 import { CreateCurrencyDto, UpdateCurrencyDto } from '../dto/finance.dto';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
@@ -22,5 +22,15 @@ export class CurrenciesController {
   @Put(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCurrencyDto, @CurrentUser('sub') userId: number) {
     return this.currenciesService.update(id, dto, userId);
+  }
+
+  @Put(':id/default')
+  setDefault(@Param('id', ParseIntPipe) id: number) {
+    return this.currenciesService.setDefault(id);
+  }
+
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.currenciesService.delete(id);
   }
 }

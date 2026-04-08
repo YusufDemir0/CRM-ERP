@@ -30,11 +30,19 @@ export class TransactionsController {
 
   @Get(':id')
   @RequirePermissions('finans_goruntuleme')
-  findOne(@Param('id', ParseIntPipe) id: number) { return this.txService.findOne(id); }
+  findOne(@Param('id', ParseIntPipe) id: number) { 
+    return this.txService.findOne(id); 
+  }
 
   @Post()
   @RequirePermissions('finans_islem')
   create(@Body() dto: CreateTransactionDto, @CurrentUser('sub') userId: number) {
     return this.txService.create(dto, userId);
+  }
+
+  @Post(':id/cancel')
+  @RequirePermissions('finans_islem')
+  cancel(@Param('id', ParseIntPipe) id: number, @CurrentUser('sub') userId: number) {
+    return this.txService.cancel(id, userId);
   }
 }

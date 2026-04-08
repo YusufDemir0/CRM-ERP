@@ -46,6 +46,23 @@ let CurrenciesService = class CurrenciesService {
             throw new common_1.NotFoundException('Varsayılan para birimi tanımlı değil');
         return curr;
     }
+    async setDefault(id) {
+        await this.currencyRepo
+            .createQueryBuilder()
+            .update(currency_entity_1.Currency)
+            .set({ isDefault: 0 })
+            .execute();
+        const curr = await this.findOne(id);
+        curr.isDefault = 1;
+        return this.currencyRepo.save(curr);
+    }
+    async delete(id) {
+        const curr = await this.findOne(id);
+        if (curr.isDefault) {
+            throw new common_1.BadRequestException('Varsayılan para birimi silinemez');
+        }
+        await this.currencyRepo.softDelete(id);
+    }
 };
 exports.CurrenciesService = CurrenciesService;
 exports.CurrenciesService = CurrenciesService = __decorate([

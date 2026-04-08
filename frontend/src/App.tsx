@@ -13,13 +13,15 @@ import PartiesPage  from './pages/modules/PartiesPage';
 import ItemsPage from './pages/modules/ItemsPage';
 import {StocksPage} from './pages/modules/StocksPage';
 import SalesPage from './pages/SalesPage';
-import {CurrenciesPage} from './pages/modules/CurrenciesPage';
 import AccountsPage from './pages/modules/AccountsPage';
 import TransactionsPage from './pages/modules/TransactionsPage';
 import {BomsPage} from './pages/modules/BomsPage';
 import {ProductionPage} from './pages/modules/ProductionPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import GlobalLoader from './components/GlobalLoader';
+
+import NotesPage from './pages/modules/NotesPage';
+import LogsPage from './pages/modules/LogsPage';
 
 export default function App() {
   return (
@@ -38,12 +40,14 @@ export default function App() {
               <Route path="items" element={<ItemsPage />} />
               <Route path="stocks" element={<StocksPage />} />
               <Route path="sales" element={<SalesPage />} />
-              <Route path="currencies" element={<CurrenciesPage />} />
+
               <Route path="accounts" element={<AccountsPage />} />
               <Route path="transactions" element={<TransactionsPage />} />
               <Route path="boms" element={<BomsPage />} />
               <Route path="production" element={<ProductionPage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="logs" element={<ProtectedRoute allowedRoles={['Admin']}><LogsPage /></ProtectedRoute>} />
+              <Route path="notes" element={<NotesPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

@@ -8,12 +8,12 @@ export default function Layout() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-background text-on-surface p-12">
-        <div className="flex flex-col items-center gap-6">
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center animate-pulse">
-            <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--background)', color: 'var(--on-surface)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', padding: '3rem' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: 'var(--primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="spinner" style={{ width: '24px', height: '24px', border: '3px solid var(--primary-glow)', borderTopColor: 'var(--primary)', borderRadius: '50%' }} />
           </div>
-          <p className="text-sm font-bold tracking-widest uppercase opacity-50">Cognitive Synchronization...</p>
+          <p style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', opacity: 0.5 }}>Sistem Yükleniyor...</p>
         </div>
       </div>
     );

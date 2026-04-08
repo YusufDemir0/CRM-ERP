@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { rolesAPI } from '../../services/api';
+import { FiEdit2, FiToggleLeft, FiToggleRight } from 'react-icons/fi';
 
 export function RolesPage() {
   const [roles, setRoles] = useState<any[]>([]);
@@ -25,8 +26,12 @@ export function RolesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (editingId) await rolesAPI.update(editingId, formData);
-      else await rolesAPI.create(formData);
+      const payload = {
+        ...formData,
+        permissionIds: formData.permissionIds.map(Number)
+      };
+      if (editingId) await rolesAPI.update(editingId, payload);
+      else await rolesAPI.create(payload);
       setIsModalOpen(false);
       fetchData();
     } catch (error) { console.error(error); }
@@ -56,8 +61,23 @@ export function RolesPage() {
   };
 
   // Yetkileri modüle göre gruplama
+  const moduleTranslations: Record<string, string> = {
+    'inventory': 'Stok ve Envanter',
+    'users': 'Kullanıcılar',
+    'roles': 'Roller ve Yetkiler',
+    'departments': 'Departmanlar',
+    'parties': 'Cariler (Müşteri/Tedarikçi)',
+    'sales': 'Satışlar',
+    'finance': 'Finans',
+    'production': 'Üretim',
+    'system': 'Sistem Ayarları',
+    'satışlar': 'Satışlar',
+    'satislar': 'Satışlar'
+  };
+
   const groupedPermissions = allPermissions.reduce((acc: any, perm: any) => {
-    const mod = perm.module || 'Genel';
+    const rawMod = (perm.module || 'Genel').toLowerCase();
+    const mod = moduleTranslations[rawMod] || perm.module || 'Genel';
     if (!acc[mod]) acc[mod] = [];
     acc[mod].push(perm);
     return acc;
@@ -88,10 +108,12 @@ export function RolesPage() {
                 <td><strong>{r.name}</strong></td>
                 <td><span className="badge badge-accent">{r.permissions?.length || 0} Aktif Yetki</span></td>
                 <td><span className={`badge ${r.state === 1 ? 'badge-success' : 'badge-danger'}`}>{r.state === 1 ? 'Aktif' : 'Pasif'}</span></td>
-                <td>
-                  <button className="btn" style={{ padding: '0 10px', height: '30px', marginRight: '5px' }} onClick={() => handleEdit(r)}>✎ Düzenle</button>
-                  <button className="btn" style={{ padding: '0 10px', height: '30px', color: r.state === 1 ? 'var(--error)' : 'var(--success)' }} onClick={() => toggleState(r.id, r.state)}>
-                    {r.state === 1 ? 'Pasif Yap' : 'Aktif Et'}
+                <td style={{ display: 'flex', gap: '5px' }}>
+                  <button className="btn-icon" title="Düzenle" onClick={() => handleEdit(r)}>
+                    <FiEdit2 size={16} />
+                  </button>
+                  <button className="btn-icon" title={r.state === 1 ? 'Pasif Yap' : 'Aktif Et'} style={{ color: r.state === 1 ? 'var(--error)' : 'var(--success)' }} onClick={() => toggleState(r.id, r.state)}>
+                    {r.state === 1 ? <FiToggleRight size={16} /> : <FiToggleLeft size={16} />}
                   </button>
                 </td>
               </tr>
@@ -107,7 +129,7 @@ export function RolesPage() {
             <form onSubmit={handleSubmit} className="login-form">
               <div className="form-group">
                 <label>Rol Adı</label>
-                <input required className="uppercase-input" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value.toUpperCase()})} placeholder="ÖR: MUHASEBE UZMANI" />
+                <input required className="uppercase-input" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value.toLocaleUpperCase('tr-TR')})} placeholder="ÖR: MUHASEBE UZMANI" />
               </div>
 
               <div className="form-group" style={{ marginTop: '20px' }}>

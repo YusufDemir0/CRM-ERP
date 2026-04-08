@@ -66,10 +66,7 @@ let StocksService = class StocksService {
             });
             if (!stock) {
                 stock = queryRunner.manager.create(stock_entity_1.Stock, {
-                    itemId: dto.itemId,
-                    departmentId: dto.departmentId,
-                    quantity: 0,
-                    createdBy: userId,
+                    itemId: dto.itemId, departmentId: dto.departmentId, quantity: 0, createdBy: userId,
                 });
                 stock = await queryRunner.manager.save(stock);
             }
@@ -84,20 +81,10 @@ let StocksService = class StocksService {
                 }
                 quantityAfter = quantityBefore - dto.quantity;
             }
-            await queryRunner.manager.update(stock_entity_1.Stock, stock.id, {
-                quantity: quantityAfter,
-                updatedBy: userId,
-            });
+            await queryRunner.manager.update(stock_entity_1.Stock, stock.id, { quantity: quantityAfter, updatedBy: userId });
             const movement = queryRunner.manager.create(stock_movement_entity_1.StockMovement, {
-                stockId: stock.id,
-                quantity: dto.quantity,
-                quantityBefore,
-                quantityAfter,
-                type: dto.type,
-                referenceType: 'manual',
-                description: dto.description,
-                notes: dto.notes,
-                createdBy: userId,
+                stockId: stock.id, quantity: dto.quantity, quantityBefore, quantityAfter,
+                type: dto.type, referenceType: 'manual', description: dto.description, notes: dto.notes, createdBy: userId,
             });
             const savedMovement = await queryRunner.manager.save(movement);
             await queryRunner.commitTransaction();
@@ -106,6 +93,54 @@ let StocksService = class StocksService {
         catch (error) {
             await queryRunner.rollbackTransaction();
             throw error;
+        }
+        finally {
+            await queryRunner.release();
+        }
+    }
+    async transferStock(dto, userId) {
+        if (dto.fromDepartmentId === dto.toDepartmentId) {
+            throw new common_1.BadRequestException('Kaynak depo ile Hedef depo aynı olamaz.');
+        }
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+        try {
+            const sourceStock = await queryRunner.manager.findOne(stock_entity_1.Stock, {
+                where: { itemId: dto.itemId, departmentId: dto.fromDepartmentId }
+            });
+            if (!sourceStock || Number(sourceStock.quantity) < dto.quantity) {
+                throw new common_1.BadRequestException(`Kaynak depoda yeterli stok bulunmuyor. Mevcut: ${sourceStock ? sourceStock.quantity : 0}`);
+            }
+            const sourceQtyBefore = Number(sourceStock.quantity);
+            const sourceQtyAfter = sourceQtyBefore - dto.quantity;
+            await queryRunner.manager.update(stock_entity_1.Stock, sourceStock.id, { quantity: sourceQtyAfter, updatedBy: userId });
+            await queryRunner.manager.save(queryRunner.manager.create(stock_movement_entity_1.StockMovement, {
+                stockId: sourceStock.id, quantity: dto.quantity, quantityBefore: sourceQtyBefore, quantityAfter: sourceQtyAfter,
+                type: 'out', referenceType: 'adjustment', description: `Transfer Çıkışı -> HEDEF DEPO ID: ${dto.toDepartmentId} | Not: ${dto.description || ''}`, createdBy: userId
+            }));
+            let targetStock = await queryRunner.manager.findOne(stock_entity_1.Stock, {
+                where: { itemId: dto.itemId, departmentId: dto.toDepartmentId }
+            });
+            if (!targetStock) {
+                targetStock = queryRunner.manager.create(stock_entity_1.Stock, {
+                    itemId: dto.itemId, departmentId: dto.toDepartmentId, quantity: 0, createdBy: userId
+                });
+                targetStock = await queryRunner.manager.save(targetStock);
+            }
+            const targetQtyBefore = Number(targetStock.quantity);
+            const targetQtyAfter = targetQtyBefore + dto.quantity;
+            await queryRunner.manager.update(stock_entity_1.Stock, targetStock.id, { quantity: targetQtyAfter, updatedBy: userId });
+            await queryRunner.manager.save(queryRunner.manager.create(stock_movement_entity_1.StockMovement, {
+                stockId: targetStock.id, quantity: dto.quantity, quantityBefore: targetQtyBefore, quantityAfter: targetQtyAfter,
+                type: 'in', referenceType: 'adjustment', description: `Transfer Girişi <- KAYNAK DEPO ID: ${dto.fromDepartmentId} | Not: ${dto.description || ''}`, createdBy: userId
+            }));
+            await queryRunner.commitTransaction();
+            return { success: true, message: 'Transfer başarıyla gerçekleşti.' };
+        }
+        catch (e) {
+            await queryRunner.rollbackTransaction();
+            throw e;
         }
         finally {
             await queryRunner.release();

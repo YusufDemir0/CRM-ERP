@@ -1,9 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Stock } from './entities/stock.entity';
 import { StockMovement } from './entities/stock-movement.entity';
-import { StockAdjustmentDto } from '../dto/inventory.dto';
+import { StockAdjustmentDto, TransferStockDto } from '../dto/inventory.dto';
 import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
 
 @Injectable()
@@ -50,26 +50,19 @@ export class StocksService {
     };
   }
 
-  /**
-   * Manuel stok giriş/çıkış — ACID Transaction içinde
-   */
   async adjustStock(dto: StockAdjustmentDto, userId?: number): Promise<StockMovement> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // 1. Stok kaydını bul veya oluştur
       let stock = await queryRunner.manager.findOne(Stock, {
         where: { itemId: dto.itemId, departmentId: dto.departmentId },
       });
 
       if (!stock) {
         stock = queryRunner.manager.create(Stock, {
-          itemId: dto.itemId,
-          departmentId: dto.departmentId,
-          quantity: 0,
-          createdBy: userId,
+          itemId: dto.itemId, departmentId: dto.departmentId, quantity: 0, createdBy: userId,
         });
         stock = await queryRunner.manager.save(stock);
       }
@@ -81,30 +74,16 @@ export class StocksService {
         quantityAfter = quantityBefore + dto.quantity;
       } else {
         if (quantityBefore < dto.quantity) {
-          throw new BadRequestException(
-            `Yetersiz stok. Mevcut: ${quantityBefore}, İstenen: ${dto.quantity}`,
-          );
+          throw new BadRequestException(`Yetersiz stok. Mevcut: ${quantityBefore}, İstenen: ${dto.quantity}`);
         }
         quantityAfter = quantityBefore - dto.quantity;
       }
 
-      // 2. Stok güncelle
-      await queryRunner.manager.update(Stock, stock.id, {
-        quantity: quantityAfter,
-        updatedBy: userId,
-      });
+      await queryRunner.manager.update(Stock, stock.id, { quantity: quantityAfter, updatedBy: userId });
 
-      // 3. Hareket kaydı oluştur
       const movement = queryRunner.manager.create(StockMovement, {
-        stockId: stock.id,
-        quantity: dto.quantity,
-        quantityBefore,
-        quantityAfter,
-        type: dto.type,
-        referenceType: 'manual',
-        description: dto.description,
-        notes: dto.notes,
-        createdBy: userId,
+        stockId: stock.id, quantity: dto.quantity, quantityBefore, quantityAfter,
+        type: dto.type, referenceType: 'manual', description: dto.description, notes: dto.notes, createdBy: userId,
       });
 
       const savedMovement = await queryRunner.manager.save(movement);
@@ -118,9 +97,74 @@ export class StocksService {
     }
   }
 
-  /**
-   * Kritik stok altındaki ürünleri getir
-   */
+  // YENİ EKLENDİ: TEK TRANSACTION İÇİNDE STOK TRANSFERİ (A DEPOSUNDAN ÇIK -> B DEPOSUNA GİR)
+  async transferStock(dto: TransferStockDto, userId?: number) {
+    if (dto.fromDepartmentId === dto.toDepartmentId) {
+      throw new BadRequestException('Kaynak depo ile Hedef depo aynı olamaz.');
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // 1. KAYNAK (ÇIKIŞ) DEPOSU KONTROLLERİ
+      const sourceStock = await queryRunner.manager.findOne(Stock, { 
+        where: { itemId: dto.itemId, departmentId: dto.fromDepartmentId }
+      });
+
+      if (!sourceStock || Number(sourceStock.quantity) < dto.quantity) {
+        throw new BadRequestException(`Kaynak depoda yeterli stok bulunmuyor. Mevcut: ${sourceStock ? sourceStock.quantity : 0}`);
+      }
+
+      const sourceQtyBefore = Number(sourceStock.quantity);
+      const sourceQtyAfter = sourceQtyBefore - dto.quantity;
+
+      // Çıkış yap
+      await queryRunner.manager.update(Stock, sourceStock.id, { quantity: sourceQtyAfter, updatedBy: userId });
+      
+      // Çıkış Hareket Kaydı
+      await queryRunner.manager.save(queryRunner.manager.create(StockMovement, {
+        stockId: sourceStock.id, quantity: dto.quantity, quantityBefore: sourceQtyBefore, quantityAfter: sourceQtyAfter,
+        type: 'out', referenceType: 'adjustment', description: `Transfer Çıkışı -> HEDEF DEPO ID: ${dto.toDepartmentId} | Not: ${dto.description || ''}`, createdBy: userId
+      }));
+
+
+      // 2. HEDEF (GİRİŞ) DEPOSU İŞLEMLERİ
+      let targetStock = await queryRunner.manager.findOne(Stock, { 
+        where: { itemId: dto.itemId, departmentId: dto.toDepartmentId }
+      });
+
+      if (!targetStock) {
+        targetStock = queryRunner.manager.create(Stock, { 
+          itemId: dto.itemId, departmentId: dto.toDepartmentId, quantity: 0, createdBy: userId 
+        });
+        targetStock = await queryRunner.manager.save(targetStock);
+      }
+
+      const targetQtyBefore = Number(targetStock.quantity);
+      const targetQtyAfter = targetQtyBefore + dto.quantity;
+
+      // Giriş yap
+      await queryRunner.manager.update(Stock, targetStock.id, { quantity: targetQtyAfter, updatedBy: userId });
+
+      // Giriş Hareket Kaydı
+      await queryRunner.manager.save(queryRunner.manager.create(StockMovement, {
+        stockId: targetStock.id, quantity: dto.quantity, quantityBefore: targetQtyBefore, quantityAfter: targetQtyAfter,
+        type: 'in', referenceType: 'adjustment', description: `Transfer Girişi <- KAYNAK DEPO ID: ${dto.fromDepartmentId} | Not: ${dto.description || ''}`, createdBy: userId
+      }));
+
+      // İŞLEMLER BAŞARILI, COMMIT
+      await queryRunner.commitTransaction();
+      return { success: true, message: 'Transfer başarıyla gerçekleşti.' };
+    } catch (e) {
+      await queryRunner.rollbackTransaction();
+      throw e;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   async getCriticalStocks(): Promise<Stock[]> {
     return this.stockRepo.createQueryBuilder('stock')
       .leftJoinAndSelect('stock.item', 'item')

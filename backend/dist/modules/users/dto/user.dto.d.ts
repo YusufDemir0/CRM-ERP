@@ -8,6 +8,7 @@ export declare class CreateUserDto {
 }
 export declare class UpdateUserDto {
     fullName?: string;
+    password?: string;
     email?: string;
     phone?: string;
     departmentId?: number;

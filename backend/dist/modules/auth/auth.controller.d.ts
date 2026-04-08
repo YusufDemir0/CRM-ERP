@@ -32,5 +32,6 @@ export declare class AuthController {
             id: number;
             name: string;
         }[];
+        permissions: string[];
     }>;
 }

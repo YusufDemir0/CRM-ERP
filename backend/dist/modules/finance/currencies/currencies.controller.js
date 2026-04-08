@@ -28,6 +28,12 @@ let CurrenciesController = class CurrenciesController {
     update(id, dto, userId) {
         return this.currenciesService.update(id, dto, userId);
     }
+    setDefault(id) {
+        return this.currenciesService.setDefault(id);
+    }
+    remove(id) {
+        return this.currenciesService.delete(id);
+    }
 };
 exports.CurrenciesController = CurrenciesController;
 __decorate([
@@ -66,6 +72,20 @@ __decorate([
     __metadata("design:paramtypes", [Number, finance_dto_1.UpdateCurrencyDto, Number]),
     __metadata("design:returntype", void 0)
 ], CurrenciesController.prototype, "update", null);
+__decorate([
+    (0, common_1.Put)(':id/default'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", void 0)
+], CurrenciesController.prototype, "setDefault", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", void 0)
+], CurrenciesController.prototype, "remove", null);
 exports.CurrenciesController = CurrenciesController = __decorate([
     (0, common_1.Controller)('currencies'),
     __metadata("design:paramtypes", [currencies_service_1.CurrenciesService])

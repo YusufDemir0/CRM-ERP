@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SalesQueryDto = exports.ApproveSaleDto = exports.CreateSaleTypeDto = exports.UpdateSaleDto = exports.CreateSaleDto = exports.CreateSaleItemDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
+const pagination_dto_1 = require("../../../common/dto/pagination.dto");
 class CreateSaleItemDto {
 }
 exports.CreateSaleItemDto = CreateSaleItemDto;
@@ -21,25 +22,30 @@ __decorate([
 ], CreateSaleItemDto.prototype, "itemId", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0.0001),
     __metadata("design:type", Number)
 ], CreateSaleItemDto.prototype, "quantity", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateSaleItemDto.prototype, "price", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateSaleItemDto.prototype, "discountAmount", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateSaleItemDto.prototype, "discountPercent", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateSaleItemDto.prototype, "kdvRate", void 0);
 __decorate([
@@ -71,16 +77,19 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateSaleDto.prototype, "deposit", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateSaleDto.prototype, "discountAmount", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateSaleDto.prototype, "discountPercent", void 0);
 __decorate([
@@ -115,16 +124,19 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], UpdateSaleDto.prototype, "deposit", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], UpdateSaleDto.prototype, "discountAmount", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], UpdateSaleDto.prototype, "discountPercent", void 0);
 __decorate([
@@ -132,6 +144,13 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateSaleDto.prototype, "notes", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => CreateSaleItemDto),
+    __metadata("design:type", Array)
+], UpdateSaleDto.prototype, "items", void 0);
 class CreateSaleTypeDto {
 }
 exports.CreateSaleTypeDto = CreateSaleTypeDto;
@@ -152,7 +171,11 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], ApproveSaleDto.prototype, "departmentId", void 0);
-const pagination_dto_1 = require("../../../common/dto/pagination.dto");
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], ApproveSaleDto.prototype, "commercialAccountId", void 0);
 class SalesQueryDto extends pagination_dto_1.PaginationDto {
 }
 exports.SalesQueryDto = SalesQueryDto;

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Currency } from './entities/currency.entity';
@@ -34,5 +34,25 @@ export class CurrenciesService {
     const curr = await this.currencyRepo.findOne({ where: { isDefault: 1 } });
     if (!curr) throw new NotFoundException('Varsayılan para birimi tanımlı değil');
     return curr;
+  }
+
+  async setDefault(id: number): Promise<Currency> {
+    await this.currencyRepo
+      .createQueryBuilder()
+      .update(Currency)
+      .set({ isDefault: 0 })
+      .execute();
+    
+    const curr = await this.findOne(id);
+    curr.isDefault = 1;
+    return this.currencyRepo.save(curr);
+  }
+
+  async delete(id: number): Promise<void> {
+    const curr = await this.findOne(id);
+    if (curr.isDefault) {
+      throw new BadRequestException('Varsayılan para birimi silinemez');
+    }
+    await this.currencyRepo.softDelete(id);
   }
 }

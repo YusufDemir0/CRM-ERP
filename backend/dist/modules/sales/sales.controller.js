@@ -27,6 +27,9 @@ let SalesController = class SalesController {
     createSaleType(dto, userId) {
         return this.salesService.createSaleType(dto, userId);
     }
+    getStatus() {
+        return this.salesService.getStatus();
+    }
     findAll(query) {
         return this.salesService.findAll(query);
     }
@@ -48,9 +51,6 @@ let SalesController = class SalesController {
     remove(id) {
         return this.salesService.softDelete(id);
     }
-    getStatus() {
-        return this.salesService.getStatus();
-    }
 };
 exports.SalesController = SalesController;
 __decorate([
@@ -68,6 +68,13 @@ __decorate([
     __metadata("design:paramtypes", [sale_dto_1.CreateSaleTypeDto, Number]),
     __metadata("design:returntype", void 0)
 ], SalesController.prototype, "createSaleType", null);
+__decorate([
+    (0, common_1.Get)('status'),
+    (0, permissions_decorator_1.RequirePermissions)('satis_goruntuleme'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], SalesController.prototype, "getStatus", null);
 __decorate([
     (0, common_1.Get)(),
     (0, permissions_decorator_1.RequirePermissions)('satis_goruntuleme'),
@@ -130,13 +137,6 @@ __decorate([
     __metadata("design:paramtypes", [Number]),
     __metadata("design:returntype", void 0)
 ], SalesController.prototype, "remove", null);
-__decorate([
-    (0, common_1.Get)('status'),
-    (0, permissions_decorator_1.RequirePermissions)('satis_goruntuleme'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
-], SalesController.prototype, "getStatus", null);
 exports.SalesController = SalesController = __decorate([
     (0, common_1.Controller)('sales'),
     (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),

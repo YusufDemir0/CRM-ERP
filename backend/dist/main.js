@@ -8,7 +8,12 @@ async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
     app.setGlobalPrefix('api');
     app.enableCors({
-        origin: '*',
+        origin: [
+            'http://localhost:5173',
+            'http://localhost:3000',
+            'http://127.0.0.1:5173',
+            'http://localhost:5143',
+        ],
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
         credentials: true,
     });
@@ -21,7 +26,7 @@ async function bootstrap() {
         },
     }));
     app.useGlobalFilters(new all_exceptions_filter_1.AllExceptionsFilter());
-    const port = process.env.APP_PORT || 3000;
+    const port = process.env.APP_PORT || 5143;
     await app.listen(port);
     console.log(`🚀 ERP Backend running on http://localhost:${port}/api`);
 }

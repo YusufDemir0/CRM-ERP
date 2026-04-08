@@ -8,4 +8,6 @@ export declare class CurrenciesController {
     findOne(id: number): Promise<import("./entities/currency.entity").Currency>;
     create(dto: CreateCurrencyDto, userId: number): Promise<import("./entities/currency.entity").Currency>;
     update(id: number, dto: UpdateCurrencyDto, userId: number): Promise<import("./entities/currency.entity").Currency>;
+    setDefault(id: number): Promise<import("./entities/currency.entity").Currency>;
+    remove(id: number): Promise<void>;
 }

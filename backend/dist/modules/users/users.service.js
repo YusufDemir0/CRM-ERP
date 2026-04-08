@@ -113,7 +113,12 @@ let UsersService = class UsersService {
     }
     async update(id, dto, currentUserId) {
         const user = await this.findOne(id);
-        Object.assign(user, dto);
+        if (dto.password && dto.password.trim() !== '') {
+            const salt = await bcrypt.genSalt(12);
+            user.passwordHash = await bcrypt.hash(dto.password, salt);
+        }
+        const { password, ...otherData } = dto;
+        Object.assign(user, otherData);
         user.updatedBy = currentUserId || null;
         return this.userRepo.save(user);
     }

@@ -1,7 +1,7 @@
 import { Repository, DataSource } from 'typeorm';
 import { Stock } from './entities/stock.entity';
 import { StockMovement } from './entities/stock-movement.entity';
-import { StockAdjustmentDto } from '../dto/inventory.dto';
+import { StockAdjustmentDto, TransferStockDto } from '../dto/inventory.dto';
 import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
 export declare class StocksService {
     private stockRepo;
@@ -14,6 +14,10 @@ export declare class StocksService {
     }): Promise<PaginatedResult<Stock>>;
     getMovements(stockId: number, query: PaginationDto): Promise<PaginatedResult<StockMovement>>;
     adjustStock(dto: StockAdjustmentDto, userId?: number): Promise<StockMovement>;
+    transferStock(dto: TransferStockDto, userId?: number): Promise<{
+        success: boolean;
+        message: string;
+    }>;
     getCriticalStocks(): Promise<Stock[]>;
     getStatus(): Promise<{
         totalItems: number;

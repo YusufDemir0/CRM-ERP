@@ -8,6 +8,7 @@ export declare class Sale extends BaseEntity {
     partyId: number;
     saleTypeId: number;
     currencyId: number | null;
+    exchangeRate: number;
     deliveryDate: string | null;
     status: 'draft' | 'approved' | 'shipped' | 'invoiced' | 'cancelled';
     deposit: number;

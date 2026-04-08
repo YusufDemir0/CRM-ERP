@@ -8,6 +8,7 @@ export declare class Transaction extends BaseEntity {
     commercialAccountId: number;
     amount: number;
     currencyId: number | null;
+    exchangeRate: number;
     type: 'in' | 'out';
     referenceType: 'sale' | 'purchase' | 'manual_adjustment' | null;
     referenceId: number | null;

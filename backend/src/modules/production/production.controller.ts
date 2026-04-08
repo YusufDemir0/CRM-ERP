@@ -14,7 +14,7 @@ import { RequirePermissions } from '../../common/decorators/permissions.decorato
 export class ProductionController {
   constructor(private readonly prodService: ProductionService) {}
 
-  // ────── BOMs ──────
+  // ────── BOMs (Reçeteler) ──────
   @Get('boms')
   @RequirePermissions('uretim_goruntuleme')
   findAllBoms(@Query() query: PaginationDto) { return this.prodService.findAllBoms(query); }
@@ -25,7 +25,9 @@ export class ProductionController {
 
   @Post('boms')
   @RequirePermissions('uretim_olusturma')
-  createBom(@Body() dto: CreateBomDto, @CurrentUser('sub') userId: number) { return this.prodService.createBom(dto, userId); }
+  createBom(@Body() dto: CreateBomDto, @CurrentUser('sub') userId: number) { 
+    return this.prodService.createBom(dto, userId); 
+  }
 
   @Put('boms/:id')
   @RequirePermissions('uretim_duzenleme')
@@ -37,7 +39,7 @@ export class ProductionController {
   @RequirePermissions('uretim_silme')
   deleteBom(@Param('id', ParseIntPipe) id: number) { return this.prodService.deleteBom(id); }
 
-  // ────── PRODUCTION ORDERS ──────
+  // ────── PRODUCTION ORDERS (Üretim Emirleri) ──────
   @Get('orders')
   @RequirePermissions('uretim_goruntuleme')
   findAllOrders(@Query() query: PaginationDto & { status?: string }) { return this.prodService.findAllOrders(query); }

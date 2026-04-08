@@ -1,3 +1,4 @@
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 export declare class CreateSaleItemDto {
     itemId: number;
     quantity: number;
@@ -26,6 +27,7 @@ export declare class UpdateSaleDto {
     discountAmount?: number;
     discountPercent?: number;
     notes?: string;
+    items?: CreateSaleItemDto[];
 }
 export declare class CreateSaleTypeDto {
     name: string;
@@ -33,8 +35,8 @@ export declare class CreateSaleTypeDto {
 }
 export declare class ApproveSaleDto {
     departmentId: number;
+    commercialAccountId?: number;
 }
-import { PaginationDto } from '../../../common/dto/pagination.dto';
 export declare class SalesQueryDto extends PaginationDto {
     status?: string;
     partyId?: number;

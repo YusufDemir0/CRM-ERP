@@ -44,6 +44,19 @@
 
   --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.02);
   --shadow-premium: 0 4px 12px rgba(0, 52, 94, 0.03), 0 1px 3px rgba(0, 52, 94, 0.02);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.1), 0 4px 12px rgba(0, 0, 0, 0.05);
+
+  --radius-md: 12px;
+
+  /* Alias — DataTable ve eski bileşenlerle uyum */
+  --bg-card: var(--surface);
+  --bg-app: var(--background);
+  --bg-sidebar: var(--inverse-surface);
+  --bg-dark: var(--inverse-surface);
+  --accent: var(--primary);
+  --accent-glow: var(--primary-glow);
+  --accent-light: #7c75f0;
+  --danger: var(--error);
 
   --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -541,6 +554,47 @@ tr:hover td {
   transition: var(--transition);
 }
 
+/* İkon-only buton — tablo satırlarında kullanılır */
+.btn-icon {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: var(--transition);
+  color: var(--text-secondary);
+}
+
+.btn-icon:hover {
+  background: var(--surface-container);
+  transform: scale(1.1);
+}
+
+.btn-icon.circle {
+  border-radius: 50%;
+  background: var(--surface-container-low);
+}
+
+.btn-icon.circle:hover {
+  background: var(--surface-container-highest);
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: var(--transition);
+}
+
+.btn-link:hover {
+  opacity: 0.7;
+}
+
 .btn-primary {
   background: var(--primary);
   color: white;
@@ -711,13 +765,160 @@ tr:hover td {
 }
 
 .login-error {
-  background: #fef2f2;
-  color: var(--error);
-  padding: 1rem;
-  border-radius: 12px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  background: #ffe5e5;
+  color: #b00020;
+  border: 1px solid #ffb3b3;
+  padding: 10px;
+  margin-bottom: 15px;
+  border-radius: 6px;
+  font-weight: 500;
   text-align: center;
-  margin-bottom: 1.5rem;
-  border: 1px solid #fee2e2;
+}
+
+/* SAYFA */
+
+.login-page {
+  height: 100vh;
+  background: linear-gradient(135deg,
+      #1e3c72,
+      #2a5298);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  font-family: -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+
+/* CARD */
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+
+  background: white;
+  border-radius: 14px;
+
+  padding: 35px;
+
+  box-shadow:
+    0 10px 35px rgba(0, 0, 0, 0.2);
+}
+
+/* HEADER */
+
+.login-header {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.logo {
+  margin: 0;
+  font-size: 50px;
+  font-weight: 700;
+  color: #1e3c72;
+}
+
+.subtitle {
+  margin-top: 5px;
+  font-size: 20px;
+  color: #666;
+}
+
+/* ALERT */
+
+.login-alert {
+  background: #ffe5e5;
+  color: #b00020;
+
+  padding: 12px;
+  border-radius: 8px;
+
+  margin-bottom: 18px;
+
+  font-size: 0.85rem;
+  text-align: center;
+
+  border: 1px solid #ffb3b3;
+}
+
+/* FORM */
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.input-group label {
+  font-size: 0.8rem;
+  color: #444;
+  margin-bottom: 4px;
+}
+
+.input-group input {
+  width: 100%;
+
+  padding: 11px 12px;
+
+  border-radius: 8px;
+  border: 1px solid #ccc;
+
+  font-size: 20px;
+
+  transition: all 0.2s;
+}
+
+.input-group input:focus {
+  border-color: #2a5298;
+  outline: none;
+
+  box-shadow:
+    0 0 0 2px rgba(42, 82, 152, 0.15);
+}
+
+/* BUTTON */
+
+.login-button {
+  margin-top: 8px;
+
+  padding: 12px;
+
+  background: linear-gradient(135deg,
+      #2a5298,
+      #1e3c72);
+
+  color: white;
+
+  border: none;
+  border-radius: 8px;
+
+  font-size: 15px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition: all 0.2s;
+}
+
+.login-button:hover {
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.2);
+}
+
+/* FOOTER */
+
+.login-footer {
+  margin-top: 20px;
+
+  text-align: center;
+
+  font-size: 12px;
+  color: #888;
 }

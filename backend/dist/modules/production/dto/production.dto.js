@@ -21,6 +21,7 @@ __decorate([
 ], CreateBomItemDto.prototype, "itemId", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0.0001),
     __metadata("design:type", Number)
 ], CreateBomItemDto.prototype, "quantity", void 0);
 __decorate([
@@ -36,6 +37,11 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateBomDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateBomDto.prototype, "targetItemId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -57,6 +63,11 @@ __decorate([
 ], UpdateBomDto.prototype, "name", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], UpdateBomDto.prototype, "targetItemId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateBomDto.prototype, "description", void 0);
@@ -65,6 +76,13 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], UpdateBomDto.prototype, "state", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => CreateBomItemDto),
+    __metadata("design:type", Array)
+], UpdateBomDto.prototype, "items", void 0);
 class CreateProductionOrderDto {
 }
 exports.CreateProductionOrderDto = CreateProductionOrderDto;
@@ -74,8 +92,19 @@ __decorate([
 ], CreateProductionOrderDto.prototype, "bomId", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0.0001),
     __metadata("design:type", Number)
 ], CreateProductionOrderDto.prototype, "plannedQuantity", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateProductionOrderDto.prototype, "sourceDepartmentId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateProductionOrderDto.prototype, "targetDepartmentId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsDateString)(),
@@ -97,13 +126,31 @@ exports.UpdateProductionOrderDto = UpdateProductionOrderDto;
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0.0001),
+    __metadata("design:type", Number)
+], UpdateProductionOrderDto.prototype, "plannedQuantity", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], UpdateProductionOrderDto.prototype, "producedQuantity", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], UpdateProductionOrderDto.prototype, "wastageQuantity", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], UpdateProductionOrderDto.prototype, "sourceDepartmentId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], UpdateProductionOrderDto.prototype, "targetDepartmentId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsEnum)(['draft', 'planned', 'in_progress', 'completed', 'cancelled']),

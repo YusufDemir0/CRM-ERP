@@ -9,8 +9,10 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.StocksQueryDto = exports.ItemsQueryDto = exports.StockAdjustmentDto = exports.CreateQuantityTypeDto = exports.CreateItemTypeDto = exports.UpdateItemDto = exports.CreateItemDto = void 0;
+exports.StocksQueryDto = exports.ItemsQueryDto = exports.TransferStockDto = exports.StockAdjustmentDto = exports.CreateItemCodeGroupDto = exports.CreateQuantityTypeDto = exports.CreateItemTypeDto = exports.UpdateItemDto = exports.CreateItemDto = void 0;
 const class_validator_1 = require("class-validator");
+const pagination_dto_1 = require("../../../common/dto/pagination.dto");
+const class_transformer_1 = require("class-transformer");
 class CreateItemDto {
 }
 exports.CreateItemDto = CreateItemDto;
@@ -24,6 +26,10 @@ __decorate([
     __metadata("design:type", Number)
 ], CreateItemDto.prototype, "itemTypeId", void 0);
 __decorate([
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateItemDto.prototype, "itemCodeGroupId", void 0);
+__decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
@@ -31,6 +37,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateItemDto.prototype, "criticalLimit", void 0);
 __decorate([
@@ -41,16 +48,19 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateItemDto.prototype, "purchasePrice", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateItemDto.prototype, "salePrice", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateItemDto.prototype, "netPrice", void 0);
 __decorate([
@@ -65,6 +75,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateItemDto.prototype, "kdv", void 0);
 __decorate([
@@ -94,10 +105,16 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
+], UpdateItemDto.prototype, "itemCodeGroupId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
 ], UpdateItemDto.prototype, "providerId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], UpdateItemDto.prototype, "criticalLimit", void 0);
 __decorate([
@@ -108,16 +125,19 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], UpdateItemDto.prototype, "purchasePrice", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], UpdateItemDto.prototype, "salePrice", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], UpdateItemDto.prototype, "netPrice", void 0);
 __decorate([
@@ -133,6 +153,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], UpdateItemDto.prototype, "kdv", void 0);
 __decorate([
@@ -176,6 +197,19 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateQuantityTypeDto.prototype, "abbreviation", void 0);
+class CreateItemCodeGroupDto {
+}
+exports.CreateItemCodeGroupDto = CreateItemCodeGroupDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateItemCodeGroupDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateItemCodeGroupDto.prototype, "prefix", void 0);
 class StockAdjustmentDto {
 }
 exports.StockAdjustmentDto = StockAdjustmentDto;
@@ -189,6 +223,7 @@ __decorate([
 ], StockAdjustmentDto.prototype, "departmentId", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0.0001),
     __metadata("design:type", Number)
 ], StockAdjustmentDto.prototype, "quantity", void 0);
 __decorate([
@@ -205,8 +240,31 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], StockAdjustmentDto.prototype, "notes", void 0);
-const pagination_dto_1 = require("../../../common/dto/pagination.dto");
-const class_transformer_1 = require("class-transformer");
+class TransferStockDto {
+}
+exports.TransferStockDto = TransferStockDto;
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], TransferStockDto.prototype, "itemId", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], TransferStockDto.prototype, "fromDepartmentId", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], TransferStockDto.prototype, "toDepartmentId", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0.0001),
+    __metadata("design:type", Number)
+], TransferStockDto.prototype, "quantity", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TransferStockDto.prototype, "description", void 0);
 class ItemsQueryDto extends pagination_dto_1.PaginationDto {
 }
 exports.ItemsQueryDto = ItemsQueryDto;

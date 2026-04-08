@@ -2,10 +2,10 @@ import { Repository, DataSource } from 'typeorm';
 import { Bom } from './entities/bom.entity';
 import { BomItem } from './entities/bom-item.entity';
 import { ProductionOrder } from './entities/production-order.entity';
+import { Item } from '../inventory/items/entities/item.entity';
 import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
 import { CreateBomDto, UpdateBomDto, CreateProductionOrderDto, UpdateProductionOrderDto } from './dto/production.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
-import { Item } from '../inventory/items/entities/item.entity';
 export declare class ProductionService {
     private bomRepo;
     private bomItemRepo;
@@ -13,6 +13,7 @@ export declare class ProductionService {
     private itemRepo;
     private dataSource;
     private sequenceGenerator;
+    private readonly logger;
     constructor(bomRepo: Repository<Bom>, bomItemRepo: Repository<BomItem>, poRepo: Repository<ProductionOrder>, itemRepo: Repository<Item>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService);
     findAllBoms(query: PaginationDto): Promise<PaginatedResult<Bom>>;
     findOneBom(id: number): Promise<Bom>;

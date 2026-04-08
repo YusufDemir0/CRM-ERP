@@ -8,6 +8,7 @@ interface User {
   email: string;
   departmentId: number | null;
   roles: string[];
+  permissions: string[];
 }
 
 interface AuthContextType {
@@ -16,11 +17,11 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
+  hasPermission: (key: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Normalize roles — backend may return string[] or {id, name}[]
 function normalizeRoles(roles: any): string[] {
   if (!roles || !Array.isArray(roles)) return [];
   return roles.map((r: any) => typeof r === 'string' ? r : r.name || '');
@@ -36,7 +37,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authAPI.profile()
         .then((res) => {
           const u = res.data;
-          setUser({ ...u, roles: normalizeRoles(u.roles) });
+          setUser({ 
+            ...u, 
+            roles: normalizeRoles(u.roles),
+            permissions: u.permissions || []
+          });
         })
         .catch(() => { logout(); })
         .finally(() => setIsLoading(false));
@@ -49,7 +54,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await authAPI.login({ username, password });
     const { access_token, user: userData } = res.data;
     localStorage.setItem('erp_token', access_token);
-    const normalized = { ...userData, roles: normalizeRoles(userData.roles) };
+    
+    // Login might not return all permissions immediately, profile fetch will fill it
+    const normalized = { 
+      ...userData, 
+      roles: normalizeRoles(userData.roles),
+      permissions: userData.permissions || []
+    };
+    
     localStorage.setItem('erp_user', JSON.stringify(normalized));
     setToken(access_token);
     setUser(normalized);
@@ -62,8 +74,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const hasPermission = (key: string): boolean => {
+    if (!user) return false;
+    // Superadmin bypass (roles include 'admin' or 'superadmin')
+    if (user.roles.some(r => ['admin', 'superadmin'].includes(r.toLowerCase()))) return true;
+    return user.permissions.includes(key);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, isLoading, hasPermission }}>
       {children}
     </AuthContext.Provider>
   );
