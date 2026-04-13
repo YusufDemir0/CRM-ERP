@@ -50,6 +50,14 @@ __decorate([
     __metadata("design:type", String)
 ], ProductionOrder.prototype, "status", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'unit_cost', type: 'decimal', precision: 15, scale: 4, default: 0 }),
+    __metadata("design:type", Number)
+], ProductionOrder.prototype, "unitCost", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'total_cost', type: 'decimal', precision: 15, scale: 4, default: 0 }),
+    __metadata("design:type", Number)
+], ProductionOrder.prototype, "totalCost", void 0);
+__decorate([
     (0, typeorm_1.Column)({ name: 'start_date', type: 'date', nullable: true }),
     __metadata("design:type", Object)
 ], ProductionOrder.prototype, "startDate", void 0);

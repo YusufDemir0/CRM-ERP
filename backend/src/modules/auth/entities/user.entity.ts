@@ -5,15 +5,15 @@ import {
   ManyToMany,
   JoinTable,
   JoinColumn,
-  Unique,
+  Index,
 } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { Department } from '../../departments/entities/department.entity';
 import { Role } from './role.entity';
 
 @Entity('users')
-@Unique(['username'])
-@Unique(['email'])
+@Index("UQ_USERNAME_ACTIVE", ["username"], { where: "deleted_at IS NULL", unique: true })
+@Index("UQ_EMAIL_ACTIVE", ["email"], { where: "deleted_at IS NULL", unique: true })
 export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 50 })
   username: string;
@@ -36,6 +36,9 @@ export class User extends BaseEntity {
   @ManyToOne(() => Department, { nullable: true })
   @JoinColumn({ name: 'department_id' })
   department: Department;
+
+  @Column({ name: 'failed_login_attempts', type: 'int', default: 0 })
+  failedLoginAttempts: number;
 
   @ManyToMany(() => Role)
   @JoinTable({

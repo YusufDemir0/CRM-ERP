@@ -4,8 +4,8 @@ import { BomItem } from './entities/bom-item.entity';
 import { ProductionOrder } from './entities/production-order.entity';
 import { Item } from '../inventory/items/entities/item.entity';
 import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
-import { CreateBomDto, UpdateBomDto, CreateProductionOrderDto, UpdateProductionOrderDto } from './dto/production.dto';
-import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { CreateBomDto, UpdateBomDto, CreateProductionOrderDto, UpdateProductionOrderDto, BomQueryDto, ProductionOrderQueryDto } from './dto/production.dto';
+import { PaginatedResult } from '../../common/dto/pagination.dto';
 export declare class ProductionService {
     private bomRepo;
     private bomItemRepo;
@@ -15,14 +15,12 @@ export declare class ProductionService {
     private sequenceGenerator;
     private readonly logger;
     constructor(bomRepo: Repository<Bom>, bomItemRepo: Repository<BomItem>, poRepo: Repository<ProductionOrder>, itemRepo: Repository<Item>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService);
-    findAllBoms(query: PaginationDto): Promise<PaginatedResult<Bom>>;
+    findAllBoms(query: BomQueryDto): Promise<PaginatedResult<Bom>>;
     findOneBom(id: number): Promise<Bom>;
     createBom(dto: CreateBomDto, userId?: number): Promise<Bom>;
     updateBom(id: number, dto: UpdateBomDto, userId?: number): Promise<Bom>;
     deleteBom(id: number): Promise<void>;
-    findAllOrders(query: PaginationDto & {
-        status?: string;
-    }): Promise<PaginatedResult<ProductionOrder>>;
+    findAllOrders(query: ProductionOrderQueryDto): Promise<PaginatedResult<ProductionOrder>>;
     findOneOrder(id: number): Promise<ProductionOrder>;
     createOrder(dto: CreateProductionOrderDto, userId?: number): Promise<ProductionOrder>;
     updateOrder(id: number, dto: UpdateProductionOrderDto, userId?: number): Promise<ProductionOrder>;

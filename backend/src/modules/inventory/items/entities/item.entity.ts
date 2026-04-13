@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn, Unique } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { BaseEntity } from '../../../../common/entities/base.entity';
 import { ItemType } from './item-type.entity';
 import { ItemCodeGroup } from './item-code-group.entity';
@@ -7,7 +7,7 @@ import { Currency } from '../../../finance/currencies/entities/currency.entity';
 import { QuantityType } from './quantity-type.entity';
 
 @Entity('items')
-@Unique(['code'])
+@Index("UQ_ITEM_CODE_ACTIVE", ["code"], { where: "deleted_at IS NULL", unique: true })
 export class Item extends BaseEntity {
   @Column({ type: 'varchar', length: 150 })
   name: string;
@@ -18,7 +18,7 @@ export class Item extends BaseEntity {
   @Column({ name: 'item_code_group_id', type: 'bigint', nullable: true })
   itemCodeGroupId: number | null;
 
-  @Column({ name: 'code', type: 'varchar', length: 50, unique: true })
+  @Column({ name: 'code', type: 'varchar', length: 50 })
   code: string;
 
   @Column({ name: 'code1', type: 'varchar', length: 50, nullable: true })

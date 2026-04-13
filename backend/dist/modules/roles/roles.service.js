@@ -63,6 +63,12 @@ let RolesService = class RolesService {
         const role = await this.findOneRole(id);
         if (dto.name)
             role.name = dto.name;
+        if (dto.state === 0 && role.state !== 0) {
+            const usersWithRole = await this.userRoleRepo.count({ where: { roleId: id } });
+            if (usersWithRole > 0) {
+                throw new common_1.BadRequestException(`Bu role atanmış ${usersWithRole} kullanıcı bulunmaktadır. Önce kullanıcıların rollerini değiştirin.`);
+            }
+        }
         if (dto.state !== undefined)
             role.state = dto.state;
         role.updatedBy = currentUserId || null;

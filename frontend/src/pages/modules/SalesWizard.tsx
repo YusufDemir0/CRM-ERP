@@ -1,14 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { partiesAPI, usersAPI, stocksAPI, salesAPI, currenciesAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import { getLocalDateString } from '../../utils/date.helper';
 
 export default function SalesWizard() {
   const[step, setStep] = useState(1);
-  const getLocalDateString = () => {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().split('T')[0];
-  };
   const today = getLocalDateString();
   // ─── VERİLER ───
   const [customers, setCustomers] = useState<any[]>([]);
@@ -33,6 +29,11 @@ export default function SalesWizard() {
   const [deposit, setDeposit] = useState<string>(''); 
   const [saleNotes, setSaleNotes] = useState<string>('');
   
+  // ─── UX / LOADING ───
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
+
   // Fatura altı Genel İskonto
   const[genDiscountType, setGenDiscountType] = useState<'amount' | 'percent'>('amount');
   const[genDiscountValue, setGenDiscountValue] = useState<string>('0');
@@ -79,7 +80,11 @@ export default function SalesWizard() {
     return acc;
   }, {});
 
-  const searchResults = Object.keys(groupedStocks).filter(name => name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const searchResults = Object.keys(groupedStocks).filter(name => {
+    const s = searchTerm.toLowerCase();
+    const group = groupedStocks[name];
+    return name.toLowerCase().includes(s) || group.item?.code?.toLowerCase().includes(s);
+  });
 
   const handleAddToCart = (group: any) => {
     if (cart.find(c => c.item.id === group.item.id)) return;
@@ -100,6 +105,15 @@ export default function SalesWizard() {
 
   const removeCartItem = (itemId: number) => {
     setCart(cart.filter(c => c.item.id !== itemId));
+  };
+
+  // Stok durumu analizi (Kritik Uyarılar İçin)
+  const getStockAlert = (itemId: number, requestedQty: number) => {
+    const itemName = stocks.find(s => s.item.id === itemId)?.item?.name;
+    if (!itemName) return { isOver: false, totalAvailable: 0 };
+    const group = groupedStocks[itemName];
+    const totalAvailable = group.details.reduce((sum: number, d: any) => sum + d.qty, 0);
+    return { isOver: requestedQty > totalAvailable, totalAvailable };
   };
 
   // Sepet Finansal Hesaplamaları
@@ -174,13 +188,24 @@ export default function SalesWizard() {
     };
 
     try {
+      setIsSubmitting(true);
       await salesAPI.create(payload);
-      // Optional: Add success toast or navigation
-    } catch (err) {
+      toast.success("Sipariş başarıyla oluşturuldu!");
+      setTimeout(() => window.location.href = '/transactions', 1500);
+    } catch (err: any) {
       console.error(err);
-      toast.error("Satış işlemi kaydedilirken hata oluştu.");
+      toast.error(err.response?.data?.message || "Satış işlemi kaydedilirken hata oluştu.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  const filteredCustomers = customers.filter(c => 
+    c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    c.taxNumber?.includes(customerSearch)
+  );
+  
+  const selectedCustomer = customers.find(c => c.id === Number(partyId));
 
   return (
     <div className="page-container" style={{ padding: '0', height: 'calc(100vh - 64px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -216,12 +241,48 @@ export default function SalesWizard() {
                 <label>Sisteme Giriş Tarihi (Bugün)</label>
                 <input type="text" className="uppercase-input" value={new Date().toLocaleDateString('tr-TR')} disabled style={{ opacity: 0.7 }} />
               </div>
-              <div className="form-group">
-                <label>Cari Hesap (Müşteri) Seçiniz</label>
-                <select className="uppercase-input" value={partyId} onChange={(e) => setPartyId(e.target.value)}>
-                  <option value="">-- LÜTFEN BİR MÜŞTERİ SEÇİNİZ --</option>
-                  {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+              <div className="form-group" style={{ position: 'relative' }}>
+                <label>Müşteri (Cari) Arayın veya Seçin*</label>
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    type="text" 
+                    className="uppercase-input" 
+                    placeholder="🔍 İSİM VEYA VERGİ NO İLE ARA..." 
+                    value={partyId ? selectedCustomer?.name : customerSearch}
+                    onChange={(e) => {
+                      setCustomerSearch(e.target.value);
+                      setIsCustomerDropdownOpen(true);
+                      if (partyId) setPartyId('');
+                    }}
+                    onFocus={() => setIsCustomerDropdownOpen(true)}
+                  />
+                  {partyId && (
+                    <button 
+                      onClick={() => {setPartyId(''); setCustomerSearch('');}}
+                      style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'gray' }}
+                    >X</button>
+                  )}
+                </div>
+
+                {isCustomerDropdownOpen && !partyId && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', zIndex: 100, border: '1px solid var(--border)', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', maxHeight: '250px', overflowY: 'auto', marginTop: '5px' }}>
+                    {filteredCustomers.map(c => (
+                      <div 
+                        key={c.id} 
+                        style={{ padding: '12px 15px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}
+                        className="hover-bg-soft"
+                        onClick={() => {
+                          setPartyId(c.id.toString());
+                          setIsCustomerDropdownOpen(false);
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, fontSize: '14px' }}>{c.name}</div>
+                        <div style={{ fontSize: '11px', color: 'gray' }}>VKN: {c.taxNumber || 'BELİRTİLMEMİŞ'} | Bakiye: {Number(c.balance).toLocaleString('tr-TR')} ₺</div>
+                      </div>
+                    ))}
+                    {filteredCustomers.length === 0 && <div style={{ padding: '15px', textAlign: 'center', color: 'gray' }}>Sonuç bulunamadı</div>}
+                  </div>
+                )}
               </div>
               <button className="btn btn-primary" style={{ width: '100%', height: '55px', marginTop: '2rem', fontSize: '1rem' }} disabled={!partyId} onClick={() => setStep(2)}>
                 İLERLE: TESLİMAT & İŞLEM DETAYI ➔
@@ -305,9 +366,26 @@ export default function SalesWizard() {
                         const kdv = subtotal * (Number(c.kdvRate) / 100);
                         
                         return (
-                          <tr key={i}>
-                            <td style={{ fontWeight: 700, padding: '10px' }}>{c.item.name} <br /><span style={{ fontSize: '10px', color: 'gray' }}>Mevcut: {c.maxQtyDesc}</span></td>
-                            <td style={{ padding: '10px' }}><input type="number" value={c.qty} min={1} style={{ width: '60px', padding: '5px', borderRadius: '4px', border: '1px solid #cbd5e1' }} onChange={(e) => updateCartItem(c.item.id, 'qty', e.target.value)} /></td>
+                          <tr key={i} style={{ background: getStockAlert(c.item.id, Number(c.qty)).isOver ? '#fff1f2' : 'transparent' }}>
+                            <td style={{ fontWeight: 700, padding: '10px' }}>
+                              {c.item.name} 
+                              <br /><span style={{ fontSize: '10px', color: 'gray' }}>Mevcut: {c.maxQtyDesc}</span>
+                              {getStockAlert(c.item.id, Number(c.qty)).isOver && (
+                                <div style={{ color: 'var(--error)', fontSize: '10px', fontWeight: 800 }}>⚠️ STOK YETERSİZ (Toplam: {getStockAlert(c.item.id, Number(c.qty)).totalAvailable})</div>
+                              )}
+                            </td>
+                            <td style={{ padding: '10px' }}>
+                              <input 
+                                type="number" 
+                                value={c.qty} 
+                                min={1} 
+                                style={{ 
+                                  width: '60px', padding: '5px', borderRadius: '4px', 
+                                  border: getStockAlert(c.item.id, Number(c.qty)).isOver ? '2px solid var(--error)' : '1px solid #cbd5e1' 
+                                }} 
+                                onChange={(e) => updateCartItem(c.item.id, 'qty', e.target.value)} 
+                              />
+                            </td>
                             <td style={{ padding: '10px' }}><input type="number" step="0.01" value={c.price} style={{ width: '80px', padding: '5px', borderRadius: '4px', border: '1px solid #cbd5e1' }} onChange={(e) => updateCartItem(c.item.id, 'price', e.target.value)} /></td>
                             <td style={{ padding: '10px' }}>
                               <div style={{ display: 'flex', gap: '2px', border: '1px solid #cbd5e1', borderRadius: '4px', overflow: 'hidden', background: 'white' }}>
@@ -438,16 +516,16 @@ export default function SalesWizard() {
                   </div>
 
                   <button
-                    className="btn"
+                    className="btn btn-primary"
                     style={{
                       width: '100%', height: '60px', fontSize: '1.1rem', fontWeight: 900,
-                      background: deposit === '' ? 'rgba(255,255,255,0.2)' : 'white',
-                      color: deposit === '' ? '#cbd5e1' : 'var(--inverse-surface)',
+                      opacity: (deposit === '' || isSubmitting) ? 0.6 : 1,
+                      cursor: (deposit === '' || isSubmitting) ? 'not-allowed' : 'pointer'
                     }}
-                    disabled={deposit === ''}
+                    disabled={deposit === '' || isSubmitting}
                     onClick={handleSubmit}
                   >
-                    SİPARİŞİ ONAYLA VE OLUŞTUR
+                    {isSubmitting ? '💰 SİPARİŞ İŞLENİYOR...' : 'SİPARİŞİ ONAYLA VE OLUŞTUR'}
                   </button>
 
                   <button className="btn" style={{ width: '100%', height: '40px', marginTop: '10px', background: 'transparent', color: '#cbd5e1' }} onClick={() => setStep(3)}>Geri Dön</button>

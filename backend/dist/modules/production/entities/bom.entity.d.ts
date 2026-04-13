@@ -4,6 +4,8 @@ import { Item } from '../../inventory/items/entities/item.entity';
 export declare class Bom extends BaseEntity {
     name: string;
     targetItemId: number | null;
+    version: number;
+    isActive: boolean;
     description: string | null;
     targetItem: Item;
     items: BomItem[];

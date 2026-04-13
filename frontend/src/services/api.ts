@@ -4,14 +4,10 @@ import toast from 'react-hot-toast';
 const api = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('erp_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
   if (config.method &&['post', 'put', 'delete'].includes(config.method.toLowerCase())) {
     window.dispatchEvent(new CustomEvent('show-loader'));
   }
@@ -62,8 +58,6 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401) {
       if (error.config.url && !error.config.url.includes('/auth/login')) {
-        localStorage.removeItem('erp_token');
-        localStorage.removeItem('erp_user');
         window.location.href = '/login';
       }
     }
@@ -75,6 +69,7 @@ export default api;
 
 export const authAPI = {
   login: (data: { username: string; password: string }) => api.post('/auth/login', data),
+  logout: () => api.post('/auth/logout'),
   profile: () => api.get('/auth/profile'),
 };
 
@@ -145,6 +140,8 @@ export const itemsAPI = {
   deleteCodeGroup: (id: number) => api.delete(`/items/code-groups/${id}`),
   getQuantityTypes: () => api.get('/items/quantity-types'),
   createQuantityType: (data: any) => api.post('/items/quantity-types', data),
+  updateQuantityType: (id: number, data: any) => api.put(`/items/quantity-types/${id}`, data),
+  deleteQuantityType: (id: number) => api.delete(`/items/quantity-types/${id}`),
 };
 
 export const stocksAPI = {

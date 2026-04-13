@@ -53,13 +53,17 @@ export default function DepartmentsPage() {
 
   const filteredDepartments = departments
     .filter(d => {
-      // Tab filtresi
-      if (filterTab === 'active' && d.state !== 1) return false;
-      if (filterTab === 'passive' && d.state !== 0) return false;
-      // Arama filtresi
       const s = searchTerm.toLowerCase();
-      if (!s) return true;
-      return (d.name?.toLowerCase().includes(s) || d.description?.toLowerCase().includes(s) || d.abbreviation?.toLowerCase().includes(s));
+      const tabMatch = filterTab === 'all' || (filterTab === 'active' ? d.state === 1 : d.state === 0);
+      
+      const textMatch = 
+        d.name?.toLowerCase().includes(s) || 
+        d.description?.toLowerCase().includes(s) || 
+        d.abbreviation?.toLowerCase().includes(s) ||
+        d.type?.name?.toLowerCase().includes(s) ||
+        d.commercialAccount?.name?.toLowerCase().includes(s);
+
+      return tabMatch && textMatch;
     })
     .sort((a, b) => b.state - a.state);
 
@@ -151,10 +155,10 @@ export default function DepartmentsPage() {
             {filteredDepartments.map((dept) => (
               <tr key={dept.id} style={{ opacity: dept.state === 0 ? 0.5 : 1, background: dept.state === 0 ? 'var(--surface-container-low)' : 'inherit' }}>
                 <td><strong>{dept.name}</strong> {dept.state === 0 && <span className="badge" style={{ background: '#94a3b8', color: 'white' }}>ARŞİVLENDİ</span>}</td>
-                <td><span className="badge badge-outline">{dept.departmentType?.name || 'TANIMSIZ'}</span></td>
+                <td><span className="badge badge-outline">{dept.departmentType?.name || 'Lütfen Seçiniz'}</span></td>
                 <td><span className="badge">{dept.abbreviation || '-'}</span></td>
                 <td>{dept.description}</td>
-                <td>{dept.commercialAccount?.name || <span style={{ color: 'gray' }}>Bağlı Hesap Yok</span>}</td>
+                <td>{dept.commercialAccount?.name || <span style={{ color: 'gray' }}>Lütfen Seçiniz</span>}</td>
                 <td style={{ display: 'flex', gap: '5px' }}>
                   <button className="btn-icon" title="Düzenle" onClick={() => handleEdit(dept)}>
                     <FiEdit2 size={16} />
@@ -202,7 +206,7 @@ export default function DepartmentsPage() {
                  <div className="form-group">
                    <label>Departman Tipi</label>
                    <select className="uppercase-input" style={{ appearance: 'none' }} value={formData.departmentTypeId} onChange={e => setFormData({...formData, departmentTypeId: e.target.value})}>
-                      <option value="">-- TANIMSIZ TİP --</option>
+                      <option value="">Lütfen Seçiniz</option>
                       {deptTypes.map(dt => <option key={dt.id} value={dt.id}>{dt.name} ({dt.abbreviation})</option>)}
                    </select>
                  </div>
@@ -221,8 +225,8 @@ export default function DepartmentsPage() {
                       + YENİ HESAP EKLE
                     </button>
                   </div>
-                  <select className="uppercase-input" style={{ appearance: 'none' }} value={formData.commercialAccountId} onChange={e => setFormData({...formData, commercialAccountId: e.target.value})}>
-                    <option value="">-- KASA/BANKA SEÇİNİZ --</option>
+                    <select className="uppercase-input" style={{ appearance: 'none' }} value={formData.commercialAccountId} onChange={e => setFormData({...formData, commercialAccountId: e.target.value})}>
+                    <option value="">Lütfen Seçiniz</option>
                     {accounts.map(acc => (
                       <option key={acc.id} value={acc.id}>{acc.name}</option>
                     ))}

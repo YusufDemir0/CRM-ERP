@@ -2,42 +2,66 @@ import React, { useState, useEffect } from 'react';
 import { bomsAPI, itemsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { confirmDialog } from '../../utils/confirmDialog';
-import { FiX, FiCheck, FiEdit2, FiArchive, FiRefreshCw } from 'react-icons/fi';
+import { FiX, FiCheck, FiEdit2, FiArchive, FiRefreshCw, FiCopy, FiSearch } from 'react-icons/fi';
+import { Bom, Item, PaginatedResult, BomItem } from '../../types';
+import { PaginationControls } from '../../components/common/PaginationControls';
 
 export function BomsPage() {
-  const [boms, setBoms] = useState<any[]>([]);
-  const [itemsList, setItemsList] = useState<any[]>([]);
+  const [boms, setBoms] = useState<Bom[]>([]);
+  const [itemsList, setItemsList] = useState<Item[]>([]);
   const[isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterTab, setFilterTab] = useState<'active' | 'passive' | 'all'>('active');
+  const [loading, setLoading] = useState(false);
+
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [paginationMeta, setPaginationMeta] = useState({ total: 0, page: 1, limit: 20, totalPages: 0 });
 
   const [formData, setFormData] = useState({
     name: '', 
-    targetItemId: '', // YENİ: Reçete sonucu oluşacak Mamül
+    targetItemId: '', 
     description: '', 
     items: [] as { itemId: number, quantity: number, description: string }[]
   });
 
   const fetchData = async () => {
+    setLoading(true);
     try {
       const [bRes, iRes] = await Promise.all([ 
-        bomsAPI.getAll({ limit: 500 }), 
-        itemsAPI.getAll({ limit: 500, state: 1 }) // Tüm ürün listesi (mamül ve hammadde karışık, ekranda filtreleyeceğiz)
+        bomsAPI.getAll({ 
+          page, 
+          limit, 
+          search: debouncedSearch,
+          state: filterTab === 'all' ? undefined : (filterTab === 'active' ? 1 : 0)
+        }), 
+        itemsAPI.getAll({ limit: 1000, state: 1 })
       ]);
-      setBoms(bRes.data.data || bRes.data);
+      setBoms(bRes.data.data);
+      setPaginationMeta(bRes.data.meta);
       setItemsList(iRes.data.data);
-    } catch (error) { console.error(error); }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Reçete verileri yüklenemedi");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchData(); },[]);
+  // Search Debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-  const filteredBoms = boms.filter(b => {
-    if (filterTab === 'active') return b.state === 1;
-    if (filterTab === 'passive') return b.state === 0;
-    return true;
-  }).filter(b => b.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  useEffect(() => { fetchData(); }, [page, limit, debouncedSearch, filterTab]);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,18 +79,33 @@ export function BomsPage() {
       else await bomsAPI.create(payload);
       setIsModalOpen(false);
       fetchData();
-    } catch (error) { console.error(error); }
+      toast.success(editingId ? "Reçete güncellendi" : "Yeni reçete kaydedildi");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "İşlem başarısız");
+    }
   };
 
-  const handleEdit = (b: any) => {
+  const handleEdit = (b: Bom) => {
     setEditingId(b.id);
     setFormData({
       name: b.name || '', 
-      targetItemId: b.targetItemId || '',
+      targetItemId: String(b.targetItemId || ''),
       description: b.description || '',
-      items: b.items?.map((bi: any) => ({ itemId: bi.itemId, quantity: Number(bi.quantity), description: bi.description || '' })) ||[]
+      items: b.items?.map((bi: BomItem) => ({ itemId: bi.itemId, quantity: Number(bi.quantity), description: bi.description || '' })) || []
     });
     setIsModalOpen(true);
+  };
+
+  const handleClone = (b: Bom) => {
+    setEditingId(null); // Clear editing ID so it creates a NEW record
+    setFormData({
+      name: `${b.name} (KOPYA)`, 
+      targetItemId: String(b.targetItemId || ''),
+      description: b.description || '',
+      items: b.items?.map((bi: BomItem) => ({ itemId: bi.itemId, quantity: Number(bi.quantity), description: bi.description || '' })) || []
+    });
+    setIsModalOpen(true);
+    toast.success("Reçete kopyalandı. Yeni versiyon olarak kaydedebilirsiniz.");
   };
 
   // Reçeteyi arşivleme işlemi (toggleState)
@@ -106,10 +145,13 @@ export function BomsPage() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '15px' }}>
-          <input type="text" placeholder="Reçete Adı..." className="search-bar" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          <div className="search-box" style={{ position: 'relative' }}>
+            <FiSearch style={{ position: 'absolute', left: '10px', top: '12px', color: '#94a3b8' }} />
+            <input placeholder="Reçete ara..." style={{ paddingLeft: '35px' }} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          </div>
           <button className="btn btn-primary" onClick={() => {
-            setEditingId(null); setFormData({ name: '', targetItemId: '', description: '', items:[] }); setIsModalOpen(true);
-          }}>+ YENİ REÇETE OLUŞTUR</button>
+            setEditingId(null); setFormData({ name: '', targetItemId: '', description: '', items: [] }); setIsModalOpen(true);
+          }}>+ YENİ REÇETE</button>
         </div>
       </div>
 
@@ -119,18 +161,32 @@ export function BomsPage() {
             <tr><th>REÇETE ADI</th><th>ÇIKACAK (HEDEF) ÜRÜN</th><th>AÇIKLAMA</th><th>BİLEŞEN (MALZEME)</th><th>İŞLEMLER</th></tr>
           </thead>
           <tbody>
-            {filteredBoms.map((b) => {
-               // Arka tarafta 'targetItem' ilişkilendirilmiş ise
-               const targetItemName = b.targetItem ? b.targetItem.name : (itemsList.find(i=>i.id===b.targetItemId)?.name || 'Tanımlanmadı');
+            {boms.map((b) => {
+               const targetItemName = b.targetItem ? b.targetItem.name : (itemsList.find(i=>i.id===b.targetItemId)?.name || 'Lütfen Seçiniz');
                return(
-                 <tr key={b.id} style={{ opacity: b.state === 0 ? 0.6 : 1, background: b.state === 0 ? '#f1f5f9' : 'inherit' }}>
-                   <td><strong>{b.name}</strong> {b.state === 0 && <span className="badge badge-danger">PASİF</span>}</td>
+                 <tr key={b.id} style={{ opacity: b.isActive === false ? 0.6 : 1, background: b.isActive === false ? '#f8fafc' : 'inherit' }}>
+                   <td>
+                     <div style={{ display: 'flex', flexDirection: 'column' }}>
+                       <strong>{b.name}</strong>
+                       <div style={{ display: 'flex', gap: '5px', marginTop: '4px' }}>
+                         <span className="badge" style={{ fontSize: '10px' }}>v{b.version}</span>
+                         {b.isActive ? 
+                           <span className="badge badge-success" style={{ fontSize: '10px' }}>AKTİF</span> : 
+                           <span className="badge badge-secondary" style={{ fontSize: '10px' }}>ESKİ</span>
+                         }
+                         {b.state === 0 && <span className="badge badge-danger" style={{ fontSize: '10px' }}>ARŞİV</span>}
+                       </div>
+                     </div>
+                   </td>
                    <td><span className="badge" style={{background: 'var(--primary-glow)', color: 'var(--primary)'}}>{targetItemName}</span></td>
                    <td>{b.description || '-'}</td>
-                   <td><span className="badge badge-accent">{b.items?.length || 0} Kalem Malzeme</span></td>
+                   <td>{b.items?.length || 0} Kalem</td>
                     <td style={{ display: 'flex', gap: '5px' }}>
-                      <button className="btn-icon" title="Düzenle" onClick={() => handleEdit(b)}>
+                      <button className="btn-icon" title="Düzenle (Sadece Başlık)" onClick={() => handleEdit(b)}>
                         <FiEdit2 size={16} />
+                      </button>
+                      <button className="btn-icon" title="Klonla / Yeni Versiyon" style={{ color: 'var(--primary)' }} onClick={() => handleClone(b)}>
+                        <FiCopy size={16} />
                       </button>
                       <button className="btn-icon" title={b.state === 1 ? 'Arşivle' : 'Aktif Et'} style={{ color: b.state === 1 ? 'var(--error)' : 'var(--success)' }} onClick={() => toggleState(b.id, b.state)}>
                         {b.state === 1 ? <FiArchive size={16} /> : <FiRefreshCw size={16} />}
@@ -139,9 +195,16 @@ export function BomsPage() {
                  </tr>
                )
             })}
-            {filteredBoms.length === 0 && <tr><td colSpan={5} style={{textAlign:'center'}}>Reçete kaydı bulunmuyor.</td></tr>}
+            {boms.length === 0 && !loading && <tr><td colSpan={5} style={{textAlign:'center', padding: '30px'}}>Reçete kaydı bulunmuyor.</td></tr>}
+            {loading && <tr><td colSpan={5} style={{textAlign:'center', padding: '30px'}}><div className="spinner" style={{margin:'0 auto'}}></div></td></tr>}
           </tbody>
         </table>
+        <PaginationControls 
+          meta={paginationMeta} 
+          onPageChange={setPage} 
+          onLimitChange={setLimit} 
+          loading={loading}
+        />
       </div>
 
       {isModalOpen && (
@@ -176,21 +239,25 @@ export function BomsPage() {
               <div style={{ marginTop: '20px', padding: '20px', background: 'var(--surface-container-low)', borderRadius: '12px', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
                   <div>
-                    <label style={{ fontSize: '1rem', color: 'var(--primary)', fontWeight: 800 }}>Kullanılacak Alt Bileşenler (Sarf Edilecek Hammadde/Yarı Mamül)</label>
-                    <p style={{fontSize: '11px', color: 'gray', marginTop:'5px'}}>Üretim Emri kapatıldığında bu alt kalemler otomatik olarak stoktan düşülecektir.</p>
+                    <label style={{ fontSize: '1rem', color: 'var(--primary)', fontWeight: 800 }}>Kullanılacak Alt Bileşenler</label>
+                    <p style={{fontSize: '11px', color: 'gray', marginTop:'5px'}}>
+                      {editingId ? 'NOT: Mevcut reçetenin malzemelerini değiştiremezsiniz. Lütfen yeni versiyon klonlayın.' : 'Üretim Emri kapatıldığında bu alt kalemler otomatik olarak stoktan düşülecektir.'}
+                    </p>
                   </div>
-                  <button type="button" className="btn btn-primary" style={{ height: '35px', padding: '0 15px' }} onClick={addBomItem}>+ Kalem Ekle</button>
+                  {!editingId && <button type="button" className="btn btn-primary" style={{ height: '35px', padding: '0 15px' }} onClick={addBomItem}>+ Kalem Ekle</button>}
                 </div>
 
                 {formData.items.map((item, idx) => (
-                  <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr 1.5fr auto', gap: '10px', marginBottom: '10px', alignItems: 'center' }}>
-                    <select required className="uppercase-input" style={{ height: '40px', appearance: 'none', background: 'white', fontSize:'12px' }} value={item.itemId} onChange={e => updateBomItem(idx, 'itemId', Number(e.target.value))}>
-                      <option value="">-- SARF EDİLECEK ÜRÜN SEÇ --</option>
-                      {itemsList.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name} ({i.quantityType?.abbreviation})</option>)}
+                  <div key={idx} style={{ display: 'grid', gridTemplateColumns: editingId ? '2.5fr 1fr 1.5fr' : '2.5fr 1fr 1.5fr auto', gap: '10px', marginBottom: '10px', alignItems: 'center', opacity: editingId ? 0.7 : 1 }}>
+                    <select required disabled={!!editingId} className="uppercase-input" style={{ height: '40px', appearance: 'none', background: editingId ? 'transparent' : 'white', fontSize:'12px' }} value={item.itemId} onChange={e => updateBomItem(idx, 'itemId', Number(e.target.value))}>
+                      <option value="">-- ÜRÜN SEÇ --</option>
+                      {itemsList
+                        .filter(i => i.id === item.itemId || !formData.items.some(fi => fi.itemId === i.id))
+                        .map(i => <option key={i.id} value={i.id}>{i.code} - {i.name} ({i.quantityType?.abbreviation})</option>)}
                     </select>
-                    <input type="number" required step="0.0001" className="uppercase-input tabular-nums" style={{ height: '40px' }} value={item.quantity} onChange={e => updateBomItem(idx, 'quantity', Number(e.target.value))} placeholder="SARF MİKTARI" />
-                    <input type="text" className="uppercase-input" style={{ height: '40px', fontSize:'12px' }} value={item.description} onChange={e => updateBomItem(idx, 'description', e.target.value.toLocaleUpperCase('tr-TR'))} placeholder="Açıklama/Ölçü (Opsiyonel)" />
-                    <button type="button" className="btn" style={{ height: '40px', width: '40px', padding: 0, justifyContent: 'center', background: '#ffe4e6', color: 'red' }} onClick={() => removeBomItem(idx)}><FiX size={16} /></button>
+                    <input type="number" required disabled={!!editingId} step="0.0001" className="uppercase-input tabular-nums" style={{ height: '40px', background: editingId ? 'transparent' : 'white' }} value={item.quantity} onChange={e => updateBomItem(idx, 'quantity', Number(e.target.value))} placeholder="MİKTAR" />
+                    <input type="text" disabled={!!editingId} className="uppercase-input" style={{ height: '40px', fontSize:'12px', background: editingId ? 'transparent' : 'white' }} value={item.description} onChange={e => updateBomItem(idx, 'description', e.target.value.toLocaleUpperCase('tr-TR'))} placeholder="Açıklama (Opsiyonel)" />
+                    {!editingId && <button type="button" className="btn" style={{ height: '40px', width: '40px', padding: 0, justifyContent: 'center', background: '#ffe4e6', color: 'red' }} onClick={() => removeBomItem(idx)}><FiX size={16} /></button>}
                   </div>
                 ))}
                 {formData.items.length === 0 && <div style={{ textAlign: 'center', color: 'var(--error)', padding: '20px', fontWeight: 800 }}>⚠️ En az bir tüketim/sarf malzemesi eklemeniz zorunludur!</div>}

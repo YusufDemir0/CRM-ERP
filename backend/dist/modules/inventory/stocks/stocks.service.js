@@ -11,18 +11,31 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StocksService = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
+const dayjs_1 = __importDefault(require("dayjs"));
+const utc_1 = __importDefault(require("dayjs/plugin/utc"));
+const timezone_1 = __importDefault(require("dayjs/plugin/timezone"));
+dayjs_1.default.extend(utc_1.default);
+dayjs_1.default.extend(timezone_1.default);
 const stock_entity_1 = require("./entities/stock.entity");
 const stock_movement_entity_1 = require("./entities/stock-movement.entity");
+const item_entity_1 = require("../items/entities/item.entity");
+const transaction_entity_1 = require("../../finance/transactions/entities/transaction.entity");
+const sequence_generator_service_1 = require("../../../common/services/sequence-generator.service");
+const date_utils_1 = require("../../../common/utils/date.utils");
 let StocksService = class StocksService {
-    constructor(stockRepo, movementRepo, dataSource) {
+    constructor(stockRepo, movementRepo, dataSource, sequenceGenerator) {
         this.stockRepo = stockRepo;
         this.movementRepo = movementRepo;
         this.dataSource = dataSource;
+        this.sequenceGenerator = sequenceGenerator;
     }
     async findAll(query) {
         const qb = this.stockRepo.createQueryBuilder('stock')
@@ -87,6 +100,28 @@ let StocksService = class StocksService {
                 type: dto.type, referenceType: 'manual', description: dto.description, notes: dto.notes, createdBy: userId,
             });
             const savedMovement = await queryRunner.manager.save(movement);
+            const item = await queryRunner.manager.findOne(item_entity_1.Item, { where: { id: dto.itemId } });
+            if (item) {
+                const purchasePrice = Number(item.purchasePrice || 0);
+                const totalCostValue = purchasePrice * dto.quantity;
+                if (totalCostValue > 0) {
+                    const txType = dto.type === 'in' ? 'in' : 'out';
+                    const txPrefix = txType === 'in' ? 'SFG' : 'SFC';
+                    const txCode = await this.sequenceGenerator.generateTransactionCode(queryRunner, txPrefix);
+                    const transaction = queryRunner.manager.create(transaction_entity_1.Transaction, {
+                        code: txCode,
+                        amount: totalCostValue,
+                        type: txType,
+                        date: date_utils_1.DateUtils.getToday(),
+                        referenceType: 'manual_adjustment',
+                        referenceId: savedMovement.id,
+                        description: `Stok Ayarlaması Değer Kaydı: ${item.name} (${dto.type === 'in' ? '+' : '-'}${dto.quantity} Adet)`,
+                        status: 'completed',
+                        createdBy: userId,
+                    });
+                    await queryRunner.manager.save(transaction);
+                }
+            }
             await queryRunner.commitTransaction();
             return savedMovement;
         }
@@ -181,6 +216,7 @@ exports.StocksService = StocksService = __decorate([
     __param(1, (0, typeorm_1.InjectRepository)(stock_movement_entity_1.StockMovement)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
-        typeorm_2.DataSource])
+        typeorm_2.DataSource,
+        sequence_generator_service_1.SequenceGeneratorService])
 ], StocksService);
 //# sourceMappingURL=stocks.service.js.map

@@ -21,6 +21,7 @@ const party_entity_1 = require("../parties/entities/party.entity");
 const item_entity_1 = require("../inventory/items/entities/item.entity");
 const transaction_entity_1 = require("../finance/transactions/entities/transaction.entity");
 const department_entity_1 = require("../departments/entities/department.entity");
+const date_utils_1 = require("../../common/utils/date.utils");
 let DashboardService = class DashboardService {
     constructor(userRepo, partyRepo, itemRepo, txRepo, deptRepo) {
         this.userRepo = userRepo;
@@ -28,8 +29,14 @@ let DashboardService = class DashboardService {
         this.itemRepo = itemRepo;
         this.txRepo = txRepo;
         this.deptRepo = deptRepo;
+        this.cache = null;
+        this.CACHE_TTL = 5 * 60 * 1000;
     }
     async getSummary() {
+        const now = Date.now();
+        if (this.cache && (now - this.cache.timestamp) < this.CACHE_TTL) {
+            return this.cache.data;
+        }
         const [users, parties, items, transactions, departments] = await Promise.all([
             this.userRepo.count(),
             this.partyRepo.count(),
@@ -38,14 +45,17 @@ let DashboardService = class DashboardService {
             this.deptRepo.count(),
         ]);
         const criticalStocks = await this.itemRepo.count({ where: { state: 1 } });
-        return {
+        const result = {
             users,
             parties,
             items,
             transactions,
             departments,
             criticalStocks,
+            cachedAt: date_utils_1.DateUtils.getToday(),
         };
+        this.cache = { data: result, timestamp: now };
+        return result;
     }
 };
 exports.DashboardService = DashboardService;

@@ -4,6 +4,7 @@ import { ProductionService } from './production.service';
 import {
   CreateBomDto, UpdateBomDto,
   CreateProductionOrderDto, UpdateProductionOrderDto,
+  BomQueryDto, ProductionOrderQueryDto,
 } from './dto/production.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -17,7 +18,7 @@ export class ProductionController {
   // ────── BOMs (Reçeteler) ──────
   @Get('boms')
   @RequirePermissions('uretim_goruntuleme')
-  findAllBoms(@Query() query: PaginationDto) { return this.prodService.findAllBoms(query); }
+  findAllBoms(@Query() query: BomQueryDto) { return this.prodService.findAllBoms(query); }
 
   @Get('boms/:id')
   @RequirePermissions('uretim_goruntuleme')
@@ -42,7 +43,7 @@ export class ProductionController {
   // ────── PRODUCTION ORDERS (Üretim Emirleri) ──────
   @Get('orders')
   @RequirePermissions('uretim_goruntuleme')
-  findAllOrders(@Query() query: PaginationDto & { status?: string }) { return this.prodService.findAllOrders(query); }
+  findAllOrders(@Query() query: ProductionOrderQueryDto) { return this.prodService.findAllOrders(query); }
 
   @Get('orders/:id')
   @RequirePermissions('uretim_goruntuleme')

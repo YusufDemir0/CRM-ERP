@@ -7,6 +7,8 @@ import { Currency } from '../currencies/entities/currency.entity';
 import { SequenceGeneratorService } from '../../../common/services/sequence-generator.service';
 import { CreateTransactionDto } from '../dto/finance.dto';
 import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
+import { DateUtils } from '../../../common/utils/date.utils';
+import dayjs from 'dayjs';
 
 @Injectable()
 export class TransactionsService {
@@ -125,15 +127,13 @@ export class TransactionsService {
   }
 
   async getStatus() {
-    const firstDayOfMonth = new Date();
-    firstDayOfMonth.setDate(1);
-    firstDayOfMonth.setHours(0, 0, 0, 0);
+    const firstDayOfMonth = dayjs().startOf('month').toDate();
 
     const stats = await this.txRepo.createQueryBuilder('tx')
       .select("SUM(CASE WHEN tx.type = 'in' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "income")
       .addSelect("SUM(CASE WHEN tx.type = 'out' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "expense")
       .addSelect("COUNT(*)", "count")
-      .where("tx.date >= :date", { date: firstDayOfMonth.toISOString().split('T')[0] })
+      .where("tx.date >= :date", { date: DateUtils.formatDate(firstDayOfMonth) })
       .andWhere("tx.status != 'cancelled'")
       .getRawOne();
 
@@ -146,14 +146,13 @@ export class TransactionsService {
   }
 
   async getDailyTrends() {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgo = dayjs().subtract(7, 'day').toDate();
 
     return await this.txRepo.createQueryBuilder('tx')
       .select("DATE(tx.date)", "day")
       .addSelect("SUM(CASE WHEN tx.type = 'in' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "income")
       .addSelect("SUM(CASE WHEN tx.type = 'out' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "expense")
-      .where("tx.date >= :date", { date: sevenDaysAgo.toISOString().split('T')[0] })
+      .where("tx.date >= :date", { date: DateUtils.formatDate(sevenDaysAgo) })
       .andWhere("tx.status != 'cancelled'")
       .groupBy("DATE(tx.date)")
       .orderBy("day", "ASC")

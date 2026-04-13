@@ -17,7 +17,6 @@ const common_1 = require("@nestjs/common");
 const passport_1 = require("@nestjs/passport");
 const production_service_1 = require("./production.service");
 const production_dto_1 = require("./dto/production.dto");
-const pagination_dto_1 = require("../../common/dto/pagination.dto");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 const permissions_decorator_1 = require("../../common/decorators/permissions.decorator");
 let ProductionController = class ProductionController {
@@ -50,7 +49,7 @@ __decorate([
     (0, permissions_decorator_1.RequirePermissions)('uretim_goruntuleme'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [pagination_dto_1.PaginationDto]),
+    __metadata("design:paramtypes", [production_dto_1.BomQueryDto]),
     __metadata("design:returntype", void 0)
 ], ProductionController.prototype, "findAllBoms", null);
 __decorate([
@@ -93,7 +92,7 @@ __decorate([
     (0, permissions_decorator_1.RequirePermissions)('uretim_goruntuleme'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [production_dto_1.ProductionOrderQueryDto]),
     __metadata("design:returntype", void 0)
 ], ProductionController.prototype, "findAllOrders", null);
 __decorate([

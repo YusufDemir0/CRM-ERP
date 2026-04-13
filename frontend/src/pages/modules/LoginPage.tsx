@@ -1,10 +1,20 @@
-import React, { useState } from 'react';
-import { authAPI } from '../../services/api';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export default function LoginPage() {
+  const { login, user } = useAuth();
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+
+  // Eğer zaten giriş yapılmışsa doğrudan ana sayfaya yönlendir
+  useEffect(() => {
+    if (user) {
+      navigate('/', { replace: true });
+    }
+  }, [user, navigate]);
 
   const showLoader = (message?: string) => {
     window.dispatchEvent(
@@ -14,10 +24,6 @@ export default function LoginPage() {
     );
   };
 
-  const hideLoader = () => {
-    window.dispatchEvent(new Event('hide-loader'));
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -25,16 +31,8 @@ export default function LoginPage() {
     showLoader('GİRİŞ YAPILIYOR...');
 
     try {
-      const res = await authAPI.login({
-        username: username,
-        password: password
-      });
-
-      localStorage.setItem('erp_token', res.data.access_token);
-      localStorage.setItem('erp_user', JSON.stringify(res.data.user));
-
+      await login(username, password);
       window.location.href = '/';
-
     } catch (err: any) {
 
   let msg = err.response?.data?.message;
@@ -56,7 +54,7 @@ export default function LoginPage() {
 
   // Artık güvenli
   if (msg === 'INVALID_USERNAME') {
-    setError('Böyle bir kullanıcı bulunmamaktadır. Lütfen "YETKİLİ" ile iletişime geçiniz.');
+    setError('Böyle bir kullanıcı bulunmamaktadır. \n Lütfen "YETKİLİ" ile iletişime geçiniz.');
   } 
   else if (msg === 'INVALID_PASSWORD') {
     setError('Hatalı şifre girişi yaptınız. Lütfen tekrar deneyiniz.');

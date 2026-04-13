@@ -84,10 +84,14 @@ export class UsersService {
       const salt = await bcrypt.genSalt(12);
       user.passwordHash = await bcrypt.hash(dto.password, salt);
     }
-    // Geri kalan bilgileri assign ederken password property'sinin user'a doğrudan gitmemesini sağla
-    const { password, ...otherData } = dto;
-    
-    Object.assign(user, otherData);
+    // Explicit mapping to prevent mass assignment
+    if (dto.username !== undefined) user.username = dto.username;
+    if (dto.fullName !== undefined) user.fullName = dto.fullName;
+    if (dto.email !== undefined) user.email = dto.email;
+    if (dto.phone !== undefined) user.phone = dto.phone;
+    if (dto.departmentId !== undefined) user.departmentId = dto.departmentId;
+    if (dto.state !== undefined) user.state = dto.state;
+
     user.updatedBy = currentUserId || null;
     return this.userRepo.save(user);
   }

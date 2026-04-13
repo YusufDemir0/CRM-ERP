@@ -2,19 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { productionOrdersAPI, bomsAPI, departmentsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { FiX, FiTool } from 'react-icons/fi';
+import { ProductionOrder, Bom, Department } from '../../types';
+import { getLocalDateString, formatDisplayDate } from '../../utils/date.helper';
 
 export function ProductionPage() {
-  const [orders, setOrders] = useState<any[]>([]);
-  const[boms, setBoms] = useState<any[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
+  const [orders, setOrders] = useState<ProductionOrder[]>([]);
+  const [boms, setBoms] = useState<Bom[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const[editingId, setEditingId] = useState<number | null>(null);
-
-  const getLocalDateString = () => {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().split('T')[0];
-  };
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     bomId: '', 
@@ -39,7 +35,9 @@ export function ProductionPage() {
       setOrders(oRes.data.data || oRes.data);
       setBoms(bRes.data.data || bRes.data);
       setDepartments(dRes.data.data || dRes.data);
-    } catch (error) { console.error(error); }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Üretim verileri yüklenemedi");
+    }
   };
 
   useEffect(() => { fetchData(); },[]);
@@ -61,29 +59,41 @@ export function ProductionPage() {
     }
 
     try {
-      const payload = {
-        ...formData,
-        bomId: Number(formData.bomId),
-        plannedQuantity: Number(formData.plannedQuantity),
-        producedQuantity: Number(formData.producedQuantity),
-        wastageQuantity: Number(formData.wastageQuantity),
-        // EĞER SİSTEM BU İKİSİNİ ALIP TRANSACTION YAPMAYA HAZIR İSE FRONTEND GÖNDERİR:
-        sourceDepartmentId: formData.sourceDepartmentId ? Number(formData.sourceDepartmentId) : undefined,
-        targetDepartmentId: formData.targetDepartmentId ? Number(formData.targetDepartmentId) : undefined
-      };
-      
-      if (editingId) await productionOrdersAPI.update(editingId, payload);
-      else await productionOrdersAPI.create(payload);
+      let payload: any;
+      if (editingId) {
+        payload = {
+          ...formData,
+          bomId: Number(formData.bomId),
+          plannedQuantity: Number(formData.plannedQuantity),
+          producedQuantity: Number(formData.producedQuantity),
+          wastageQuantity: Number(formData.wastageQuantity),
+          sourceDepartmentId: formData.sourceDepartmentId ? Number(formData.sourceDepartmentId) : undefined,
+          targetDepartmentId: formData.targetDepartmentId ? Number(formData.targetDepartmentId) : undefined
+        };
+        await productionOrdersAPI.update(editingId, payload);
+      } else {
+        payload = {
+          bomId: Number(formData.bomId),
+          plannedQuantity: Number(formData.plannedQuantity),
+          startDate: formData.startDate,
+          endDate: formData.endDate || undefined,
+          notes: formData.notes
+        };
+        await productionOrdersAPI.create(payload);
+      }
       
       setIsModalOpen(false);
       fetchData();
-    } catch (error) { console.error(error); }
+      toast.success(editingId ? "İş emri güncellendi" : "Yeni iş emri oluşturuldu");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "İşlem başarısız");
+    }
   };
 
-  const handleEdit = (o: any) => {
+  const handleEdit = (o: ProductionOrder) => {
     setEditingId(o.id);
     setFormData({
-      bomId: o.bomId || '', 
+      bomId: String(o.bomId || ''), 
       plannedQuantity: o.plannedQuantity || 0,
       startDate: o.startDate || getLocalDateString(), 
       endDate: o.endDate || '', 
@@ -120,6 +130,7 @@ export function ProductionPage() {
               <th>TARİH / VADE</th>
               <th>PLANLANAN</th>
               <th>ÜRETİLEN (GERÇEK)</th>
+              <th>MALİYET (BİRİM/TOPLAM)</th>
               <th>EMİR DURUMU</th>
               <th>DÜZENLE & KAPAT</th>
             </tr>
@@ -132,9 +143,20 @@ export function ProductionPage() {
                    <strong>{o.bom?.name}</strong>
                    <div style={{fontSize:'10px', color:'gray'}}>Reçete ID: {o.bomId}</div>
                 </td>
-                <td className="tabular-nums" style={{fontSize:'11px'}}>Başlangıç: {o.startDate ? new Date(o.startDate).toLocaleDateString('tr') : '-'}<br/>Hedef Bitiş: {o.endDate ? new Date(o.endDate).toLocaleDateString('tr') : '-'}</td>
-                <td className="tabular-nums"><strong>{o.plannedQuantity}</strong> Adet</td>
-                <td className="tabular-nums" style={{ color: o.producedQuantity > 0 ? 'var(--success)' : 'inherit', fontWeight: 800 }}>{o.producedQuantity} Adet</td>
+                 <td className="tabular-nums" style={{fontSize:'11px'}}>
+                    Başlangıç: {formatDisplayDate(o.startDate || null)}<br/>
+                    Hedef Bitiş: {formatDisplayDate(o.endDate || null)}
+                 </td>
+                 <td className="tabular-nums"><strong>{o.plannedQuantity}</strong> Adet</td>
+                 <td className="tabular-nums" style={{ color: o.producedQuantity > 0 ? 'var(--success)' : 'inherit', fontWeight: 800 }}>{o.producedQuantity} Adet</td>
+                 <td className="tabular-nums">
+                    {o.status === 'completed' ? (
+                      <div>
+                        <strong>{Number(o.unitCost).toLocaleString('tr-TR')} ₺</strong><br/>
+                        <span style={{fontSize:'10px', color:'gray'}}>{Number(o.totalCost).toLocaleString('tr-TR')} ₺ Toplam</span>
+                      </div>
+                    ) : '-'}
+                 </td>
                 <td>
                    <span className={`badge ${o.status === 'completed' ? 'badge-success' : o.status === 'in_progress' ? 'badge-accent' : o.status === 'cancelled' ? 'badge-danger' : 'badge-outline'}`}>
                       {o.status.toUpperCase()}
@@ -222,8 +244,8 @@ export function ProductionPage() {
               )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '15px' }}>
-                <div className="form-group"><label>Üretim Emri Başlangıç</label><input type="date" required className="uppercase-input" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} /></div>
-                <div className="form-group"><label>Hedeflenen Bitiş Vadesi</label><input type="date" className="uppercase-input" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} /></div>
+                <div className="form-group"><label>Üretim Emri Başlangıç</label><input type="date" required className="uppercase-input" min={getLocalDateString()} value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} /></div>
+                <div className="form-group"><label>Hedeflenen Bitiş Vadesi</label><input type="date" className="uppercase-input" min={getLocalDateString()} value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} /></div>
               </div>
               <div className="form-group" style={{marginTop:'15px'}}><label>Üretim Hakkında Ekstra Not (İsteğe Bağlı)</label><input className="uppercase-input" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value.toLocaleUpperCase('tr-TR')})} placeholder="ÖRNEĞİN; USTA DEĞİŞİMİ OLDU VEYA PARTİ NO: 323" /></div>
 

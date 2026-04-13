@@ -29,60 +29,55 @@ function normalizeRoles(roles: any): string[] {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('erp_token'));
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (token) {
-      authAPI.profile()
-        .then((res) => {
-          const u = res.data;
-          setUser({ 
-            ...u, 
-            roles: normalizeRoles(u.roles),
-            permissions: u.permissions || []
-          });
-        })
-        .catch(() => { logout(); })
-        .finally(() => setIsLoading(false));
-    } else {
-      setIsLoading(false);
-    }
-  }, [token]);
+    // Check if user is logged in by fetching profile
+    authAPI.profile()
+      .then((res) => {
+        const u = res.data;
+        setUser({ 
+          ...u, 
+          roles: normalizeRoles(u.roles),
+          permissions: u.permissions || []
+        });
+      })
+      .catch(() => {
+        setUser(null);
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const login = async (username: string, password: string) => {
     const res = await authAPI.login({ username, password });
-    const { access_token, user: userData } = res.data;
-    localStorage.setItem('erp_token', access_token);
+    const { user: userData } = res.data;
     
-    // Login might not return all permissions immediately, profile fetch will fill it
-    const normalized = { 
+    setUser({ 
       ...userData, 
       roles: normalizeRoles(userData.roles),
       permissions: userData.permissions || []
-    };
-    
-    localStorage.setItem('erp_user', JSON.stringify(normalized));
-    setToken(access_token);
-    setUser(normalized);
+    });
   };
 
-  const logout = () => {
-    localStorage.removeItem('erp_token');
-    localStorage.removeItem('erp_user');
-    setToken(null);
-    setUser(null);
+  const logout = async () => {
+    try {
+      await authAPI.logout();
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
+      setUser(null);
+      window.location.href = '/login';
+    }
   };
 
   const hasPermission = (key: string): boolean => {
     if (!user) return false;
-    // Superadmin bypass (roles include 'admin' or 'superadmin')
     if (user.roles.some(r => ['admin', 'superadmin'].includes(r.toLowerCase()))) return true;
     return user.permissions.includes(key);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading, hasPermission }}>
+    <AuthContext.Provider value={{ user, token: null, login, logout, isLoading, hasPermission }}>
       {children}
     </AuthContext.Provider>
   );

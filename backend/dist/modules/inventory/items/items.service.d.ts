@@ -31,6 +31,8 @@ export declare class ItemsService {
     softDeleteItemCodeGroup(id: number): Promise<void>;
     findAllQuantityTypes(): Promise<QuantityType[]>;
     createQuantityType(dto: CreateQuantityTypeDto, userId?: number): Promise<QuantityType>;
+    updateQuantityType(id: number, dto: Partial<QuantityType>, userId?: number): Promise<QuantityType>;
+    softDeleteQuantityType(id: number): Promise<void>;
     getStatus(): Promise<{
         active: number;
         passive: number;

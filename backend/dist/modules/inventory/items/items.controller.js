@@ -34,6 +34,10 @@ let ItemsController = class ItemsController {
         return this.itemsService.createItemCodeGroup(dto, userId);
     }
     createQuantityType(dto, userId) { return this.itemsService.createQuantityType(dto, userId); }
+    updateQuantityType(id, dto, userId) {
+        return this.itemsService.updateQuantityType(id, dto, userId);
+    }
+    removeQuantityType(id) { return this.itemsService.softDeleteQuantityType(id); }
     updateItemType(id, dto, userId) {
         return this.itemsService.updateItemType(id, dto, userId);
     }
@@ -123,6 +127,22 @@ __decorate([
     __metadata("design:paramtypes", [inventory_dto_1.CreateQuantityTypeDto, Number]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "createQuantityType", null);
+__decorate([
+    (0, common_1.Put)('quantity-types/:id'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Object, Number]),
+    __metadata("design:returntype", void 0)
+], ItemsController.prototype, "updateQuantityType", null);
+__decorate([
+    (0, common_1.Delete)('quantity-types/:id'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", void 0)
+], ItemsController.prototype, "removeQuantityType", null);
 __decorate([
     (0, common_1.Put)('types/:id'),
     (0, permissions_decorator_1.RequirePermissions)('stok_duzenleme'),

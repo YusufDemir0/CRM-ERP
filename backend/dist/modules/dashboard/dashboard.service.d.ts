@@ -10,13 +10,8 @@ export declare class DashboardService {
     private itemRepo;
     private txRepo;
     private deptRepo;
+    private cache;
+    private readonly CACHE_TTL;
     constructor(userRepo: Repository<User>, partyRepo: Repository<Party>, itemRepo: Repository<Item>, txRepo: Repository<Transaction>, deptRepo: Repository<Department>);
-    getSummary(): Promise<{
-        users: number;
-        parties: number;
-        items: number;
-        transactions: number;
-        departments: number;
-        criticalStocks: number;
-    }>;
+    getSummary(): Promise<any>;
 }

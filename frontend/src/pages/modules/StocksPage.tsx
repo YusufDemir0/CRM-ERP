@@ -56,7 +56,11 @@ export function StocksPage() {
 
   const filteredStocks = stocks.filter(s => {
     const term = searchTerm.toLowerCase();
-    const match = s.item?.name?.toLowerCase().includes(term) || s.item?.code?.toLowerCase().includes(term);
+    const match = 
+      s.item?.name?.toLowerCase().includes(term) || 
+      s.item?.code?.toLowerCase().includes(term) ||
+      s.department?.name?.toLowerCase().includes(term);
+
     if (!match) return false;
     if (filterTab === 'critical') return Number(s.quantity) <= Number(s.item?.criticalLimit);
     return true;

@@ -1,10 +1,21 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 import { Stock } from './entities/stock.entity';
 import { StockMovement } from './entities/stock-movement.entity';
 import { StockAdjustmentDto, TransferStockDto } from '../dto/inventory.dto';
 import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
+import { Item } from '../items/entities/item.entity';
+import { Transaction } from '../../finance/transactions/entities/transaction.entity';
+import { SequenceGeneratorService } from '../../../common/services/sequence-generator.service';
+import { DateUtils } from '../../../common/utils/date.utils';
 
 @Injectable()
 export class StocksService {
@@ -12,6 +23,7 @@ export class StocksService {
     @InjectRepository(Stock) private stockRepo: Repository<Stock>,
     @InjectRepository(StockMovement) private movementRepo: Repository<StockMovement>,
     private dataSource: DataSource,
+    private sequenceGenerator: SequenceGeneratorService,
   ) {}
 
   async findAll(query: PaginationDto & { departmentId?: number; itemId?: number }): Promise<PaginatedResult<Stock>> {
@@ -87,6 +99,37 @@ export class StocksService {
       });
 
       const savedMovement = await queryRunner.manager.save(movement);
+
+      // FİNANSAL SENKRONİZASYON (Aşama 6 - Step 13)
+      const item = await queryRunner.manager.findOne(Item, { where: { id: dto.itemId } });
+      
+      if (item) {
+        const purchasePrice = Number(item.purchasePrice || 0);
+        const totalCostValue = purchasePrice * dto.quantity;
+
+        if (totalCostValue > 0) {
+          // Envanter kazancı (Giriş) -> Transaction 'in'
+          // Envanter kaybı (Çıkış) -> Transaction 'out'
+          const txType = dto.type === 'in' ? 'in' : 'out';
+          const txPrefix = txType === 'in' ? 'SFG' : 'SFC'; // Stok Fişi Giriş / Çıkış
+          const txCode = await this.sequenceGenerator.generateTransactionCode(queryRunner, txPrefix);
+
+          const transaction = queryRunner.manager.create(Transaction, {
+            code: txCode,
+            amount: totalCostValue,
+            type: txType,
+            date: DateUtils.getToday(),
+            referenceType: 'manual_adjustment',
+            referenceId: savedMovement.id,
+            description: `Stok Ayarlaması Değer Kaydı: ${item.name} (${dto.type === 'in' ? '+' : '-'}${dto.quantity} Adet)`,
+            status: 'completed',
+            createdBy: userId,
+          });
+
+          await queryRunner.manager.save(transaction);
+        }
+      }
+
       await queryRunner.commitTransaction();
       return savedMovement;
     } catch (error) {

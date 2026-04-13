@@ -1,5 +1,14 @@
 import { IsString, IsNotEmpty, IsOptional, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+
+export class BomQueryDto extends PaginationDto {}
+
+export class ProductionOrderQueryDto extends PaginationDto {
+  @IsOptional()
+  @IsEnum(['draft', 'planned', 'in_progress', 'completed', 'cancelled'])
+  status?: string;
+}
 
 export class CreateBomItemDto {
   @IsNumber() itemId: number;

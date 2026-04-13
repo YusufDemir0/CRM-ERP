@@ -65,9 +65,17 @@ export default function AccountsPage() {
   }, [location]);
 
   const filteredAccounts = accounts.filter(acc => {
-    if (filterTab === 'active') return acc.state === 1;
-    if (filterTab === 'passive') return acc.state === 0;
-    return true;
+    const s = searchTerm.toLowerCase();
+    const tabMatch = filterTab === 'all' || (filterTab === 'active' ? acc.state === 1 : acc.state === 0);
+    const textMatch = 
+      acc.name?.toLowerCase().includes(s) || 
+      acc.bankName?.toLowerCase().includes(s) || 
+      acc.branchName?.toLowerCase().includes(s) || 
+      acc.accountNumber?.toLowerCase().includes(s) || 
+      acc.iban?.toLowerCase().includes(s) ||
+      acc.currency?.name?.toLowerCase().includes(s);
+
+    return tabMatch && textMatch;
   });
 
   const formatIban = (val: string) => {

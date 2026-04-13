@@ -47,6 +47,10 @@ __decorate([
     __metadata("design:type", department_entity_1.Department)
 ], User.prototype, "department", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'failed_login_attempts', type: 'int', default: 0 }),
+    __metadata("design:type", Number)
+], User.prototype, "failedLoginAttempts", void 0);
+__decorate([
     (0, typeorm_1.ManyToMany)(() => role_entity_1.Role),
     (0, typeorm_1.JoinTable)({
         name: 'user_roles',
@@ -57,7 +61,7 @@ __decorate([
 ], User.prototype, "roles", void 0);
 exports.User = User = __decorate([
     (0, typeorm_1.Entity)('users'),
-    (0, typeorm_1.Unique)(['username']),
-    (0, typeorm_1.Unique)(['email'])
+    (0, typeorm_1.Index)("UQ_USERNAME_ACTIVE", ["username"], { where: "deleted_at IS NULL", unique: true }),
+    (0, typeorm_1.Index)("UQ_EMAIL_ACTIVE", ["email"], { where: "deleted_at IS NULL", unique: true })
 ], User);
 //# sourceMappingURL=user.entity.js.map

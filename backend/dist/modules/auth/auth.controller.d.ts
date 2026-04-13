@@ -1,10 +1,11 @@
+import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
-    login(dto: LoginDto): Promise<{
-        access_token: string;
+    login(dto: LoginDto, res: Response): Promise<{
+        message: string;
         user: {
             id: number;
             username: string;
@@ -14,11 +15,11 @@ export declare class AuthController {
             roles: string[];
         };
     }>;
+    logout(res: Response): Promise<{
+        message: string;
+    }>;
     register(dto: RegisterDto): Promise<{
-        id: number;
-        username: string;
-        fullName: string;
-        email: string;
+        message: string;
     }>;
     getProfile(userId: number): Promise<{
         id: number;

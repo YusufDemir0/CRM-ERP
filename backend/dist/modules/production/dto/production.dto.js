@@ -9,9 +9,21 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UpdateProductionOrderDto = exports.CreateProductionOrderDto = exports.UpdateBomDto = exports.CreateBomDto = exports.CreateBomItemDto = void 0;
+exports.UpdateProductionOrderDto = exports.CreateProductionOrderDto = exports.UpdateBomDto = exports.CreateBomDto = exports.CreateBomItemDto = exports.ProductionOrderQueryDto = exports.BomQueryDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
+const pagination_dto_1 = require("../../../common/dto/pagination.dto");
+class BomQueryDto extends pagination_dto_1.PaginationDto {
+}
+exports.BomQueryDto = BomQueryDto;
+class ProductionOrderQueryDto extends pagination_dto_1.PaginationDto {
+}
+exports.ProductionOrderQueryDto = ProductionOrderQueryDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(['draft', 'planned', 'in_progress', 'completed', 'cancelled']),
+    __metadata("design:type", String)
+], ProductionOrderQueryDto.prototype, "status", void 0);
 class CreateBomItemDto {
 }
 exports.CreateBomItemDto = CreateBomItemDto;

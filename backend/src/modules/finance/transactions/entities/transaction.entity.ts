@@ -10,10 +10,10 @@ export class Transaction extends BaseEntity {
   @Column({ type: 'varchar', length: 50 })
   code: string;
 
-  @Column({ name: 'party_id', type: 'bigint' })
+  @Column({ name: 'party_id', type: 'bigint', nullable: true })
   partyId: number;
 
-  @Column({ name: 'commercial_account_id', type: 'bigint' })
+  @Column({ name: 'commercial_account_id', type: 'bigint', nullable: true })
   commercialAccountId: number;
 
   @Column({ type: 'decimal', precision: 15, scale: 2 })

@@ -10,6 +10,8 @@ export declare class ProductionOrder extends BaseEntity {
     producedQuantity: number;
     wastageQuantity: number;
     status: 'draft' | 'planned' | 'in_progress' | 'completed' | 'cancelled';
+    unitCost: number;
+    totalCost: number;
     startDate: string | null;
     endDate: string | null;
     notes: string | null;

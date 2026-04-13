@@ -9,5 +9,6 @@ export declare class User extends BaseEntity {
     phone: string | null;
     departmentId: number | null;
     department: Department;
+    failedLoginAttempts: number;
     roles: Role[];
 }

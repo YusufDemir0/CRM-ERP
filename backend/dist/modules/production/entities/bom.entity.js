@@ -26,6 +26,14 @@ __decorate([
     __metadata("design:type", Object)
 ], Bom.prototype, "targetItemId", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 1 }),
+    __metadata("design:type", Number)
+], Bom.prototype, "version", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'is_active', type: 'boolean', default: true }),
+    __metadata("design:type", Boolean)
+], Bom.prototype, "isActive", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", Object)
 ], Bom.prototype, "description", void 0);

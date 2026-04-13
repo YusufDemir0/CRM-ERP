@@ -27,7 +27,7 @@ let LogsInterceptor = LogsInterceptor_1 = class LogsInterceptor {
         if (!loggableMethods.includes(method)) {
             return next.handle();
         }
-        if (url.includes('/logs') || url.includes('/auth/login')) {
+        if (url.includes('/logs')) {
             return next.handle();
         }
         return next.handle().pipe((0, operators_1.tap)((data) => {
@@ -36,6 +36,26 @@ let LogsInterceptor = LogsInterceptor_1 = class LogsInterceptor {
             this.saveLog(request, 'ERROR', err).catch(e => this.logger.error(`Audit error-log failed: ${e.message}`));
             return (0, rxjs_1.throwError)(() => err);
         }));
+    }
+    sanitizeBody(body) {
+        if (!body || typeof body !== 'object')
+            return body;
+        if (Array.isArray(body))
+            return body.map(item => this.sanitizeBody(item));
+        const sanitized = { ...body };
+        const sensitiveFields = [
+            'password', 'token', 'access_token', 'secret', 'passwordHash',
+            'taxNumber', 'tax_number', 'tc_no', 'tckn', 'iban', 'cc_number', 'cvv'
+        ];
+        for (const key of Object.keys(sanitized)) {
+            if (sensitiveFields.some((field) => key.toLowerCase().includes(field.toLowerCase()))) {
+                sanitized[key] = '********';
+            }
+            else if (typeof sanitized[key] === 'object' && sanitized[key] !== null) {
+                sanitized[key] = this.sanitizeBody(sanitized[key]);
+            }
+        }
+        return sanitized;
     }
     async saveLog(request, status, responseData) {
         try {
@@ -46,12 +66,7 @@ let LogsInterceptor = LogsInterceptor_1 = class LogsInterceptor {
             const parts = url.replace(/^\/api\//, '').split('/');
             const moduleName = (parts[0] || 'SYSTEM').toUpperCase();
             const action = `${method} ${url}`;
-            const cleanBody = { ...body };
-            const sensitiveFields = ['password', 'token', 'access_token', 'secret', 'passwordHash'];
-            sensitiveFields.forEach(f => {
-                if (cleanBody[f])
-                    cleanBody[f] = '********';
-            });
+            const cleanBody = this.sanitizeBody(body);
             let responseSummary = 'OK';
             if (status === 'ERROR') {
                 responseSummary =
@@ -68,7 +83,7 @@ let LogsInterceptor = LogsInterceptor_1 = class LogsInterceptor {
                 module: moduleName,
                 tag: status,
                 details: JSON.stringify({
-                    body: Object.keys(cleanBody).length > 0 ? cleanBody : null,
+                    body: cleanBody && Object.keys(cleanBody).length > 0 ? cleanBody : null,
                     status,
                     response: responseSummary,
                 }),

@@ -3,13 +3,14 @@ import { salesAPI, departmentsAPI } from '../services/api';
 import { FiEye, FiCheck, FiX, FiXCircle, FiArrowLeft, FiPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { confirmDialog } from '../utils/confirmDialog';
+import { Sale, Department, SaleItem } from '../types';
 
 // SalesWizard yorum satırına alındı — yerine innerView sistemi kullanılıyor
 // import SalesWizard from './modules/SalesWizard';
 
 export default function SalesPage() {
-  const [sales, setSales] = useState<any[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [filterStatus, setFilterStatus] = useState<'draft' | 'approved' | 'cancelled' | 'all'>('draft');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -20,7 +21,7 @@ export default function SalesPage() {
   const[innerView, setInnerView] = useState<'list' | 'new' | 'edit'>('list');
   
   // View (İnceleme) Modal State
-  const [viewSaleData, setViewSaleData] = useState<any | null>(null);
+  const [viewSaleData, setViewSaleData] = useState<Sale | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   const fetchData = async () => {
@@ -30,9 +31,9 @@ export default function SalesPage() {
         departmentsAPI.getAll({ limit: 50 })
       ]);
       setSales(sRes.data.data);
-      setDepartments(dRes.data.data.filter((d:any) => d.state === 1));
-    } catch (error) {
-      console.error(error);
+      setDepartments(dRes.data.data.filter((d: Department) => d.state === 1));
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Satış verileri yüklenemedi");
     }
   };
 
@@ -245,7 +246,7 @@ export default function SalesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {viewSaleData.items?.map((item: any) => (
+                  {viewSaleData.items?.map((item: SaleItem) => (
                     <tr key={item.itemId} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '10px', fontWeight: 600 }}>{item.item?.name} <br/><span style={{fontSize: '10px', color: 'gray', fontWeight: 'normal'}}>{item.item?.code}</span></td>
                       <td className="tabular-nums">{Number(item.price).toLocaleString('tr-TR')} {viewSaleData.currency?.symbol || '₺'}</td>

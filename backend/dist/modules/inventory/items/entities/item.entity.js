@@ -33,7 +33,7 @@ __decorate([
     __metadata("design:type", Object)
 ], Item.prototype, "itemCodeGroupId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'code', type: 'varchar', length: 50, unique: true }),
+    (0, typeorm_1.Column)({ name: 'code', type: 'varchar', length: 50 }),
     __metadata("design:type", String)
 ], Item.prototype, "code", void 0);
 __decorate([
@@ -115,6 +115,6 @@ __decorate([
 ], Item.prototype, "quantityType", void 0);
 exports.Item = Item = __decorate([
     (0, typeorm_1.Entity)('items'),
-    (0, typeorm_1.Unique)(['code'])
+    (0, typeorm_1.Index)("UQ_ITEM_CODE_ACTIVE", ["code"], { where: "deleted_at IS NULL", unique: true })
 ], Item);
 //# sourceMappingURL=item.entity.js.map

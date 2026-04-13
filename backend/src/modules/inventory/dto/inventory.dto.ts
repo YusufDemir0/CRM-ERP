@@ -23,6 +23,9 @@ export class UpdateItemDto {
   @IsOptional() @IsString() name?: string;
   @IsOptional() @IsNumber() itemTypeId?: number;
   @IsOptional() @IsNumber() itemCodeGroupId?: number;
+  @IsOptional() @IsString() code?: string;
+  @IsOptional() @IsString() code1?: string;
+  @IsOptional() @IsString() code2?: string;
   @IsOptional() @IsNumber() providerId?: number;
   @IsOptional() @IsNumber() @Min(0) criticalLimit?: number;
   @IsOptional() @IsString() image?: string;

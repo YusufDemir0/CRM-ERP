@@ -2,23 +2,30 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { partiesAPI, currenciesAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import { PaginationControls } from '../../components/common/PaginationControls';
 import { FiX, FiEdit2, FiArchive, FiRefreshCw, FiSearch, FiPlus, FiMinus, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 import { useTurkiyeCities, useTurkiyeDistricts } from '../../hooks/useTurkiyeApi';
 import { usePersistentForm } from '../../hooks/usePersistentForm';
 import { confirmDialog } from '../../utils/confirmDialog';
+import { Party, Currency } from '../../types';
 
 export default function PartiesPage() {
-  const [parties, setParties] = useState<any[]>([]);
-  const [currencies, setCurrencies] = useState<any[]>([]);
+  const [parties, setParties] = useState<Party[]>([]);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTab, setFilterTab] = useState<'active' | 'passive' | 'all'>('active');
   const [phonePrefix, setPhonePrefix] = useState('+90');
   
-  // Sıralama State
+  // Pagination & Sort State
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [paginationMeta, setPaginationMeta] = useState({ total: 0, page: 1, limit: 20, totalPages: 0 });
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'name', direction: 'asc' });
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
   const [formData, setFormData, clearFormData] = usePersistentForm('form_party_new', {
     type: 'customer',
@@ -42,20 +49,43 @@ export default function PartiesPage() {
   const location = useLocation();
 
   const fetchData = async () => {
+    setLoading(true);
     try {
       const [pRes, cRes] = await Promise.all([
-        partiesAPI.getAll({ limit: 1000 }),
+        partiesAPI.getAll({ 
+          page, 
+          limit, 
+          search: debouncedSearch,
+          sortBy: sortConfig?.key,
+          sortOrder: sortConfig?.direction.toUpperCase() as any,
+          type: filterTab === 'all' ? undefined : filterTab
+        }),
         currenciesAPI.getAll()
       ]);
       setParties(pRes.data.data);
+      setPaginationMeta(pRes.data.meta);
       setCurrencies(cRes.data);
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Cari veriler yüklenemedi");
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Search Debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(1); // Reset page on search
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => { 
     fetchData(); 
+  }, [page, limit, debouncedSearch, sortConfig, filterTab]);
+
+  useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('action') === 'new') {
       setIsModalOpen(true);
@@ -63,46 +93,10 @@ export default function PartiesPage() {
       clearFormData();
       setFormData(prev => ({
         ...prev,
-        currencyId: currencies.find(c => c.isDefault === 1)?.id || ''
+        currencyId: String(currencies.find(c => c.isDefault === 1)?.id || '')
       }));
     }
   }, [location.search]);
-
-  // Gelişmiş Arama Filtresi (Ad, Telefon, Tip)
-  const searchingParties = useMemo(() => {
-    return parties.filter(p => {
-      const searchLower = searchTerm.toLowerCase();
-      const matchName = p.name?.toLowerCase().includes(searchLower);
-      const matchPhone = p.phone1?.toLowerCase().includes(searchLower) || p.phone2?.toLowerCase().includes(searchLower);
-      const typeStr = p.type === 'customer' ? 'müşteri' : p.type === 'provider' ? 'tedarikçi' : 'her ikisi';
-      const matchType = typeStr.includes(searchLower);
-      
-      const tabMatch = filterTab === 'all' || (filterTab === 'active' ? p.state === 1 : p.state === 0);
-      
-      return tabMatch && (matchName || matchPhone || matchType);
-    });
-  }, [parties, searchTerm, filterTab]);
-
-  // Sıralama Mantığı
-  const sortedParties = useMemo(() => {
-    if (!sortConfig) return searchingParties;
-    return [...searchingParties].sort((a, b) => {
-      let aValue = a[sortConfig.key];
-      let bValue = b[sortConfig.key];
-      
-      if (sortConfig.key === 'balance') {
-        aValue = Number(aValue);
-        bValue = Number(bValue);
-      } else {
-        aValue = String(aValue || '').toLocaleLowerCase('tr-TR');
-        bValue = String(bValue || '').toLocaleLowerCase('tr-TR');
-      }
-
-      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
-    });
-  }, [searchingParties, sortConfig]);
 
   const requestSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -113,7 +107,6 @@ export default function PartiesPage() {
   };
 
   const formatPhone = (val: string) => {
-    // Sadece rakamları al
     let digits = val.replace(/\D/g, '');
     if (digits.length > 10) digits = digits.substring(0, 10);
     
@@ -131,9 +124,12 @@ export default function PartiesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.taxNumber && (formData.taxNumber.length < 10 || formData.taxNumber.length > 11)) {
-       toast.error("TC veya Vergi Numarası 10 ya da 11 haneli olmalıdır.");
-       return;
+    if (formData.taxNumber) {
+      const len = formData.taxNumber.length;
+      if (len !== 10 && len !== 11) {
+        toast.error("HATA: Vergi No (VKN) 10 hane, TCKN ise 11 hane olmak zorundadır!");
+        return;
+      }
     }
     
     const cityObj = cities.find(c => c.id === formData.cityId);
@@ -148,7 +144,7 @@ export default function PartiesPage() {
        address: fullAddress,
        currencyId: formData.currencyId ? Number(formData.currencyId) : undefined,
        creditLimitPlus: Number(formData.creditLimit),
-       creditLimitMinus: Number(formData.creditLimit) // Unified limit logic
+       creditLimitMinus: Number(formData.creditLimit)
     };
 
     try {
@@ -157,15 +153,15 @@ export default function PartiesPage() {
       setIsModalOpen(false);
       clearFormData();
       fetchData();
-    } catch (error) {
-      console.error(error);
+      toast.success(editingId ? "Cari güncellendi" : "Yeni cari oluşturuldu");
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "İşlem başarısız");
     }
   };
 
-  const handleEdit = (p: any) => {
+  const handleEdit = (p: Party) => {
     setEditingId(p.id);
     
-    // Telefon parçalama
     let p1 = p.phone1 || '';
     if (p1.startsWith('+')) {
       const parts = p1.split(' ');
@@ -199,24 +195,26 @@ export default function PartiesPage() {
       creditLimit: Number(p.creditLimitPlus) || 0,
       paymentTerms: p.paymentTerms || '',
       notes: p.notes || '',
-      currencyId: p.currencyId || currencies.find(c => c.isDefault === 1)?.id || ''
+      currencyId: String(p.currencyId || currencies.find(c => c.isDefault === 1)?.id || '')
     });
     setIsModalOpen(true);
   };
 
-  const toggleState = async (id: number, currentState: number) => {
-    const party = parties.find(p => p.id === id);
-    if (currentState === 1 && party) {
-      const bal = Number(party.balance);
-      if (bal !== 0) {
-        toast.error("Bakiye 0 olmadığı için bu cari pasife alınamaz (arşivlenemez).", { duration: 5000 });
-        return;
-      }
+  const toggleState = async (p: Party) => {
+    const currentState = p.state;
+    if (currentState === 1 && Number(p.balance) !== 0) {
+      toast.error("Bakiye 0 olmadığı için bu cari pasife alınamaz.", { duration: 5000 });
+      return;
     }
     const confirmed = await confirmDialog(currentState === 1 ? 'Firmayı/Müşteriyi arşivlemek istediğinize emin misiniz?' : 'Hesap tekrar aktif edilecektir. Onaylıyor musunuz?', currentState === 1);
     if (confirmed) {
-      await partiesAPI.toggleState(id, currentState);
-      fetchData();
+      try {
+        await partiesAPI.toggleState(p.id, currentState);
+        fetchData();
+        toast.success("Durum güncellendi");
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || "İşlem başarısız");
+      }
     }
   };
 
@@ -231,9 +229,9 @@ export default function PartiesPage() {
         <div>
           <h2 style={{ color: 'var(--primary)', marginBottom: '10px' }}>Cari Yönetimi</h2>
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button className={`btn ${filterTab === 'active' ? 'btn-primary' : ''}`} onClick={() => setFilterTab('active')}>Aktif Kayıtlar</button>
-            <button className={`btn ${filterTab === 'passive' ? 'btn-primary' : ''}`} onClick={() => setFilterTab('passive')}>Arşiv</button>
-            <button className={`btn ${filterTab === 'all' ? 'btn-primary' : ''}`} onClick={() => setFilterTab('all')}>Tümü</button>
+            <button className={`btn ${filterTab === 'active' ? 'btn-primary' : ''}`} onClick={() => { setFilterTab('active'); setPage(1); }}>Aktif Kayıtlar</button>
+            <button className={`btn ${filterTab === 'passive' ? 'btn-primary' : ''}`} onClick={() => { setFilterTab('passive'); setPage(1); }}>Arşiv</button>
+            <button className={`btn ${filterTab === 'all' ? 'btn-primary' : ''}`} onClick={() => { setFilterTab('all'); setPage(1); }}>Tümü</button>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '15px' }}>
@@ -257,7 +255,7 @@ export default function PartiesPage() {
               creditLimit: 0,
               paymentTerms: '',
               notes: '',
-              currencyId: defaultCurr?.id || ''
+              currencyId: String(defaultCurr?.id || '')
             });
             setPhonePrefix('+90');
             setIsModalOpen(true);
@@ -270,38 +268,69 @@ export default function PartiesPage() {
           <thead>
             <tr>
               <th onClick={() => requestSort('name')} style={{ cursor: 'pointer' }}>Cari Adı {sortIcon('name')}</th>
-              <th>Telefon 1</th>
-              <th>Telefon 2</th>
+              <th>Vergi No</th>
+              <th>İletişim</th>
               <th onClick={() => requestSort('balance')} style={{ cursor: 'pointer' }}>Bakiye {sortIcon('balance')}</th>
-              <th onClick={() => requestSort('type')} style={{ cursor: 'pointer' }}>Cari Tipi {sortIcon('type')}</th>
+              <th>Limit Durumu</th>
               <th>İşlemler</th>
             </tr>
           </thead>
           <tbody>
-            {sortedParties.map((p) => (
+            {parties.map((p) => (
               <tr key={p.id} style={{ opacity: p.state === 0 ? 0.6 : 1 }}>
-                <td><strong>{p.name}</strong></td>
-                <td className="tabular-nums">{p.phone1 || '-'}</td>
-                <td className="tabular-nums">{p.phone2 || '-'}</td>
-                <td className="tabular-nums" style={{ color: p.balance < 0 ? 'var(--error)' : 'var(--success)' }}>
-                  <strong>{Number(p.balance).toLocaleString('tr-TR')} {p.currency?.symbol || '₺'}</strong>
+                <td>
+                  <div style={{ fontWeight: 800 }}>{p.name}</div>
+                  <div style={{ fontSize: '10px', color: 'gray' }}>{p.type === 'customer' ? 'Müşteri' : (p.type === 'provider' ? 'Tedarikçi' : 'Her İkisi')}</div>
+                </td>
+                <td><span className="badge badge-outline">{p.taxNumber || '—'}</span></td>
+                <td>
+                  <div style={{ display: 'flex', flexDirection: 'column', fontSize: '12px' }}>
+                    <span>{p.phone1}</span>
+                    <span style={{ color: 'gray', textTransform: 'lowercase' }}>{p.email}</span>
+                  </div>
+                </td>
+                <td className={`tabular-nums ${Number(p.balance) > 0 ? 'text-danger' : 'text-success'}`} style={{ fontWeight: 700 }}>
+                  {Number(p.balance).toLocaleString('tr-TR')} {p.currency?.symbol || '₺'}
                 </td>
                 <td>
-                  <span className="badge" style={{ background: p.type === 'customer' ? 'var(--primary-glow)' : 'var(--accent-amber-glow)', color: p.type === 'customer' ? 'var(--primary)' : 'var(--accent-amber)' }}>
-                    {p.type === 'customer' ? 'MÜŞTERİ' : p.type === 'provider' ? 'TEDARİKÇİ' : 'HEM MÜŞTERİ HEM TEDARİKÇİ'}
-                  </span>
+                   <div className="limit-progress" style={{ width: '100px', height: '6px', background: '#e2e8f0', borderRadius: '3px', position:'relative', overflow:'hidden' }}>
+                      <div style={{ 
+                        width: `${Math.min(100, (Number(p.balance) / (Number(p.creditLimitPlus) || 1)) * 100)}%`, 
+                        height:'100%', 
+                        background: Number(p.balance) > (Number(p.creditLimitPlus) || 0) * 0.9 ? 'var(--error)' : 'var(--primary)' 
+                      }} />
+                   </div>
+                   <div style={{ fontSize: '9px', marginTop: '4px', color: 'gray' }}>{Number(p.creditLimitPlus).toLocaleString('tr-TR')} {p.currency?.symbol || '₺'} limit</div>
                 </td>
                 <td style={{ display: 'flex', gap: '5px' }}>
-                  <button className="btn-icon" onClick={() => handleEdit(p)}><FiEdit2 size={16} /></button>
-                  <button className="btn-icon" style={{ color: p.state === 1 ? 'var(--error)' : 'var(--success)' }} onClick={() => toggleState(p.id, p.state)}>
+                  <button className="btn-icon" onClick={() => handleEdit(p)} title="Düzenle"><FiEdit2 size={16} /></button>
+                  <button className="btn-icon" onClick={() => toggleState(p)} title={p.state === 1 ? 'Arşivle' : 'Aktif Et'} style={{ color: p.state === 1 ? 'var(--error)' : 'var(--success)' }}>
                     {p.state === 1 ? <FiArchive size={16} /> : <FiRefreshCw size={16} />}
                   </button>
                 </td>
               </tr>
             ))}
-            {sortedParties.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center' }}>Kayıt bulunamadı.</td></tr>}
+            {parties.length === 0 && !loading && (
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: 'gray' }}>Kayıt bulunamadı.</td>
+              </tr>
+            )}
+            {loading && (
+               <tr>
+                <td colSpan={6} style={{ textAlign: 'center', padding: '30px' }}>
+                  <div className="spinner" style={{ margin: '0 auto' }}></div>
+                  <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--primary)' }}>Yükleniyor...</div>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
+        <PaginationControls 
+          meta={paginationMeta} 
+          onPageChange={setPage} 
+          onLimitChange={setLimit} 
+          loading={loading}
+        />
       </div>
 
       {isModalOpen && (
@@ -350,14 +379,14 @@ export default function PartiesPage() {
                 <div className="form-group">
                   <label>İl</label>
                   <select className="uppercase-input" value={formData.cityId} onChange={e => setFormData({...formData, cityId: Number(e.target.value), districtName: ''})}>
-                    <option value={0}>Seçiniz</option>
+                    <option value={0}>Lütfen Seçiniz</option>
                     {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div className="form-group">
                   <label>İlçe</label>
                   <select className="uppercase-input" value={formData.districtName} onChange={e => setFormData({...formData, districtName: e.target.value})} disabled={!formData.cityId}>
-                    <option value="">Seçiniz</option>
+                    <option value="">Lütfen Seçiniz</option>
                     {districts.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
                   </select>
                 </div>
@@ -368,9 +397,12 @@ export default function PartiesPage() {
                 <textarea required className="uppercase-input" style={{ height: '60px' }} value={formData.addressDetail} onChange={e => setFormData({...formData, addressDetail: e.target.value.toLocaleUpperCase('tr-TR')})} />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.8fr', gap: '15px' }}>
                 <div className="form-group">
-                  <label>TCKN / Vergi No</label>
+                  <label>
+                    Vergi (VKN) / TCKN 
+                    {formData.taxNumber.length === 10 ? ' (VKN)' : formData.taxNumber.length === 11 ? ' (TCKN)' : ''}
+                  </label>
                   <input maxLength={11} className="uppercase-input tabular-nums" value={formData.taxNumber} onChange={e => setFormData({...formData, taxNumber: onlyNumbers(e.target.value)})} />
                 </div>
                 <div className="form-group">
@@ -380,12 +412,13 @@ export default function PartiesPage() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>Risk Limiti (Opsiyonel)</label>
-                  <input type="number" className="uppercase-input tabular-nums" value={formData.creditLimit} onChange={e => setFormData({...formData, creditLimit: Number(e.target.value)})} />
-                  <div style={{ display: 'flex', gap: '5px', marginTop: '5px' }}>
-                    <button type="button" className="btn btn-icon" style={{ fontSize: '10px', height: '24px' }} onClick={() => setFormData(p => ({...p, creditLimit: Number(p.creditLimit) + 1000}))}>+1K</button>
-                    <button type="button" className="btn btn-icon" style={{ fontSize: '10px', height: '24px' }} onClick={() => setFormData(p => ({...p, creditLimit: Number(p.creditLimit) + 10000}))}>+10K</button>
-                    <button type="button" className="btn btn-icon" style={{ fontSize: '10px', height: '24px', color: 'red' }} onClick={() => setFormData(p => ({...p, creditLimit: Math.max(0, Number(p.creditLimit) - 1000)}))}>-1K</button>
+                  <label>Kritik Limit</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--surface-container-low)', padding: '4px', borderRadius: '14px', border: '1px solid var(--border)' }}>
+                    <button type="button" className="btn btn-icon" onClick={() => setFormData(p => ({...p, creditLimit: Math.max(0, Number(p.creditLimit) - 10000)}))}>-10K</button>
+                    <button type="button" className="btn btn-icon" onClick={() => setFormData(p => ({...p, creditLimit: Math.max(0, Number(p.creditLimit) - 1000)}))}>-1K</button>
+                    <input type="number" className="uppercase-input tabular-nums" style={{ flex: 1, textAlign: 'center', margin: 0, border: 'none', background: 'transparent', fontWeight: 800, fontSize: '1.1rem' }} value={formData.creditLimit} onChange={e => setFormData({...formData, creditLimit: Number(e.target.value)})} />
+                    <button type="button" className="btn btn-icon" onClick={() => setFormData(p => ({...p, creditLimit: Number(p.creditLimit) + 1000}))}>+1K</button>
+                    <button type="button" className="btn btn-icon" onClick={() => setFormData(p => ({...p, creditLimit: Number(p.creditLimit) + 10000}))}>+10K</button>
                   </div>
                 </div>
               </div>

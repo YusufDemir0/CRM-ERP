@@ -90,7 +90,42 @@ let ItemsService = class ItemsService {
     }
     async update(id, dto, userId) {
         const item = await this.findOne(id);
-        Object.assign(item, dto);
+        if (dto.name !== undefined)
+            item.name = dto.name;
+        if (dto.itemTypeId !== undefined)
+            item.itemTypeId = dto.itemTypeId;
+        if (dto.itemCodeGroupId !== undefined)
+            item.itemCodeGroupId = dto.itemCodeGroupId;
+        if (dto.code !== undefined)
+            item.code = dto.code;
+        if (dto.code1 !== undefined)
+            item.code1 = dto.code1;
+        if (dto.code2 !== undefined)
+            item.code2 = dto.code2;
+        if (dto.criticalLimit !== undefined)
+            item.criticalLimit = dto.criticalLimit;
+        if (dto.image !== undefined)
+            item.image = dto.image;
+        if (dto.purchasePrice !== undefined)
+            item.purchasePrice = dto.purchasePrice;
+        if (dto.salePrice !== undefined)
+            item.salePrice = dto.salePrice;
+        if (dto.netPrice !== undefined)
+            item.netPrice = dto.netPrice;
+        if (dto.currencyId !== undefined)
+            item.currencyId = dto.currencyId;
+        if (dto.quantityTypeId !== undefined)
+            item.quantityTypeId = dto.quantityTypeId;
+        if (dto.kdv !== undefined)
+            item.kdv = dto.kdv;
+        if (dto.description !== undefined)
+            item.description = dto.description;
+        if (dto.notes !== undefined)
+            item.notes = dto.notes;
+        if (dto.providerId !== undefined)
+            item.providerId = dto.providerId;
+        if (dto.state !== undefined)
+            item.state = dto.state;
         item.updatedBy = userId || null;
         return this.itemRepo.save(item);
     }
@@ -115,7 +150,12 @@ let ItemsService = class ItemsService {
                 throw new common_1.BadRequestException(`Bu türde ${activeItems} adet aktif ürün bulunduğu için pasife alınamaz.`);
             }
         }
-        Object.assign(type, dto);
+        if (dto.name !== undefined)
+            type.name = dto.name;
+        if (dto.abbreviation !== undefined)
+            type.abbreviation = dto.abbreviation;
+        if (dto.state !== undefined)
+            type.state = dto.state;
         type.updatedBy = userId || null;
         return this.itemTypeRepo.save(type);
     }
@@ -143,7 +183,12 @@ let ItemsService = class ItemsService {
                 throw new common_1.BadRequestException(`Bu grupta ${activeItems} adet aktif ürün bulunduğu için pasife alınamaz.`);
             }
         }
-        Object.assign(group, dto);
+        if (dto.name !== undefined)
+            group.name = dto.name;
+        if (dto.prefix !== undefined)
+            group.prefix = dto.prefix;
+        if (dto.state !== undefined)
+            group.state = dto.state;
         group.updatedBy = userId || null;
         return this.codeGroupRepo.save(group);
     }
@@ -160,6 +205,32 @@ let ItemsService = class ItemsService {
     async createQuantityType(dto, userId) {
         const type = this.qtyTypeRepo.create({ ...dto, createdBy: userId });
         return this.qtyTypeRepo.save(type);
+    }
+    async updateQuantityType(id, dto, userId) {
+        const type = await this.qtyTypeRepo.findOne({ where: { id } });
+        if (!type)
+            throw new common_1.NotFoundException('Birim bulunamadı');
+        if (dto.state === 0) {
+            const activeItems = await this.itemRepo.count({ where: { quantityTypeId: id, state: 1 } });
+            if (activeItems > 0) {
+                throw new common_1.BadRequestException(`Bu birimi kullanan ${activeItems} adet aktif ürün bulunduğu için pasife alınamaz.`);
+            }
+        }
+        if (dto.name !== undefined)
+            type.name = dto.name;
+        if (dto.abbreviation !== undefined)
+            type.abbreviation = dto.abbreviation;
+        if (dto.state !== undefined)
+            type.state = dto.state;
+        type.updatedBy = userId || null;
+        return this.qtyTypeRepo.save(type);
+    }
+    async softDeleteQuantityType(id) {
+        const activeItems = await this.itemRepo.count({ where: { quantityTypeId: id, state: 1 } });
+        if (activeItems > 0) {
+            throw new common_1.BadRequestException('Bu birimi kullanan aktif ürünler bulunduğu için silinemez.');
+        }
+        await this.qtyTypeRepo.softDelete(id);
     }
     async getStatus() {
         const [active, passive, lowStock] = await Promise.all([

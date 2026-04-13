@@ -50,7 +50,28 @@ let PartiesService = class PartiesService {
     }
     async update(id, dto, userId) {
         const party = await this.findOne(id);
-        Object.assign(party, dto);
+        if (dto.name !== undefined)
+            party.name = dto.name;
+        if (dto.type !== undefined)
+            party.type = dto.type;
+        if (dto.phone1 !== undefined)
+            party.phone1 = dto.phone1;
+        if (dto.phone2 !== undefined)
+            party.phone2 = dto.phone2;
+        if (dto.taxNumber !== undefined)
+            party.taxNumber = dto.taxNumber;
+        if (dto.email !== undefined)
+            party.email = dto.email;
+        if (dto.address !== undefined)
+            party.address = dto.address;
+        if (dto.paymentTerms !== undefined)
+            party.paymentTerms = dto.paymentTerms;
+        if (dto.currencyId !== undefined)
+            party.currencyId = dto.currencyId;
+        if (dto.notes !== undefined)
+            party.notes = dto.notes;
+        if (dto.state !== undefined)
+            party.state = dto.state;
         party.updatedBy = userId || null;
         return this.partyRepo.save(party);
     }

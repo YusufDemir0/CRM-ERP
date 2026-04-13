@@ -1,3 +1,9 @@
+import { PaginationDto } from '../../../common/dto/pagination.dto';
+export declare class BomQueryDto extends PaginationDto {
+}
+export declare class ProductionOrderQueryDto extends PaginationDto {
+    status?: string;
+}
 export declare class CreateBomItemDto {
     itemId: number;
     quantity: number;

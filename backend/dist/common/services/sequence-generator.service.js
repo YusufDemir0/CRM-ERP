@@ -9,77 +9,123 @@ var SequenceGeneratorService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SequenceGeneratorService = void 0;
 const common_1 = require("@nestjs/common");
+const item_code_group_entity_1 = require("../../modules/inventory/items/entities/item-code-group.entity");
+const item_code_sequence_entity_1 = require("../../modules/inventory/items/entities/item-code-sequence.entity");
+const sale_type_entity_1 = require("../../modules/sales/entities/sale-type.entity");
+const sale_sequence_entity_1 = require("../../modules/sales/entities/sale-sequence.entity");
+const production_sequence_entity_1 = require("../../modules/production/entities/production-sequence.entity");
+const transaction_sequence_entity_1 = require("../../modules/finance/transactions/entities/transaction-sequence.entity");
 let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGeneratorService {
     constructor() {
         this.logger = new common_1.Logger(SequenceGeneratorService_1.name);
     }
     async generateItemCode(queryRunner, itemCodeGroupId) {
-        const codeGroup = await queryRunner.query(`SELECT prefix FROM item_code_groups WHERE id = ? AND deleted_at IS NULL`, [itemCodeGroupId]);
-        if (!codeGroup || codeGroup.length === 0) {
-            throw new Error(`Item code group bulunamadı: ${itemCodeGroupId}`);
+        const codeGroup = await queryRunner.manager.findOne(item_code_group_entity_1.ItemCodeGroup, {
+            where: { id: itemCodeGroupId },
+        });
+        if (!codeGroup) {
+            throw new common_1.NotFoundException(`Item code group bulunamadı: ${itemCodeGroupId}`);
         }
-        const prefix = codeGroup[0].prefix;
-        const sequences = await queryRunner.query(`SELECT id, current_number FROM item_code_sequences WHERE item_code_group_id = ? FOR UPDATE`, [itemCodeGroupId]);
+        const prefix = codeGroup.prefix;
+        let sequence = await queryRunner.manager.findOne(item_code_sequence_entity_1.ItemCodeSequence, {
+            where: { itemCodeGroupId },
+            lock: { mode: 'pessimistic_write' },
+        });
         let currentNumber;
-        if (sequences.length === 0) {
-            await queryRunner.query(`INSERT INTO item_code_sequences (item_code_group_id, current_number) VALUES (?, 1)`, [itemCodeGroupId]);
+        if (!sequence) {
+            sequence = queryRunner.manager.create(item_code_sequence_entity_1.ItemCodeSequence, {
+                itemCodeGroupId,
+                currentNumber: 1,
+            });
+            await queryRunner.manager.save(sequence);
             currentNumber = 1;
         }
         else {
-            currentNumber = sequences[0].current_number;
+            currentNumber = sequence.currentNumber;
         }
         const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
-        await queryRunner.query(`UPDATE item_code_sequences SET current_number = current_number + 1 WHERE item_code_group_id = ?`, [itemCodeGroupId]);
+        await queryRunner.manager.update(item_code_sequence_entity_1.ItemCodeSequence, sequence.id, {
+            currentNumber: currentNumber + 1,
+        });
         this.logger.debug(`Generated item code: ${code}`);
         return code;
     }
     async generateSaleCode(queryRunner, saleTypeId) {
-        const saleType = await queryRunner.query(`SELECT abbreviation FROM sale_types WHERE id = ? AND deleted_at IS NULL`, [saleTypeId]);
-        if (!saleType || saleType.length === 0) {
-            throw new Error(`Sale type bulunamadı: ${saleTypeId}`);
+        const saleType = await queryRunner.manager.findOne(sale_type_entity_1.SaleType, {
+            where: { id: saleTypeId },
+        });
+        if (!saleType) {
+            throw new common_1.NotFoundException(`Sale type bulunamadı: ${saleTypeId}`);
         }
-        const prefix = saleType[0].abbreviation;
-        const sequences = await queryRunner.query(`SELECT id, current_number FROM sale_sequences WHERE sale_type_id = ? FOR UPDATE`, [saleTypeId]);
+        const prefix = saleType.abbreviation;
+        let sequence = await queryRunner.manager.findOne(sale_sequence_entity_1.SaleSequence, {
+            where: { saleTypeId },
+            lock: { mode: 'pessimistic_write' },
+        });
         let currentNumber;
-        if (sequences.length === 0) {
-            await queryRunner.query(`INSERT INTO sale_sequences (sale_type_id, current_number) VALUES (?, 1)`, [saleTypeId]);
+        if (!sequence) {
+            sequence = queryRunner.manager.create(sale_sequence_entity_1.SaleSequence, {
+                saleTypeId,
+                currentNumber: 1,
+            });
+            await queryRunner.manager.save(sequence);
             currentNumber = 1;
         }
         else {
-            currentNumber = sequences[0].current_number;
+            currentNumber = sequence.currentNumber;
         }
         const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
-        await queryRunner.query(`UPDATE sale_sequences SET current_number = current_number + 1 WHERE sale_type_id = ?`, [saleTypeId]);
+        await queryRunner.manager.update(sale_sequence_entity_1.SaleSequence, sequence.id, {
+            currentNumber: currentNumber + 1,
+        });
         this.logger.debug(`Generated sale code: ${code}`);
         return code;
     }
     async generateProductionCode(queryRunner, prefix = 'URT') {
-        const sequences = await queryRunner.query(`SELECT id, current_number FROM production_sequences WHERE prefix = ? FOR UPDATE`, [prefix]);
+        let sequence = await queryRunner.manager.findOne(production_sequence_entity_1.ProductionSequence, {
+            where: { prefix },
+            lock: { mode: 'pessimistic_write' },
+        });
         let currentNumber;
-        if (sequences.length === 0) {
-            await queryRunner.query(`INSERT INTO production_sequences (prefix, current_number) VALUES (?, 1)`, [prefix]);
+        if (!sequence) {
+            sequence = queryRunner.manager.create(production_sequence_entity_1.ProductionSequence, {
+                prefix,
+                currentNumber: 1,
+            });
+            await queryRunner.manager.save(sequence);
             currentNumber = 1;
         }
         else {
-            currentNumber = sequences[0].current_number;
+            currentNumber = sequence.currentNumber;
         }
         const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
-        await queryRunner.query(`UPDATE production_sequences SET current_number = current_number + 1 WHERE prefix = ?`, [prefix]);
+        await queryRunner.manager.update(production_sequence_entity_1.ProductionSequence, sequence.id, {
+            currentNumber: currentNumber + 1,
+        });
         this.logger.debug(`Generated production code: ${code}`);
         return code;
     }
     async generateTransactionCode(queryRunner, prefix) {
-        const sequences = await queryRunner.query(`SELECT id, current_number FROM transaction_sequences WHERE prefix = ? FOR UPDATE`, [prefix]);
+        let sequence = await queryRunner.manager.findOne(transaction_sequence_entity_1.TransactionSequence, {
+            where: { prefix },
+            lock: { mode: 'pessimistic_write' },
+        });
         let currentNumber;
-        if (sequences.length === 0) {
-            await queryRunner.query(`INSERT INTO transaction_sequences (prefix, current_number) VALUES (?, 1)`, [prefix]);
+        if (!sequence) {
+            sequence = queryRunner.manager.create(transaction_sequence_entity_1.TransactionSequence, {
+                prefix,
+                currentNumber: 1,
+            });
+            await queryRunner.manager.save(sequence);
             currentNumber = 1;
         }
         else {
-            currentNumber = sequences[0].current_number;
+            currentNumber = sequence.currentNumber;
         }
         const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
-        await queryRunner.query(`UPDATE transaction_sequences SET current_number = current_number + 1 WHERE prefix = ?`, [prefix]);
+        await queryRunner.manager.update(transaction_sequence_entity_1.TransactionSequence, sequence.id, {
+            currentNumber: currentNumber + 1,
+        });
         this.logger.debug(`Generated transaction code: ${code}`);
         return code;
     }

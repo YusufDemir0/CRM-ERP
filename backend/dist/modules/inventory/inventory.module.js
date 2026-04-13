@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.InventoryModule = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
+const finance_module_1 = require("../finance/finance.module");
 const items_controller_1 = require("./items/items.controller");
 const items_service_1 = require("./items/items.service");
 const stocks_controller_1 = require("./stocks/stocks.controller");
@@ -29,6 +30,7 @@ exports.InventoryModule = InventoryModule = __decorate([
     (0, common_1.Module)({
         imports: [
             typeorm_1.TypeOrmModule.forFeature([item_entity_1.Item, item_type_entity_1.ItemType, item_sequence_entity_1.ItemSequence, item_code_group_entity_1.ItemCodeGroup, item_code_sequence_entity_1.ItemCodeSequence, quantity_type_entity_1.QuantityType, stock_entity_1.Stock, stock_movement_entity_1.StockMovement]),
+            finance_module_1.FinanceModule,
         ],
         controllers: [items_controller_1.ItemsController, stocks_controller_1.StocksController],
         providers: [items_service_1.ItemsService, stocks_service_1.StocksService, sequence_generator_service_1.SequenceGeneratorService],

@@ -49,6 +49,14 @@ export class ItemsController {
   @Post('quantity-types')
   createQuantityType(@Body() dto: CreateQuantityTypeDto, @CurrentUser('sub') userId: number) { return this.itemsService.createQuantityType(dto, userId); }
 
+  @Put('quantity-types/:id')
+  updateQuantityType(@Param('id', ParseIntPipe) id: number, @Body() dto: any, @CurrentUser('sub') userId: number) {
+    return this.itemsService.updateQuantityType(id, dto, userId);
+  }
+
+  @Delete('quantity-types/:id')
+  removeQuantityType(@Param('id', ParseIntPipe) id: number) { return this.itemsService.softDeleteQuantityType(id); }
+
   @Put('types/:id')
   @RequirePermissions('stok_duzenleme')
   updateItemType(@Param('id', ParseIntPipe) id: number, @Body() dto: any, @CurrentUser('sub') userId: number) {

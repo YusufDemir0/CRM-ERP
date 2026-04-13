@@ -3,11 +3,13 @@ import { Stock } from './entities/stock.entity';
 import { StockMovement } from './entities/stock-movement.entity';
 import { StockAdjustmentDto, TransferStockDto } from '../dto/inventory.dto';
 import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
+import { SequenceGeneratorService } from '../../../common/services/sequence-generator.service';
 export declare class StocksService {
     private stockRepo;
     private movementRepo;
     private dataSource;
-    constructor(stockRepo: Repository<Stock>, movementRepo: Repository<StockMovement>, dataSource: DataSource);
+    private sequenceGenerator;
+    constructor(stockRepo: Repository<Stock>, movementRepo: Repository<StockMovement>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService);
     findAll(query: PaginationDto & {
         departmentId?: number;
         itemId?: number;

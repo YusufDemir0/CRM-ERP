@@ -11,6 +11,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TransactionsService = void 0;
 const common_1 = require("@nestjs/common");
@@ -20,6 +23,8 @@ const transaction_entity_1 = require("./entities/transaction.entity");
 const party_entity_1 = require("../../parties/entities/party.entity");
 const currency_entity_1 = require("../currencies/entities/currency.entity");
 const sequence_generator_service_1 = require("../../../common/services/sequence-generator.service");
+const date_utils_1 = require("../../../common/utils/date.utils");
+const dayjs_1 = __importDefault(require("dayjs"));
 let TransactionsService = class TransactionsService {
     constructor(txRepo, dataSource, sequenceGenerator) {
         this.txRepo = txRepo;
@@ -121,14 +126,12 @@ let TransactionsService = class TransactionsService {
         }
     }
     async getStatus() {
-        const firstDayOfMonth = new Date();
-        firstDayOfMonth.setDate(1);
-        firstDayOfMonth.setHours(0, 0, 0, 0);
+        const firstDayOfMonth = (0, dayjs_1.default)().startOf('month').toDate();
         const stats = await this.txRepo.createQueryBuilder('tx')
             .select("SUM(CASE WHEN tx.type = 'in' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "income")
             .addSelect("SUM(CASE WHEN tx.type = 'out' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "expense")
             .addSelect("COUNT(*)", "count")
-            .where("tx.date >= :date", { date: firstDayOfMonth.toISOString().split('T')[0] })
+            .where("tx.date >= :date", { date: date_utils_1.DateUtils.formatDate(firstDayOfMonth) })
             .andWhere("tx.status != 'cancelled'")
             .getRawOne();
         return {
@@ -139,13 +142,12 @@ let TransactionsService = class TransactionsService {
         };
     }
     async getDailyTrends() {
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const sevenDaysAgo = (0, dayjs_1.default)().subtract(7, 'day').toDate();
         return await this.txRepo.createQueryBuilder('tx')
             .select("DATE(tx.date)", "day")
             .addSelect("SUM(CASE WHEN tx.type = 'in' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "income")
             .addSelect("SUM(CASE WHEN tx.type = 'out' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "expense")
-            .where("tx.date >= :date", { date: sevenDaysAgo.toISOString().split('T')[0] })
+            .where("tx.date >= :date", { date: date_utils_1.DateUtils.formatDate(sevenDaysAgo) })
             .andWhere("tx.status != 'cancelled'")
             .groupBy("DATE(tx.date)")
             .orderBy("day", "ASC")

@@ -4,7 +4,7 @@ import { FiSave, FiSettings, FiDollarSign, FiHome, FiHash, FiPlus, FiTrash2, FiS
 import toast from 'react-hot-toast';
 import { confirmDialog } from '../../utils/confirmDialog';
 
-type TabType = 'general' | 'currencies' | 'item-groups';
+type TabType = 'general' | 'currencies' | 'item-groups' | 'quantity-types';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('general');
@@ -12,21 +12,25 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currencies, setCurrencies] = useState<any[]>([]);
   const [codeGroups, setCodeGroups] = useState<any[]>([]);
+  const [quantityTypes, setQuantityTypes] = useState<any[]>([]);
 
   // Form states
   const [newCurrency, setNewCurrency] = useState({ code: '', symbol: '', name: '' });
   const [newGroup, setNewGroup] = useState({ name: '', prefix: '' });
+  const [newQtyType, setNewQtyType] = useState({ name: '', abbreviation: '' });
 
   const fetchData = async () => {
     try {
-      const [sets, currs, groups] = await Promise.all([
+      const [sets, currs, groups, qTypes] = await Promise.all([
         settingsAPI.getAll(),
         currenciesAPI.getAll(),
-        itemsAPI.getCodeGroups()
+        itemsAPI.getCodeGroups(),
+        itemsAPI.getQuantityTypes()
       ]);
       setSettings(sets.data);
       setCurrencies(currs.data || []);
       setCodeGroups(groups.data || []);
+      setQuantityTypes(Array.from(new Map((qTypes.data || []).map((q: any) => [q.name.toLowerCase().trim(), q])).values()));
     } catch (error) {
       console.error(error);
       toast.error('Veriler yüklenemedi.');
@@ -83,9 +87,41 @@ export default function SettingsPage() {
           await itemsAPI.updateCodeGroup(id, { state: state === 1 ? 0 : 1 });
           fetchData();
           toast.success('Durum güncellendi');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Hata');
+    }
+  };
+
+  const handleAddQtyType = async () => {
+    if (!newQtyType.name || !newQtyType.abbreviation) return toast.error('Eksik bilgi');
+    try {
+      await itemsAPI.createQuantityType(newQtyType);
+      setNewQtyType({ name: '', abbreviation: '' });
+      fetchData();
+      toast.success('Birim eklendi');
+    } catch (err: any) { toast.error(err.response?.data?.message || 'Hata'); }
+  };
+
+  const toggleQtyTypeState = async (id: number, state: number) => {
+    try {
+      await itemsAPI.updateQuantityType(id, { state: state === 1 ? 0 : 1 });
+      fetchData();
+      toast.success('Durum güncellendi');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Hata');
+    }
+  };
+
+  const handleDeleteQtyType = async (id: number) => {
+    if (await confirmDialog('Bu birimi silmek istediğinize emin misiniz?', true)) {
+      try {
+        await itemsAPI.deleteQuantityType(id);
+        fetchData();
+        toast.success('Birim silindi');
       } catch (err: any) {
-          toast.error(err.response?.data?.message || 'Hata');
+        toast.error(err.response?.data?.message || 'Hata');
       }
+    }
   };
 
   if (isLoading) return <div className="page-container"><div className="spinner" /></div>;
@@ -107,8 +143,11 @@ export default function SettingsPage() {
           <button className={`btn ${activeTab === 'currencies' ? 'btn-primary' : ''}`} style={{ width: '100%', justifyContent: 'flex-start', marginBottom: '5px' }} onClick={() => setActiveTab('currencies')}>
             <FiDollarSign style={{ marginRight: '10px' }} /> Para Birimleri
           </button>
-          <button className={`btn ${activeTab === 'item-groups' ? 'btn-primary' : ''}`} style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => setActiveTab('item-groups')}>
+          <button className={`btn ${activeTab === 'item-groups' ? 'btn-primary' : ''}`} style={{ width: '100%', justifyContent: 'flex-start', marginBottom: '5px' }} onClick={() => setActiveTab('item-groups')}>
             <FiHash style={{ marginRight: '10px' }} /> Ürün Kod Grupları
+          </button>
+          <button className={`btn ${activeTab === 'quantity-types' ? 'btn-primary' : ''}`} style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => setActiveTab('quantity-types')}>
+            <FiSettings style={{ marginRight: '10px' }} /> Ürün Birimleri
           </button>
         </div>
 
@@ -205,6 +244,41 @@ export default function SettingsPage() {
               </div>
               <div style={{ marginTop: '15px', color: 'var(--text-muted)', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                  <FiAlertTriangle /> Pasife alabilmek için bu grupta aktif ürünler olmamalıdır.
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'quantity-types' && (
+            <div>
+              <h4 style={{ marginBottom: '20px', color: 'var(--primary)' }}>Ürün Birimleri (Kg, Adet vb.)</h4>
+              <div className="table-card" style={{ marginBottom: '20px' }}>
+                <table>
+                  <thead>
+                    <tr><th>Birim Adı</th><th>Kısaltma</th><th>Durum</th><th>İşlemler</th></tr>
+                  </thead>
+                  <tbody>
+                    {quantityTypes.map(q => (
+                      <tr key={q.id} style={{ opacity: q.state === 0 ? 0.6 : 1 }}>
+                        <td><strong>{q.name}</strong></td>
+                        <td><span className="badge">{q.abbreviation}</span></td>
+                        <td>{q.state === 1 ? 'Aktif' : 'Pasif'}</td>
+                        <td style={{ display: 'flex', gap: '5px' }}>
+                          <button className="btn-icon" style={{ color: q.state === 1 ? 'var(--error)' : 'var(--success)' }} onClick={() => toggleQtyTypeState(q.id, q.state)} title="Durumu Değiştir">
+                            {q.state === 1 ? <FiArchive /> : <FiRefreshCw />}
+                          </button>
+                          <button className="btn-icon" style={{ color: 'var(--error)' }} onClick={() => handleDeleteQtyType(q.id)} title="Sil">
+                            <FiTrash2 />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '10px', background: '#f8fafc', padding: '15px', borderRadius: '12px' }}>
+                <input placeholder="Birim Adı (Örn: Kilogram)" value={newQtyType.name} onChange={e => setNewQtyType({...newQtyType, name: e.target.value.toLocaleUpperCase('tr-TR')})} />
+                <input placeholder="Kısaltma (Örn: Kg)" value={newQtyType.abbreviation} onChange={e => setNewQtyType({...newQtyType, abbreviation: e.target.value})} />
+                <button className="btn btn-primary" onClick={handleAddQtyType}><FiPlus /></button>
               </div>
             </div>
           )}

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { FinanceModule } from '../finance/finance.module';
 import { ItemsController } from './items/items.controller';
 import { ItemsService } from './items/items.service';
 import { StocksController } from './stocks/stocks.controller';
@@ -17,6 +18,7 @@ import { SequenceGeneratorService } from '../../common/services/sequence-generat
 @Module({
   imports: [
     TypeOrmModule.forFeature([Item, ItemType, ItemSequence, ItemCodeGroup, ItemCodeSequence, QuantityType, Stock, StockMovement]),
+    FinanceModule,
   ],
   controllers: [ItemsController, StocksController],
   providers: [ItemsService, StocksService, SequenceGeneratorService],

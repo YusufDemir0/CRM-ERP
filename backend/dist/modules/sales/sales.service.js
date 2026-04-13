@@ -11,6 +11,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 var SalesService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SalesService = void 0;
@@ -26,6 +29,9 @@ const party_entity_1 = require("../parties/entities/party.entity");
 const currency_entity_1 = require("../finance/currencies/entities/currency.entity");
 const transaction_entity_1 = require("../finance/transactions/entities/transaction.entity");
 const sequence_generator_service_1 = require("../../common/services/sequence-generator.service");
+const finance_helper_1 = require("../../common/utils/finance.helper");
+const date_utils_1 = require("../../common/utils/date.utils");
+const dayjs_1 = __importDefault(require("dayjs"));
 let SalesService = SalesService_1 = class SalesService {
     constructor(saleRepo, saleItemRepo, saleTypeRepo, dataSource, sequenceGenerator) {
         this.saleRepo = saleRepo;
@@ -94,13 +100,16 @@ let SalesService = SalesService_1 = class SalesService {
             for (const itemDto of dto.items) {
                 const discountAmount = itemDto.discountAmount || 0;
                 const discountPercent = itemDto.discountPercent || 0;
-                let netPrice = itemDto.price;
-                if (discountAmount > 0)
-                    netPrice = itemDto.price - discountAmount;
-                else if (discountPercent > 0)
-                    netPrice = itemDto.price * (1 - discountPercent / 100);
-                const subtotal = itemDto.quantity * netPrice;
-                rawTotalAmount += subtotal;
+                let netPrice = Number(itemDto.price);
+                if (discountAmount > 0) {
+                    netPrice = finance_helper_1.FinanceHelper.sub(netPrice, discountAmount);
+                }
+                else if (discountPercent > 0) {
+                    const discount = finance_helper_1.FinanceHelper.mul(netPrice, discountPercent / 100);
+                    netPrice = finance_helper_1.FinanceHelper.sub(netPrice, discount);
+                }
+                const subtotal = finance_helper_1.FinanceHelper.mul(itemDto.quantity, netPrice);
+                rawTotalAmount = finance_helper_1.FinanceHelper.add(rawTotalAmount, subtotal);
                 saleItems.push({
                     itemId: itemDto.itemId,
                     quantity: itemDto.quantity,
@@ -117,19 +126,19 @@ let SalesService = SalesService_1 = class SalesService {
             const headerDiscountPercent = dto.discountPercent || 0;
             let discountToSubtract = headerDiscountAmount;
             if (headerDiscountPercent > 0) {
-                discountToSubtract = rawTotalAmount * (headerDiscountPercent / 100);
+                discountToSubtract = finance_helper_1.FinanceHelper.mul(rawTotalAmount, headerDiscountPercent / 100);
             }
-            const discountedMatrah = rawTotalAmount - discountToSubtract;
+            const discountedMatrah = finance_helper_1.FinanceHelper.sub(rawTotalAmount, discountToSubtract);
             let totalKdv = 0;
             saleItems.forEach(item => {
-                const lineRatio = rawTotalAmount > 0 ? (item.quantity * item.netPrice) / rawTotalAmount : 0;
-                const lineMatrah = discountedMatrah * lineRatio;
-                const lineKdv = lineMatrah * (item.kdvRate / 100);
+                const lineRatio = rawTotalAmount > 0 ? finance_helper_1.FinanceHelper.div(finance_helper_1.FinanceHelper.mul(item.quantity, item.netPrice), rawTotalAmount, 6) : 0;
+                const lineMatrah = finance_helper_1.FinanceHelper.mul(discountedMatrah, lineRatio);
+                const lineKdv = finance_helper_1.FinanceHelper.calculateKdv(lineMatrah, item.kdvRate);
                 item.kdvAmount = lineKdv;
-                item.lineTotal = lineMatrah + lineKdv;
-                totalKdv += lineKdv;
+                item.lineTotal = finance_helper_1.FinanceHelper.add(lineMatrah, lineKdv);
+                totalKdv = finance_helper_1.FinanceHelper.add(totalKdv, lineKdv);
             });
-            const grandTotal = discountedMatrah + totalKdv;
+            const grandTotal = finance_helper_1.FinanceHelper.add(discountedMatrah, totalKdv);
             const sale = queryRunner.manager.create(sale_entity_1.Sale, {
                 code,
                 partyId: dto.partyId,
@@ -182,12 +191,15 @@ let SalesService = SalesService_1 = class SalesService {
                 for (const itemDto of dto.items) {
                     const discountAmount = itemDto.discountAmount || 0;
                     const discountPercent = itemDto.discountPercent || 0;
-                    let netPrice = itemDto.price;
-                    if (discountAmount > 0)
-                        netPrice = itemDto.price - discountAmount;
-                    else if (discountPercent > 0)
-                        netPrice = itemDto.price * (1 - discountPercent / 100);
-                    rawTotalAmount += itemDto.quantity * netPrice;
+                    let netPrice = Number(itemDto.price);
+                    if (discountAmount > 0) {
+                        netPrice = finance_helper_1.FinanceHelper.sub(netPrice, discountAmount);
+                    }
+                    else if (discountPercent > 0) {
+                        const discount = finance_helper_1.FinanceHelper.mul(netPrice, discountPercent / 100);
+                        netPrice = finance_helper_1.FinanceHelper.sub(netPrice, discount);
+                    }
+                    rawTotalAmount = finance_helper_1.FinanceHelper.add(rawTotalAmount, finance_helper_1.FinanceHelper.mul(itemDto.quantity, netPrice));
                     saleItems.push({
                         itemId: itemDto.itemId, quantity: itemDto.quantity, price: itemDto.price,
                         discountAmount, discountPercent, netPrice, kdvRate: itemDto.kdvRate ?? 20,
@@ -198,22 +210,22 @@ let SalesService = SalesService_1 = class SalesService {
                 const headerDiscountPercent = dto.discountPercent !== undefined ? dto.discountPercent : sale.discountPercent;
                 let discountToSubtract = headerDiscountAmount;
                 if (headerDiscountPercent > 0)
-                    discountToSubtract = rawTotalAmount * (headerDiscountPercent / 100);
-                const discountedMatrah = rawTotalAmount - discountToSubtract;
+                    discountToSubtract = finance_helper_1.FinanceHelper.mul(rawTotalAmount, headerDiscountPercent / 100);
+                const discountedMatrah = finance_helper_1.FinanceHelper.sub(rawTotalAmount, discountToSubtract);
                 let totalKdv = 0;
                 saleItems.forEach(item => {
-                    const lineRatio = rawTotalAmount > 0 ? (item.quantity * item.netPrice) / rawTotalAmount : 0;
-                    const lineMatrah = discountedMatrah * lineRatio;
-                    const lineKdv = lineMatrah * (item.kdvRate / 100);
+                    const lineRatio = rawTotalAmount > 0 ? finance_helper_1.FinanceHelper.div(finance_helper_1.FinanceHelper.mul(item.quantity, item.netPrice), rawTotalAmount, 6) : 0;
+                    const lineMatrah = finance_helper_1.FinanceHelper.mul(discountedMatrah, lineRatio);
+                    const lineKdv = finance_helper_1.FinanceHelper.calculateKdv(lineMatrah, item.kdvRate);
                     item.kdvAmount = lineKdv;
-                    item.lineTotal = lineMatrah + lineKdv;
-                    totalKdv += lineKdv;
+                    item.lineTotal = finance_helper_1.FinanceHelper.add(lineMatrah, lineKdv);
+                    totalKdv = finance_helper_1.FinanceHelper.add(totalKdv, lineKdv);
                 });
                 sale.totalAmount = rawTotalAmount;
                 sale.discountAmount = headerDiscountAmount;
                 sale.discountPercent = headerDiscountPercent;
                 sale.kdv = totalKdv;
-                sale.grandTotal = discountedMatrah + totalKdv;
+                sale.grandTotal = finance_helper_1.FinanceHelper.add(discountedMatrah, totalKdv);
                 sale.deposit = dto.deposit !== undefined ? dto.deposit : sale.deposit;
                 await queryRunner.manager.delete(sale_item_entity_1.SaleItem, { saleId: sale.id });
                 for (const si of saleItems) {
@@ -249,41 +261,45 @@ let SalesService = SalesService_1 = class SalesService {
             const party = await queryRunner.manager.findOne(party_entity_1.Party, { where: { id: sale.partyId } });
             if (!party)
                 throw new common_1.NotFoundException('Cari hesap bulunamadı');
-            const tlGrandTotal = Number(sale.grandTotal) * Number(sale.exchangeRate);
+            const tlGrandTotal = finance_helper_1.FinanceHelper.mul(sale.grandTotal, sale.exchangeRate);
             const currentPartyBalance = Number(party.balance);
             if (Number(party.creditLimitPlus) > 0 && (currentPartyBalance + tlGrandTotal) > Number(party.creditLimitPlus)) {
                 throw new common_1.BadRequestException(`Cari limit aşıldı! Firmanın Kredi Limiti: ${party.creditLimitPlus}. Sipariş sonrası bakiye: ${currentPartyBalance + tlGrandTotal} olmaktadır. İşlem gerçekleştirilemez.`);
             }
             for (const saleItem of sale.items) {
-                let stock = await queryRunner.manager.findOne(stock_entity_1.Stock, {
+                const stock = await queryRunner.manager.findOne(stock_entity_1.Stock, {
                     where: { itemId: saleItem.itemId, departmentId: dto.departmentId },
+                    lock: { mode: 'pessimistic_write' },
                 });
                 if (!stock || Number(stock.quantity) < Number(saleItem.quantity)) {
                     throw new common_1.BadRequestException(`Yetersiz stok durumu. (Ürün ID: ${saleItem.itemId}, Depo ID: ${dto.departmentId}) Üretim emri açmanız veya mal alımı yapmanız gerekebilir.`);
                 }
                 const quantityBefore = Number(stock.quantity);
-                const quantityAfter = quantityBefore - Number(saleItem.quantity);
-                await queryRunner.manager.update(stock_entity_1.Stock, stock.id, { quantity: quantityAfter, updatedBy: userId });
+                const quantityAfter = finance_helper_1.FinanceHelper.sub(quantityBefore, saleItem.quantity);
+                await queryRunner.manager.update(stock_entity_1.Stock, stock.id, {
+                    quantity: () => `quantity - ${saleItem.quantity}`,
+                    updatedBy: userId,
+                });
                 await queryRunner.manager.save(queryRunner.manager.create(stock_movement_entity_1.StockMovement, {
                     stockId: stock.id, quantity: saleItem.quantity, quantityBefore, quantityAfter,
                     type: 'out', referenceType: 'sale', referenceId: sale.id, description: `Satış Onayı: ${sale.code}`, createdBy: userId,
                 }));
             }
-            await queryRunner.manager.update(party_entity_1.Party, party.id, { balance: currentPartyBalance + tlGrandTotal, updatedBy: userId });
+            await queryRunner.manager.update(party_entity_1.Party, party.id, { balance: finance_helper_1.FinanceHelper.add(currentPartyBalance, tlGrandTotal), updatedBy: userId });
             let finalDepositSaved = 0;
             if (Number(sale.deposit) > 0) {
                 if (!dto.commercialAccountId) {
                     throw new common_1.BadRequestException('Siparişte kapora alınmış. Bu paranın gireceği Finans (Kasa/Banka) hesabını seçmelisiniz.');
                 }
                 const txCode = await this.sequenceGenerator.generateTransactionCode(queryRunner, 'MKB');
-                const tlDeposit = Number(sale.deposit) * Number(sale.exchangeRate);
+                const tlDeposit = finance_helper_1.FinanceHelper.mul(sale.deposit, sale.exchangeRate);
                 await queryRunner.manager.save(queryRunner.manager.create(transaction_entity_1.Transaction, {
                     code: txCode, partyId: party.id, commercialAccountId: dto.commercialAccountId,
                     amount: Number(sale.deposit), currencyId: sale.currencyId, exchangeRate: sale.exchangeRate,
-                    type: 'in', referenceType: 'sale', referenceId: sale.id, date: new Date().toISOString().split('T')[0],
+                    type: 'in', referenceType: 'sale', referenceId: sale.id, date: date_utils_1.DateUtils.getToday(),
                     description: `${sale.code} Nolu Sipariş Peşinat / Kaporası`, status: 'completed', createdBy: userId
                 }));
-                await queryRunner.manager.update(party_entity_1.Party, party.id, { balance: (currentPartyBalance + tlGrandTotal) - tlDeposit, updatedBy: userId });
+                await queryRunner.manager.update(party_entity_1.Party, party.id, { balance: finance_helper_1.FinanceHelper.sub(finance_helper_1.FinanceHelper.add(currentPartyBalance, tlGrandTotal), tlDeposit), updatedBy: userId });
                 finalDepositSaved = tlDeposit;
             }
             await queryRunner.manager.update(sale_entity_1.Sale, sale.id, { status: 'approved', updatedBy: userId });
@@ -352,14 +368,12 @@ let SalesService = SalesService_1 = class SalesService {
         await this.saleRepo.softDelete(id);
     }
     async getStatus() {
-        const firstDayOfMonth = new Date();
-        firstDayOfMonth.setDate(1);
-        firstDayOfMonth.setHours(0, 0, 0, 0);
+        const firstDayOfMonth = (0, dayjs_1.default)().startOf('month').toDate();
         const [stats, pending] = await Promise.all([
             this.saleRepo.createQueryBuilder('sale')
                 .select("SUM(sale.grandTotal * sale.exchangeRate)", "revenue")
                 .addSelect("COUNT(*)", "total")
-                .where("sale.createdAt >= :date", { date: firstDayOfMonth.toISOString() })
+                .where("sale.createdAt >= :date", { date: date_utils_1.DateUtils.formatDate(firstDayOfMonth) })
                 .andWhere("sale.status != 'cancelled'")
                 .getRawOne(),
             this.saleRepo.count({ where: { status: 'draft' } }),

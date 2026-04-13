@@ -11,6 +11,12 @@ export class Bom extends BaseEntity {
   @Column({ name: 'target_item_id', type: 'bigint', nullable: true })
   targetItemId: number | null;
 
+  @Column({ type: 'int', default: 1 })
+  version: number;
+
+  @Column({ name: 'is_active', type: 'boolean', default: true })
+  isActive: boolean;
+
   @Column({ type: 'text', nullable: true })
   description: string | null;
 

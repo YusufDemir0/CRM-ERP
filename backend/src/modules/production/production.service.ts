@@ -11,8 +11,12 @@ import { SequenceGeneratorService } from '../../common/services/sequence-generat
 import {
   CreateBomDto, UpdateBomDto,
   CreateProductionOrderDto, UpdateProductionOrderDto,
+  BomQueryDto, ProductionOrderQueryDto,
 } from './dto/production.dto';
-import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { PaginatedResult } from '../../common/dto/pagination.dto';
+import { FinanceHelper as FH } from '../../common/utils/finance.helper';
+import { DateUtils } from '../../common/utils/date.utils';
+import dayjs from 'dayjs';
 
 @Injectable()
 export class ProductionService {
@@ -29,13 +33,19 @@ export class ProductionService {
 
   // ────── BOMs (ÜRETİM REÇETELERİ) ──────
 
-  async findAllBoms(query: PaginationDto): Promise<PaginatedResult<Bom>> {
+  async findAllBoms(query: BomQueryDto): Promise<PaginatedResult<Bom>> {
     const qb = this.bomRepo.createQueryBuilder('bom')
       .leftJoinAndSelect('bom.items', 'items')
       .leftJoinAndSelect('items.item', 'item')
       .leftJoinAndSelect('bom.targetItem', 'targetItem');
 
-    if (query.search) qb.where('bom.name LIKE :s', { s: `%${query.search}%` });
+    if (query.search) {
+      qb.andWhere('(bom.name LIKE :s OR targetItem.name LIKE :s OR targetItem.code LIKE :s)', { s: `%${query.search}%` });
+    }
+    
+    if (query.state !== undefined) {
+      qb.andWhere('bom.state = :state', { state: query.state });
+    }
 
     qb.orderBy('bom.createdAt', 'DESC').skip(query.skip).take(query.limit);
     const [data, total] = await qb.getManyAndCount();
@@ -55,10 +65,25 @@ export class ProductionService {
   }
 
   async createBom(dto: CreateBomDto, userId?: number): Promise<Bom> {
+    let version = 1;
+
+    if (dto.targetItemId) {
+      const lastBom = await this.bomRepo.findOne({
+        where: { targetItemId: dto.targetItemId },
+        order: { version: 'DESC' },
+      });
+      if (lastBom) version = lastBom.version + 1;
+
+      // Deactivate previous active BOM for this target item
+      await this.bomRepo.update({ targetItemId: dto.targetItemId, isActive: true }, { isActive: false });
+    }
+
     const bom = this.bomRepo.create({
       name: dto.name,
       description: dto.description || null,
       targetItemId: dto.targetItemId || null,
+      version: version,
+      isActive: true,
       createdBy: userId,
     });
     
@@ -68,7 +93,7 @@ export class ProductionService {
     const groupedItems = dto.items.reduce((acc, current) => {
       const existing = acc.find(i => i.itemId === current.itemId);
       if (existing) {
-        existing.quantity = Number(existing.quantity) + Number(current.quantity);
+        existing.quantity = FH.add(existing.quantity, current.quantity);
       } else {
         acc.push({ ...current });
       }
@@ -105,13 +130,20 @@ export class ProductionService {
   }
 
   async deleteBom(id: number): Promise<void> {
-    await this.findOneBom(id);
+    const bom = await this.findOneBom(id);
+    
+    // Check if BOM is used in any production orders
+    const usageCount = await this.poRepo.count({ where: { bomId: id } });
+    if (usageCount > 0) {
+      throw new BadRequestException(`Bu reçete ${usageCount} adet üretim emrinde kullanılmaktadır ve silinemez. Arşivlemeyi deneyin.`);
+    }
+
     await this.bomRepo.softDelete(id);
   }
 
   // ────── PRODUCTION ORDERS (ÜRETİM EMİRLERİ VE ONAYLARI) ──────
 
-  async findAllOrders(query: PaginationDto & { status?: string }): Promise<PaginatedResult<ProductionOrder>> {
+  async findAllOrders(query: ProductionOrderQueryDto): Promise<PaginatedResult<ProductionOrder>> {
     const qb = this.poRepo.createQueryBuilder('po')
       .leftJoinAndSelect('po.bom', 'bom')
       .leftJoinAndSelect('po.sourceDepartment', 'sourceDept')
@@ -143,6 +175,11 @@ export class ProductionService {
     await queryRunner.startTransaction();
 
     try {
+      const bom = await this.findOneBom(dto.bomId);
+      if (!bom.isActive) {
+        throw new BadRequestException('Sadece aktif (aktif versiyon) reçeteler ile üretim emri oluşturulabilir.');
+      }
+
       const code = await this.sequenceGenerator.generateProductionCode(queryRunner);
 
       const po = queryRunner.manager.create(ProductionOrder, {
@@ -199,9 +236,15 @@ export class ProductionService {
       await queryRunner.startTransaction();
 
       try {
+        let totalMaterialCost = 0;
+
         // 1. HER BİR HAMMADDE / SARF İÇİN ÇIKIŞ YAP (Source Department)
         for (const bomItem of po.bom.items) {
-          const requiredQty = Number(bomItem.quantity) * Number(producedQty);
+          const requiredQty = FH.mul(bomItem.quantity, producedQty);
+          
+          // MALİYET HESABI: Hammaddenin güncel alış fiyatı üzerinden
+          const itemTotalCost = FH.mul(requiredQty, bomItem.item?.purchasePrice || 0);
+          totalMaterialCost = FH.add(totalMaterialCost, itemTotalCost);
 
           let sourceStock = await queryRunner.manager.findOne(Stock, {
             where: { itemId: bomItem.itemId, departmentId: sourceDeptId }
@@ -215,7 +258,7 @@ export class ProductionService {
           }
 
           const quantityBeforeOut = Number(sourceStock.quantity);
-          const quantityAfterOut = quantityBeforeOut - requiredQty;
+          const quantityAfterOut = FH.sub(quantityBeforeOut, requiredQty);
 
           // Hammadde Stoku Güncelle
           await queryRunner.manager.update(Stock, sourceStock.id, {
@@ -254,11 +297,18 @@ export class ProductionService {
         }
 
         const quantityBeforeIn = Number(targetStock.quantity);
-        const quantityAfterIn = quantityBeforeIn + Number(producedQty);
+        const quantityAfterIn = FH.add(quantityBeforeIn, producedQty);
 
         // Mamül Stoğunu Artır
         await queryRunner.manager.update(Stock, targetStock.id, {
           quantity: quantityAfterIn,
+          updatedBy: userId
+        });
+
+        // Üretilen ürünün birim maliyetini güncelle (Hammadde toplam maliyeti / miktar)
+        const unitCost = FH.div(totalMaterialCost, producedQty, 4);
+        await queryRunner.manager.update(Item, targetItem.id, {
+          purchasePrice: unitCost,
           updatedBy: userId
         });
 
@@ -283,7 +333,9 @@ export class ProductionService {
           wastageQuantity: dto.wastageQuantity ?? po.wastageQuantity,
           sourceDepartmentId: sourceDeptId,
           targetDepartmentId: targetDeptId,
-          endDate: dto.endDate ?? po.endDate ?? new Date().toISOString().split('T')[0],
+          unitCost,
+          totalCost: totalMaterialCost,
+          endDate: dto.endDate ?? DateUtils.getToday(),
           notes: dto.notes ?? po.notes,
           updatedBy: userId
         });
@@ -302,7 +354,16 @@ export class ProductionService {
     } 
 
     // EĞER TAMAMLANDI DEĞİLSE SADECE KAYDI GÜNCELLE
-    Object.assign(po, dto);
+    if (dto.plannedQuantity !== undefined) po.plannedQuantity = dto.plannedQuantity;
+    if (dto.producedQuantity !== undefined) po.producedQuantity = dto.producedQuantity;
+    if (dto.wastageQuantity !== undefined) po.wastageQuantity = dto.wastageQuantity;
+    if (dto.sourceDepartmentId !== undefined) po.sourceDepartmentId = dto.sourceDepartmentId;
+    if (dto.targetDepartmentId !== undefined) po.targetDepartmentId = dto.targetDepartmentId;
+    if (dto.startDate !== undefined) po.startDate = dto.startDate;
+    if (dto.endDate !== undefined) po.endDate = dto.endDate;
+    if (dto.status !== undefined) po.status = dto.status as any;
+    if (dto.notes !== undefined) po.notes = dto.notes;
+    
     po.updatedBy = userId || null;
     return this.poRepo.save(po);
   }

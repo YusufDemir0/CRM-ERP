@@ -24,6 +24,8 @@ const item_entity_1 = require("../inventory/items/entities/item.entity");
 const stock_entity_1 = require("../inventory/stocks/entities/stock.entity");
 const stock_movement_entity_1 = require("../inventory/stocks/entities/stock-movement.entity");
 const sequence_generator_service_1 = require("../../common/services/sequence-generator.service");
+const finance_helper_1 = require("../../common/utils/finance.helper");
+const date_utils_1 = require("../../common/utils/date.utils");
 let ProductionService = ProductionService_1 = class ProductionService {
     constructor(bomRepo, bomItemRepo, poRepo, itemRepo, dataSource, sequenceGenerator) {
         this.bomRepo = bomRepo;
@@ -39,8 +41,12 @@ let ProductionService = ProductionService_1 = class ProductionService {
             .leftJoinAndSelect('bom.items', 'items')
             .leftJoinAndSelect('items.item', 'item')
             .leftJoinAndSelect('bom.targetItem', 'targetItem');
-        if (query.search)
-            qb.where('bom.name LIKE :s', { s: `%${query.search}%` });
+        if (query.search) {
+            qb.andWhere('(bom.name LIKE :s OR targetItem.name LIKE :s OR targetItem.code LIKE :s)', { s: `%${query.search}%` });
+        }
+        if (query.state !== undefined) {
+            qb.andWhere('bom.state = :state', { state: query.state });
+        }
         qb.orderBy('bom.createdAt', 'DESC').skip(query.skip).take(query.limit);
         const [data, total] = await qb.getManyAndCount();
         return {
@@ -58,17 +64,29 @@ let ProductionService = ProductionService_1 = class ProductionService {
         return bom;
     }
     async createBom(dto, userId) {
+        let version = 1;
+        if (dto.targetItemId) {
+            const lastBom = await this.bomRepo.findOne({
+                where: { targetItemId: dto.targetItemId },
+                order: { version: 'DESC' },
+            });
+            if (lastBom)
+                version = lastBom.version + 1;
+            await this.bomRepo.update({ targetItemId: dto.targetItemId, isActive: true }, { isActive: false });
+        }
         const bom = this.bomRepo.create({
             name: dto.name,
             description: dto.description || null,
             targetItemId: dto.targetItemId || null,
+            version: version,
+            isActive: true,
             createdBy: userId,
         });
         const savedBom = await this.bomRepo.save(bom);
         const groupedItems = dto.items.reduce((acc, current) => {
             const existing = acc.find(i => i.itemId === current.itemId);
             if (existing) {
-                existing.quantity = Number(existing.quantity) + Number(current.quantity);
+                existing.quantity = finance_helper_1.FinanceHelper.add(existing.quantity, current.quantity);
             }
             else {
                 acc.push({ ...current });
@@ -105,7 +123,11 @@ let ProductionService = ProductionService_1 = class ProductionService {
         return this.bomRepo.save(bom);
     }
     async deleteBom(id) {
-        await this.findOneBom(id);
+        const bom = await this.findOneBom(id);
+        const usageCount = await this.poRepo.count({ where: { bomId: id } });
+        if (usageCount > 0) {
+            throw new common_1.BadRequestException(`Bu reçete ${usageCount} adet üretim emrinde kullanılmaktadır ve silinemez. Arşivlemeyi deneyin.`);
+        }
         await this.bomRepo.softDelete(id);
     }
     async findAllOrders(query) {
@@ -138,6 +160,10 @@ let ProductionService = ProductionService_1 = class ProductionService {
         await queryRunner.connect();
         await queryRunner.startTransaction();
         try {
+            const bom = await this.findOneBom(dto.bomId);
+            if (!bom.isActive) {
+                throw new common_1.BadRequestException('Sadece aktif (aktif versiyon) reçeteler ile üretim emri oluşturulabilir.');
+            }
             const code = await this.sequenceGenerator.generateProductionCode(queryRunner);
             const po = queryRunner.manager.create(production_order_entity_1.ProductionOrder, {
                 code,
@@ -185,8 +211,11 @@ let ProductionService = ProductionService_1 = class ProductionService {
             await queryRunner.connect();
             await queryRunner.startTransaction();
             try {
+                let totalMaterialCost = 0;
                 for (const bomItem of po.bom.items) {
-                    const requiredQty = Number(bomItem.quantity) * Number(producedQty);
+                    const requiredQty = finance_helper_1.FinanceHelper.mul(bomItem.quantity, producedQty);
+                    const itemTotalCost = finance_helper_1.FinanceHelper.mul(requiredQty, bomItem.item?.purchasePrice || 0);
+                    totalMaterialCost = finance_helper_1.FinanceHelper.add(totalMaterialCost, itemTotalCost);
                     let sourceStock = await queryRunner.manager.findOne(stock_entity_1.Stock, {
                         where: { itemId: bomItem.itemId, departmentId: sourceDeptId }
                     });
@@ -195,7 +224,7 @@ let ProductionService = ProductionService_1 = class ProductionService {
                             `${sourceStock ? sourceStock.quantity : 0} miktar bulundu. Üretim tamamlanamaz.`);
                     }
                     const quantityBeforeOut = Number(sourceStock.quantity);
-                    const quantityAfterOut = quantityBeforeOut - requiredQty;
+                    const quantityAfterOut = finance_helper_1.FinanceHelper.sub(quantityBeforeOut, requiredQty);
                     await queryRunner.manager.update(stock_entity_1.Stock, sourceStock.id, {
                         quantity: quantityAfterOut,
                         updatedBy: userId
@@ -226,9 +255,14 @@ let ProductionService = ProductionService_1 = class ProductionService {
                     targetStock = await queryRunner.manager.save(targetStock);
                 }
                 const quantityBeforeIn = Number(targetStock.quantity);
-                const quantityAfterIn = quantityBeforeIn + Number(producedQty);
+                const quantityAfterIn = finance_helper_1.FinanceHelper.add(quantityBeforeIn, producedQty);
                 await queryRunner.manager.update(stock_entity_1.Stock, targetStock.id, {
                     quantity: quantityAfterIn,
+                    updatedBy: userId
+                });
+                const unitCost = finance_helper_1.FinanceHelper.div(totalMaterialCost, producedQty, 4);
+                await queryRunner.manager.update(item_entity_1.Item, targetItem.id, {
+                    purchasePrice: unitCost,
                     updatedBy: userId
                 });
                 const movementIn = queryRunner.manager.create(stock_movement_entity_1.StockMovement, {
@@ -249,7 +283,9 @@ let ProductionService = ProductionService_1 = class ProductionService {
                     wastageQuantity: dto.wastageQuantity ?? po.wastageQuantity,
                     sourceDepartmentId: sourceDeptId,
                     targetDepartmentId: targetDeptId,
-                    endDate: dto.endDate ?? po.endDate ?? new Date().toISOString().split('T')[0],
+                    unitCost,
+                    totalCost: totalMaterialCost,
+                    endDate: dto.endDate ?? date_utils_1.DateUtils.getToday(),
                     notes: dto.notes ?? po.notes,
                     updatedBy: userId
                 });
@@ -266,7 +302,24 @@ let ProductionService = ProductionService_1 = class ProductionService {
                 await queryRunner.release();
             }
         }
-        Object.assign(po, dto);
+        if (dto.plannedQuantity !== undefined)
+            po.plannedQuantity = dto.plannedQuantity;
+        if (dto.producedQuantity !== undefined)
+            po.producedQuantity = dto.producedQuantity;
+        if (dto.wastageQuantity !== undefined)
+            po.wastageQuantity = dto.wastageQuantity;
+        if (dto.sourceDepartmentId !== undefined)
+            po.sourceDepartmentId = dto.sourceDepartmentId;
+        if (dto.targetDepartmentId !== undefined)
+            po.targetDepartmentId = dto.targetDepartmentId;
+        if (dto.startDate !== undefined)
+            po.startDate = dto.startDate;
+        if (dto.endDate !== undefined)
+            po.endDate = dto.endDate;
+        if (dto.status !== undefined)
+            po.status = dto.status;
+        if (dto.notes !== undefined)
+            po.notes = dto.notes;
         po.updatedBy = userId || null;
         return this.poRepo.save(po);
     }

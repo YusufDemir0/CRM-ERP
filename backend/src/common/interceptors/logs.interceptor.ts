@@ -25,8 +25,8 @@ export class LogsInterceptor implements NestInterceptor {
       return next.handle();
     }
 
-    // Skip logs & auth/login to avoid recursion and noise
-    if (url.includes('/logs') || url.includes('/auth/login')) {
+    // Skip logs module to avoid recursion
+    if (url.includes('/logs')) {
       return next.handle();
     }
 
@@ -45,6 +45,26 @@ export class LogsInterceptor implements NestInterceptor {
     );
   }
 
+  private sanitizeBody(body: any): any {
+    if (!body || typeof body !== 'object') return body;
+    if (Array.isArray(body)) return body.map(item => this.sanitizeBody(item));
+
+    const sanitized = { ...body };
+    const sensitiveFields = [
+      'password', 'token', 'access_token', 'secret', 'passwordHash',
+      'taxNumber', 'tax_number', 'tc_no', 'tckn', 'iban', 'cc_number', 'cvv'
+    ];
+
+    for (const key of Object.keys(sanitized)) {
+      if (sensitiveFields.some((field) => key.toLowerCase().includes(field.toLowerCase()))) {
+        sanitized[key] = '********';
+      } else if (typeof sanitized[key] === 'object' && sanitized[key] !== null) {
+        sanitized[key] = this.sanitizeBody(sanitized[key]);
+      }
+    }
+    return sanitized;
+  }
+
   private async saveLog(request: any, status: string, responseData: any) {
     try {
       const { method, url, user, ip, body } = request;
@@ -53,16 +73,11 @@ export class LogsInterceptor implements NestInterceptor {
       const username = user?.username || 'SYSTEM';
       const fullName = user?.fullName || user?.full_name || '';
 
-      // Extract module from URL: /api/items/types → ITEMS
       const parts = url.replace(/^\/api\//, '').split('/');
       const moduleName = (parts[0] || 'SYSTEM').toUpperCase();
       const action = `${method} ${url}`;
 
-      const cleanBody = { ...body };
-      const sensitiveFields = ['password', 'token', 'access_token', 'secret', 'passwordHash'];
-      sensitiveFields.forEach(f => {
-        if (cleanBody[f]) cleanBody[f] = '********';
-      });
+      const cleanBody = this.sanitizeBody(body);
 
       let responseSummary = 'OK';
       if (status === 'ERROR') {
@@ -81,14 +96,13 @@ export class LogsInterceptor implements NestInterceptor {
         module: moduleName,
         tag: status,
         details: JSON.stringify({
-          body: Object.keys(cleanBody).length > 0 ? cleanBody : null,
+          body: cleanBody && Object.keys(cleanBody).length > 0 ? cleanBody : null,
           status,
           response: responseSummary,
         }),
         ipAddress: ip,
       });
     } catch (e) {
-      // Never let logging failures break the request pipeline
       this.logger.error(`LogsInterceptor.saveLog crashed silently: ${e.message}`);
     }
   }

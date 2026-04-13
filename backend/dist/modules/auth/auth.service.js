@@ -71,12 +71,24 @@ let AuthService = class AuthService {
         if (!user) {
             throw new common_1.UnauthorizedException('INVALID_USERNAME');
         }
-        const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
-        if (!isMatch) {
-            throw new common_1.UnauthorizedException('INVALID_PASSWORD');
+        if (user.state === 2) {
+            throw new common_1.UnauthorizedException('Hesabınız kilitlenmiştir. Lütfen sistem yöneticisi ile iletişime geçiniz.');
         }
         if (user.state !== 1) {
             throw new common_1.UnauthorizedException('Hesabınız devre dışı bırakılmıştır');
+        }
+        const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
+        if (!isMatch) {
+            user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+            if (user.failedLoginAttempts >= 3) {
+                user.state = 2;
+            }
+            await this.userRepo.save(user);
+            throw new common_1.UnauthorizedException('INVALID_PASSWORD');
+        }
+        if (user.failedLoginAttempts > 0) {
+            user.failedLoginAttempts = 0;
+            await this.userRepo.save(user);
         }
         const payload = {
             sub: user.id,

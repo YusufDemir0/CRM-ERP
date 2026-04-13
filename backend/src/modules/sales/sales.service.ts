@@ -15,6 +15,7 @@ import { StockMovement } from '../inventory/stocks/entities/stock-movement.entit
 import { Party } from '../parties/entities/party.entity';
 import { Currency } from '../finance/currencies/entities/currency.entity';
 import { Transaction } from '../finance/transactions/entities/transaction.entity';
+import { Department } from '../departments/entities/department.entity';
 import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
 import {
   CreateSaleDto,
@@ -23,6 +24,9 @@ import {
   ApproveSaleDto,
 } from './dto/sale.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { FinanceHelper as FH } from '../../common/utils/finance.helper';
+import { DateUtils } from '../../common/utils/date.utils';
+import dayjs from 'dayjs';
 
 @Injectable()
 export class SalesService {
@@ -103,17 +107,20 @@ export class SalesService {
       let rawTotalAmount = 0;
       const saleItems: Partial<SaleItem>[] =[];
 
-      // İlk aşama: Toplam Matrah Bulma (KDV hariç net toplamı bulma)
       for (const itemDto of dto.items) {
         const discountAmount = itemDto.discountAmount || 0;
         const discountPercent = itemDto.discountPercent || 0;
         
-        let netPrice = itemDto.price;
-        if (discountAmount > 0) netPrice = itemDto.price - discountAmount;
-        else if (discountPercent > 0) netPrice = itemDto.price * (1 - discountPercent / 100);
+        let netPrice = Number(itemDto.price);
+        if (discountAmount > 0) {
+          netPrice = FH.sub(netPrice, discountAmount);
+        } else if (discountPercent > 0) {
+          const discount = FH.mul(netPrice, discountPercent / 100);
+          netPrice = FH.sub(netPrice, discount);
+        }
 
-        const subtotal = itemDto.quantity * netPrice;
-        rawTotalAmount += subtotal;
+        const subtotal = FH.mul(itemDto.quantity, netPrice);
+        rawTotalAmount = FH.add(rawTotalAmount, subtotal);
 
         saleItems.push({
           itemId: itemDto.itemId,
@@ -128,36 +135,35 @@ export class SalesService {
         });
       }
 
-      // Fatura Altı Genel İndirim ve KDV Matrahı (Türkiye KDV standartları: KDV indirimden sonra hesaplanır)
       const headerDiscountAmount = dto.discountAmount || 0;
       const headerDiscountPercent = dto.discountPercent || 0;
       let discountToSubtract = headerDiscountAmount;
+
       if (headerDiscountPercent > 0) {
-        discountToSubtract = rawTotalAmount * (headerDiscountPercent / 100);
+        discountToSubtract = FH.mul(rawTotalAmount, headerDiscountPercent / 100);
       }
       
-      const discountedMatrah = rawTotalAmount - discountToSubtract;
+      const discountedMatrah = FH.sub(rawTotalAmount, discountToSubtract);
 
       let totalKdv = 0;
       saleItems.forEach(item => {
-        // İndirimi oranına göre satırlara dağıt
-        const lineRatio = rawTotalAmount > 0 ? (item.quantity! * item.netPrice!) / rawTotalAmount : 0;
-        const lineMatrah = discountedMatrah * lineRatio;
-        const lineKdv = lineMatrah * (item.kdvRate! / 100);
+        const lineRatio = rawTotalAmount > 0 ? FH.div(FH.mul(item.quantity!, item.netPrice!), rawTotalAmount, 6) : 0;
+        const lineMatrah = FH.mul(discountedMatrah, lineRatio);
+        const lineKdv = FH.calculateKdv(lineMatrah, item.kdvRate!);
         
         item.kdvAmount = lineKdv;
-        item.lineTotal = lineMatrah + lineKdv;
-        totalKdv += lineKdv;
+        item.lineTotal = FH.add(lineMatrah, lineKdv);
+        totalKdv = FH.add(totalKdv, lineKdv);
       });
 
-      const grandTotal = discountedMatrah + totalKdv;
+      const grandTotal = FH.add(discountedMatrah, totalKdv);
 
       const sale = queryRunner.manager.create(Sale, {
         code,
         partyId: dto.partyId,
         saleTypeId: dto.saleTypeId,
         currencyId: dto.currencyId,
-        exchangeRate: currentExchangeRate, // İşlem anındaki kur donduruldu
+        exchangeRate: currentExchangeRate,
         deliveryDate: dto.deliveryDate,
         status: 'draft',
         deposit: dto.deposit || 0,
@@ -209,10 +215,16 @@ export class SalesService {
         for (const itemDto of dto.items) {
           const discountAmount = itemDto.discountAmount || 0;
           const discountPercent = itemDto.discountPercent || 0;
-          let netPrice = itemDto.price;
-          if (discountAmount > 0) netPrice = itemDto.price - discountAmount;
-          else if (discountPercent > 0) netPrice = itemDto.price * (1 - discountPercent / 100);
-          rawTotalAmount += itemDto.quantity * netPrice;
+          let netPrice = Number(itemDto.price);
+          
+          if (discountAmount > 0) {
+            netPrice = FH.sub(netPrice, discountAmount);
+          } else if (discountPercent > 0) {
+            const discount = FH.mul(netPrice, discountPercent / 100);
+            netPrice = FH.sub(netPrice, discount);
+          }
+          
+          rawTotalAmount = FH.add(rawTotalAmount, FH.mul(itemDto.quantity, netPrice));
           
           saleItems.push({
             itemId: itemDto.itemId, quantity: itemDto.quantity, price: itemDto.price,
@@ -224,25 +236,25 @@ export class SalesService {
         const headerDiscountAmount = dto.discountAmount !== undefined ? dto.discountAmount : sale.discountAmount;
         const headerDiscountPercent = dto.discountPercent !== undefined ? dto.discountPercent : sale.discountPercent;
         let discountToSubtract = headerDiscountAmount;
-        if (headerDiscountPercent > 0) discountToSubtract = rawTotalAmount * (headerDiscountPercent / 100);
+        if (headerDiscountPercent > 0) discountToSubtract = FH.mul(rawTotalAmount, headerDiscountPercent / 100);
         
-        const discountedMatrah = rawTotalAmount - discountToSubtract;
+        const discountedMatrah = FH.sub(rawTotalAmount, discountToSubtract);
 
         let totalKdv = 0;
         saleItems.forEach(item => {
-          const lineRatio = rawTotalAmount > 0 ? (item.quantity! * item.netPrice!) / rawTotalAmount : 0;
-          const lineMatrah = discountedMatrah * lineRatio;
-          const lineKdv = lineMatrah * (item.kdvRate! / 100);
+          const lineRatio = rawTotalAmount > 0 ? FH.div(FH.mul(item.quantity!, item.netPrice!), rawTotalAmount, 6) : 0;
+          const lineMatrah = FH.mul(discountedMatrah, lineRatio);
+          const lineKdv = FH.calculateKdv(lineMatrah, item.kdvRate!);
           item.kdvAmount = lineKdv;
-          item.lineTotal = lineMatrah + lineKdv;
-          totalKdv += lineKdv;
+          item.lineTotal = FH.add(lineMatrah, lineKdv);
+          totalKdv = FH.add(totalKdv, lineKdv);
         });
 
         sale.totalAmount = rawTotalAmount;
         sale.discountAmount = headerDiscountAmount;
         sale.discountPercent = headerDiscountPercent;
         sale.kdv = totalKdv;
-        sale.grandTotal = discountedMatrah + totalKdv;
+        sale.grandTotal = FH.add(discountedMatrah, totalKdv);
         sale.deposit = dto.deposit !== undefined ? dto.deposit : sale.deposit;
 
         // Eski kalemleri silip yenilerini ekleyelim
@@ -280,7 +292,7 @@ export class SalesService {
       const party = await queryRunner.manager.findOne(Party, { where: { id: sale.partyId } });
       if (!party) throw new NotFoundException('Cari hesap bulunamadı');
 
-      const tlGrandTotal = Number(sale.grandTotal) * Number(sale.exchangeRate);
+      const tlGrandTotal = FH.mul(sale.grandTotal, sale.exchangeRate);
       const currentPartyBalance = Number(party.balance);
 
       // KREDİ LİMİT KONTROLÜ
@@ -290,8 +302,9 @@ export class SalesService {
 
       // STOK DÜŞME
       for (const saleItem of sale.items) {
-        let stock = await queryRunner.manager.findOne(Stock, {
+        const stock = await queryRunner.manager.findOne(Stock, {
           where: { itemId: saleItem.itemId, departmentId: dto.departmentId },
+          lock: { mode: 'pessimistic_write' },
         });
 
         if (!stock || Number(stock.quantity) < Number(saleItem.quantity)) {
@@ -299,9 +312,13 @@ export class SalesService {
         }
 
         const quantityBefore = Number(stock.quantity);
-        const quantityAfter = quantityBefore - Number(saleItem.quantity);
+        const quantityAfter = FH.sub(quantityBefore, saleItem.quantity);
 
-        await queryRunner.manager.update(Stock, stock.id, { quantity: quantityAfter, updatedBy: userId });
+        // Atomic update
+        await queryRunner.manager.update(Stock, stock.id, {
+          quantity: () => `quantity - ${saleItem.quantity}`,
+          updatedBy: userId,
+        });
 
         await queryRunner.manager.save(queryRunner.manager.create(StockMovement, {
           stockId: stock.id, quantity: saleItem.quantity, quantityBefore, quantityAfter,
@@ -310,7 +327,7 @@ export class SalesService {
       }
 
       // MÜŞTERİYİ BORÇLANDIR (Bakiyeyi Artır)
-      await queryRunner.manager.update(Party, party.id, { balance: currentPartyBalance + tlGrandTotal, updatedBy: userId });
+      await queryRunner.manager.update(Party, party.id, { balance: FH.add(currentPartyBalance, tlGrandTotal), updatedBy: userId });
 
       // KAPORANIN FİNANSA KAYDI (Varsa)
       let finalDepositSaved = 0;
@@ -320,17 +337,17 @@ export class SalesService {
         }
 
         const txCode = await this.sequenceGenerator.generateTransactionCode(queryRunner, 'MKB');
-        const tlDeposit = Number(sale.deposit) * Number(sale.exchangeRate);
+        const tlDeposit = FH.mul(sale.deposit, sale.exchangeRate);
 
         await queryRunner.manager.save(queryRunner.manager.create(Transaction, {
           code: txCode, partyId: party.id, commercialAccountId: dto.commercialAccountId,
           amount: Number(sale.deposit), currencyId: sale.currencyId, exchangeRate: sale.exchangeRate,
-          type: 'in', referenceType: 'sale', referenceId: sale.id, date: new Date().toISOString().split('T')[0],
+          type: 'in', referenceType: 'sale', referenceId: sale.id, date: DateUtils.getToday(),
           description: `${sale.code} Nolu Sipariş Peşinat / Kaporası`, status: 'completed', createdBy: userId
         }));
 
         // Kaporayı müşterinin bakiyesinden geri düşüyoruz (Borcu kapattı)
-        await queryRunner.manager.update(Party, party.id, { balance: (currentPartyBalance + tlGrandTotal) - tlDeposit, updatedBy: userId });
+        await queryRunner.manager.update(Party, party.id, { balance: FH.sub(FH.add(currentPartyBalance, tlGrandTotal), tlDeposit), updatedBy: userId });
         finalDepositSaved = tlDeposit;
       }
 
@@ -410,16 +427,14 @@ export class SalesService {
   }
 
   async getStatus() {
-    const firstDayOfMonth = new Date();
-    firstDayOfMonth.setDate(1);
-    firstDayOfMonth.setHours(0, 0, 0, 0);
+    const firstDayOfMonth = dayjs().startOf('month').toDate();
 
     // KURLA ÇARPILMIŞ CİRO HESABI EKLENDİ
     const[stats, pending] = await Promise.all([
       this.saleRepo.createQueryBuilder('sale')
         .select("SUM(sale.grandTotal * sale.exchangeRate)", "revenue")
         .addSelect("COUNT(*)", "total")
-        .where("sale.createdAt >= :date", { date: firstDayOfMonth.toISOString() })
+        .where("sale.createdAt >= :date", { date: DateUtils.formatDate(firstDayOfMonth) })
         .andWhere("sale.status != 'cancelled'")
         .getRawOne(),
       this.saleRepo.count({ where: { status: 'draft' } }),

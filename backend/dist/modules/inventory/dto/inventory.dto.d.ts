@@ -19,6 +19,9 @@ export declare class UpdateItemDto {
     name?: string;
     itemTypeId?: number;
     itemCodeGroupId?: number;
+    code?: string;
+    code1?: string;
+    code2?: string;
     providerId?: number;
     criticalLimit?: number;
     image?: string;

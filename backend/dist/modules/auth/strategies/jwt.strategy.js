@@ -17,7 +17,17 @@ const config_1 = require("@nestjs/config");
 let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
     constructor(configService) {
         super({
-            jwtFromRequest: passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
+            jwtFromRequest: (req) => {
+                let token = null;
+                if (req && req.headers && req.headers.cookie) {
+                    const cookies = req.headers.cookie.split(';');
+                    const erpTokenCookie = cookies.find(c => c.trim().startsWith('erp_token='));
+                    if (erpTokenCookie) {
+                        token = erpTokenCookie.split('=')[1];
+                    }
+                }
+                return token;
+            },
             ignoreExpiration: false,
             secretOrKey: configService.get('jwt.secret') || 'erp-super-secret-key',
         });

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Role } from '../auth/entities/role.entity';
@@ -64,7 +64,16 @@ export class RolesService {
   async updateRole(id: number, dto: UpdateRoleDto, currentUserId?: number): Promise<Role> {
     const role = await this.findOneRole(id);
     if (dto.name) role.name = dto.name;
+    
+    // Deactivation validation: block if users are attached
+    if (dto.state === 0 && role.state !== 0) {
+      const usersWithRole = await this.userRoleRepo.count({ where: { roleId: id } });
+      if (usersWithRole > 0) {
+        throw new BadRequestException(`Bu role atanmış ${usersWithRole} kullanıcı bulunmaktadır. Önce kullanıcıların rollerini değiştirin.`);
+      }
+    }
     if (dto.state !== undefined) role.state = dto.state;
+    
     role.updatedBy = currentUserId || null;
 
     if (dto.permissionIds !== undefined) {

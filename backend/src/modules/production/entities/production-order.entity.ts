@@ -30,6 +30,12 @@ export class ProductionOrder extends BaseEntity {
   @Column({ type: 'enum', enum: ['draft', 'planned', 'in_progress', 'completed', 'cancelled'], default: 'draft' })
   status: 'draft' | 'planned' | 'in_progress' | 'completed' | 'cancelled';
 
+  @Column({ name: 'unit_cost', type: 'decimal', precision: 15, scale: 4, default: 0 })
+  unitCost: number;
+
+  @Column({ name: 'total_cost', type: 'decimal', precision: 15, scale: 4, default: 0 })
+  totalCost: number;
+
   @Column({ name: 'start_date', type: 'date', nullable: true })
   startDate: string | null;
 

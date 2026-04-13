@@ -31,10 +31,10 @@ import { NotesModule } from './modules/notes/notes.module';
 
 @Module({
   imports:[
-    // DDOS ve Brute Force Koruması (1 Dakikada maks 30 istek)
+    // DDOS ve Brute Force Koruması (1 Dakikada maks 120 istek)
     ThrottlerModule.forRoot([{
       ttl: 60000, 
-      limit: 30,  
+      limit: 120,  
     }]),
 
     // Global Config
