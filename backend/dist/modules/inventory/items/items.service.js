@@ -177,12 +177,6 @@ let ItemsService = class ItemsService {
         const group = await this.codeGroupRepo.findOne({ where: { id } });
         if (!group)
             throw new common_1.NotFoundException('Ürün kod grubu bulunamadı');
-        if (dto.state === 0) {
-            const activeItems = await this.itemRepo.count({ where: { itemCodeGroupId: id, state: 1 } });
-            if (activeItems > 0) {
-                throw new common_1.BadRequestException(`Bu grupta ${activeItems} adet aktif ürün bulunduğu için pasife alınamaz.`);
-            }
-        }
         if (dto.name !== undefined)
             group.name = dto.name;
         if (dto.prefix !== undefined)
@@ -210,12 +204,6 @@ let ItemsService = class ItemsService {
         const type = await this.qtyTypeRepo.findOne({ where: { id } });
         if (!type)
             throw new common_1.NotFoundException('Birim bulunamadı');
-        if (dto.state === 0) {
-            const activeItems = await this.itemRepo.count({ where: { quantityTypeId: id, state: 1 } });
-            if (activeItems > 0) {
-                throw new common_1.BadRequestException(`Bu birimi kullanan ${activeItems} adet aktif ürün bulunduğu için pasife alınamaz.`);
-            }
-        }
         if (dto.name !== undefined)
             type.name = dto.name;
         if (dto.abbreviation !== undefined)

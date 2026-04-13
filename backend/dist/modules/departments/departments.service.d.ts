@@ -1,7 +1,7 @@
 import { Repository } from 'typeorm';
 import { Department } from './entities/department.entity';
 import { DepartmentType } from './entities/department-type.entity';
-import { CreateDepartmentDto, UpdateDepartmentDto, CreateDepartmentTypeDto } from './dto/department.dto';
+import { CreateDepartmentDto, UpdateDepartmentDto, CreateDepartmentTypeDto, UpdateDepartmentTypeDto } from './dto/department.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
 export declare class DepartmentsService {
     private deptRepo;
@@ -14,6 +14,8 @@ export declare class DepartmentsService {
     softDelete(id: number): Promise<void>;
     findAllTypes(): Promise<DepartmentType[]>;
     createType(dto: CreateDepartmentTypeDto, userId?: number): Promise<DepartmentType>;
+    updateType(id: number, dto: UpdateDepartmentTypeDto, userId?: number): Promise<DepartmentType>;
+    softDeleteType(id: number): Promise<void>;
     getStatus(): Promise<{
         active: number;
         passive: number;

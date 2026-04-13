@@ -74,6 +74,28 @@ export class DepartmentsService {
     return this.typeRepo.save(type);
   }
 
+  async updateType(id: number, dto: UpdateDepartmentTypeDto, userId?: number): Promise<DepartmentType> {
+    const type = await this.typeRepo.findOne({ where: { id } });
+    if (!type) throw new NotFoundException('Departman türü bulunamadı');
+    
+    Object.assign(type, dto);
+    type.updatedBy = userId || null;
+    return this.typeRepo.save(type);
+  }
+
+  async softDeleteType(id: number): Promise<void> {
+    const type = await this.typeRepo.findOne({ where: { id } });
+    if (!type) throw new NotFoundException('Departman türü bulunamadı');
+
+    // Check if any departments use this type
+    const usedCount = await this.deptRepo.count({ where: { departmentTypeId: id } });
+    if (usedCount > 0) {
+      throw new Error(`Bu türü kullanan ${usedCount} adet departman bulunduğu için silinemez.`);
+    }
+
+    await this.typeRepo.softDelete(id);
+  }
+
   async getStatus() {
     const [active, passive, withAccount] = await Promise.all([
       this.deptRepo.count({ where: { state: 1 } }),

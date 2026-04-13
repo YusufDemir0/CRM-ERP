@@ -29,6 +29,12 @@ let DepartmentsController = class DepartmentsController {
     createType(dto, userId) {
         return this.deptService.createType(dto, userId);
     }
+    updateType(id, dto, userId) {
+        return this.deptService.updateType(id, dto, userId);
+    }
+    removeType(id) {
+        return this.deptService.softDeleteType(id);
+    }
     findOne(id) { return this.deptService.findOne(id); }
     create(dto, userId) { return this.deptService.create(dto, userId); }
     update(id, dto, userId) {
@@ -64,6 +70,22 @@ __decorate([
     __metadata("design:paramtypes", [department_dto_1.CreateDepartmentTypeDto, Number]),
     __metadata("design:returntype", void 0)
 ], DepartmentsController.prototype, "createType", null);
+__decorate([
+    (0, common_1.Put)('types/:id'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, department_dto_1.UpdateDepartmentTypeDto, Number]),
+    __metadata("design:returntype", void 0)
+], DepartmentsController.prototype, "updateType", null);
+__decorate([
+    (0, common_1.Delete)('types/:id'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", void 0)
+], DepartmentsController.prototype, "removeType", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),

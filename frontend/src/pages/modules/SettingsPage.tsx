@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { settingsAPI, currenciesAPI, itemsAPI } from '../../services/api';
+import { settingsAPI, currenciesAPI, itemsAPI, departmentsAPI } from '../../services/api';
 import { FiSave, FiSettings, FiDollarSign, FiHome, FiHash, FiPlus, FiTrash2, FiStar, FiRefreshCw, FiAlertTriangle, FiCheck, FiArchive } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { confirmDialog } from '../../utils/confirmDialog';
 
-type TabType = 'general' | 'currencies' | 'item-groups' | 'quantity-types';
+type TabType = 'general' | 'currencies' | 'item-groups' | 'quantity-types' | 'dept-types';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('general');
@@ -13,24 +13,28 @@ export default function SettingsPage() {
   const [currencies, setCurrencies] = useState<any[]>([]);
   const [codeGroups, setCodeGroups] = useState<any[]>([]);
   const [quantityTypes, setQuantityTypes] = useState<any[]>([]);
+  const [deptTypes, setDeptTypes] = useState<any[]>([]);
 
   // Form states
   const [newCurrency, setNewCurrency] = useState({ code: '', symbol: '', name: '' });
   const [newGroup, setNewGroup] = useState({ name: '', prefix: '' });
   const [newQtyType, setNewQtyType] = useState({ name: '', abbreviation: '' });
+  const [newDeptType, setNewDeptType] = useState({ name: '', abbreviation: '' });
 
   const fetchData = async () => {
     try {
-      const [sets, currs, groups, qTypes] = await Promise.all([
+      const [sets, currs, groups, qTypes, dTypes] = await Promise.all([
         settingsAPI.getAll(),
         currenciesAPI.getAll(),
         itemsAPI.getCodeGroups(),
-        itemsAPI.getQuantityTypes()
+        itemsAPI.getQuantityTypes(),
+        departmentsAPI.getTypes()
       ]);
       setSettings(sets.data);
       setCurrencies(currs.data || []);
       setCodeGroups(groups.data || []);
       setQuantityTypes(Array.from(new Map((qTypes.data || []).map((q: any) => [q.name.toLowerCase().trim(), q])).values()));
+      setDeptTypes(dTypes.data || []);
     } catch (error) {
       console.error(error);
       toast.error('Veriler yüklenemedi.');
@@ -124,6 +128,34 @@ export default function SettingsPage() {
     }
   };
 
+  const handleAddDeptType = async () => {
+    if (!newDeptType.name || !newDeptType.abbreviation) return toast.error('Eksik bilgi');
+    try {
+      await departmentsAPI.createType(newDeptType);
+      setNewDeptType({ name: '', abbreviation: '' });
+      fetchData();
+      toast.success('Departman türü eklendi');
+    } catch (err: any) { toast.error(err.response?.data?.message || 'Hata'); }
+  };
+
+  const toggleDeptTypeState = async (id: number, state: number) => {
+    try {
+      await departmentsAPI.updateType(id, { state: state === 1 ? 0 : 1 });
+      fetchData();
+      toast.success('Durum güncellendi');
+    } catch (err: any) { toast.error(err.response?.data?.message || 'Hata'); }
+  };
+
+  const handleDeleteDeptType = async (id: number) => {
+    if (await confirmDialog('Bu türü silmek istediğinize emin misiniz?', true)) {
+      try {
+        await departmentsAPI.deleteType(id);
+        fetchData();
+        toast.success('Tür silindi');
+      } catch (err: any) { toast.error(err.response?.data?.message || 'Hata'); }
+    }
+  };
+
   if (isLoading) return <div className="page-container"><div className="spinner" /></div>;
 
   return (
@@ -146,8 +178,11 @@ export default function SettingsPage() {
           <button className={`btn ${activeTab === 'item-groups' ? 'btn-primary' : ''}`} style={{ width: '100%', justifyContent: 'flex-start', marginBottom: '5px' }} onClick={() => setActiveTab('item-groups')}>
             <FiHash style={{ marginRight: '10px' }} /> Ürün Kod Grupları
           </button>
-          <button className={`btn ${activeTab === 'quantity-types' ? 'btn-primary' : ''}`} style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => setActiveTab('quantity-types')}>
+          <button className={`btn ${activeTab === 'quantity-types' ? 'btn-primary' : ''}`} style={{ width: '100%', justifyContent: 'flex-start', marginBottom: '5px' }} onClick={() => setActiveTab('quantity-types')}>
             <FiSettings style={{ marginRight: '10px' }} /> Ürün Birimleri
+          </button>
+          <button className={`btn ${activeTab === 'dept-types' ? 'btn-primary' : ''}`} style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => setActiveTab('dept-types')}>
+            <FiStar style={{ marginRight: '10px' }} /> Departman Türleri
           </button>
         </div>
 
@@ -261,12 +296,12 @@ export default function SettingsPage() {
                       <tr key={q.id} style={{ opacity: q.state === 0 ? 0.6 : 1 }}>
                         <td><strong>{q.name}</strong></td>
                         <td><span className="badge">{q.abbreviation}</span></td>
-                        <td>{q.state === 1 ? 'Aktif' : 'Pasif'}</td>
+                        <td>{q.state === 1 ? 'Aktif' : 'Arşivlenmiş'}</td>
                         <td style={{ display: 'flex', gap: '5px' }}>
-                          <button className="btn-icon" style={{ color: q.state === 1 ? 'var(--error)' : 'var(--success)' }} onClick={() => toggleQtyTypeState(q.id, q.state)} title="Durumu Değiştir">
+                          <button className="btn-icon" style={{ color: q.state === 1 ? 'var(--error)' : 'var(--success)' }} onClick={() => toggleQtyTypeState(q.id, q.state)} title={q.state === 1 ? 'Arşivle (Ürünlerde görünmez)' : 'Aktifleştir'}>
                             {q.state === 1 ? <FiArchive /> : <FiRefreshCw />}
                           </button>
-                          <button className="btn-icon" style={{ color: 'var(--error)' }} onClick={() => handleDeleteQtyType(q.id)} title="Sil">
+                          <button className="btn-icon" style={{ color: 'var(--error)' }} onClick={() => handleDeleteQtyType(q.id)} title="Tamamen Sil">
                             <FiTrash2 />
                           </button>
                         </td>
@@ -279,6 +314,44 @@ export default function SettingsPage() {
                 <input placeholder="Birim Adı (Örn: Kilogram)" value={newQtyType.name} onChange={e => setNewQtyType({...newQtyType, name: e.target.value.toLocaleUpperCase('tr-TR')})} />
                 <input placeholder="Kısaltma (Örn: Kg)" value={newQtyType.abbreviation} onChange={e => setNewQtyType({...newQtyType, abbreviation: e.target.value})} />
                 <button className="btn btn-primary" onClick={handleAddQtyType}><FiPlus /></button>
+              </div>
+              <div style={{ marginTop: '15px', color: 'var(--text-muted)', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                 <FiAlertTriangle /> Arşivleme işlemi her durumda yapılabilir, silme işlemi ise sadece hiç kullanılmamış birimler için geçerlidir.
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'dept-types' && (
+            <div>
+              <h4 style={{ marginBottom: '20px', color: 'var(--primary)' }}>Departman Türleri (Üretim, Depo vb.)</h4>
+              <div className="table-card" style={{ marginBottom: '20px' }}>
+                <table>
+                  <thead>
+                    <tr><th>Tür Adı</th><th>Kısaltma</th><th>Durum</th><th>İşlemler</th></tr>
+                  </thead>
+                  <tbody>
+                    {deptTypes.map(t => (
+                      <tr key={t.id} style={{ opacity: t.state === 0 ? 0.6 : 1 }}>
+                        <td><strong>{t.name}</strong></td>
+                        <td><span className="badge">{t.abbreviation}</span></td>
+                        <td>{t.state === 1 ? 'Aktif' : 'Arşivlenmiş'}</td>
+                        <td style={{ display: 'flex', gap: '5px' }}>
+                          <button className="btn-icon" style={{ color: t.state === 1 ? 'var(--error)' : 'var(--success)' }} onClick={() => toggleDeptTypeState(t.id, t.state)} title="Durumu Değiştir">
+                            {t.state === 1 ? <FiArchive /> : <FiRefreshCw />}
+                          </button>
+                          <button className="btn-icon" style={{ color: 'var(--error)' }} onClick={() => handleDeleteDeptType(t.id)} title="Sil">
+                            <FiTrash2 />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '10px', background: '#f8fafc', padding: '15px', borderRadius: '12px' }}>
+                <input placeholder="Tür Adı (Örn: ÜRETİM)" value={newDeptType.name} onChange={e => setNewDeptType({...newDeptType, name: e.target.value.toLocaleUpperCase('tr-TR')})} />
+                <input placeholder="Kısaltma (Örn: URT)" value={newDeptType.abbreviation} onChange={e => setNewDeptType({...newDeptType, abbreviation: e.target.value.toUpperCase()})} />
+                <button className="btn btn-primary" onClick={handleAddDeptType}><FiPlus /></button>
               </div>
             </div>
           )}
