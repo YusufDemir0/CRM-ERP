@@ -15,17 +15,17 @@ export const PartyForm: React.FC<PartyFormProps> = ({
   onSuccess,
   onCancel,
 }) => {
-  const [formData, setFormData] = useState(initialData || {
-    name: '',
-    type: 'customer',
-    taxOffice: '',
-    taxNumber: '',
-    phone: '',
-    email: '',
-    address: '',
-    commercialCreditLimit: 0,
-    riskLimit: 0,
-    description: ''
+  const [formData, setFormData] = useState({
+    name: initialData?.name || '',
+    type: initialData?.type || 'customer',
+    taxOffice: initialData?.taxOffice || '',
+    taxNumber: initialData?.taxNumber || '',
+    phone: initialData?.phone || '',
+    email: initialData?.email || '',
+    address: initialData?.address || '',
+    commercialCreditLimit: initialData?.commercialCreditLimit || 0,
+    riskLimit: initialData?.riskLimit || 0,
+    description: initialData?.description || ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {

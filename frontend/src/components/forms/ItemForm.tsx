@@ -21,19 +21,19 @@ export const ItemForm: React.FC<ItemFormProps> = ({
   const [quantityTypes, setQuantityTypes] = useState<any[]>([]);
   const [currencies, setCurrencies] = useState<any[]>([]);
   
-  const [formData, setFormData] = useState(initialData || {
-    name: '',
-    itemTypeId: '',
-    itemCodeGroupId: '',
-    criticalLimit: 0,
-    purchasePrice: 0,
-    salePrice: 0,
-    currencyId: '',
-    quantityTypeId: '',
-    kdv: 20 as number | string,
-    image: '',
-    description: '',
-    notes: ''
+  const [formData, setFormData] = useState({
+    name: initialData?.name || '',
+    itemTypeId: initialData?.itemTypeId || '',
+    itemCodeGroupId: initialData?.itemCodeGroupId || '',
+    criticalLimit: initialData?.criticalLimit || 0,
+    purchasePrice: initialData?.purchasePrice || 0,
+    salePrice: initialData?.salePrice || 0,
+    currencyId: initialData?.currencyId || '',
+    quantityTypeId: initialData?.quantityTypeId || '',
+    kdv: initialData?.kdv !== undefined ? initialData.kdv : 20,
+    image: initialData?.image || '',
+    description: initialData?.description || '',
+    notes: initialData?.notes || ''
   });
 
   const [customKdv, setCustomKdv] = useState<number | null>(

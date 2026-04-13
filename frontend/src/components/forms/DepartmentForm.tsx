@@ -20,12 +20,12 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
   onSuccess,
   onCancel,
 }) => {
-  const [formData, setFormData] = useState(initialData || {
-    name: '',
-    description: '',
-    abbreviation: '',
-    departmentTypeId: '',
-    commercialAccountId: ''
+  const [formData, setFormData] = useState({
+    name: initialData?.name || '',
+    description: initialData?.description || '',
+    abbreviation: initialData?.abbreviation || '',
+    departmentTypeId: initialData?.departmentTypeId || '',
+    commercialAccountId: initialData?.commercialAccountId || ''
   });
 
   const [accounts, setAccounts] = useState<any[]>([]);

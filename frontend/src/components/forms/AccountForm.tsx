@@ -17,14 +17,14 @@ export const AccountForm: React.FC<AccountFormProps> = ({
   onCancel,
 }) => {
   const [currencies, setCurrencies] = useState<any[]>([]);
-  const [formData, setFormData] = useState(initialData || {
-    name: '',
-    bankName: '',
-    iban: '',
-    ibanName: '',
-    currencyId: '',
-    criticalLimit: 0,
-    description: ''
+  const [formData, setFormData] = useState({
+    name: initialData?.name || '',
+    bankName: initialData?.bankName || '',
+    iban: initialData?.iban || '',
+    ibanName: initialData?.ibanName || '',
+    currencyId: initialData?.currencyId || '',
+    criticalLimit: initialData?.criticalLimit || 0,
+    description: initialData?.description || ''
   });
 
   useEffect(() => {

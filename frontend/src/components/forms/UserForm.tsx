@@ -18,14 +18,14 @@ export const UserForm: React.FC<UserFormProps> = ({
   onSuccess,
   onCancel,
 }) => {
-  const [formData, setFormData] = useState(initialData || {
-    fullName: '',
-    username: '',
-    password: '',
-    email: '',
-    phone: '',
-    departmentId: '',
-    selectedRoles: [] as number[],
+  const [formData, setFormData] = useState({
+    fullName: initialData?.fullName || '',
+    username: initialData?.username || '',
+    password: initialData?.password || '',
+    email: initialData?.email || '',
+    phone: initialData?.phone || '',
+    departmentId: initialData?.departmentId || '',
+    selectedRoles: initialData?.selectedRoles || [] as number[],
   });
   const [countryCode, setCountryCode] = useState('+90');
   const [departments, setDepartments] = useState<Department[]>([]);

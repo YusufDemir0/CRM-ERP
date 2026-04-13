@@ -17,11 +17,11 @@ export const BomForm: React.FC<BomFormProps> = ({
   onCancel,
 }) => {
   const [itemsList, setItemsList] = useState<any[]>([]);
-  const [formData, setFormData] = useState(initialData || {
-    name: '',
-    targetItemId: '',
-    description: '',
-    items: [] as { itemId: number, quantity: number, description: string }[]
+  const [formData, setFormData] = useState({
+    name: initialData?.name || '',
+    targetItemId: initialData?.targetItemId || '',
+    description: initialData?.description || '',
+    items: initialData?.items || [] as { itemId: number, quantity: number, description: string }[]
   });
 
   useEffect(() => {
