@@ -18,7 +18,7 @@ export class ItemsService {
     @InjectRepository(ItemCodeGroup) private codeGroupRepo: Repository<ItemCodeGroup>,
     private dataSource: DataSource,
     private sequenceGenerator: SequenceGeneratorService,
-  ) {}
+  ) { }
 
   // ────── ITEMS ──────
 
@@ -89,7 +89,7 @@ export class ItemsService {
 
   async update(id: number, dto: UpdateItemDto, userId?: number): Promise<Item> {
     const item = await this.findOne(id);
-    
+
     // Explicit mapping to prevent mass assignment
     if (dto.name !== undefined) item.name = dto.name;
     if (dto.itemTypeId !== undefined) item.itemTypeId = dto.itemTypeId;
@@ -133,7 +133,7 @@ export class ItemsService {
   async updateItemType(id: number, dto: Partial<ItemType>, userId?: number): Promise<ItemType> {
     const type = await this.itemTypeRepo.findOne({ where: { id } });
     if (!type) throw new NotFoundException('Ürün tipi bulunamadı');
-    
+
     if (dto.state === 0) {
       const activeItems = await this.itemRepo.count({ where: { itemTypeId: id, state: 1 } });
       if (activeItems > 0) {
@@ -171,15 +171,13 @@ export class ItemsService {
   async updateItemCodeGroup(id: number, dto: Partial<ItemCodeGroup>, userId?: number): Promise<ItemCodeGroup> {
     const group = await this.codeGroupRepo.findOne({ where: { id } });
     if (!group) throw new NotFoundException('Ürün kod grubu bulunamadı');
-    
-    /*
+
     if (dto.state === 0) {
       const activeItems = await this.itemRepo.count({ where: { itemCodeGroupId: id, state: 1 } });
       if (activeItems > 0) {
         throw new BadRequestException(`Bu grupta ${activeItems} adet aktif ürün bulunduğu için pasife alınamaz.`);
       }
     }
-    */
 
     if (dto.name !== undefined) group.name = dto.name;
     if (dto.prefix !== undefined) group.prefix = dto.prefix;
@@ -211,8 +209,7 @@ export class ItemsService {
   async updateQuantityType(id: number, dto: Partial<QuantityType>, userId?: number): Promise<QuantityType> {
     const type = await this.qtyTypeRepo.findOne({ where: { id } });
     if (!type) throw new NotFoundException('Birim bulunamadı');
-    
-    /*
+
     // If deactivating, check if items use it
     if (dto.state === 0) {
       const activeItems = await this.itemRepo.count({ where: { quantityTypeId: id, state: 1 } });
@@ -220,7 +217,6 @@ export class ItemsService {
         throw new BadRequestException(`Bu birimi kullanan ${activeItems} adet aktif ürün bulunduğu için pasife alınamaz.`);
       }
     }
-    */
 
     if (dto.name !== undefined) type.name = dto.name;
     if (dto.abbreviation !== undefined) type.abbreviation = dto.abbreviation;

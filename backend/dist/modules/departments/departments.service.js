@@ -85,7 +85,7 @@ let DepartmentsService = class DepartmentsService {
             throw new common_1.NotFoundException('Departman türü bulunamadı');
         const usedCount = await this.deptRepo.count({ where: { departmentTypeId: id } });
         if (usedCount > 0) {
-            throw new Error(`Bu türü kullanan ${usedCount} adet departman bulunduğu için silinemez.`);
+            throw new common_1.BadRequestException(`Bu türü kullanan ${usedCount} adet departman bulunduğu için silinemez.`);
         }
         await this.typeRepo.softDelete(id);
     }

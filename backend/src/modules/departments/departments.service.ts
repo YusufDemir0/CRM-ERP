@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Department } from './entities/department.entity';
@@ -90,7 +90,7 @@ export class DepartmentsService {
     // Check if any departments use this type
     const usedCount = await this.deptRepo.count({ where: { departmentTypeId: id } });
     if (usedCount > 0) {
-      throw new Error(`Bu türü kullanan ${usedCount} adet departman bulunduğu için silinemez.`);
+      throw new BadRequestException(`Bu türü kullanan ${usedCount} adet departman bulunduğu için silinemez.`);
     }
 
     await this.typeRepo.softDelete(id);

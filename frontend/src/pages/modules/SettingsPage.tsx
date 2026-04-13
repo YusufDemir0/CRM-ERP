@@ -34,7 +34,7 @@ export default function SettingsPage() {
       setCurrencies(currs.data || []);
       setCodeGroups(groups.data || []);
       setQuantityTypes(Array.from(new Map((qTypes.data || []).map((q: any) => [q.name.toLowerCase().trim(), q])).values()));
-      setDeptTypes(dTypes.data || []);
+      setDeptTypes(Array.from(new Map((dTypes.data || []).map((t: any) => [`${t.name.toLowerCase().trim()}-${t.abbreviation.toLowerCase().trim()}`, t])).values()));
     } catch (error) {
       console.error(error);
       toast.error('Veriler yüklenemedi.');
@@ -65,7 +65,7 @@ export default function SettingsPage() {
       setNewCurrency({ code: '', symbol: '', name: '' });
       fetchData();
       toast.success('Eklendi');
-    } catch (err) { toast.error('Hata'); }
+    } catch (err) { /* handled by api.ts */ }
   };
 
   const handleSetDefaultCurrency = async (id: number) => {
@@ -73,7 +73,7 @@ export default function SettingsPage() {
       await currenciesAPI.setDefault(id);
       fetchData();
       toast.success('Varsayılan güncellendi');
-    } catch (err) { toast.error('Hata'); }
+    } catch (err) { /* handled by api.ts */ }
   };
 
   const handleAddGroup = async () => {
@@ -83,7 +83,7 @@ export default function SettingsPage() {
           setNewGroup({ name: '', prefix: '' });
           fetchData();
           toast.success('Grup eklendi');
-      } catch (err) { toast.error('Hata'); }
+      } catch (err) { /* handled by api.ts */ }
   };
 
   const toggleGroupState = async (id: number, state: number) => {
@@ -92,7 +92,7 @@ export default function SettingsPage() {
           fetchData();
           toast.success('Durum güncellendi');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Hata');
+      // Global api.ts handles the toast notification safely
     }
   };
 
@@ -103,7 +103,7 @@ export default function SettingsPage() {
       setNewQtyType({ name: '', abbreviation: '' });
       fetchData();
       toast.success('Birim eklendi');
-    } catch (err: any) { toast.error(err.response?.data?.message || 'Hata'); }
+    } catch (err: any) { /* handled by api.ts */ }
   };
 
   const toggleQtyTypeState = async (id: number, state: number) => {
@@ -112,7 +112,7 @@ export default function SettingsPage() {
       fetchData();
       toast.success('Durum güncellendi');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Hata');
+      // Global api.ts handles the toast notification safely
     }
   };
 
@@ -123,7 +123,7 @@ export default function SettingsPage() {
         fetchData();
         toast.success('Birim silindi');
       } catch (err: any) {
-        toast.error(err.response?.data?.message || 'Hata');
+        // Global api.ts handles the toast notification safely
       }
     }
   };
@@ -135,7 +135,7 @@ export default function SettingsPage() {
       setNewDeptType({ name: '', abbreviation: '' });
       fetchData();
       toast.success('Departman türü eklendi');
-    } catch (err: any) { toast.error(err.response?.data?.message || 'Hata'); }
+    } catch (err: any) { /* handled by api.ts */ }
   };
 
   const toggleDeptTypeState = async (id: number, state: number) => {
@@ -143,7 +143,7 @@ export default function SettingsPage() {
       await departmentsAPI.updateType(id, { state: state === 1 ? 0 : 1 });
       fetchData();
       toast.success('Durum güncellendi');
-    } catch (err: any) { toast.error(err.response?.data?.message || 'Hata'); }
+    } catch (err: any) { /* handled by api.ts */ }
   };
 
   const handleDeleteDeptType = async (id: number) => {
@@ -152,7 +152,7 @@ export default function SettingsPage() {
         await departmentsAPI.deleteType(id);
         fetchData();
         toast.success('Tür silindi');
-      } catch (err: any) { toast.error(err.response?.data?.message || 'Hata'); }
+      } catch (err: any) { /* handled by api.ts */ }
     }
   };
 
@@ -316,7 +316,7 @@ export default function SettingsPage() {
                 <button className="btn btn-primary" onClick={handleAddQtyType}><FiPlus /></button>
               </div>
               <div style={{ marginTop: '15px', color: 'var(--text-muted)', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                 <FiAlertTriangle /> Arşivleme işlemi her durumda yapılabilir, silme işlemi ise sadece hiç kullanılmamış birimler için geçerlidir.
+                 <FiAlertTriangle /> Pasife alma veya silme işlemi için bu birimi kullanan aktif ürün olmamalıdır.
               </div>
             </div>
           )}

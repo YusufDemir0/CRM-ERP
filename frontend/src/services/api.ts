@@ -30,7 +30,7 @@ api.interceptors.response.use(
   (error) => {
     window.dispatchEvent(new Event('hide-loader'));
 
-    // GİZLİ KALAN 400 ve 500 HATALARININ KULLANICIYA YANSITILMASI
+      // GİZLİ KALAN 400 ve 500 HATALARININ KULLANICIYA YANSITILMASI
     if (error.response && error.response.status !== 401) {
       let outputMessage = 'Sistemsel bir hata oluştu.';
       
@@ -39,21 +39,23 @@ api.interceptors.response.use(
         if (typeof data === 'string') {
           outputMessage = data;
         } else if (data.message) {
+          // NestJS bazen validation hatalarını array olarak döner, bunları birleştiriyoruz
           outputMessage = Array.isArray(data.message) ? data.message.join(', ') : String(data.message);
         } else if (data.error) {
           outputMessage = String(data.error);
           if (data.detail) outputMessage += ` - ${data.detail}`;
         } else {
           try {
-            outputMessage = JSON.stringify(data);
+            outputMessage = typeof data === 'object' ? JSON.stringify(data) : String(data);
           } catch (e) {
-            outputMessage = 'Bilinmeyen hata formatı';
+            outputMessage = 'Sunucudan geçersiz hata formatı alındı.';
           }
         }
       }
       
-      // Ensure it's absolutely a string
-      toast.error(String(outputMessage));
+      // CRITICAL: Mesajın kesinlikle string olduğundan en son kez emin oluyoruz
+      // React "Objects are not valid as a React child" hatasıyla patlamasın diye
+      toast.error(String(outputMessage).substring(0, 255)); 
     }
 
     if (error.response?.status === 401) {
