@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { SettingsProvider } from './context/SettingsContext';
+import { QuickCreateProvider } from './context/QuickCreateContext';
 import Layout from './components/Layout';
 import LoginPage from './pages/modules/LoginPage';
 import DashboardPage from './pages/modules/DashboardPage';
@@ -27,7 +28,8 @@ export default function App() {
   return (
     <SettingsProvider>
       <AuthProvider>
-        <BrowserRouter>
+        <QuickCreateProvider>
+          <BrowserRouter>
           <GlobalLoader />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
@@ -73,7 +75,8 @@ export default function App() {
               },
             }}
           />
-        </BrowserRouter>
+          </BrowserRouter>
+        </QuickCreateProvider>
       </AuthProvider>
     </SettingsProvider>
   );

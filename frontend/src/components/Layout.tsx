@@ -2,6 +2,7 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
+import { QuickCreateManager } from './common/QuickCreateManager';
 
 export default function Layout() {
   const { user, isLoading } = useAuth();
@@ -28,6 +29,7 @@ export default function Layout() {
       <main className="main-content">
         <Outlet />
       </main>
+      <QuickCreateManager />
     </div>
   );
 }

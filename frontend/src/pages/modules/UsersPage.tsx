@@ -3,10 +3,10 @@ import { usersAPI, departmentsAPI, rolesAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { confirmDialog } from '../../utils/confirmDialog';
 import { User, Department, Role, Permission } from '../../types';
+import { useQuickCreate } from '../../context/QuickCreateContext';
 
 // Sub-components
 import { UserTable } from './users/components/UserTable';
-import { UserFormModal } from './users/components/UserFormModal';
 import { UserPermissionsModal } from './users/components/UserPermissionsModal';
 
 const INITIAL_FORM_DATA = {
@@ -58,7 +58,7 @@ export default function UsersPage() {
     fetchData();
   }, []);
 
-  const filteredUsers = users.filter((u) => {
+  const filteredUsers = users.filter((u: User) => {
     const s = searchTerm.toLowerCase();
     const match =
       u.fullName?.toLowerCase().includes(s) ||
@@ -97,7 +97,7 @@ export default function UsersPage() {
 
       if (userId) {
         const currentUserRoles = editingId
-          ? users.find((u) => u.id === editingId)?.roles?.map((r: Role) => r.id) || []
+          ? users.find((u: User) => u.id === editingId)?.roles?.map((r: Role) => r.id) || []
           : [];
 
         const rolesToAdd = roleIdsToKeep.map(Number).filter((rId) => !currentUserRoles.includes(rId));
@@ -119,18 +119,22 @@ export default function UsersPage() {
     }
   };
 
+  const { openCreate } = useQuickCreate();
+
   const handleEdit = (u: User) => {
-    setEditingId(u.id);
-    setFormData({
-      fullName: u.fullName || '',
-      username: u.username || '',
-      password: '',
-      email: u.email || '',
-      phone: u.phone || '',
-      departmentId: u.department?.id?.toString() || '',
-      selectedRoles: u.roles?.map((r: Role) => r.id) || [],
+    openCreate('user', {
+      editingId: u.id,
+      initialData: {
+        fullName: u.fullName || '',
+        username: u.username || '',
+        password: '',
+        email: u.email || '',
+        phone: u.phone || '',
+        departmentId: u.department?.id?.toString() || '',
+        selectedRoles: u.roles?.map((r: Role) => r.id) || [],
+      },
+      onSuccess: handleFormSubmit
     });
-    setIsModalOpen(true);
   };
 
   const toggleState = async (id: number, currentState: number) => {
@@ -200,9 +204,9 @@ export default function UsersPage() {
           <button
             className="btn btn-primary"
             onClick={() => {
-              setEditingId(null);
-              setFormData(INITIAL_FORM_DATA);
-              setIsModalOpen(true);
+              openCreate('user', {
+                onSuccess: handleFormSubmit
+              });
             }}
           >
             + YENİ KULLANICI
@@ -215,16 +219,6 @@ export default function UsersPage() {
         onEdit={handleEdit}
         onToggleState={toggleState}
         onOpenPermissions={openPermissionsModal}
-      />
-
-      <UserFormModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleFormSubmit}
-        editingId={editingId}
-        initialData={formData}
-        departments={departments}
-        availableRoles={availableRoles}
       />
 
       <UserPermissionsModal

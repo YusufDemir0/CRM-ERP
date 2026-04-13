@@ -36,10 +36,10 @@ export default function DashboardPage() {
   },[]);
 
   const stats =[
-    { label: 'Aktif Sistem Kullanıcısı', value: data.users, icon: <FiUsers />, color: 'var(--primary)' },
-    { label: 'Toplam Finansal İşlem', value: data.salesCount, icon: <FiActivity />, color: 'var(--success)' },
-    { label: 'Kritik Stok Uyarısı', value: data.criticalStocks, icon: <FiAlertTriangle />, color: 'var(--danger)' },
-    { label: 'Kayıtlı Cari Hesap', value: data.parties, icon: <FiLayers />, color: 'var(--warning)' },
+    { label: 'Aktif Sistem Kullanıcısı', value: data.users, icon: <FiUsers />, color: 'var(--primary)', path: '/users' },
+    { label: 'Toplam Finansal İşlem', value: data.salesCount, icon: <FiActivity />, color: 'var(--success)', path: '/transactions' },
+    { label: 'Kritik Stok Uyarısı', value: data.criticalStocks, icon: <FiAlertTriangle />, color: 'var(--danger)', path: '/stocks' },
+    { label: 'Kayıtlı Cari Hesap', value: data.parties, icon: <FiLayers />, color: 'var(--warning)', path: '/parties' },
   ];
 
   return (
@@ -63,7 +63,14 @@ export default function DashboardPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', marginBottom: '40px' }}>
         {stats.map((stat, idx) => (
-          <div className="table-card" key={idx} style={{ padding: '24px', position: 'relative', overflow: 'hidden' }}>
+          <div 
+            className="table-card" 
+            key={idx} 
+            onClick={() => navigate(stat.path)}
+            style={{ padding: '24px', position: 'relative', overflow: 'hidden', cursor: 'pointer', transition: 'transform 0.2s', border: '1px solid var(--border)' }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
             <div style={{ width: '48px', height: '48px', background: `${stat.color}20`, borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: stat.color, fontSize: '24px', marginBottom: '20px' }}>
               {stat.icon}
             </div>
