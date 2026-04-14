@@ -83,7 +83,15 @@ export class ItemsService {
           console.warn('Default currency not found in ItemsService, setting to null');
         }
       }
+
+      // DB-05: App-level Unique Check (Code)
+      // Sequence generator zaten uniq üretiyor ama manuel kod desteği için kontrol şart.
       const code = await this.sequenceGenerator.generateItemCode(queryRunner, dto.itemCodeGroupId);
+      
+      const existing = await queryRunner.manager.findOne(Item, { where: { code } });
+      if (existing) {
+        throw new BadRequestException(`'${code}' kodlu bir ürün zaten mevcut.`);
+      }
 
       const item = queryRunner.manager.create(Item, {
         ...dto,
@@ -104,6 +112,14 @@ export class ItemsService {
 
   async update(id: number, dto: UpdateItemDto, userId?: number): Promise<Item> {
     const item = await this.findOne(id);
+
+    // DB-05: Uniqueness Check for Update
+    if (dto.code && dto.code !== item.code) {
+      const existing = await this.itemRepo.findOne({ where: { code: dto.code } });
+      if (existing && existing.id !== id) {
+        throw new BadRequestException(`'${dto.code}' kodlu bir ürün zaten mevcut.`);
+      }
+    }
 
     // Modernize mapping with strict field control
     const fields = [
@@ -131,7 +147,26 @@ export class ItemsService {
   }
 
   async softDelete(id: number): Promise<void> {
-    await this.findOne(id);
+    const item = await this.findOne(id);
+    
+    // DB-04: Stok varsa silmeyi engelle
+    const Stock = (await import('../stocks/entities/stock.entity')).Stock;
+    const totalStock = await this.dataSource.getRepository(Stock).createQueryBuilder('stock')
+      .where('stock.itemId = :id', { id })
+      .select('SUM(stock.quantity)', 'sum')
+      .getRawOne();
+    
+    if (totalStock && totalStock.sum && new Decimal(totalStock.sum).gt(0)) {
+      throw new BadRequestException(`Stokta ${totalStock.sum} adet bulunan ürün silinemez. Lütfen önce stokları sıfırlayınız.`);
+    }
+
+    // Reçete (BOM) kullanımı kontrolü
+    const BomItem = (await import('../../production/entities/bom-item.entity')).BomItem;
+    const usageCount = await this.dataSource.getRepository(BomItem).count({ where: { itemId: id } });
+    if (usageCount > 0) {
+      throw new BadRequestException(`Bu ürün ${usageCount} farklı reçetede (BOM) kullanılmaktadır. Önce reçetelerden çıkarılmalıdır.`);
+    }
+
     await this.itemRepo.softDelete(id);
   }
 

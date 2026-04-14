@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Transform } from 'class-transformer';
 import { Decimal } from 'decimal.js';
 import { BaseEntity } from '../../../common/entities/base.entity';
@@ -6,6 +6,7 @@ import { Currency } from '../../finance/currencies/entities/currency.entity';
 import { DecimalTransformer } from '../../../common/transformers/decimal.transformer';
 
 @Entity('parties')
+@Index("UQ_PARTY_TAX_NUMBER_ACTIVE", ["taxNumber"], { where: "deleted_at IS NULL", unique: true })
 export class Party extends BaseEntity {
   @Column({ type: 'enum', enum: ['customer', 'provider', 'both'], default: 'customer' })
   type: 'customer' | 'provider' | 'both';

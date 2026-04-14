@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Party } from './entities/party.entity';
@@ -52,6 +52,13 @@ export class PartiesService {
   }
 
   async create(dto: CreatePartyDto, userId?: number): Promise<Party> {
+    if (dto.taxNumber) {
+      const existing = await this.partyRepo.findOne({ where: { taxNumber: dto.taxNumber } });
+      if (existing) {
+        throw new BadRequestException(`'${dto.taxNumber}' vergi numarası ile başka bir cari mevcut (${existing.name}).`);
+      }
+    }
+
     if (!dto.currencyId) {
       try {
         const defaultCurrency = await this.currenciesService.getDefault();
@@ -67,6 +74,14 @@ export class PartiesService {
   async update(id: number, dto: UpdatePartyDto, userId?: number): Promise<Party> {
     const party = await this.findOne(id);
     
+    // DB-05: Uniqueness Check
+    if (dto.taxNumber && dto.taxNumber !== party.taxNumber) {
+      const existing = await this.partyRepo.findOne({ where: { taxNumber: dto.taxNumber } });
+      if (existing && existing.id !== id) {
+        throw new BadRequestException(`'${dto.taxNumber}' vergi numarası ile başka bir cari mevcut (${existing.name}).`);
+      }
+    }
+
     // Modernize mapping with strict field control
     const fields = [
       'name', 'type', 'phone1', 'phone2', 'taxNumber', 'email', 
@@ -89,7 +104,16 @@ export class PartiesService {
   }
 
   async softDelete(id: number): Promise<void> {
-    await this.findOne(id);
+    const party = await this.findOne(id);
+    
+    // DB-04: Bakiye varsa silmeyi engelle
+    if (!new Decimal(party.balance).isZero()) {
+      throw new BadRequestException(
+        `Bakiyesi olan cari hesaplar silinemez. Mevcut Bakiye: ${party.balance.toString()}. ` +
+        `Lütfen önce finansal hesabı sıfırlayınız (Tahsilat/Ödeme).`
+      );
+    }
+
     await this.partyRepo.softDelete(id);
   }
 
