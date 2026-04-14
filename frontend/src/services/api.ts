@@ -5,25 +5,14 @@ const api = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
 });
 
 let requestCounter = 0;
 
 api.interceptors.request.use((config) => {
-  // CSRF token sync from cookie to header (Double Submit Cookie Pattern)
-  const getCookie = (name: string) => {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop()?.split(';').shift();
-    return null;
-  };
-
-  const csrfToken = getCookie('XSRF-TOKEN');
-  if (csrfToken) {
-    config.headers['x-csrf-token'] = csrfToken;
-  }
-
-  if (config.method && ['post', 'put', 'delete'].includes(config.method.toLowerCase())) {
+  if (config.method && ['post', 'put', 'delete', 'patch'].includes(config.method.toLowerCase())) {
     requestCounter++;
     window.dispatchEvent(new CustomEvent('show-loader'));
   }

@@ -17,18 +17,18 @@ export class CsrfGuard implements CanActivate {
       return true;
     }
 
-    // Bypass login and register
-    const bypassedRoutes = ['/api/auth/login', '/api/auth/register', '/api/auth/logout'];
-    if (bypassedRoutes.includes(request.path)) {
+    // Bypass login, register, and webhooks
+    if (
+      request.path.startsWith('/api/auth/login') ||
+      request.path.startsWith('/api/auth/register') ||
+      request.path.startsWith('/api/auth/logout') ||
+      request.path.startsWith('/api/webhooks')
+    ) {
       return true;
     }
 
-    // Bypass public routes (like login/register if needed, but CSRF is usually for logged in sessions)
-    // However, the prompt says "all POST/PUT/PATCH/DELETE route'larına uygulanmış guard"
-    // For erp_token based auth, we need this check.
-
     const csrfCookie = request.cookies['XSRF-TOKEN'];
-    const csrfHeader = request.headers['x-csrf-token'];
+    const csrfHeader = request.headers['x-xsrf-token'];
 
     if (!csrfCookie || !csrfHeader || csrfCookie !== csrfHeader) {
       throw new ForbiddenException('CSRF doğrulaması başarısız.');

@@ -12,6 +12,7 @@ export interface JwtPayload {
   sub: number;
   username: string;
   departmentId: number | null;
+  tokenVersion: number;
 }
 
 @Injectable()
@@ -35,11 +36,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: JwtPayload) {
     const user = await this.dataSource.getRepository(User).findOne({
       where: { id: payload.sub },
-      select: ['id', 'state']
+      select: ['id', 'state', 'tokenVersion']
     });
 
     if (!user || user.state !== RecordState.ACTIVE) {
       throw new UnauthorizedException('Kullanıcı hesabı pasif veya bulunamadı.');
+    }
+
+    if (user.tokenVersion !== payload.tokenVersion) {
+      throw new UnauthorizedException('Oturum sonlandırılmış veya geçersiz.');
     }
 
     return {

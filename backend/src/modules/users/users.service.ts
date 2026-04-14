@@ -30,6 +30,10 @@ export class UsersService {
       });
     }
 
+    if (query.state !== undefined) {
+      qb.andWhere('user.state = :state', { state: query.state });
+    }
+
     qb.orderBy(`user.${query.sortBy || 'createdAt'}`, query.sortOrder || 'DESC');
     qb.skip(query.skip).take(query.limit);
 
@@ -83,6 +87,8 @@ export class UsersService {
     if (dto.password && dto.password.trim() !== '') {
       const salt = await bcrypt.genSalt(12);
       user.passwordHash = await bcrypt.hash(dto.password, salt);
+      // Oturumları iptal et (Şifre değişince tüm cihazlardan çıkış)
+      user.tokenVersion += 1;
     }
     // Explicit mapping to prevent mass assignment
     if (dto.username !== undefined) user.username = dto.username;
@@ -90,7 +96,12 @@ export class UsersService {
     if (dto.email !== undefined) user.email = dto.email;
     if (dto.phone !== undefined) user.phone = dto.phone;
     if (dto.departmentId !== undefined) user.departmentId = dto.departmentId;
-    if (dto.state !== undefined) user.state = dto.state;
+    
+    if (dto.state !== undefined && user.state !== dto.state) {
+      user.state = dto.state;
+      // Durum değişince oturumları iptal et (Kovulma/Dondurma anında iptal)
+      user.tokenVersion += 1;
+    }
 
     user.updatedBy = currentUserId || null;
     return this.userRepo.save(user);

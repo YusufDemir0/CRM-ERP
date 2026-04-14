@@ -44,24 +44,27 @@ export class AuthService {
     const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isMatch) {
       // Increment failed attempts
-      user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
-      if (user.failedLoginAttempts >= 3) {
-        user.state = 2; // Locked
+      const failedAttempts = (user.failedLoginAttempts || 0) + 1;
+      const updates: any = { failedLoginAttempts: failedAttempts };
+      
+      if (failedAttempts >= 5) { // Increased from 3 to 5 for better UX
+        updates.state = 2; // Locked
       }
-      await this.userRepo.save(user);
+      
+      await this.userRepo.update(user.id, updates);
       throw new UnauthorizedException('INVALID_PASSWORD');
     }
 
     // Reset failed attempts on success
     if (user.failedLoginAttempts > 0) {
-      user.failedLoginAttempts = 0;
-      await this.userRepo.save(user);
+      await this.userRepo.update(user.id, { failedLoginAttempts: 0 });
     }
 
     const payload = {
       sub: user.id,
       username: user.username,
       departmentId: user.departmentId,
+      tokenVersion: user.tokenVersion,
     };
 
     return {
@@ -110,32 +113,35 @@ export class AuthService {
   }
 
   async getProfile(userId: number) {
-    const user = await this.userRepo.findOne({
-      where: { id: userId },
-      relations: ['roles', 'department'],
-    });
+    const user = await this.userRepo.createQueryBuilder('user')
+      .leftJoinAndSelect('user.department', 'department')
+      .leftJoinAndSelect('user.roles', 'role')
+      .leftJoinAndSelect('role.permissions', 'permission')
+      .leftJoinAndSelect('user.userPermissions', 'userPerm')
+      .leftJoinAndSelect('userPerm.permission', 'userPermData')
+      .where('user.id = :userId', { userId })
+      .getOne();
 
     if (!user) {
       throw new UnauthorizedException('Kullanıcı bulunamadı');
     }
 
-    const userRoles = await this.userRoleRepo.find({ where: { userId }, relations: ['role'] });
-    const roleIds = userRoles.map(ur => ur.roleId);
+    // Role tabanlı yetkiler
+    const rolePermissions = user.roles?.flatMap(r => 
+      r.permissions?.map(p => p.key) || []
+    ) || [];
+
+    // Kullanıcıya özel yetkiler (Allow/Deny)
+    const userAllowKeys = user.userPermissions
+      ?.filter(up => up.effect === 'allow')
+      .map(up => up.permission?.key) || [];
     
-    let permissions: string[] = [];
-    if (roleIds.length > 0) {
-      const rolePerms = await this.rolePermRepo.find({
-        where: { roleId: In(roleIds) },
-        relations: ['permission']
-      });
-      permissions = rolePerms.map(rp => rp.permission?.key).filter(Boolean);
-    }
-    
-    const userPerms = await this.userPermRepo.find({ where: { userId }, relations: ['permission'] });
-    const userAllowKeys = userPerms.filter(up => up.effect === 'allow').map(up => up.permission?.key);
-    const userDenyKeys = userPerms.filter(up => up.effect === 'deny').map(up => up.permission?.key);
-    
-    const finalPermissions = Array.from(new Set([...permissions, ...userAllowKeys])).filter(key => !userDenyKeys.includes(key));
+    const userDenyKeys = user.userPermissions
+      ?.filter(up => up.effect === 'deny')
+      .map(up => up.permission?.key) || [];
+
+    const finalPermissions = Array.from(new Set([...rolePermissions, ...userAllowKeys]))
+      .filter(key => key && !userDenyKeys.includes(key));
 
     return {
       id: user.id,
