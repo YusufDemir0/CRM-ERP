@@ -1,4 +1,5 @@
-import { IsOptional, IsString, IsNumber, IsEmail, MinLength } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsEmail, MinLength, IsInt } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateUserDto {
   @IsString()
@@ -20,6 +21,8 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsNumber()
+  @IsInt()
+  @Type(() => Number)
   departmentId?: number;
 }
 
@@ -47,9 +50,13 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsNumber()
+  @IsInt()
+  @Type(() => Number)
   departmentId?: number;
 
   @IsOptional()
   @IsNumber()
+  @IsInt()
+  @Type(() => Number)
   state?: number;
 }

@@ -31,7 +31,9 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
       transform: true,
       transformOptions: {
-        enableImplicitConversion: true,
+        // SEC-04: Disable implicit conversion to enforce explicit @Type() decorators.
+        // This prevents unexpected string-to-number coercions that can leak bugs.
+        enableImplicitConversion: false,
       },
     }),
   );

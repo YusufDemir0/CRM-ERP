@@ -1,4 +1,5 @@
-import { IsString, IsNotEmpty, MinLength } from 'class-validator';
+import { IsString, IsNotEmpty, MinLength, IsNumber, IsInt, IsOptional, IsEmail } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class LoginDto {
   @IsString()
@@ -26,12 +27,17 @@ export class RegisterDto {
   @IsNotEmpty()
   fullName: string;
 
-  @IsString()
+  @IsEmail()
   @IsNotEmpty()
   email: string;
 
+  @IsOptional()
   @IsString()
   phone?: string;
 
+  @IsOptional()
+  @IsNumber()
+  @IsInt()
+  @Type(() => Number)
   departmentId?: number;
 }

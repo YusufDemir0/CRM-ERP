@@ -1,4 +1,5 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, IsEmail } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, IsEmail, IsInt } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreatePartyDto {
   @IsEnum(['customer', 'provider', 'both'])
@@ -13,10 +14,9 @@ export class CreatePartyDto {
   @IsOptional() @IsString() taxNumber?: string;
   @IsOptional() @IsEmail() email?: string;
   @IsOptional() @IsString() address?: string;
-  @IsOptional() @IsNumber() creditLimitPlus?: number;
-  @IsOptional() @IsNumber() creditLimitMinus?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) creditLimit?: number;
   @IsOptional() @IsString() paymentTerms?: string;
-  @IsOptional() @IsNumber() currencyId?: number;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) currencyId?: number;
   @IsOptional() @IsString() notes?: string;
 }
 
@@ -28,12 +28,11 @@ export class UpdatePartyDto {
   @IsOptional() @IsString() taxNumber?: string;
   @IsOptional() @IsEmail() email?: string;
   @IsOptional() @IsString() address?: string;
-  @IsOptional() @IsNumber() creditLimitPlus?: number;
-  @IsOptional() @IsNumber() creditLimitMinus?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) creditLimit?: number;
   @IsOptional() @IsString() paymentTerms?: string;
-  @IsOptional() @IsNumber() currencyId?: number;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) currencyId?: number;
   @IsOptional() @IsString() notes?: string;
-  @IsOptional() @IsNumber() state?: number;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) state?: number;
 }
 
 import { PaginationDto } from '../../../common/dto/pagination.dto';

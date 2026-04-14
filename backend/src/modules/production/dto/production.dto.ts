@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString, Min } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsArray, ValidateNested, IsEnum, IsDateString, Min, IsInt } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 
@@ -11,14 +11,14 @@ export class ProductionOrderQueryDto extends PaginationDto {
 }
 
 export class CreateBomItemDto {
-  @IsNumber() itemId: number;
-  @IsNumber() @Min(0.0001) quantity: number;
+  @IsNumber() @IsInt() @Type(() => Number) itemId: number;
+  @IsNumber() @Min(0.0001) @Type(() => Number) quantity: number;
   @IsOptional() @IsString() description?: string;
 }
 
 export class CreateBomDto {
   @IsString() @IsNotEmpty() name: string;
-  @IsOptional() @IsNumber() targetItemId?: number;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) targetItemId?: number;
   @IsOptional() @IsString() description?: string;
 
   @IsArray()
@@ -29,9 +29,9 @@ export class CreateBomDto {
 
 export class UpdateBomDto {
   @IsOptional() @IsString() name?: string;
-  @IsOptional() @IsNumber() targetItemId?: number;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) targetItemId?: number;
   @IsOptional() @IsString() description?: string;
-  @IsOptional() @IsNumber() state?: number;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) state?: number;
 
   @IsOptional()
   @IsArray()
@@ -41,10 +41,10 @@ export class UpdateBomDto {
 }
 
 export class CreateProductionOrderDto {
-  @IsNumber() bomId: number;
-  @IsNumber() @Min(0.0001) plannedQuantity: number;
-  @IsOptional() @IsNumber() sourceDepartmentId?: number;
-  @IsOptional() @IsNumber() targetDepartmentId?: number;
+  @IsNumber() @IsInt() @Type(() => Number) bomId: number;
+  @IsNumber() @Min(0.0001) @Type(() => Number) plannedQuantity: number;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) sourceDepartmentId?: number;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) targetDepartmentId?: number;
   @IsOptional() @IsDateString() startDate?: string;
   @IsOptional() @IsDateString() endDate?: string;
   @IsOptional() @IsString() notes?: string;
