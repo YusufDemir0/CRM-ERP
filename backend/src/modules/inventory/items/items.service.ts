@@ -5,9 +5,11 @@ import { Item } from './entities/item.entity';
 import { ItemType } from './entities/item-type.entity';
 import { QuantityType } from './entities/quantity-type.entity';
 import { ItemCodeGroup } from './entities/item-code-group.entity';
-import { CreateItemDto, UpdateItemDto, CreateItemTypeDto, CreateQuantityTypeDto, CreateItemCodeGroupDto } from '../dto/inventory.dto';
+import { CreateItemDto, UpdateItemDto, CreateItemTypeDto, CreateQuantityTypeDto, CreateItemCodeGroupDto, ItemsQueryDto } from '../dto/inventory.dto';
 import { SequenceGeneratorService } from '../../../common/services/sequence-generator.service';
 import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
+import { CurrenciesService } from '../../finance/currencies/currencies.service';
+import { Decimal } from 'decimal.js';
 
 @Injectable()
 export class ItemsService {
@@ -18,11 +20,12 @@ export class ItemsService {
     @InjectRepository(ItemCodeGroup) private codeGroupRepo: Repository<ItemCodeGroup>,
     private dataSource: DataSource,
     private sequenceGenerator: SequenceGeneratorService,
+    private currenciesService: CurrenciesService,
   ) { }
 
   // ────── ITEMS ──────
 
-  async findAll(query: PaginationDto & { itemTypeId?: number }): Promise<PaginatedResult<Item>> {
+  async findAll(query: ItemsQueryDto): Promise<PaginatedResult<Item>> {
     const qb = this.itemRepo.createQueryBuilder('item')
       .leftJoinAndSelect('item.itemType', 'itemType')
       .leftJoinAndSelect('item.itemCodeGroup', 'itemCodeGroup')
@@ -31,13 +34,17 @@ export class ItemsService {
       .leftJoinAndSelect('item.currency', 'currency');
 
     if (query.search) {
-      qb.where('(item.name LIKE :s OR item.code LIKE :s OR item.description LIKE :s OR itemType.name LIKE :s OR provider.name LIKE :s)', { s: `%${query.search}%` });
+      qb.andWhere('(item.name LIKE :s OR item.code LIKE :s OR item.code1 LIKE :s OR item.code2 LIKE :s OR item.description LIKE :s OR item.notes LIKE :s OR itemType.name LIKE :s OR provider.name LIKE :s)', { s: `%${query.search}%` });
     }
     if (query.itemTypeId) {
       qb.andWhere('item.itemTypeId = :typeId', { typeId: query.itemTypeId });
     }
     if (query.state !== undefined) {
       qb.andWhere('item.state = :state', { state: query.state });
+    }
+    if (query.critical === 'true') {
+      qb.andWhere('(SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE item_id = item.id) < item.criticalLimit');
+      qb.andWhere('item.criticalLimit > 0');
     }
 
     // Validate sortBy against allowed columns to prevent SQL injection
@@ -68,6 +75,14 @@ export class ItemsService {
     await queryRunner.startTransaction();
 
     try {
+      if (!dto.currencyId) {
+        try {
+          const defaultCurrency = await this.currenciesService.getDefault();
+          dto.currencyId = Number(defaultCurrency.id);
+        } catch (error) {
+          console.warn('Default currency not found in ItemsService, setting to null');
+        }
+      }
       const code = await this.sequenceGenerator.generateItemCode(queryRunner, dto.itemCodeGroupId);
 
       const item = queryRunner.manager.create(Item, {
@@ -90,25 +105,26 @@ export class ItemsService {
   async update(id: number, dto: UpdateItemDto, userId?: number): Promise<Item> {
     const item = await this.findOne(id);
 
-    // Explicit mapping to prevent mass assignment
-    if (dto.name !== undefined) item.name = dto.name;
-    if (dto.itemTypeId !== undefined) item.itemTypeId = dto.itemTypeId;
-    if (dto.itemCodeGroupId !== undefined) item.itemCodeGroupId = dto.itemCodeGroupId;
-    if (dto.code !== undefined) item.code = dto.code;
-    if (dto.code1 !== undefined) item.code1 = dto.code1;
-    if (dto.code2 !== undefined) item.code2 = dto.code2;
-    if (dto.criticalLimit !== undefined) item.criticalLimit = dto.criticalLimit;
-    if (dto.image !== undefined) item.image = dto.image;
-    if (dto.purchasePrice !== undefined) item.purchasePrice = dto.purchasePrice;
-    if (dto.salePrice !== undefined) item.salePrice = dto.salePrice;
-    if (dto.netPrice !== undefined) item.netPrice = dto.netPrice;
-    if (dto.currencyId !== undefined) item.currencyId = dto.currencyId;
-    if (dto.quantityTypeId !== undefined) item.quantityTypeId = dto.quantityTypeId;
-    if (dto.kdv !== undefined) item.kdv = dto.kdv;
-    if (dto.description !== undefined) item.description = dto.description;
-    if (dto.notes !== undefined) item.notes = dto.notes;
-    if (dto.providerId !== undefined) item.providerId = dto.providerId;
-    if (dto.state !== undefined) item.state = dto.state;
+    // Modernize mapping with strict field control
+    const fields = [
+      'name', 'itemTypeId', 'itemCodeGroupId', 'code', 'code1', 'code2',
+      'image', 'currencyId', 'quantityTypeId', 'description', 'notes',
+      'providerId', 'state'
+    ];
+
+    fields.forEach((field: any) => {
+      if (dto[field as keyof UpdateItemDto] !== undefined) {
+        (item as any)[field] = dto[field as keyof UpdateItemDto];
+      }
+    });
+
+    // Explicit Decimal fields
+    const decimalFields = ['criticalLimit', 'purchasePrice', 'salePrice', 'netPrice', 'kdv'];
+    decimalFields.forEach((field: any) => {
+      if (dto[field as keyof UpdateItemDto] !== undefined) {
+        (item as any)[field] = new Decimal(dto[field as keyof UpdateItemDto] as any);
+      }
+    });
 
     item.updatedBy = userId || null;
     return this.itemRepo.save(item);

@@ -1,5 +1,6 @@
-import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
+import { NestFactory, Reflector } from '@nestjs/core';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
@@ -9,13 +10,15 @@ async function bootstrap() {
   // Global prefix
   app.setGlobalPrefix('api');
 
+  // Cookie Parser
+  app.use(cookieParser());
+
   // CORS
   app.enableCors({
     origin: [
       'http://localhost:5173',
-      'http://localhost:3000',
       'http://127.0.0.1:5173',
-      'http://localhost:5143',
+      'http://localhost:5143', // Backend self-reference if needed
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
@@ -32,6 +35,9 @@ async function bootstrap() {
       },
     }),
   );
+
+  // Global interceptors
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
   // Global exception filter
   app.useGlobalFilters(new AllExceptionsFilter());

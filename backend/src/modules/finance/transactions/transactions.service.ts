@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
+import { Decimal } from 'decimal.js';
 import { Transaction } from './entities/transaction.entity';
 import { Party } from '../../parties/entities/party.entity';
 import { Currency } from '../currencies/entities/currency.entity';
@@ -8,6 +9,7 @@ import { SequenceGeneratorService } from '../../../common/services/sequence-gene
 import { CreateTransactionDto } from '../dto/finance.dto';
 import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
 import { DateUtils } from '../../../common/utils/date.utils';
+import { FinanceHelper as FH } from '../../../common/utils/finance.helper';
 import dayjs from 'dayjs';
 
 @Injectable()
@@ -29,7 +31,14 @@ export class TransactionsService {
     if (query.type) qb.andWhere('tx.type = :type', { type: query.type });
     if (query.status) qb.andWhere('tx.status = :status', { status: query.status });
 
-    qb.orderBy('tx.date', 'DESC').addOrderBy('tx.createdAt', 'DESC');
+    // Security: Whitelist sort columns
+    const allowedSortCols = ['date', 'amount', 'createdAt', 'code'];
+    const sortCol = allowedSortCols.includes(query.sortBy || '') ? query.sortBy! : 'date';
+    qb.orderBy(`tx.${sortCol}`, query.sortOrder || 'DESC');
+    
+    if (sortCol !== 'createdAt') {
+      qb.addOrderBy('tx.createdAt', 'DESC');
+    }
     qb.skip(query.skip).take(query.limit);
 
     const [data, total] = await qb.getManyAndCount();
@@ -54,20 +63,23 @@ export class TransactionsService {
     await queryRunner.startTransaction();
 
     try {
-      const party = await queryRunner.manager.findOne(Party, { where: { id: dto.partyId } });
+      const party = await queryRunner.manager.findOne(Party, { 
+        where: { id: dto.partyId },
+        lock: { mode: 'pessimistic_write' }
+      });
       if (!party) throw new NotFoundException('Cari hesap bulunamadı');
 
       const currency = await queryRunner.manager.findOne(Currency, { where: { id: dto.currencyId }});
-      const exchangeRate = currency ? Number(currency.exchangeRate) : 1;
-      const tlAmount = dto.amount * exchangeRate;
-
-      const currentBalance = Number(party.balance);
+      const exchangeRate = currency ? currency.exchangeRate : new Decimal(1);
+      const tlAmount = FH.mul(dto.amount, exchangeRate);
 
       // In = Tahsilat (Borçtan düşer/bakiye eksiye gider), Out = Ödeme (Bakiye artıya gider)
-      const newBalance = dto.type === 'in' ? currentBalance - tlAmount : currentBalance + tlAmount;
+      const newBalance = dto.type === 'in' 
+        ? FH.sub(party.balance, tlAmount) 
+        : FH.add(party.balance, tlAmount);
 
       // KREDİ LİMİTİ KONTROLÜ SADECE ÖDEMELER/ÇIKIŞLAR İÇİN (TEDİYE)
-      if (dto.type === 'out' && Number(party.creditLimitPlus) > 0 && newBalance > Number(party.creditLimitPlus)) {
+      if (dto.type === 'out' && party.creditLimit.gt(0) && newBalance.gt(party.creditLimit)) {
          throw new BadRequestException(`İşlem limit engeline takıldı. Yapılacak ödeme/harcama firmanın belirlediğiniz limitini aşıyor.`);
       }
 
@@ -76,7 +88,7 @@ export class TransactionsService {
 
       const tx = queryRunner.manager.create(Transaction, {
         code, partyId: dto.partyId, commercialAccountId: dto.commercialAccountId,
-        amount: dto.amount, currencyId: dto.currencyId || null, exchangeRate,
+        amount: new Decimal(dto.amount), currencyId: dto.currencyId || null, exchangeRate,
         type: dto.type, referenceType: dto.referenceType || null, referenceId: dto.referenceId || null,
         date: dto.date, description: dto.description || null, status: 'completed', createdBy: userId,
       });
@@ -104,14 +116,16 @@ export class TransactionsService {
       const tx = await queryRunner.manager.findOne(Transaction, { where: { id }});
       if (!tx || tx.status === 'cancelled') throw new BadRequestException('Sadece tamamlanmış aktif işlemler iptal edilebilir.');
 
-      const party = await queryRunner.manager.findOne(Party, { where: { id: tx.partyId } });
+      const party = await queryRunner.manager.findOne(Party, { 
+        where: { id: tx.partyId },
+        lock: { mode: 'pessimistic_write' }
+      });
       if (!party) throw new NotFoundException('Cari hesap bulunamadı, işlem iptal edilemez.');
 
-      const tlAmount = Number(tx.amount) * Number(tx.exchangeRate);
-      const currentBalance = Number(party.balance);
+      const tlAmount = FH.mul(tx.amount, tx.exchangeRate);
 
-      // İptal/Ters işlem. In -> parayı cariden çıkar, Out -> parayı cariye ekle
-      const newBalance = tx.type === 'in' ? currentBalance + tlAmount : currentBalance - tlAmount;
+      // İptal/Ters işlem. In -> parayı cariye geri ekle (borç), Out -> paradan cariden düş (ödeme iptal)
+      const newBalance = tx.type === 'in' ? FH.add(party.balance, tlAmount) : FH.sub(party.balance, tlAmount);
 
       await queryRunner.manager.update(Party, party.id, { balance: newBalance, updatedBy: userId });
       await queryRunner.manager.update(Transaction, tx.id, { status: 'cancelled', updatedBy: userId });

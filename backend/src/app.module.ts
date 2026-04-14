@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ClsModule } from 'nestjs-cls';
 
 // Config
 import databaseConfig from './config/database.config';
@@ -13,6 +14,7 @@ import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { LogsInterceptor } from './common/interceptors/logs.interceptor';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
+import { AuditSubscriber } from './common/subscribers/audit.subscriber';
 
 // Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -34,8 +36,14 @@ import { NotesModule } from './modules/notes/notes.module';
     // DDOS ve Brute Force Koruması (1 Dakikada maks 120 istek)
     ThrottlerModule.forRoot([{
       ttl: 60000, 
-      limit: 120,  
+      limit: 100, // Daha sıkı limit: Dakikada 100 istek  
     }]),
+
+    // Async Context
+    ClsModule.forRoot({
+      global: true,
+      middleware: { mount: true },
+    }),
 
     // Global Config
     ConfigModule.forRoot({
@@ -88,6 +96,7 @@ import { NotesModule } from './modules/notes/notes.module';
       provide: APP_GUARD,
       useClass: PermissionsGuard,
     },
+    AuditSubscriber,
   ],
 })
 export class AppModule {}

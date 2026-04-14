@@ -4,12 +4,15 @@ import { Repository } from 'typeorm';
 import { Party } from './entities/party.entity';
 import { CreatePartyDto, UpdatePartyDto } from './dto/party.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { CurrenciesService } from '../finance/currencies/currencies.service';
+import { Decimal } from 'decimal.js';
 
 @Injectable()
 export class PartiesService {
   constructor(
     @InjectRepository(Party)
     private partyRepo: Repository<Party>,
+    private currenciesService: CurrenciesService,
   ) {}
 
   async findAll(query: PaginationDto & { type?: string }): Promise<PaginatedResult<Party>> {
@@ -24,7 +27,15 @@ export class PartiesService {
       qb.andWhere('party.type = :type', { type: query.type });
     }
 
-    qb.orderBy(`party.${query.sortBy || 'name'}`, query.sortOrder || 'ASC');
+    if (query.state !== undefined) {
+      qb.andWhere('party.state = :state', { state: query.state });
+    }
+
+    // Security: Whitelist sort columns
+    const allowedSortCols = ['name', 'balance', 'creditLimit', 'createdAt'];
+    const sortCol = allowedSortCols.includes(query.sortBy || '') ? query.sortBy! : 'name';
+    qb.orderBy(`party.${sortCol}`, query.sortOrder || 'ASC');
+    
     qb.skip(query.skip).take(query.limit);
 
     const [data, total] = await qb.getManyAndCount();
@@ -41,6 +52,14 @@ export class PartiesService {
   }
 
   async create(dto: CreatePartyDto, userId?: number): Promise<Party> {
+    if (!dto.currencyId) {
+      try {
+        const defaultCurrency = await this.currenciesService.getDefault();
+        dto.currencyId = Number(defaultCurrency.id);
+      } catch (error) {
+        console.warn('Default currency not found, setting to null');
+      }
+    }
     const party = this.partyRepo.create({ ...dto, createdBy: userId });
     return this.partyRepo.save(party);
   }
@@ -48,18 +67,22 @@ export class PartiesService {
   async update(id: number, dto: UpdatePartyDto, userId?: number): Promise<Party> {
     const party = await this.findOne(id);
     
-    // Explicit mapping to prevent mass assignment
-    if (dto.name !== undefined) party.name = dto.name;
-    if (dto.type !== undefined) party.type = dto.type;
-    if (dto.phone1 !== undefined) party.phone1 = dto.phone1;
-    if (dto.phone2 !== undefined) party.phone2 = dto.phone2;
-    if (dto.taxNumber !== undefined) party.taxNumber = dto.taxNumber;
-    if (dto.email !== undefined) party.email = dto.email;
-    if (dto.address !== undefined) party.address = dto.address;
-    if (dto.paymentTerms !== undefined) party.paymentTerms = dto.paymentTerms;
-    if (dto.currencyId !== undefined) party.currencyId = dto.currencyId;
-    if (dto.notes !== undefined) party.notes = dto.notes;
-    if (dto.state !== undefined) party.state = dto.state;
+    // Modernize mapping with strict field control
+    const fields = [
+      'name', 'type', 'phone1', 'phone2', 'taxNumber', 'email', 
+      'address', 'paymentTerms', 'currencyId', 'notes', 'state'
+    ];
+
+    fields.forEach((field: any) => {
+      if (dto[field as keyof UpdatePartyDto] !== undefined) {
+        (party as any)[field] = dto[field as keyof UpdatePartyDto];
+      }
+    });
+
+    // Explicit Decimal fields
+    if (dto.creditLimit !== undefined) {
+      party.creditLimit = new Decimal(dto.creditLimit);
+    }
 
     party.updatedBy = userId || null;
     return this.partyRepo.save(party);
@@ -74,7 +97,7 @@ export class PartiesService {
     const party = await this.findOne(id);
     return {
       balance: Number(party.balance || 0),
-      creditLimit: Number(party.creditLimitPlus || 0),
+      creditLimit: Number(party.creditLimit || 0),
       currency: party.currency?.code || 'TRY',
       symbol: party.currency?.symbol || '₺'
     };
@@ -90,8 +113,8 @@ export class PartiesService {
     ]);
 
     const totalReceivable = all.reduce((sum, p) => sum + Number(p.balance || 0), 0);
-    const totalCreditLimit = all.reduce((sum, p) => sum + Number(p.creditLimitPlus || 0), 0);
-    const atRisk = all.filter(p => p.state === 1 && Number(p.balance) >= Number(p.creditLimitPlus) * 0.9);
+    const totalCreditLimit = all.reduce((sum, p) => sum + Number(p.creditLimit || 0), 0);
+    const atRisk = all.filter(p => p.state === 1 && Number(p.balance) >= Number(p.creditLimit) * 0.9);
     
     return { 
       active, 
@@ -105,7 +128,7 @@ export class PartiesService {
   async getGlobalExposure() {
     const all = await this.partyRepo.find();
     const totalReceivable = all.reduce((sum, p) => sum + Number(p.balance || 0), 0);
-    const totalCreditLimit = all.reduce((sum, p) => sum + Number(p.creditLimitPlus || 0), 0);
+    const totalCreditLimit = all.reduce((sum, p) => sum + Number(p.creditLimit || 0), 0);
     
     return {
       totalReceivable,
@@ -116,12 +139,12 @@ export class PartiesService {
 
   async getHealthMetrics() {
     const all = await this.partyRepo.find({ where: { state: 1 } });
-    const atRisk = all.filter(p => Number(p.balance) >= Number(p.creditLimitPlus) * 0.9);
+    const atRisk = all.filter(p => Number(p.balance) >= Number(p.creditLimit) * 0.9);
     
     return {
       healthyCount: all.length - atRisk.length,
       atRiskCount: atRisk.length,
-      requiresAttention: atRisk.map(p => ({ id: p.id, name: p.name, balance: p.balance, limit: p.creditLimitPlus }))
+      requiresAttention: atRisk.map(p => ({ id: p.id, name: p.name, balance: p.balance, limit: p.creditLimit }))
     };
   }
 }
