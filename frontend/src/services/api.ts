@@ -7,8 +7,24 @@ const api = axios.create({
   withCredentials: true,
 });
 
+let requestCounter = 0;
+
 api.interceptors.request.use((config) => {
-  if (config.method &&['post', 'put', 'delete'].includes(config.method.toLowerCase())) {
+  // CSRF token sync from cookie to header (Double Submit Cookie Pattern)
+  const getCookie = (name: string) => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift();
+    return null;
+  };
+
+  const csrfToken = getCookie('XSRF-TOKEN');
+  if (csrfToken) {
+    config.headers['x-csrf-token'] = csrfToken;
+  }
+
+  if (config.method && ['post', 'put', 'delete'].includes(config.method.toLowerCase())) {
+    requestCounter++;
     window.dispatchEvent(new CustomEvent('show-loader'));
   }
 
@@ -17,12 +33,15 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => {
-    if (response.config.method &&['post', 'put', 'delete'].includes(response.config.method.toLowerCase())) {
-      window.dispatchEvent(new Event('hide-loader'));
+    if (response.config.method && ['post', 'put', 'delete'].includes(response.config.method.toLowerCase())) {
+      requestCounter--;
+      if (requestCounter <= 0) {
+        requestCounter = 0;
+        window.dispatchEvent(new Event('hide-loader'));
+      }
       
       if (response.config.url && !response.config.url.includes('/auth/login')) {
-        toast.success("İşlem Başarılı!"); // Çirkin alert() yerine modern toast mesajı
-        // Sayfa yenilemesi kaldırıldı — React state ile güncelleme yapılmalı
+        toast.success("İşlem Başarılı!");
       }
     }
     return response;
@@ -43,24 +62,30 @@ api.interceptors.response.use(
           outputMessage = Array.isArray(data.message) ? data.message.join(', ') : String(data.message);
         } else if (data.error) {
           outputMessage = String(data.error);
-          if (data.detail) outputMessage += ` - ${data.detail}`;
-        } else {
-          try {
-            outputMessage = typeof data === 'object' ? JSON.stringify(data) : String(data);
-          } catch (e) {
-            outputMessage = 'Sunucudan geçersiz hata formatı alındı.';
-          }
         }
       }
       
       // CRITICAL: Mesajın kesinlikle string olduğundan en son kez emin oluyoruz
       // React "Objects are not valid as a React child" hatasıyla patlamasın diye
-      toast.error(String(outputMessage).substring(0, 255)); 
+      const finalMsg = typeof outputMessage === 'string' ? outputMessage : JSON.stringify(outputMessage);
+      toast.error(finalMsg.substring(0, 255)); 
+    }
+
+    if (error.config?.method && ['post', 'put', 'delete'].includes(error.config.method.toLowerCase())) {
+      requestCounter--;
+      if (requestCounter <= 0) {
+        requestCounter = 0;
+        window.dispatchEvent(new Event('hide-loader'));
+      }
     }
 
     if (error.response?.status === 401) {
-      if (error.config.url && !error.config.url.includes('/auth/login')) {
-        window.location.href = '/login';
+      if (
+        error.config.url && 
+        !error.config.url.includes('/auth/login') && 
+        window.location.pathname !== '/login'
+      ) {
+        window.dispatchEvent(new Event('unauthorized-redirect'));
       }
     }
     return Promise.reject(error);

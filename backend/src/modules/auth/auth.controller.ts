@@ -19,12 +19,22 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const { access_token, user } = await this.authService.login(dto);
+
+    // CSRF Token (Double Submit Cookie Pattern)
+    const csrfToken = require('crypto').randomBytes(32).toString('hex');
     
     res.cookie('erp_token', access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 8 * 60 * 60 * 1000, // 8 hours
+      maxAge: 8 * 60 * 60 * 1000, 
+    });
+
+    res.cookie('XSRF-TOKEN', csrfToken, {
+      httpOnly: false, // Must be readable by JS
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 8 * 60 * 60 * 1000,
     });
 
     return { 

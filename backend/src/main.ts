@@ -39,6 +39,10 @@ async function bootstrap() {
   // Global interceptors
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
+  // Global guards
+  const { CsrfGuard } = require('./common/guards/csrf.guard');
+  app.useGlobalGuards(new CsrfGuard());
+
   // Global exception filter
   app.useGlobalFilters(new AllExceptionsFilter());
 
