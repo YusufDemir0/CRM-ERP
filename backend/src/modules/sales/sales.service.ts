@@ -17,6 +17,7 @@ import { Currency } from '../finance/currencies/entities/currency.entity';
 import { Transaction } from '../finance/transactions/entities/transaction.entity';
 import { Department } from '../departments/entities/department.entity';
 import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
+import { Decimal } from 'decimal.js';
 import {
   CreateSaleDto,
   UpdateSaleDto,
@@ -100,22 +101,22 @@ export class SalesService {
       if (party.type === 'provider') throw new BadRequestException('Sadece Tedarikçi tipindeki bir cariye satış yapılamaz.');
 
       const currency = await queryRunner.manager.findOne(Currency, { where: { id: dto.currencyId } });
-      const currentExchangeRate = currency ? Number(currency.exchangeRate) : 1;
+      const currentExchangeRate = currency ? currency.exchangeRate : new Decimal(1);
 
       const code = await this.sequenceGenerator.generateSaleCode(queryRunner, dto.saleTypeId);
 
-      let rawTotalAmount = 0;
+      let rawTotalAmount = new Decimal(0);
       const saleItems: Partial<SaleItem>[] =[];
 
       for (const itemDto of dto.items) {
-        const discountAmount = itemDto.discountAmount || 0;
-        const discountPercent = itemDto.discountPercent || 0;
+        const discountAmount = new Decimal(itemDto.discountAmount || 0);
+        const discountPercent = new Decimal(itemDto.discountPercent || 0);
         
-        let netPrice = Number(itemDto.price);
-        if (discountAmount > 0) {
+        let netPrice = new Decimal(itemDto.price);
+        if (discountAmount.gt(0)) {
           netPrice = FH.sub(netPrice, discountAmount);
-        } else if (discountPercent > 0) {
-          const discount = FH.mul(netPrice, discountPercent / 100);
+        } else if (discountPercent.gt(0)) {
+          const discount = FH.mul(netPrice, discountPercent.div(100));
           netPrice = FH.sub(netPrice, discount);
         }
 
@@ -124,32 +125,32 @@ export class SalesService {
 
         saleItems.push({
           itemId: itemDto.itemId,
-          quantity: itemDto.quantity,
-          price: itemDto.price,
+          quantity: new Decimal(itemDto.quantity),
+          price: new Decimal(itemDto.price),
           discountAmount,
           discountPercent,
           netPrice,
-          kdvRate: itemDto.kdvRate ?? 20,
+          kdvRate: new Decimal(itemDto.kdvRate ?? 20),
           description: itemDto.description,
           createdBy: userId,
         });
       }
 
-      const headerDiscountAmount = dto.discountAmount || 0;
-      const headerDiscountPercent = dto.discountPercent || 0;
+      const headerDiscountAmount = new Decimal(dto.discountAmount || 0);
+      const headerDiscountPercent = new Decimal(dto.discountPercent || 0);
       let discountToSubtract = headerDiscountAmount;
 
-      if (headerDiscountPercent > 0) {
-        discountToSubtract = FH.mul(rawTotalAmount, headerDiscountPercent / 100);
+      if (headerDiscountPercent.gt(0)) {
+        discountToSubtract = FH.mul(rawTotalAmount, headerDiscountPercent.div(100));
       }
       
       const discountedMatrah = FH.sub(rawTotalAmount, discountToSubtract);
 
-      let totalKdv = 0;
+      let totalKdv = new Decimal(0);
       saleItems.forEach(item => {
-        const lineRatio = rawTotalAmount > 0 ? FH.div(FH.mul(item.quantity!, item.netPrice!), rawTotalAmount, 6) : 0;
+        const lineRatio = rawTotalAmount.gt(0) ? FH.div(FH.mul(item.quantity!, item.netPrice!), rawTotalAmount, 6) : new Decimal(0);
         const lineMatrah = FH.mul(discountedMatrah, lineRatio);
-        const lineKdv = FH.calculateKdv(lineMatrah, item.kdvRate!);
+        const lineKdv = FH.calculateKdv(lineMatrah, Number(item.kdvRate!));
         
         item.kdvAmount = lineKdv;
         item.lineTotal = FH.add(lineMatrah, lineKdv);
@@ -166,7 +167,7 @@ export class SalesService {
         exchangeRate: currentExchangeRate,
         deliveryDate: dto.deliveryDate,
         status: 'draft',
-        deposit: dto.deposit || 0,
+        deposit: new Decimal(dto.deposit || 0),
         totalAmount: rawTotalAmount,
         discountAmount: headerDiscountAmount,
         discountPercent: headerDiscountPercent,
@@ -209,42 +210,52 @@ export class SalesService {
 
       // İç İçe (Nested) Güncelleme: Kalemler gönderildiyse tüm matrah, indirim ve KDV baştan hesaplanır
       if (dto.items && dto.items.length > 0) {
-        let rawTotalAmount = 0;
+        let rawTotalAmount = new Decimal(0);
         const saleItems: Partial<SaleItem>[] =[];
 
         for (const itemDto of dto.items) {
-          const discountAmount = itemDto.discountAmount || 0;
-          const discountPercent = itemDto.discountPercent || 0;
-          let netPrice = Number(itemDto.price);
+          const discountAmount = new Decimal(itemDto.discountAmount || 0);
+          const discountPercent = new Decimal(itemDto.discountPercent || 0);
+          let netPrice = new Decimal(itemDto.price);
           
-          if (discountAmount > 0) {
+          if (discountAmount.gt(0)) {
             netPrice = FH.sub(netPrice, discountAmount);
-          } else if (discountPercent > 0) {
-            const discount = FH.mul(netPrice, discountPercent / 100);
+          } else if (discountPercent.gt(0)) {
+            const discount = FH.mul(netPrice, discountPercent.div(100));
             netPrice = FH.sub(netPrice, discount);
           }
           
           rawTotalAmount = FH.add(rawTotalAmount, FH.mul(itemDto.quantity, netPrice));
           
           saleItems.push({
-            itemId: itemDto.itemId, quantity: itemDto.quantity, price: itemDto.price,
-            discountAmount, discountPercent, netPrice, kdvRate: itemDto.kdvRate ?? 20,
-            description: itemDto.description, createdBy: userId,
+            itemId: itemDto.itemId, 
+            quantity: new Decimal(itemDto.quantity), 
+            price: new Decimal(itemDto.price),
+            discountAmount, 
+            discountPercent, 
+            netPrice, 
+            kdvRate: new Decimal(itemDto.kdvRate ?? 20),
+            description: itemDto.description, 
+            createdBy: userId,
           });
         }
 
-        const headerDiscountAmount = dto.discountAmount !== undefined ? dto.discountAmount : sale.discountAmount;
-        const headerDiscountPercent = dto.discountPercent !== undefined ? dto.discountPercent : sale.discountPercent;
+        const headerDiscountAmount = new Decimal(dto.discountAmount !== undefined ? dto.discountAmount : sale.discountAmount);
+        const headerDiscountPercent = new Decimal(dto.discountPercent !== undefined ? dto.discountPercent : sale.discountPercent);
         let discountToSubtract = headerDiscountAmount;
-        if (headerDiscountPercent > 0) discountToSubtract = FH.mul(rawTotalAmount, headerDiscountPercent / 100);
+        if (headerDiscountPercent.gt(0)) {
+          discountToSubtract = FH.mul(rawTotalAmount, headerDiscountPercent.div(100));
+        }
         
         const discountedMatrah = FH.sub(rawTotalAmount, discountToSubtract);
 
-        let totalKdv = 0;
+        let totalKdv = new Decimal(0);
         saleItems.forEach(item => {
-          const lineRatio = rawTotalAmount > 0 ? FH.div(FH.mul(item.quantity!, item.netPrice!), rawTotalAmount, 6) : 0;
+          const lineRatio = rawTotalAmount.gt(0) 
+            ? FH.div(FH.mul(item.quantity!, item.netPrice!), rawTotalAmount, 6) 
+            : new Decimal(0);
           const lineMatrah = FH.mul(discountedMatrah, lineRatio);
-          const lineKdv = FH.calculateKdv(lineMatrah, item.kdvRate!);
+          const lineKdv = FH.calculateKdv(lineMatrah, Number(item.kdvRate!));
           item.kdvAmount = lineKdv;
           item.lineTotal = FH.add(lineMatrah, lineKdv);
           totalKdv = FH.add(totalKdv, lineKdv);
@@ -255,7 +266,7 @@ export class SalesService {
         sale.discountPercent = headerDiscountPercent;
         sale.kdv = totalKdv;
         sale.grandTotal = FH.add(discountedMatrah, totalKdv);
-        sale.deposit = dto.deposit !== undefined ? dto.deposit : sale.deposit;
+        sale.deposit = new Decimal(dto.deposit !== undefined ? dto.deposit : sale.deposit);
 
         // Eski kalemleri silip yenilerini ekleyelim
         await queryRunner.manager.delete(SaleItem, { saleId: sale.id });
@@ -264,7 +275,7 @@ export class SalesService {
         }
       } else {
         // Kalem gelmediyse bile kapora ve notlar gibi verileri güncelle
-        if (dto.deposit !== undefined) sale.deposit = dto.deposit;
+        if (dto.deposit !== undefined) sale.deposit = new Decimal(dto.deposit);
       }
 
       await queryRunner.manager.save(sale);
@@ -289,15 +300,18 @@ export class SalesService {
       if (!sale) throw new NotFoundException('Satış bulunamadı');
       if (sale.status !== 'draft') throw new BadRequestException('Sadece taslak (draft) durumundaki siparişler onaylanabilir.');
 
-      const party = await queryRunner.manager.findOne(Party, { where: { id: sale.partyId } });
+      // PESIMISTIC LOCKING: Cariyi kilitle ki bakiye kontrolü ve güncellemesi sırasında başka işlem girmesin
+      const party = await queryRunner.manager.findOne(Party, { 
+        where: { id: sale.partyId },
+        lock: { mode: 'pessimistic_write' }
+      });
       if (!party) throw new NotFoundException('Cari hesap bulunamadı');
 
       const tlGrandTotal = FH.mul(sale.grandTotal, sale.exchangeRate);
-      const currentPartyBalance = Number(party.balance);
 
       // KREDİ LİMİT KONTROLÜ
-      if (Number(party.creditLimitPlus) > 0 && (currentPartyBalance + tlGrandTotal) > Number(party.creditLimitPlus)) {
-         throw new BadRequestException(`Cari limit aşıldı! Firmanın Kredi Limiti: ${party.creditLimitPlus}. Sipariş sonrası bakiye: ${currentPartyBalance + tlGrandTotal} olmaktadır. İşlem gerçekleştirilemez.`);
+      if (party.creditLimit.gt(0) && (FH.add(party.balance, tlGrandTotal)).gt(party.creditLimit)) {
+         throw new BadRequestException(`Cari limit aşıldı! Firmanın Kredi Limiti: ${party.creditLimit}. Sipariş sonrası bakiye: ${FH.add(party.balance, tlGrandTotal)} olmaktadır. İşlem gerçekleştirilemez.`);
       }
 
       // STOK DÜŞME
@@ -307,11 +321,11 @@ export class SalesService {
           lock: { mode: 'pessimistic_write' },
         });
 
-        if (!stock || Number(stock.quantity) < Number(saleItem.quantity)) {
+        if (!stock || stock.quantity.lt(saleItem.quantity)) {
           throw new BadRequestException(`Yetersiz stok durumu. (Ürün ID: ${saleItem.itemId}, Depo ID: ${dto.departmentId}) Üretim emri açmanız veya mal alımı yapmanız gerekebilir.`);
         }
 
-        const quantityBefore = Number(stock.quantity);
+        const quantityBefore = stock.quantity;
         const quantityAfter = FH.sub(quantityBefore, saleItem.quantity);
 
         // Atomic update
@@ -326,12 +340,16 @@ export class SalesService {
         }));
       }
 
-      // MÜŞTERİYİ BORÇLANDIR (Bakiyeyi Artır)
-      await queryRunner.manager.update(Party, party.id, { balance: FH.add(currentPartyBalance, tlGrandTotal), updatedBy: userId });
+      // MÜŞTERİYİ BORÇLANDIR (Bakiyeyi Artır) - Precision-safe Increment
+      await queryRunner.manager.createQueryBuilder()
+        .update(Party)
+        .set({ balance: () => `balance + ${tlGrandTotal.toString()}` })
+        .where('id = :id', { id: party.id })
+        .execute();
 
       // KAPORANIN FİNANSA KAYDI (Varsa)
-      let finalDepositSaved = 0;
-      if (Number(sale.deposit) > 0) {
+      let finalDepositSaved: Decimal = new Decimal(0);
+      if (sale.deposit.gt(0)) {
         if (!dto.commercialAccountId) {
           throw new BadRequestException('Siparişte kapora alınmış. Bu paranın gireceği Finans (Kasa/Banka) hesabını seçmelisiniz.');
         }
@@ -341,13 +359,17 @@ export class SalesService {
 
         await queryRunner.manager.save(queryRunner.manager.create(Transaction, {
           code: txCode, partyId: party.id, commercialAccountId: dto.commercialAccountId,
-          amount: Number(sale.deposit), currencyId: sale.currencyId, exchangeRate: sale.exchangeRate,
+          amount: sale.deposit, currencyId: sale.currencyId, exchangeRate: sale.exchangeRate,
           type: 'in', referenceType: 'sale', referenceId: sale.id, date: DateUtils.getToday(),
           description: `${sale.code} Nolu Sipariş Peşinat / Kaporası`, status: 'completed', createdBy: userId
         }));
 
-        // Kaporayı müşterinin bakiyesinden geri düşüyoruz (Borcu kapattı)
-        await queryRunner.manager.update(Party, party.id, { balance: FH.sub(FH.add(currentPartyBalance, tlGrandTotal), tlDeposit), updatedBy: userId });
+        // Kaporayı müşterinin bakiyesinden geri düşüyoruz (Borcu kapattı) - Precision-safe Decrement
+        await queryRunner.manager.createQueryBuilder()
+          .update(Party)
+          .set({ balance: () => `balance - ${tlDeposit.toString()}` })
+          .where('id = :id', { id: party.id })
+          .execute();
         finalDepositSaved = tlDeposit;
       }
 
@@ -377,7 +399,10 @@ export class SalesService {
       if (sale.status === 'cancelled') throw new BadRequestException('Sipariş zaten iptal edilmiş.');
 
       if (sale.status === 'approved' || sale.status === 'shipped') {
-        const party = await queryRunner.manager.findOne(Party, { where: { id: sale.partyId }});
+        const party = await queryRunner.manager.findOne(Party, { 
+          where: { id: sale.partyId },
+          lock: { mode: 'pessimistic_write' }
+        });
         if (!party) throw new NotFoundException('Cari hesap bulunamadı');
         
         // 1. Düşülen stokları bul ve depoya geri sok (In)
@@ -385,7 +410,7 @@ export class SalesService {
         for (const mov of outMovements) {
            const stock = await queryRunner.manager.findOne(Stock, { where: { id: mov.stockId }});
            if (stock) {
-              const newQty = Number(stock.quantity) + Number(mov.quantity);
+              const newQty = FH.add(stock.quantity, mov.quantity);
               await queryRunner.manager.update(Stock, stock.id, { quantity: newQty });
               
               await queryRunner.manager.save(queryRunner.manager.create(StockMovement, {
@@ -395,12 +420,12 @@ export class SalesService {
            }
         }
 
-        // 2. Bakiyeyi geri al
-        const tlGrandTotal = Number(sale.grandTotal) * Number(sale.exchangeRate);
-        const tlDeposit = Number(sale.deposit) * Number(sale.exchangeRate);
+        // 2. Bakiyeyi geri al - Atomic Adjustments
+        const tlGrandTotal = FH.mul(sale.grandTotal, sale.exchangeRate);
+        const tlDeposit = FH.mul(sale.deposit, sale.exchangeRate);
         
-        // Cariyi satış kadar alacaklandır, eğer kapora alınmışsa onu müşterinin parasını (bakiye) tutmaya devam etmek adına caride alacak olarak bırakıyoruz
-        const targetBalance = Number(party.balance) - tlGrandTotal + tlDeposit;
+        // Cari kilitlendiği için güvenli güncelleme
+        const targetBalance = FH.add(FH.sub(party.balance, tlGrandTotal), tlDeposit);
         await queryRunner.manager.update(Party, party.id, { balance: targetBalance, updatedBy: userId });
 
         // 3. Fatura ödemesini/Kaporasını iptal edilmiş işaretle

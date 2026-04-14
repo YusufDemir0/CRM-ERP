@@ -16,6 +16,7 @@ import {
 import { PaginatedResult } from '../../common/dto/pagination.dto';
 import { FinanceHelper as FH } from '../../common/utils/finance.helper';
 import { DateUtils } from '../../common/utils/date.utils';
+import { Decimal } from 'decimal.js';
 import dayjs from 'dayjs';
 
 @Injectable()
@@ -120,13 +121,62 @@ export class ProductionService {
   }
 
   async updateBom(id: number, dto: UpdateBomDto, userId?: number): Promise<Bom> {
-    const bom = await this.findOneBom(id);
-    if (dto.name !== undefined) bom.name = dto.name;
-    if (dto.description !== undefined) bom.description = dto.description;
-    if (dto.targetItemId !== undefined) bom.targetItemId = dto.targetItemId;
-    if (dto.state !== undefined) bom.state = dto.state;
-    bom.updatedBy = userId || null;
-    return this.bomRepo.save(bom);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const bom = await queryRunner.manager.findOne(Bom, { where: { id } });
+      if (!bom) throw new NotFoundException('Reçete (BOM) bulunamadı');
+
+      if (dto.name !== undefined) bom.name = dto.name;
+      if (dto.description !== undefined) bom.description = dto.description;
+      if (dto.targetItemId !== undefined) bom.targetItemId = dto.targetItemId;
+      if (dto.state !== undefined) bom.state = dto.state;
+      bom.updatedBy = userId || null;
+      
+      const saved = await queryRunner.manager.save(bom);
+
+      if (dto.items) {
+        // 1. Mevcut kalemleri temizle
+        await queryRunner.manager.delete(BomItem, { bomId: id });
+
+        // 2. Mükerrerleri birleştir
+        const groupedItems = dto.items.reduce((acc, current) => {
+          const existing = acc.find(i => i.itemId === current.itemId);
+          if (existing) {
+            existing.quantity = FH.add(existing.quantity, current.quantity);
+          } else {
+            acc.push({ ...current });
+          }
+          return acc;
+        }, [] as any[]);
+
+        // 3. Yeni kalemleri ekle
+        for (const itemDto of groupedItems) {
+          const item = await queryRunner.manager.findOne(Item, { where: { id: itemDto.itemId } });
+          if (!item || item.state !== 1) continue;
+
+          const bomItem = queryRunner.manager.create(BomItem, {
+            bomId: saved.id,
+            itemId: itemDto.itemId,
+            quantity: itemDto.quantity,
+            description: itemDto.description || '',
+            createdBy: userId,
+          });
+          await queryRunner.manager.save(bomItem);
+        }
+      }
+
+      await queryRunner.commitTransaction();
+      return this.findOneBom(saved.id);
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(`BOM güncellenirken hata oluştu: ${error.message}`);
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async deleteBom(id: number): Promise<void> {
@@ -224,7 +274,7 @@ export class ProductionService {
       const sourceDeptId = dto.sourceDepartmentId ?? po.sourceDepartmentId;
       const targetDeptId = dto.targetDepartmentId ?? po.targetDepartmentId;
 
-      if (producedQty <= 0) throw new BadRequestException('Üretilen miktar 0 (sıfır) olarak işlem tamamlanamaz.');
+      if (new Decimal(producedQty).lte(0)) throw new BadRequestException('Üretilen miktar 0 (sıfır) olarak işlem tamamlanamaz.');
       if (!sourceDeptId) throw new BadRequestException('Hammadde stok düşümü (sarf) için kaynak depo seçimi zorunludur.');
       if (!targetDeptId) throw new BadRequestException('Üretilen ürünün stoğa girebilmesi için hedef depo seçimi zorunludur.');
       
@@ -236,7 +286,7 @@ export class ProductionService {
       await queryRunner.startTransaction();
 
       try {
-        let totalMaterialCost = 0;
+        let totalMaterialCost = new Decimal(0);
 
         // 1. HER BİR HAMMADDE / SARF İÇİN ÇIKIŞ YAP (Source Department)
         for (const bomItem of po.bom.items) {
@@ -250,14 +300,14 @@ export class ProductionService {
             where: { itemId: bomItem.itemId, departmentId: sourceDeptId }
           });
 
-          if (!sourceStock || Number(sourceStock.quantity) < requiredQty) {
+          if (!sourceStock || sourceStock.quantity.lt(requiredQty)) {
             throw new BadRequestException(
               `Depoda (ID: ${sourceDeptId}) YETERSİZ STOK: '${bomItem.item?.name}' maddesinden ${requiredQty} miktar sarf gerekiyor ancak ` +
               `${sourceStock ? sourceStock.quantity : 0} miktar bulundu. Üretim tamamlanamaz.`
             );
           }
 
-          const quantityBeforeOut = Number(sourceStock.quantity);
+          const quantityBeforeOut = sourceStock.quantity;
           const quantityAfterOut = FH.sub(quantityBeforeOut, requiredQty);
 
           // Hammadde Stoku Güncelle
@@ -296,7 +346,7 @@ export class ProductionService {
           targetStock = await queryRunner.manager.save(targetStock);
         }
 
-        const quantityBeforeIn = Number(targetStock.quantity);
+        const quantityBeforeIn = new Decimal(targetStock.quantity);
         const quantityAfterIn = FH.add(quantityBeforeIn, producedQty);
 
         // Mamül Stoğunu Artır
@@ -354,9 +404,9 @@ export class ProductionService {
     } 
 
     // EĞER TAMAMLANDI DEĞİLSE SADECE KAYDI GÜNCELLE
-    if (dto.plannedQuantity !== undefined) po.plannedQuantity = dto.plannedQuantity;
-    if (dto.producedQuantity !== undefined) po.producedQuantity = dto.producedQuantity;
-    if (dto.wastageQuantity !== undefined) po.wastageQuantity = dto.wastageQuantity;
+    if (dto.plannedQuantity !== undefined) po.plannedQuantity = new Decimal(dto.plannedQuantity);
+    if (dto.producedQuantity !== undefined) po.producedQuantity = new Decimal(dto.producedQuantity);
+    if (dto.wastageQuantity !== undefined) po.wastageQuantity = new Decimal(dto.wastageQuantity);
     if (dto.sourceDepartmentId !== undefined) po.sourceDepartmentId = dto.sourceDepartmentId;
     if (dto.targetDepartmentId !== undefined) po.targetDepartmentId = dto.targetDepartmentId;
     if (dto.startDate !== undefined) po.startDate = dto.startDate;

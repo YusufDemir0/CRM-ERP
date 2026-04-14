@@ -27,21 +27,22 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message = typeof exResponse === 'string' ? exResponse : exResponse;
     } else if (exception instanceof QueryFailedError) {
       status = HttpStatus.BAD_REQUEST;
-      // Convert to string to avoid React "Objects are not valid as a React child" error in UI toasts
-      message = `Database Error: ${(exception as QueryFailedError).message}`;
-      this.logger.error(`DB Error: ${exception.message}`, exception.stack);
+      message = 'Geçersiz işlem veya veri hatası.';
+      this.logger.error(`[DB Error] ${exception.message}`, exception.stack);
     } else if (exception instanceof Error) {
-      message = exception.message;
-      this.logger.error(`Unhandled: ${exception.message}`, exception.stack);
+      message = (exception as any).status ? exception.message : 'İşlem sırasında beklenmedik bir hata oluştu.';
+      this.logger.error(`[Unhandled Error] ${exception.message}`, exception.stack);
     }
 
-    response.status(status).json({
+    const responseBody = {
       success: false,
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
       method: request.method,
       message,
-    });
+    };
+
+    response.status(status).json(responseBody);
   }
 }

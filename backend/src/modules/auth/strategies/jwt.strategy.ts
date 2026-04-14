@@ -3,6 +3,10 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
+import { DataSource } from 'typeorm';
+import { User } from '../entities/user.entity';
+import { UnauthorizedException } from '@nestjs/common';
+import { RecordState } from '../../../common/enums/record-state.enum';
 
 export interface JwtPayload {
   sub: number;
@@ -12,19 +16,16 @@ export interface JwtPayload {
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(configService: ConfigService) {
+  constructor(
+    configService: ConfigService,
+    private dataSource: DataSource
+  ) {
     super({
       jwtFromRequest: (req: Request) => {
-        let token = null;
-        if (req && req.headers && req.headers.cookie) {
-          // req.headers.cookie is a string like "name=value; name2=value2"
-          const cookies = req.headers.cookie.split(';');
-          const erpTokenCookie = cookies.find(c => c.trim().startsWith('erp_token='));
-          if (erpTokenCookie) {
-            token = erpTokenCookie.split('=')[1];
-          }
+        if (req && req.cookies) {
+          return req.cookies['erp_token'] ?? null;
         }
-        return token;
+        return null;
       },
       ignoreExpiration: false,
       secretOrKey: configService.get<string>('jwt.secret') || 'erp-super-secret-key',
@@ -32,6 +33,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
+    const user = await this.dataSource.getRepository(User).findOne({
+      where: { id: payload.sub },
+      select: ['id', 'state']
+    });
+
+    if (!user || user.state !== RecordState.ACTIVE) {
+      throw new UnauthorizedException('Kullanıcı hesabı pasif veya bulunamadı.');
+    }
+
     return {
       id: payload.sub,
       sub: payload.sub,
