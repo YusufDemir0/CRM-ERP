@@ -1,6 +1,9 @@
 import { Entity, Column, ManyToOne, JoinColumn, PrimaryColumn } from 'typeorm';
+import { Transform } from 'class-transformer';
+import { Decimal } from 'decimal.js';
 import { Bom } from './bom.entity';
 import { Item } from '../../inventory/items/entities/item.entity';
+import { DecimalTransformer } from '../../../common/transformers/decimal.transformer';
 
 @Entity('bom_items')
 export class BomItem {
@@ -10,8 +13,9 @@ export class BomItem {
   @PrimaryColumn({ name: 'item_id', type: 'bigint' })
   itemId: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 4 })
-  quantity: number;
+  @Transform(({ value }) => value ? Number(value) : value)
+  @Column({ type: 'decimal', precision: 15, scale: 4, transformer: new DecimalTransformer() })
+  quantity: Decimal;
 
   @Column({ type: 'text', nullable: true })
   description: string | null;

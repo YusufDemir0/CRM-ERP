@@ -1,6 +1,9 @@
 import { Entity, Column, ManyToOne, JoinColumn, PrimaryColumn } from 'typeorm';
+import { Transform } from 'class-transformer';
+import { Decimal } from 'decimal.js';
 import { Sale } from './sale.entity';
 import { Item } from '../../inventory/items/entities/item.entity';
+import { DecimalTransformer } from '../../../common/transformers/decimal.transformer';
 
 @Entity('sale_items')
 export class SaleItem {
@@ -10,29 +13,37 @@ export class SaleItem {
   @PrimaryColumn({ name: 'item_id', type: 'bigint' })
   itemId: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 4 })
-  quantity: number;
+  @Transform(({ value }) => value ? Number(value) : value)
+  @Column({ type: 'decimal', precision: 15, scale: 4, transformer: new DecimalTransformer() })
+  quantity: Decimal;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2 })
-  price: number;
+  @Transform(({ value }) => value ? Number(value) : value)
+  @Column({ type: 'decimal', precision: 15, scale: 2, transformer: new DecimalTransformer() })
+  price: Decimal;
 
-  @Column({ name: 'discount_amount', type: 'decimal', precision: 15, scale: 2, default: 0 })
-  discountAmount: number;
+  @Transform(({ value }) => value ? Number(value) : value)
+  @Column({ name: 'discount_amount', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
+  discountAmount: Decimal;
 
-  @Column({ name: 'discount_percent', type: 'decimal', precision: 5, scale: 2, default: 0 })
-  discountPercent: number;
+  @Transform(({ value }) => value ? Number(value) : value)
+  @Column({ name: 'discount_percent', type: 'decimal', precision: 5, scale: 2, default: 0, transformer: new DecimalTransformer() })
+  discountPercent: Decimal;
 
-  @Column({ name: 'net_price', type: 'decimal', precision: 15, scale: 2 })
-  netPrice: number;
+  @Transform(({ value }) => value ? Number(value) : value)
+  @Column({ name: 'net_price', type: 'decimal', precision: 15, scale: 2, transformer: new DecimalTransformer() })
+  netPrice: Decimal;
 
-  @Column({ name: 'kdv_rate', type: 'decimal', precision: 5, scale: 2, default: 20 })
-  kdvRate: number;
+  @Transform(({ value }) => value ? Number(value) : value)
+  @Column({ name: 'kdv_rate', type: 'decimal', precision: 5, scale: 2, default: 20, transformer: new DecimalTransformer() })
+  kdvRate: Decimal;
 
-  @Column({ name: 'kdv_amount', type: 'decimal', precision: 15, scale: 2, default: 0 })
-  kdvAmount: number;
+  @Transform(({ value }) => value ? Number(value) : value)
+  @Column({ name: 'kdv_amount', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
+  kdvAmount: Decimal;
 
-  @Column({ name: 'line_total', type: 'decimal', precision: 15, scale: 2 })
-  lineTotal: number;
+  @Transform(({ value }) => value ? Number(value) : value)
+  @Column({ name: 'line_total', type: 'decimal', precision: 15, scale: 2, transformer: new DecimalTransformer() })
+  lineTotal: Decimal;
 
   @Column({ type: 'text', nullable: true })
   description: string | null;

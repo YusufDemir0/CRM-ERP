@@ -1,6 +1,9 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Transform } from 'class-transformer';
+import { Decimal } from 'decimal.js';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { Currency } from '../../finance/currencies/entities/currency.entity';
+import { DecimalTransformer } from '../../../common/transformers/decimal.transformer';
 
 @Entity('parties')
 export class Party extends BaseEntity {
@@ -16,6 +19,9 @@ export class Party extends BaseEntity {
   @Column({ type: 'varchar', length: 20, nullable: true })
   phone2: string | null;
 
+  @Column({ name: 'tax_office', type: 'varchar', length: 100, nullable: true })
+  taxOffice: string | null;
+
   @Column({ name: 'tax_number', type: 'varchar', length: 20, nullable: true })
   taxNumber: string | null;
 
@@ -25,14 +31,19 @@ export class Party extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   address: string | null;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
-  balance: number;
+  @Column({ name: 'city_id', type: 'int', nullable: true })
+  cityId: number | null;
 
-  @Column({ name: 'credit_limit_plus', type: 'decimal', precision: 15, scale: 2, default: 0 })
-  creditLimitPlus: number;
+  @Column({ name: 'district_name', type: 'varchar', length: 100, nullable: true })
+  districtName: string | null;
 
-  @Column({ name: 'credit_limit_minus', type: 'decimal', precision: 15, scale: 2, default: 0 })
-  creditLimitMinus: number;
+  @Transform(({ value }) => value ? Number(value) : value)
+  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
+  balance: Decimal;
+
+  @Transform(({ value }) => value ? Number(value) : value)
+  @Column({ name: 'credit_limit', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
+  creditLimit: Decimal;
 
   @Column({ name: 'payment_terms', type: 'varchar', length: 50, nullable: true })
   paymentTerms: string | null;

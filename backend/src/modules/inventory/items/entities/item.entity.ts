@@ -1,10 +1,13 @@
 import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Transform } from 'class-transformer';
+import { Decimal } from 'decimal.js';
 import { BaseEntity } from '../../../../common/entities/base.entity';
 import { ItemType } from './item-type.entity';
 import { ItemCodeGroup } from './item-code-group.entity';
 import { Party } from '../../../parties/entities/party.entity';
 import { Currency } from '../../../finance/currencies/entities/currency.entity';
 import { QuantityType } from './quantity-type.entity';
+import { DecimalTransformer } from '../../../../common/transformers/decimal.transformer';
 
 @Entity('items')
 @Index("UQ_ITEM_CODE_ACTIVE", ["code"], { where: "deleted_at IS NULL", unique: true })
@@ -27,20 +30,24 @@ export class Item extends BaseEntity {
   @Column({ name: 'code2', type: 'varchar', length: 50, nullable: true })
   code2: string | null;
 
-  @Column({ name: 'critical_limit', type: 'decimal', precision: 15, scale: 4, default: 0 })
-  criticalLimit: number;
+  @Transform(({ value }) => value ? Number(value) : value)
+  @Column({ name: 'critical_limit', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
+  criticalLimit: Decimal;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   image: string | null;
 
-  @Column({ name: 'purchase_price', type: 'decimal', precision: 15, scale: 2, nullable: true })
-  purchasePrice: number | null;
+  @Transform(({ value }) => value ? Number(value) : value)
+  @Column({ name: 'purchase_price', type: 'decimal', precision: 15, scale: 2, nullable: true, transformer: new DecimalTransformer() })
+  purchasePrice: Decimal | null;
 
-  @Column({ name: 'sale_price', type: 'decimal', precision: 15, scale: 2, nullable: true })
-  salePrice: number | null;
+  @Transform(({ value }) => value ? Number(value) : value)
+  @Column({ name: 'sale_price', type: 'decimal', precision: 15, scale: 2, nullable: true, transformer: new DecimalTransformer() })
+  salePrice: Decimal | null;
 
-  @Column({ name: 'net_price', type: 'decimal', precision: 15, scale: 2, nullable: true })
-  netPrice: number | null;
+  @Transform(({ value }) => value ? Number(value) : value)
+  @Column({ name: 'net_price', type: 'decimal', precision: 15, scale: 2, nullable: true, transformer: new DecimalTransformer() })
+  netPrice: Decimal | null;
 
   @Column({ name: 'currency_id', type: 'bigint', nullable: true })
   currencyId: number | null;
@@ -48,8 +55,9 @@ export class Item extends BaseEntity {
   @Column({ name: 'quantity_type_id', type: 'bigint' })
   quantityTypeId: number;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 20 })
-  kdv: number;
+  @Transform(({ value }) => value ? Number(value) : value)
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 20, transformer: new DecimalTransformer() })
+  kdv: Decimal;
 
   @Column({ type: 'text', nullable: true })
   description: string | null;

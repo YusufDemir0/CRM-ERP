@@ -1,8 +1,11 @@
 import { Entity, Column, ManyToOne, JoinColumn, Unique } from 'typeorm';
+import { Transform } from 'class-transformer';
+import { Decimal } from 'decimal.js';
 import { BaseEntity } from '../../../../common/entities/base.entity';
 import { Party } from '../../../parties/entities/party.entity';
 import { CommercialAccount } from '../../accounts/entities/commercial-account.entity';
 import { Currency } from '../../currencies/entities/currency.entity';
+import { DecimalTransformer } from '../../../../common/transformers/decimal.transformer';
 
 @Entity('transactions')
 @Unique(['code'])
@@ -16,14 +19,16 @@ export class Transaction extends BaseEntity {
   @Column({ name: 'commercial_account_id', type: 'bigint', nullable: true })
   commercialAccountId: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2 })
-  amount: number;
+  @Transform(({ value }) => value ? Number(value) : value)
+  @Column({ type: 'decimal', precision: 15, scale: 2, transformer: new DecimalTransformer() })
+  amount: Decimal;
 
   @Column({ name: 'currency_id', type: 'bigint', nullable: true })
   currencyId: number | null;
 
-  @Column({ name: 'exchange_rate', type: 'decimal', precision: 15, scale: 6, default: 1 })
-  exchangeRate: number;
+  @Transform(({ value }) => value ? Number(value) : value)
+  @Column({ name: 'exchange_rate', type: 'decimal', precision: 15, scale: 6, default: 1, transformer: new DecimalTransformer() })
+  exchangeRate: Decimal;
 
   @Column({ type: 'enum', enum: ['in', 'out'] })
   type: 'in' | 'out';
