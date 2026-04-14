@@ -315,7 +315,11 @@ export class SalesService {
       }
 
       // STOK DÜŞME
-      for (const saleItem of sale.items) {
+      // DB-02: Deadlock Prevention - Sıralı Kilitleme (Ordered Locking)
+      // Kalemleri Item ID'ye göre sıralıyoruz ki eşzamanlı onaylarda deadlock oluşmasın.
+      const sortedItems = [...sale.items].sort((a, b) => a.itemId - b.itemId);
+
+      for (const saleItem of sortedItems) {
         const stock = await queryRunner.manager.findOne(Stock, {
           where: { itemId: saleItem.itemId, departmentId: dto.departmentId },
           lock: { mode: 'pessimistic_write' },

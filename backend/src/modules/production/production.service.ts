@@ -289,7 +289,10 @@ export class ProductionService {
         let totalMaterialCost = new Decimal(0);
 
         // 1. HER BİR HAMMADDE / SARF İÇİN ÇIKIŞ YAP (Source Department)
-        for (const bomItem of po.bom.items) {
+        // DB-02: Deadlock Prevention - Sıralı Kilitleme (Ordered Locking)
+        const sortedBomItems = [...po.bom.items].sort((a, b) => a.itemId - b.itemId);
+
+        for (const bomItem of sortedBomItems) {
           const requiredQty = FH.mul(bomItem.quantity, producedQty);
           
           // MALİYET HESABI: Hammaddenin güncel alış fiyatı üzerinden
@@ -297,7 +300,8 @@ export class ProductionService {
           totalMaterialCost = FH.add(totalMaterialCost, itemTotalCost);
 
           let sourceStock = await queryRunner.manager.findOne(Stock, {
-            where: { itemId: bomItem.itemId, departmentId: sourceDeptId }
+            where: { itemId: bomItem.itemId, departmentId: sourceDeptId },
+            lock: { mode: 'pessimistic_write' }
           });
 
           if (!sourceStock || sourceStock.quantity.lt(requiredQty)) {
@@ -333,24 +337,30 @@ export class ProductionService {
 
         // 2. ÇIKAN (ÜRETİLEN) ÜRÜNÜ STOĞA GİRİŞ YAP (Target Department)
         let targetStock = await queryRunner.manager.findOne(Stock, {
-          where: { itemId: targetItem.id, departmentId: targetDeptId }
+          where: { itemId: targetItem.id, departmentId: targetDeptId },
+          lock: { mode: 'pessimistic_write' }
         });
 
         if (!targetStock) {
           targetStock = queryRunner.manager.create(Stock, {
             itemId: targetItem.id,
             departmentId: targetDeptId,
-            quantity: 0,
+            quantity: new Decimal(0),
             createdBy: userId
           });
           targetStock = await queryRunner.manager.save(targetStock);
+          // Tekrar lock'la okuyalım
+          targetStock = await queryRunner.manager.findOne(Stock, {
+            where: { id: targetStock.id },
+            lock: { mode: 'pessimistic_write' }
+          });
         }
 
-        const quantityBeforeIn = new Decimal(targetStock.quantity);
+        const quantityBeforeIn = new Decimal(targetStock!.quantity);
         const quantityAfterIn = FH.add(quantityBeforeIn, producedQty);
 
         // Mamül Stoğunu Artır
-        await queryRunner.manager.update(Stock, targetStock.id, {
+        await queryRunner.manager.update(Stock, targetStock!.id, {
           quantity: quantityAfterIn,
           updatedBy: userId
         });
@@ -364,7 +374,7 @@ export class ProductionService {
 
         // Mamül In Logu
         const movementIn = queryRunner.manager.create(StockMovement, {
-          stockId: targetStock.id,
+          stockId: targetStock!.id,
           quantity: producedQty,
           quantityBefore: quantityBeforeIn,
           quantityAfter: quantityAfterIn,
