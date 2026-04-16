@@ -7,6 +7,7 @@ import { Party } from '../../parties/entities/party.entity';
 import { Currency } from '../currencies/entities/currency.entity';
 import { SequenceGeneratorService } from '../../../common/services/sequence-generator.service';
 import { CreateTransactionDto } from '../dto/finance.dto';
+import { AccountingLedger } from '../../parties/entities/ledger.entity';
 import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
 import { DateUtils } from '../../../common/utils/date.utils';
 import { FinanceHelper as FH } from '../../../common/utils/finance.helper';
@@ -26,17 +27,21 @@ export class TransactionsService {
       .leftJoinAndSelect('tx.commercialAccount', 'account')
       .leftJoinAndSelect('tx.currency', 'currency');
 
-    if (query.search) qb.where('(tx.code LIKE :s OR party.name LIKE :s)', { s: `%${query.search}%` });
+    if (query.search) {
+      qb.andWhere('(tx.code LIKE :s OR party.name LIKE :s OR tx.description LIKE :s OR account.name LIKE :s OR account.bankName LIKE :s)', { s: `%${query.search}%` });
+    }
     if (query.partyId) qb.andWhere('tx.partyId = :partyId', { partyId: query.partyId });
     if (query.type) qb.andWhere('tx.type = :type', { type: query.type });
     if (query.status) qb.andWhere('tx.status = :status', { status: query.status });
 
     // Security: Whitelist sort columns
-    const allowedSortCols = ['date', 'amount', 'createdAt', 'code'];
-    const sortCol = allowedSortCols.includes(query.sortBy || '') ? query.sortBy! : 'date';
-    qb.orderBy(`tx.${sortCol}`, query.sortOrder || 'DESC');
+    const allowedSortCols = ['date', 'amount', 'createdAt', 'code', 'party.name', 'account.name'];
+    const sortField = allowedSortCols.includes(query.sortBy || '') ? query.sortBy! : 'date';
     
-    if (sortCol !== 'createdAt') {
+    const finalSortField = sortField.includes('.') ? sortField : `tx.${sortField}`;
+    qb.orderBy(finalSortField, query.sortOrder || 'DESC');
+
+    if (sortField !== 'createdAt') {
       qb.addOrderBy('tx.createdAt', 'DESC');
     }
     qb.skip(query.skip).take(query.limit);
@@ -63,38 +68,76 @@ export class TransactionsService {
     await queryRunner.startTransaction();
 
     try {
-      const party = await queryRunner.manager.findOne(Party, { 
-        where: { id: dto.partyId },
-        lock: { mode: 'pessimistic_write' }
-      });
-      if (!party) throw new NotFoundException('Cari hesap bulunamadı');
+      let party: Party | null = null;
+      let exchangeRate = new Decimal(1);
+      
+      if (dto.partyId) {
+        party = await queryRunner.manager.findOne(Party, { 
+          where: { id: dto.partyId },
+          lock: { mode: 'pessimistic_write' }
+        });
+        if (!party) throw new NotFoundException('Cari hesap bulunamadı');
+      }
 
       const currency = await queryRunner.manager.findOne(Currency, { where: { id: dto.currencyId }});
-      const exchangeRate = currency ? currency.exchangeRate : new Decimal(1);
+      exchangeRate = currency ? new Decimal(currency.exchangeRate) : new Decimal(1);
       const tlAmount = FH.mul(dto.amount, exchangeRate);
 
-      // In = Tahsilat (Borçtan düşer/bakiye eksiye gider), Out = Ödeme (Bakiye artıya gider)
-      const newBalance = dto.type === 'in' 
-        ? FH.sub(party.balance, tlAmount) 
-        : FH.add(party.balance, tlAmount);
+      let newBalance: Decimal | null = null;
+      if (party) {
+        // BIZ-07: Context-aware balance calculation
+        // Customer Pay-In = Credit (Sub), Supplier Refund-In = Debit (Add), Pay-Out (Anyone) = Debit (Add)
+        const isSupplierRefund = dto.type === 'in' && party.type === 'provider';
+        const isDebit = dto.type === 'out' || isSupplierRefund;
+        
+        newBalance = isDebit 
+          ? FH.add(new Decimal(party.balance), tlAmount) 
+          : FH.sub(new Decimal(party.balance), tlAmount);
 
-      // KREDİ LİMİTİ KONTROLÜ SADECE ÖDEMELER/ÇIKIŞLAR İÇİN (TEDİYE)
-      if (dto.type === 'out' && party.creditLimit.gt(0) && newBalance.gt(party.creditLimit)) {
-         throw new BadRequestException(`İşlem limit engeline takıldı. Yapılacak ödeme/harcama firmanın belirlediğiniz limitini aşıyor.`);
+        // KREDİ LİMİTİ KONTROLÜ SADECE ÖDEMELER/ÇIKIŞLAR İÇİN (TEDİYE)
+        if (dto.type === 'out' && party.creditLimit.gt(0) && newBalance.gt(party.creditLimit)) {
+           throw new BadRequestException(`İşlem limit engeline takıldı. Yapılacak ödeme/harcama firmanın belirlediğiniz limitini aşıyor.`);
+        }
       }
 
       const prefix = dto.type === 'in' ? 'MKB' : 'TDY';
       const code = await this.sequenceGenerator.generateTransactionCode(queryRunner, prefix);
 
       const tx = queryRunner.manager.create(Transaction, {
-        code, partyId: dto.partyId, commercialAccountId: dto.commercialAccountId,
-        amount: new Decimal(dto.amount), currencyId: dto.currencyId || null, exchangeRate,
-        type: dto.type, referenceType: dto.referenceType || null, referenceId: dto.referenceId || null,
-        date: dto.date, description: dto.description || null, status: 'completed', createdBy: userId,
+        code, partyId: dto.partyId || undefined, commercialAccountId: dto.commercialAccountId,
+        amount: new Decimal(dto.amount), currencyId: dto.currencyId || undefined, exchangeRate,
+        type: dto.type, referenceType: dto.referenceType || undefined, referenceId: dto.referenceId || undefined,
+        date: dto.date, description: dto.description || undefined, status: 'completed', createdBy: userId,
       });
 
       const savedTx = await queryRunner.manager.save(tx);
-      await queryRunner.manager.update(Party, party.id, { balance: newBalance, updatedBy: userId });
+      
+      if (party) {
+        // Çift Taraflı Muhasebe:
+        // Nakit girişi ('in') -> Hesaba alacak kaydı yazılır (credit) - ISTISNA: Tedarikçi İadesi Borçtur (debit)
+        // Nakit çıkışı ('out') -> Hesaba borç kaydı yazılır (debit)
+        const isSupplierRefund = dto.type === 'in' && party.type === 'provider';
+        const isCredit = dto.type === 'in' && !isSupplierRefund;
+        const entryDebit = isCredit ? new Decimal(0) : tlAmount;
+        const entryCredit = isCredit ? tlAmount : new Decimal(0);
+        await queryRunner.manager.save(queryRunner.manager.create(AccountingLedger, {
+          date: DateUtils.getToday(),
+          partyId: party.id,
+          accountId: dto.commercialAccountId,
+          debit: entryDebit,
+          credit: entryCredit,
+          transactionId: savedTx.id,
+          source: dto.type === 'in' ? 'PAYMENT_IN' : 'PAYMENT_OUT',
+          description: dto.description || `Kasa Fişi: ${code}`
+        }));
+
+        const sign = (dto.type === 'in' && !isSupplierRefund) ? '-' : '+';
+        await queryRunner.manager.createQueryBuilder()
+          .update(Party)
+          .set({ balance: () => `balance ${sign} ${tlAmount.toString()}` })
+          .where('id = :id', { id: party.id })
+          .execute();
+      }
 
       await queryRunner.commitTransaction();
       return this.findOne(savedTx.id);
@@ -116,18 +159,40 @@ export class TransactionsService {
       const tx = await queryRunner.manager.findOne(Transaction, { where: { id }});
       if (!tx || tx.status === 'cancelled') throw new BadRequestException('Sadece tamamlanmış aktif işlemler iptal edilebilir.');
 
-      const party = await queryRunner.manager.findOne(Party, { 
-        where: { id: tx.partyId },
-        lock: { mode: 'pessimistic_write' }
-      });
-      if (!party) throw new NotFoundException('Cari hesap bulunamadı, işlem iptal edilemez.');
+      let newBalance: Decimal | null = null;
+      if (tx.partyId) {
+        const party = await queryRunner.manager.findOne(Party, { 
+          where: { id: tx.partyId },
+          lock: { mode: 'pessimistic_write' }
+        });
+        if (party) {
+          const isSupplierRefund = tx.type === 'in' && party.type === 'provider';
+          const isReverseCredit = (tx.type === 'in' && !isSupplierRefund) ? false : true;
+          const tlAmount = FH.mul(tx.amount, tx.exchangeRate);
+          
+          const revDebit = isReverseCredit ? new Decimal(0) : tlAmount;
+          const revCredit = isReverseCredit ? tlAmount : new Decimal(0);
 
-      const tlAmount = FH.mul(tx.amount, tx.exchangeRate);
+          await queryRunner.manager.save(queryRunner.manager.create(AccountingLedger, {
+            date: DateUtils.getToday(),
+            partyId: party.id,
+            accountId: tx.commercialAccountId,
+            debit: revDebit,
+            credit: revCredit,
+            transactionId: tx.id,
+            source: 'CANCEL',
+            description: `İptal Fişi: ${tx.code}`
+          }));
 
-      // İptal/Ters işlem. In -> parayı cariye geri ekle (borç), Out -> paradan cariden düş (ödeme iptal)
-      const newBalance = tx.type === 'in' ? FH.add(party.balance, tlAmount) : FH.sub(party.balance, tlAmount);
+          const sign = (tx.type === 'in' && !isSupplierRefund) ? '+' : '-';
+          await queryRunner.manager.createQueryBuilder()
+            .update(Party)
+            .set({ balance: () => `balance ${sign} ${tlAmount.toString()}` })
+            .where('id = :id', { id: party.id })
+            .execute();
+        }
+      }
 
-      await queryRunner.manager.update(Party, party.id, { balance: newBalance, updatedBy: userId });
       await queryRunner.manager.update(Transaction, tx.id, { status: 'cancelled', updatedBy: userId });
 
       await queryRunner.commitTransaction();
@@ -147,15 +212,16 @@ export class TransactionsService {
       .select("SUM(CASE WHEN tx.type = 'in' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "income")
       .addSelect("SUM(CASE WHEN tx.type = 'out' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "expense")
       .addSelect("COUNT(*)", "count")
-      .where("tx.date >= :date", { date: DateUtils.formatDate(firstDayOfMonth) })
+      .where("tx.date >= :date", { date: DateUtils.getStartOfDay(firstDayOfMonth) })
       .andWhere("tx.status != 'cancelled'")
       .getRawOne();
 
     return {
-      monthlyIncome: Number(stats.income || 0),
-      monthlyExpense: Number(stats.expense || 0),
+      monthlyIncome: stats.income?.toString() || '0',
+      monthlyExpense: stats.expense?.toString() || '0',
       count: Number(stats.count || 0),
-      totalVolume: Number(stats.income || 0) + Number(stats.expense || 0),
+      // totalVolume calculation should be done with Decimal
+      totalVolume: new Decimal(stats.income || 0).plus(new Decimal(stats.expense || 0)).toString(),
     };
   }
 
@@ -166,7 +232,7 @@ export class TransactionsService {
       .select("DATE(tx.date)", "day")
       .addSelect("SUM(CASE WHEN tx.type = 'in' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "income")
       .addSelect("SUM(CASE WHEN tx.type = 'out' THEN tx.amount * tx.exchangeRate ELSE 0 END)", "expense")
-      .where("tx.date >= :date", { date: DateUtils.formatDate(sevenDaysAgo) })
+      .where("tx.date >= :date", { date: DateUtils.getStartOfDay(sevenDaysAgo) })
       .andWhere("tx.status != 'cancelled'")
       .groupBy("DATE(tx.date)")
       .orderBy("day", "ASC")

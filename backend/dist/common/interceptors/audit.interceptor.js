@@ -11,16 +11,16 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuditInterceptor = void 0;
 const common_1 = require("@nestjs/common");
-const typeorm_1 = require("typeorm");
+const nestjs_cls_1 = require("nestjs-cls");
 let AuditInterceptor = class AuditInterceptor {
-    constructor(dataSource) {
-        this.dataSource = dataSource;
+    constructor(cls) {
+        this.cls = cls;
     }
     intercept(context, next) {
         const request = context.switchToHttp().getRequest();
         const userId = request.user?.sub || request.user?.id || null;
         if (userId) {
-            request.currentUserId = userId;
+            this.cls.set('userId', userId);
         }
         return next.handle();
     }
@@ -28,6 +28,6 @@ let AuditInterceptor = class AuditInterceptor {
 exports.AuditInterceptor = AuditInterceptor;
 exports.AuditInterceptor = AuditInterceptor = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [typeorm_1.DataSource])
+    __metadata("design:paramtypes", [nestjs_cls_1.ClsService])
 ], AuditInterceptor);
 //# sourceMappingURL=audit.interceptor.js.map

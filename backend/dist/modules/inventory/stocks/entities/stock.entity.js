@@ -11,9 +11,12 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Stock = void 0;
 const typeorm_1 = require("typeorm");
+const class_transformer_1 = require("class-transformer");
+const decimal_js_1 = require("decimal.js");
 const base_entity_1 = require("../../../../common/entities/base.entity");
 const item_entity_1 = require("../../items/entities/item.entity");
 const department_entity_1 = require("../../../departments/entities/department.entity");
+const decimal_transformer_1 = require("../../../../common/transformers/decimal.transformer");
 let Stock = class Stock extends base_entity_1.BaseEntity {
 };
 exports.Stock = Stock;
@@ -26,9 +29,15 @@ __decorate([
     __metadata("design:type", Number)
 ], Stock.prototype, "departmentId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 4, default: 0 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], Stock.prototype, "quantity", void 0);
+__decorate([
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'reserved_quantity', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
+], Stock.prototype, "reservedQuantity", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => item_entity_1.Item),
     (0, typeorm_1.JoinColumn)({ name: 'item_id' }),

@@ -11,8 +11,11 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BomItem = void 0;
 const typeorm_1 = require("typeorm");
+const class_transformer_1 = require("class-transformer");
+const decimal_js_1 = require("decimal.js");
 const bom_entity_1 = require("./bom.entity");
 const item_entity_1 = require("../../inventory/items/entities/item.entity");
+const decimal_transformer_1 = require("../../../common/transformers/decimal.transformer");
 let BomItem = class BomItem {
 };
 exports.BomItem = BomItem;
@@ -25,8 +28,9 @@ __decorate([
     __metadata("design:type", Number)
 ], BomItem.prototype, "itemId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 4 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 4, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], BomItem.prototype, "quantity", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),
@@ -49,7 +53,7 @@ __decorate([
     __metadata("design:type", Date)
 ], BomItem.prototype, "updatedAt", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'deleted_at', type: 'timestamp', nullable: true }),
+    (0, typeorm_1.DeleteDateColumn)({ name: 'deleted_at', type: 'timestamp', nullable: true }),
     __metadata("design:type", Object)
 ], BomItem.prototype, "deletedAt", void 0);
 __decorate([

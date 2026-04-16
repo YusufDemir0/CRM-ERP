@@ -18,27 +18,33 @@ var SalesService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SalesService = void 0;
 const common_1 = require("@nestjs/common");
+const stocks_service_1 = require("../inventory/stocks/stocks.service");
+const logs_service_1 = require("../logs/logs.service");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const sale_entity_1 = require("./entities/sale.entity");
 const sale_item_entity_1 = require("./entities/sale-item.entity");
 const sale_type_entity_1 = require("./entities/sale-type.entity");
-const stock_entity_1 = require("../inventory/stocks/entities/stock.entity");
-const stock_movement_entity_1 = require("../inventory/stocks/entities/stock-movement.entity");
 const party_entity_1 = require("../parties/entities/party.entity");
 const currency_entity_1 = require("../finance/currencies/entities/currency.entity");
 const transaction_entity_1 = require("../finance/transactions/entities/transaction.entity");
 const sequence_generator_service_1 = require("../../common/services/sequence-generator.service");
+const decimal_js_1 = require("decimal.js");
 const finance_helper_1 = require("../../common/utils/finance.helper");
+const ledger_entity_1 = require("../parties/entities/ledger.entity");
+const event_bus_service_1 = require("../../common/services/event-bus.service");
 const date_utils_1 = require("../../common/utils/date.utils");
 const dayjs_1 = __importDefault(require("dayjs"));
 let SalesService = SalesService_1 = class SalesService {
-    constructor(saleRepo, saleItemRepo, saleTypeRepo, dataSource, sequenceGenerator) {
+    constructor(saleRepo, saleItemRepo, saleTypeRepo, dataSource, sequenceGenerator, stocksService, logsService, eventBus) {
         this.saleRepo = saleRepo;
         this.saleItemRepo = saleItemRepo;
         this.saleTypeRepo = saleTypeRepo;
         this.dataSource = dataSource;
         this.sequenceGenerator = sequenceGenerator;
+        this.stocksService = stocksService;
+        this.logsService = logsService;
+        this.eventBus = eventBus;
         this.logger = new common_1.Logger(SalesService_1.name);
     }
     async findAllSaleTypes() {
@@ -93,47 +99,47 @@ let SalesService = SalesService_1 = class SalesService {
             if (party.type === 'provider')
                 throw new common_1.BadRequestException('Sadece Tedarikçi tipindeki bir cariye satış yapılamaz.');
             const currency = await queryRunner.manager.findOne(currency_entity_1.Currency, { where: { id: dto.currencyId } });
-            const currentExchangeRate = currency ? Number(currency.exchangeRate) : 1;
+            const currentExchangeRate = currency ? currency.exchangeRate : new decimal_js_1.Decimal(1);
             const code = await this.sequenceGenerator.generateSaleCode(queryRunner, dto.saleTypeId);
-            let rawTotalAmount = 0;
+            let rawTotalAmount = new decimal_js_1.Decimal(0);
             const saleItems = [];
             for (const itemDto of dto.items) {
-                const discountAmount = itemDto.discountAmount || 0;
-                const discountPercent = itemDto.discountPercent || 0;
-                let netPrice = Number(itemDto.price);
-                if (discountAmount > 0) {
+                const discountAmount = new decimal_js_1.Decimal(itemDto.discountAmount || 0);
+                const discountPercent = new decimal_js_1.Decimal(itemDto.discountPercent || 0);
+                let netPrice = new decimal_js_1.Decimal(itemDto.price);
+                if (discountAmount.gt(0)) {
                     netPrice = finance_helper_1.FinanceHelper.sub(netPrice, discountAmount);
                 }
-                else if (discountPercent > 0) {
-                    const discount = finance_helper_1.FinanceHelper.mul(netPrice, discountPercent / 100);
+                else if (discountPercent.gt(0)) {
+                    const discount = finance_helper_1.FinanceHelper.mul(netPrice, discountPercent.div(100));
                     netPrice = finance_helper_1.FinanceHelper.sub(netPrice, discount);
                 }
                 const subtotal = finance_helper_1.FinanceHelper.mul(itemDto.quantity, netPrice);
                 rawTotalAmount = finance_helper_1.FinanceHelper.add(rawTotalAmount, subtotal);
                 saleItems.push({
                     itemId: itemDto.itemId,
-                    quantity: itemDto.quantity,
-                    price: itemDto.price,
+                    quantity: new decimal_js_1.Decimal(itemDto.quantity),
+                    price: new decimal_js_1.Decimal(itemDto.price),
                     discountAmount,
                     discountPercent,
                     netPrice,
-                    kdvRate: itemDto.kdvRate ?? 20,
+                    kdvRate: new decimal_js_1.Decimal(itemDto.kdvRate ?? 20),
                     description: itemDto.description,
                     createdBy: userId,
                 });
             }
-            const headerDiscountAmount = dto.discountAmount || 0;
-            const headerDiscountPercent = dto.discountPercent || 0;
+            const headerDiscountAmount = new decimal_js_1.Decimal(dto.discountAmount || 0);
+            const headerDiscountPercent = new decimal_js_1.Decimal(dto.discountPercent || 0);
             let discountToSubtract = headerDiscountAmount;
-            if (headerDiscountPercent > 0) {
-                discountToSubtract = finance_helper_1.FinanceHelper.mul(rawTotalAmount, headerDiscountPercent / 100);
+            if (headerDiscountPercent.gt(0)) {
+                discountToSubtract = finance_helper_1.FinanceHelper.mul(rawTotalAmount, headerDiscountPercent.div(100));
             }
             const discountedMatrah = finance_helper_1.FinanceHelper.sub(rawTotalAmount, discountToSubtract);
-            let totalKdv = 0;
+            let totalKdv = new decimal_js_1.Decimal(0);
             saleItems.forEach(item => {
-                const lineRatio = rawTotalAmount > 0 ? finance_helper_1.FinanceHelper.div(finance_helper_1.FinanceHelper.mul(item.quantity, item.netPrice), rawTotalAmount, 6) : 0;
+                const lineRatio = rawTotalAmount.gt(0) ? finance_helper_1.FinanceHelper.div(finance_helper_1.FinanceHelper.mul(item.quantity, item.netPrice), rawTotalAmount, 6) : new decimal_js_1.Decimal(0);
                 const lineMatrah = finance_helper_1.FinanceHelper.mul(discountedMatrah, lineRatio);
-                const lineKdv = finance_helper_1.FinanceHelper.calculateKdv(lineMatrah, item.kdvRate);
+                const lineKdv = finance_helper_1.FinanceHelper.calculateKdv(lineMatrah, Number(item.kdvRate));
                 item.kdvAmount = lineKdv;
                 item.lineTotal = finance_helper_1.FinanceHelper.add(lineMatrah, lineKdv);
                 totalKdv = finance_helper_1.FinanceHelper.add(totalKdv, lineKdv);
@@ -147,7 +153,7 @@ let SalesService = SalesService_1 = class SalesService {
                 exchangeRate: currentExchangeRate,
                 deliveryDate: dto.deliveryDate,
                 status: 'draft',
-                deposit: dto.deposit || 0,
+                deposit: new decimal_js_1.Decimal(dto.deposit || 0),
                 totalAmount: rawTotalAmount,
                 discountAmount: headerDiscountAmount,
                 discountPercent: headerDiscountPercent,
@@ -186,37 +192,46 @@ let SalesService = SalesService_1 = class SalesService {
                 sale.deliveryDate = dto.deliveryDate;
             sale.updatedBy = userId || null;
             if (dto.items && dto.items.length > 0) {
-                let rawTotalAmount = 0;
+                let rawTotalAmount = new decimal_js_1.Decimal(0);
                 const saleItems = [];
                 for (const itemDto of dto.items) {
-                    const discountAmount = itemDto.discountAmount || 0;
-                    const discountPercent = itemDto.discountPercent || 0;
-                    let netPrice = Number(itemDto.price);
-                    if (discountAmount > 0) {
+                    const discountAmount = new decimal_js_1.Decimal(itemDto.discountAmount || 0);
+                    const discountPercent = new decimal_js_1.Decimal(itemDto.discountPercent || 0);
+                    let netPrice = new decimal_js_1.Decimal(itemDto.price);
+                    if (discountAmount.gt(0)) {
                         netPrice = finance_helper_1.FinanceHelper.sub(netPrice, discountAmount);
                     }
-                    else if (discountPercent > 0) {
-                        const discount = finance_helper_1.FinanceHelper.mul(netPrice, discountPercent / 100);
+                    else if (discountPercent.gt(0)) {
+                        const discount = finance_helper_1.FinanceHelper.mul(netPrice, discountPercent.div(100));
                         netPrice = finance_helper_1.FinanceHelper.sub(netPrice, discount);
                     }
                     rawTotalAmount = finance_helper_1.FinanceHelper.add(rawTotalAmount, finance_helper_1.FinanceHelper.mul(itemDto.quantity, netPrice));
                     saleItems.push({
-                        itemId: itemDto.itemId, quantity: itemDto.quantity, price: itemDto.price,
-                        discountAmount, discountPercent, netPrice, kdvRate: itemDto.kdvRate ?? 20,
-                        description: itemDto.description, createdBy: userId,
+                        itemId: itemDto.itemId,
+                        quantity: new decimal_js_1.Decimal(itemDto.quantity),
+                        price: new decimal_js_1.Decimal(itemDto.price),
+                        discountAmount,
+                        discountPercent,
+                        netPrice,
+                        kdvRate: new decimal_js_1.Decimal(itemDto.kdvRate ?? 20),
+                        description: itemDto.description,
+                        createdBy: userId,
                     });
                 }
-                const headerDiscountAmount = dto.discountAmount !== undefined ? dto.discountAmount : sale.discountAmount;
-                const headerDiscountPercent = dto.discountPercent !== undefined ? dto.discountPercent : sale.discountPercent;
+                const headerDiscountAmount = new decimal_js_1.Decimal(dto.discountAmount !== undefined ? dto.discountAmount : sale.discountAmount);
+                const headerDiscountPercent = new decimal_js_1.Decimal(dto.discountPercent !== undefined ? dto.discountPercent : sale.discountPercent);
                 let discountToSubtract = headerDiscountAmount;
-                if (headerDiscountPercent > 0)
-                    discountToSubtract = finance_helper_1.FinanceHelper.mul(rawTotalAmount, headerDiscountPercent / 100);
+                if (headerDiscountPercent.gt(0)) {
+                    discountToSubtract = finance_helper_1.FinanceHelper.mul(rawTotalAmount, headerDiscountPercent.div(100));
+                }
                 const discountedMatrah = finance_helper_1.FinanceHelper.sub(rawTotalAmount, discountToSubtract);
-                let totalKdv = 0;
+                let totalKdv = new decimal_js_1.Decimal(0);
                 saleItems.forEach(item => {
-                    const lineRatio = rawTotalAmount > 0 ? finance_helper_1.FinanceHelper.div(finance_helper_1.FinanceHelper.mul(item.quantity, item.netPrice), rawTotalAmount, 6) : 0;
+                    const lineRatio = rawTotalAmount.gt(0)
+                        ? finance_helper_1.FinanceHelper.div(finance_helper_1.FinanceHelper.mul(item.quantity, item.netPrice), rawTotalAmount, 6)
+                        : new decimal_js_1.Decimal(0);
                     const lineMatrah = finance_helper_1.FinanceHelper.mul(discountedMatrah, lineRatio);
-                    const lineKdv = finance_helper_1.FinanceHelper.calculateKdv(lineMatrah, item.kdvRate);
+                    const lineKdv = finance_helper_1.FinanceHelper.calculateKdv(lineMatrah, Number(item.kdvRate));
                     item.kdvAmount = lineKdv;
                     item.lineTotal = finance_helper_1.FinanceHelper.add(lineMatrah, lineKdv);
                     totalKdv = finance_helper_1.FinanceHelper.add(totalKdv, lineKdv);
@@ -226,7 +241,7 @@ let SalesService = SalesService_1 = class SalesService {
                 sale.discountPercent = headerDiscountPercent;
                 sale.kdv = totalKdv;
                 sale.grandTotal = finance_helper_1.FinanceHelper.add(discountedMatrah, totalKdv);
-                sale.deposit = dto.deposit !== undefined ? dto.deposit : sale.deposit;
+                sale.deposit = new decimal_js_1.Decimal(dto.deposit !== undefined ? dto.deposit : sale.deposit);
                 await queryRunner.manager.delete(sale_item_entity_1.SaleItem, { saleId: sale.id });
                 for (const si of saleItems) {
                     await queryRunner.manager.save(queryRunner.manager.create(sale_item_entity_1.SaleItem, { ...si, saleId: sale.id }));
@@ -234,7 +249,7 @@ let SalesService = SalesService_1 = class SalesService {
             }
             else {
                 if (dto.deposit !== undefined)
-                    sale.deposit = dto.deposit;
+                    sale.deposit = new decimal_js_1.Decimal(dto.deposit);
             }
             await queryRunner.manager.save(sale);
             await queryRunner.commitTransaction();
@@ -258,54 +273,37 @@ let SalesService = SalesService_1 = class SalesService {
                 throw new common_1.NotFoundException('Satış bulunamadı');
             if (sale.status !== 'draft')
                 throw new common_1.BadRequestException('Sadece taslak (draft) durumundaki siparişler onaylanabilir.');
-            const party = await queryRunner.manager.findOne(party_entity_1.Party, { where: { id: sale.partyId } });
+            const party = await queryRunner.manager.findOne(party_entity_1.Party, {
+                where: { id: sale.partyId },
+                lock: { mode: 'pessimistic_write' }
+            });
             if (!party)
                 throw new common_1.NotFoundException('Cari hesap bulunamadı');
             const tlGrandTotal = finance_helper_1.FinanceHelper.mul(sale.grandTotal, sale.exchangeRate);
-            const currentPartyBalance = Number(party.balance);
-            if (Number(party.creditLimitPlus) > 0 && (currentPartyBalance + tlGrandTotal) > Number(party.creditLimitPlus)) {
-                throw new common_1.BadRequestException(`Cari limit aşıldı! Firmanın Kredi Limiti: ${party.creditLimitPlus}. Sipariş sonrası bakiye: ${currentPartyBalance + tlGrandTotal} olmaktadır. İşlem gerçekleştirilemez.`);
+            if (party.creditLimit.gt(0) && (finance_helper_1.FinanceHelper.add(party.balance, tlGrandTotal)).gt(party.creditLimit)) {
+                throw new common_1.BadRequestException(`Cari limit aşıldı! Firmanın Kredi Limiti: ${party.creditLimit}. Sipariş sonrası bakiye: ${finance_helper_1.FinanceHelper.add(party.balance, tlGrandTotal)} olmaktadır. İşlem gerçekleştirilemez.`);
             }
-            for (const saleItem of sale.items) {
-                const stock = await queryRunner.manager.findOne(stock_entity_1.Stock, {
-                    where: { itemId: saleItem.itemId, departmentId: dto.departmentId },
-                    lock: { mode: 'pessimistic_write' },
-                });
-                if (!stock || Number(stock.quantity) < Number(saleItem.quantity)) {
-                    throw new common_1.BadRequestException(`Yetersiz stok durumu. (Ürün ID: ${saleItem.itemId}, Depo ID: ${dto.departmentId}) Üretim emri açmanız veya mal alımı yapmanız gerekebilir.`);
-                }
-                const quantityBefore = Number(stock.quantity);
-                const quantityAfter = finance_helper_1.FinanceHelper.sub(quantityBefore, saleItem.quantity);
-                await queryRunner.manager.update(stock_entity_1.Stock, stock.id, {
-                    quantity: () => `quantity - ${saleItem.quantity}`,
-                    updatedBy: userId,
-                });
-                await queryRunner.manager.save(queryRunner.manager.create(stock_movement_entity_1.StockMovement, {
-                    stockId: stock.id, quantity: saleItem.quantity, quantityBefore, quantityAfter,
-                    type: 'out', referenceType: 'sale', referenceId: sale.id, description: `Satış Onayı: ${sale.code}`, createdBy: userId,
-                }));
-            }
-            await queryRunner.manager.update(party_entity_1.Party, party.id, { balance: finance_helper_1.FinanceHelper.add(currentPartyBalance, tlGrandTotal), updatedBy: userId });
-            let finalDepositSaved = 0;
-            if (Number(sale.deposit) > 0) {
-                if (!dto.commercialAccountId) {
-                    throw new common_1.BadRequestException('Siparişte kapora alınmış. Bu paranın gireceği Finans (Kasa/Banka) hesabını seçmelisiniz.');
-                }
-                const txCode = await this.sequenceGenerator.generateTransactionCode(queryRunner, 'MKB');
-                const tlDeposit = finance_helper_1.FinanceHelper.mul(sale.deposit, sale.exchangeRate);
-                await queryRunner.manager.save(queryRunner.manager.create(transaction_entity_1.Transaction, {
-                    code: txCode, partyId: party.id, commercialAccountId: dto.commercialAccountId,
-                    amount: Number(sale.deposit), currencyId: sale.currencyId, exchangeRate: sale.exchangeRate,
-                    type: 'in', referenceType: 'sale', referenceId: sale.id, date: date_utils_1.DateUtils.getToday(),
-                    description: `${sale.code} Nolu Sipariş Peşinat / Kaporası`, status: 'completed', createdBy: userId
-                }));
-                await queryRunner.manager.update(party_entity_1.Party, party.id, { balance: finance_helper_1.FinanceHelper.sub(finance_helper_1.FinanceHelper.add(currentPartyBalance, tlGrandTotal), tlDeposit), updatedBy: userId });
-                finalDepositSaved = tlDeposit;
-            }
-            await queryRunner.manager.update(sale_entity_1.Sale, sale.id, { status: 'approved', updatedBy: userId });
+            sale.status = 'approved';
+            sale.departmentId = dto.departmentId;
+            sale.updatedBy = userId || null;
+            await queryRunner.manager.save(sale_entity_1.Sale, sale);
             await queryRunner.commitTransaction();
-            this.logger.log(`✅ Sipariş Onaylandı: ${sale.code}, Satış Tutarı: ${tlGrandTotal}, Kapora Düşüşü: ${finalDepositSaved}`);
-            return this.findOne(saleId);
+            this.eventBus.emit('sale.approved', {
+                sale,
+                departmentId: dto.departmentId,
+                tlGrandTotal,
+                deposit: finance_helper_1.FinanceHelper.mul(sale.deposit, sale.exchangeRate),
+                commercialAccountId: dto.commercialAccountId,
+                userId
+            });
+            this.logsService.logActivity({
+                userId,
+                module: 'sales',
+                action: 'APPROVE_SALE',
+                tag: 'SUCCESS',
+                details: `Satış onaylandı: ${sale.code}, Toplam: ${sale.totalAmount} ${sale.currency?.code || 'TL'}`,
+            });
+            return this.findOne(sale.id);
         }
         catch (error) {
             await queryRunner.rollbackTransaction();
@@ -327,25 +325,46 @@ let SalesService = SalesService_1 = class SalesService {
             if (sale.status === 'cancelled')
                 throw new common_1.BadRequestException('Sipariş zaten iptal edilmiş.');
             if (sale.status === 'approved' || sale.status === 'shipped') {
-                const party = await queryRunner.manager.findOne(party_entity_1.Party, { where: { id: sale.partyId } });
+                const party = await queryRunner.manager.findOne(party_entity_1.Party, {
+                    where: { id: sale.partyId },
+                    lock: { mode: 'pessimistic_write' }
+                });
                 if (!party)
                     throw new common_1.NotFoundException('Cari hesap bulunamadı');
-                const outMovements = await queryRunner.manager.find(stock_movement_entity_1.StockMovement, { where: { referenceType: 'sale', referenceId: sale.id, type: 'out' }, relations: ['stock'] });
-                for (const mov of outMovements) {
-                    const stock = await queryRunner.manager.findOne(stock_entity_1.Stock, { where: { id: mov.stockId } });
-                    if (stock) {
-                        const newQty = Number(stock.quantity) + Number(mov.quantity);
-                        await queryRunner.manager.update(stock_entity_1.Stock, stock.id, { quantity: newQty });
-                        await queryRunner.manager.save(queryRunner.manager.create(stock_movement_entity_1.StockMovement, {
-                            stockId: stock.id, quantity: mov.quantity, quantityBefore: stock.quantity, quantityAfter: newQty,
-                            type: 'in', referenceType: 'return', referenceId: sale.id, description: `${sale.code} Sipariş İptaliyle Stoka İade`, createdBy: userId
-                        }));
-                    }
+                if (sale.status === 'shipped') {
+                    await this.stocksService.revertStockMovementsByReference('sale', sale.id, queryRunner.manager, userId);
                 }
-                const tlGrandTotal = Number(sale.grandTotal) * Number(sale.exchangeRate);
-                const tlDeposit = Number(sale.deposit) * Number(sale.exchangeRate);
-                const targetBalance = Number(party.balance) - tlGrandTotal + tlDeposit;
+                else {
+                    await this.stocksService.unreserveStockBulk(sale.items, sale.departmentId || 1, queryRunner.manager, userId);
+                }
+                const tlGrandTotal = finance_helper_1.FinanceHelper.mul(sale.grandTotal, sale.exchangeRate);
+                const tlDeposit = finance_helper_1.FinanceHelper.mul(sale.deposit, sale.exchangeRate);
+                const targetBalance = finance_helper_1.FinanceHelper.add(finance_helper_1.FinanceHelper.sub(party.balance, tlGrandTotal), tlDeposit);
                 await queryRunner.manager.update(party_entity_1.Party, party.id, { balance: targetBalance, updatedBy: userId });
+                await queryRunner.manager.save(queryRunner.manager.create(ledger_entity_1.AccountingLedger, {
+                    date: date_utils_1.DateUtils.getToday(),
+                    partyId: party.id,
+                    debit: new decimal_js_1.Decimal(0),
+                    credit: tlGrandTotal,
+                    transactionId: sale.id,
+                    source: 'CANCEL_SALE',
+                    description: `${sale.code} Satış İptali - Borç Revert`
+                }));
+                if (tlDeposit.gt(0)) {
+                    const depositTx = await queryRunner.manager.findOne(transaction_entity_1.Transaction, {
+                        where: { referenceType: 'sale', referenceId: sale.id, type: 'in' }
+                    });
+                    await queryRunner.manager.save(queryRunner.manager.create(ledger_entity_1.AccountingLedger, {
+                        date: date_utils_1.DateUtils.getToday(),
+                        partyId: party.id,
+                        accountId: depositTx?.commercialAccountId,
+                        debit: tlDeposit,
+                        credit: new decimal_js_1.Decimal(0),
+                        transactionId: sale.id,
+                        source: 'CANCEL_DEPOSIT',
+                        description: `${sale.code} Kapora İptali - Alacak Revert`
+                    }));
+                }
                 await queryRunner.manager.update(transaction_entity_1.Transaction, { referenceType: 'sale', referenceId: sale.id }, { status: 'cancelled', updatedBy: userId });
             }
             await queryRunner.manager.update(sale_entity_1.Sale, sale.id, { status: 'cancelled', updatedBy: userId });
@@ -373,7 +392,7 @@ let SalesService = SalesService_1 = class SalesService {
             this.saleRepo.createQueryBuilder('sale')
                 .select("SUM(sale.grandTotal * sale.exchangeRate)", "revenue")
                 .addSelect("COUNT(*)", "total")
-                .where("sale.createdAt >= :date", { date: date_utils_1.DateUtils.formatDate(firstDayOfMonth) })
+                .where("sale.createdAt >= :date", { date: date_utils_1.DateUtils.getStartOfDay(firstDayOfMonth) })
                 .andWhere("sale.status != 'cancelled'")
                 .getRawOne(),
             this.saleRepo.count({ where: { status: 'draft' } }),
@@ -383,6 +402,46 @@ let SalesService = SalesService_1 = class SalesService {
             monthlyOrders: Number(stats.total || 0),
             pendingOrders: Number(pending || 0),
         };
+    }
+    async shipSale(saleId, dto, userId) {
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+        try {
+            const sale = await queryRunner.manager.findOne(sale_entity_1.Sale, { where: { id: saleId }, relations: ['items'] });
+            if (!sale)
+                throw new common_1.NotFoundException('Satış bulunamadı');
+            if (sale.status !== 'approved' && sale.status !== 'shipped') {
+                throw new common_1.BadRequestException('Sadece onaylanmış veya kısmi sevk edilmiş siparişler sevk edilebilir.');
+            }
+            if (!sale.departmentId)
+                throw new common_1.BadRequestException('Bu satışın rezerve edildiği depo bilgisi bulunamadı.');
+            const shipItems = dto.items || sale.items.map(i => ({ itemId: Number(i.itemId), quantity: Number(i.quantity) }));
+            await this.stocksService.finalizeShipmentBulk(shipItems, sale.departmentId, queryRunner.manager, { type: 'sale', id: sale.id, description: `Sevkiyat Çıkışı: ${sale.code}` }, userId);
+            for (const item of shipItems) {
+                const saleItem = sale.items.find(si => Number(si.itemId) === Number(item.itemId));
+                if (saleItem) {
+                    saleItem.shippedQuantity = new decimal_js_1.Decimal(saleItem.shippedQuantity || 0).add(item.quantity);
+                    await queryRunner.manager.save(sale_item_entity_1.SaleItem, saleItem);
+                }
+            }
+            sale.status = 'shipped';
+            sale.updatedBy = userId || null;
+            await queryRunner.manager.save(sale_entity_1.Sale, sale);
+            await queryRunner.commitTransaction();
+            this.logsService.logActivity({
+                userId, module: 'sales', action: 'SHIP_SALE', tag: 'SUCCESS',
+                details: `Sevkiyat yapıldı: ${sale.code}`
+            });
+            return this.findOne(sale.id);
+        }
+        catch (error) {
+            await queryRunner.rollbackTransaction();
+            throw error;
+        }
+        finally {
+            await queryRunner.release();
+        }
     }
 };
 exports.SalesService = SalesService;
@@ -395,6 +454,9 @@ exports.SalesService = SalesService = SalesService_1 = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.DataSource,
-        sequence_generator_service_1.SequenceGeneratorService])
+        sequence_generator_service_1.SequenceGeneratorService,
+        stocks_service_1.StocksService,
+        logs_service_1.LogsService,
+        event_bus_service_1.InternalEventBus])
 ], SalesService);
 //# sourceMappingURL=sales.service.js.map

@@ -21,26 +21,26 @@ export class ProductionOrder extends BaseEntity {
   @Column({ name: 'target_department_id', type: 'bigint', nullable: true })
   targetDepartmentId: number | null;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'planned_quantity', type: 'decimal', precision: 15, scale: 4, transformer: new DecimalTransformer() })
   plannedQuantity: Decimal;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'produced_quantity', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
   producedQuantity: Decimal;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'wastage_quantity', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
   wastageQuantity: Decimal;
 
   @Column({ type: 'enum', enum: ['draft', 'planned', 'in_progress', 'completed', 'cancelled'], default: 'draft' })
   status: 'draft' | 'planned' | 'in_progress' | 'completed' | 'cancelled';
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'unit_cost', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
   unitCost: Decimal;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'total_cost', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
   totalCost: Decimal;
 

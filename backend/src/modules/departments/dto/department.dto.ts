@@ -1,4 +1,6 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsInt } from 'class-validator';
+import { Type } from 'class-transformer';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 
 export class CreateDepartmentDto {
   @IsString()
@@ -15,10 +17,14 @@ export class CreateDepartmentDto {
 
   @IsOptional()
   @IsNumber()
+  @IsInt()
+  @Type(() => Number)
   departmentTypeId?: number;
 
   @IsOptional()
   @IsNumber()
+  @IsInt()
+  @Type(() => Number)
   commercialAccountId?: number;
 }
 
@@ -37,14 +43,20 @@ export class UpdateDepartmentDto {
 
   @IsOptional()
   @IsNumber()
+  @IsInt()
+  @Type(() => Number)
   departmentTypeId?: number;
 
   @IsOptional()
   @IsNumber()
+  @IsInt()
+  @Type(() => Number)
   commercialAccountId?: number;
 
   @IsOptional()
   @IsNumber()
+  @IsInt()
+  @Type(() => Number)
   state?: number;
 }
 
@@ -69,5 +81,31 @@ export class UpdateDepartmentTypeDto {
 
   @IsOptional()
   @IsNumber()
+  @IsInt()
+  @Type(() => Number)
   state?: number;
+}
+
+export class DepartmentsQueryDto extends PaginationDto {
+  @IsOptional()
+  @IsNumber()
+  @IsInt()
+  @Type(() => Number)
+  departmentTypeId?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @IsInt()
+  @Type(() => Number)
+  commercialAccountId?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @IsInt()
+  @Type(() => Number)
+  state?: number;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
 }

@@ -1,5 +1,5 @@
 import { SalesService } from './sales.service';
-import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto, SalesQueryDto } from './dto/sale.dto';
+import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto, SalesQueryDto, ShipSaleDto } from './dto/sale.dto';
 export declare class SalesController {
     private readonly salesService;
     constructor(salesService: SalesService);
@@ -16,5 +16,6 @@ export declare class SalesController {
     update(id: number, dto: UpdateSaleDto, userId: number): Promise<import("./entities/sale.entity").Sale>;
     approve(id: number, dto: ApproveSaleDto, userId: number): Promise<import("./entities/sale.entity").Sale>;
     cancel(id: number, userId: number): Promise<import("./entities/sale.entity").Sale>;
+    ship(id: number, dto: ShipSaleDto, userId: number): Promise<import("./entities/sale.entity").Sale>;
     remove(id: number): Promise<void>;
 }

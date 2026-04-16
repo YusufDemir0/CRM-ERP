@@ -1,3 +1,4 @@
+import { Decimal } from 'decimal.js';
 import { BaseEntity } from '../../../../common/entities/base.entity';
 import { ItemType } from './item-type.entity';
 import { ItemCodeGroup } from './item-code-group.entity';
@@ -11,14 +12,14 @@ export declare class Item extends BaseEntity {
     code: string;
     code1: string | null;
     code2: string | null;
-    criticalLimit: number;
+    criticalLimit: Decimal;
     image: string | null;
-    purchasePrice: number | null;
-    salePrice: number | null;
-    netPrice: number | null;
+    purchasePrice: Decimal | null;
+    salePrice: Decimal | null;
+    netPrice: Decimal | null;
     currencyId: number | null;
     quantityTypeId: number;
-    kdv: number;
+    kdv: Decimal;
     description: string | null;
     notes: string | null;
     itemType: ItemType;

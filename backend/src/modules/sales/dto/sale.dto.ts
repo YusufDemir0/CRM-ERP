@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsArray, ValidateNested, IsDateString, Min, IsInt } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsArray, ValidateNested, IsDateString, Min, IsInt, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 
@@ -50,11 +50,17 @@ export class CreateSaleTypeDto {
 }
 
 export class ApproveSaleDto {
-  @IsNumber() departmentId: number;
-  @IsOptional() @IsNumber() commercialAccountId?: number;
+  @IsNumber() @IsInt() @Type(() => Number) departmentId: number;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) commercialAccountId?: number;
 }
 
 export class SalesQueryDto extends PaginationDto {
   @IsOptional() @IsString() status?: string;
   @IsOptional() @Type(() => Number) @IsNumber() partyId?: number;
+}
+
+export class ShipSaleDto {
+  @IsArray()
+  @IsOptional()
+  items?: { itemId: number; quantity: number }[];
 }

@@ -21,6 +21,10 @@ __decorate([
     __metadata("design:type", String)
 ], Role.prototype, "name", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'boolean', default: false }),
+    __metadata("design:type", Boolean)
+], Role.prototype, "isSystemAdmin", void 0);
+__decorate([
     (0, typeorm_1.ManyToMany)(() => permission_entity_1.Permission),
     (0, typeorm_1.JoinTable)({
         name: 'role_permissions',

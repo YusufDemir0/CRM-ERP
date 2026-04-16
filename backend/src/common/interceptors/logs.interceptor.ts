@@ -45,9 +45,11 @@ export class LogsInterceptor implements NestInterceptor {
     );
   }
 
-  private sanitizeBody(body: any): any {
+  private sanitizeBody(body: any, depth = 0): any {
+    // ARCH-02: Tight depth limit (max 2) and flat logic for performance
+    if (depth > 1) return '[NESTED_CONTENT_TRUNCATED]';
     if (!body || typeof body !== 'object') return body;
-    if (Array.isArray(body)) return body.map(item => this.sanitizeBody(item));
+    if (Array.isArray(body)) return body.map(item => this.sanitizeBody(item, depth + 1));
 
     const sanitized = { ...body };
     const sensitiveFields = [
@@ -59,7 +61,7 @@ export class LogsInterceptor implements NestInterceptor {
       if (sensitiveFields.some((field) => key.toLowerCase().includes(field.toLowerCase()))) {
         sanitized[key] = '********';
       } else if (typeof sanitized[key] === 'object' && sanitized[key] !== null) {
-        sanitized[key] = this.sanitizeBody(sanitized[key]);
+        sanitized[key] = this.sanitizeBody(sanitized[key], depth + 1);
       }
     }
     return sanitized;
@@ -96,9 +98,9 @@ export class LogsInterceptor implements NestInterceptor {
         module: moduleName,
         tag: status,
         details: JSON.stringify({
-          body: cleanBody && Object.keys(cleanBody).length > 0 ? cleanBody : null,
+          body: cleanBody && Object.keys(cleanBody).length > 0 ? (JSON.stringify(cleanBody).length > 5120 ? '[PAYLOAD_TOO_LARGE]' : cleanBody) : null,
           status,
-          response: responseSummary,
+          response: typeof responseSummary === 'string' && responseSummary.length > 1000 ? responseSummary.substring(0, 1000) + '...' : responseSummary,
         }),
         ipAddress: ip,
       });

@@ -1,5 +1,5 @@
 import { ItemsService } from './items.service';
-import { CreateItemDto, UpdateItemDto, CreateItemTypeDto, CreateQuantityTypeDto, CreateItemCodeGroupDto, ItemsQueryDto } from '../dto/inventory.dto';
+import { CreateItemDto, UpdateItemDto, CreateItemTypeDto, CreateQuantityTypeDto, CreateItemCodeGroupDto, ItemsQueryDto, UpdateItemTypeDto, UpdateQuantityTypeDto, UpdateItemCodeGroupDto } from '../dto/inventory.dto';
 export declare class ItemsController {
     private readonly itemsService;
     constructor(itemsService: ItemsService);
@@ -18,10 +18,10 @@ export declare class ItemsController {
     createItemType(dto: CreateItemTypeDto, userId: number): Promise<import("./entities/item-type.entity").ItemType>;
     createCodeGroup(dto: CreateItemCodeGroupDto, userId: number): Promise<import("./entities/item-code-group.entity").ItemCodeGroup>;
     createQuantityType(dto: CreateQuantityTypeDto, userId: number): Promise<import("./entities/quantity-type.entity").QuantityType>;
-    updateQuantityType(id: number, dto: any, userId: number): Promise<import("./entities/quantity-type.entity").QuantityType>;
+    updateQuantityType(id: number, dto: UpdateQuantityTypeDto, userId: number): Promise<import("./entities/quantity-type.entity").QuantityType>;
     removeQuantityType(id: number): Promise<void>;
-    updateItemType(id: number, dto: any, userId: number): Promise<import("./entities/item-type.entity").ItemType>;
-    updateCodeGroup(id: number, dto: any, userId: number): Promise<import("./entities/item-code-group.entity").ItemCodeGroup>;
+    updateItemType(id: number, dto: UpdateItemTypeDto, userId: number): Promise<import("./entities/item-type.entity").ItemType>;
+    updateCodeGroup(id: number, dto: UpdateItemCodeGroupDto, userId: number): Promise<import("./entities/item-code-group.entity").ItemCodeGroup>;
     update(id: number, dto: UpdateItemDto, userId: number): Promise<import("./entities/item.entity").Item>;
     removeItemType(id: number): Promise<void>;
     removeCodeGroup(id: number): Promise<void>;

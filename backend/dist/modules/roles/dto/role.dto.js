@@ -42,6 +42,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsIn)([0, 1]),
     __metadata("design:type", Number)
 ], UpdateRoleDto.prototype, "state", void 0);
 class CreatePermissionDto {
@@ -86,10 +87,12 @@ __decorate([
 ], SetUserPermissionDto.prototype, "permissionId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsIn)(['allow', 'deny']),
     __metadata("design:type", String)
 ], SetUserPermissionDto.prototype, "effect", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsIn)(['global', 'department', 'own']),
     __metadata("design:type", String)
 ], SetUserPermissionDto.prototype, "scopeType", void 0);
 __decorate([

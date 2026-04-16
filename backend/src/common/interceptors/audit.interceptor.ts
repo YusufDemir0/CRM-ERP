@@ -4,27 +4,23 @@ import {
   ExecutionContext,
   CallHandler,
 } from '@nestjs/common';
-import { Observable, tap } from 'rxjs';
-import { DataSource } from 'typeorm';
+import { Observable } from 'rxjs';
+import { ClsService } from 'nestjs-cls';
 
 /**
- * AuditInterceptor — Request'teki kullanıcı bilgisini
- * TypeORM query context'ine ekler.
- * Entity subscriber'lar bu bilgiyi created_by/updated_by set etmek için kullanır.
+ * AuditInterceptor — Request'teki kullanıcı bilgisini ClsService'e (AsyncLocalStorage) koyar.
+ * Bu sayede AuditSubscriber gibi yapılar kullanıcıyı her yerden okuyabilir.
  */
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly cls: ClsService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
     const userId = request.user?.sub || request.user?.id || null;
 
-    // DataSource queryRunner'larına userId metadata'sı ekliyoruz.
-    // Bu, entity subscriber tarafından okunacak.
     if (userId) {
-      // Request'e userId'yi ekle — service'ler buradan okuyabilir
-      request.currentUserId = userId;
+      this.cls.set('userId', userId);
     }
 
     return next.handle();

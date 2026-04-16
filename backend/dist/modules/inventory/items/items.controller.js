@@ -133,7 +133,7 @@ __decorate([
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object, Number]),
+    __metadata("design:paramtypes", [Number, inventory_dto_1.UpdateQuantityTypeDto, Number]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "updateQuantityType", null);
 __decorate([
@@ -150,7 +150,7 @@ __decorate([
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object, Number]),
+    __metadata("design:paramtypes", [Number, inventory_dto_1.UpdateItemTypeDto, Number]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "updateItemType", null);
 __decorate([
@@ -159,7 +159,7 @@ __decorate([
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Object, Number]),
+    __metadata("design:paramtypes", [Number, inventory_dto_1.UpdateItemCodeGroupDto, Number]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "updateCodeGroup", null);
 __decorate([

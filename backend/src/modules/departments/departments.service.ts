@@ -3,7 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Department } from './entities/department.entity';
 import { DepartmentType } from './entities/department-type.entity';
-import { CreateDepartmentDto, UpdateDepartmentDto, CreateDepartmentTypeDto, UpdateDepartmentTypeDto } from './dto/department.dto';
+import { User } from '../auth/entities/user.entity';
+import { Stock } from '../inventory/stocks/entities/stock.entity';
+import { CreateDepartmentDto, UpdateDepartmentDto, CreateDepartmentTypeDto, UpdateDepartmentTypeDto, DepartmentsQueryDto } from './dto/department.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
 
 @Injectable()
@@ -13,22 +15,52 @@ export class DepartmentsService {
     private deptRepo: Repository<Department>,
     @InjectRepository(DepartmentType)
     private typeRepo: Repository<DepartmentType>,
+    @InjectRepository(User)
+    private userRepo: Repository<User>,
+    @InjectRepository(Stock)
+    private stockRepo: Repository<Stock>,
   ) {}
 
-  async findAll(query: PaginationDto): Promise<PaginatedResult<Department>> {
+  async findAll(query: DepartmentsQueryDto): Promise<PaginatedResult<Department>> {
     const qb = this.deptRepo.createQueryBuilder('dept')
       .leftJoinAndSelect('dept.departmentType', 'type')
       .leftJoinAndSelect('dept.commercialAccount', 'account');
-
+ 
     if (query.search) {
-      qb.where('(dept.name LIKE :s OR dept.abbreviation LIKE :s OR dept.description LIKE :s OR type.name LIKE :s OR account.name LIKE :s)', { s: `%${query.search}%` });
+      qb.andWhere('(dept.name LIKE :s OR dept.abbreviation LIKE :s OR dept.description LIKE :s OR type.name LIKE :s OR account.name LIKE :s)', { s: `%${query.search}%` });
+    }
+ 
+    if (query.departmentTypeId) {
+      qb.andWhere('dept.departmentTypeId = :typeId', { typeId: query.departmentTypeId });
+    }
+
+    if (query.commercialAccountId) {
+      qb.andWhere('dept.commercialAccountId = :accountId', { accountId: query.commercialAccountId });
     }
 
     if (query.state !== undefined) {
       qb.andWhere('dept.state = :state', { state: query.state });
     }
+ 
+    // Security & Stability: Whitelist and mapping for sort columns
+    const allowedSortMap: Record<string, string> = {
+      'name': 'dept.name',
+      'abbreviation': 'dept.abbreviation',
+      'createdAt': 'dept.createdAt',
+      'departmentType.name': 'type.name',
+      'type.name': 'type.name',
+      'commercialAccount.name': 'account.name',
+      'account.name': 'account.name',
+      'state': 'dept.state'
+    };
 
-    qb.orderBy(`dept.${query.sortBy || 'name'}`, query.sortOrder || 'ASC');
+    const sortField = allowedSortMap[query.sortBy || ''] || 'dept.name';
+    qb.orderBy(sortField, query.sortOrder || 'ASC');
+
+    if (sortField !== 'dept.createdAt') {
+      qb.addOrderBy('dept.createdAt', 'DESC');
+    }
+    
     qb.skip(query.skip).take(query.limit);
 
     const [data, total] = await qb.getManyAndCount();
@@ -54,13 +86,33 @@ export class DepartmentsService {
 
   async update(id: number, dto: UpdateDepartmentDto, userId?: number): Promise<Department> {
     const dept = await this.findOne(id);
-    Object.assign(dept, dto);
+    
+    if (dto.name !== undefined) dept.name = dto.name;
+    if (dto.abbreviation !== undefined) dept.abbreviation = dto.abbreviation;
+    if (dto.description !== undefined) dept.description = dto.description;
+    if (dto.departmentTypeId !== undefined) dept.departmentTypeId = dto.departmentTypeId;
+    if (dto.commercialAccountId !== undefined) dept.commercialAccountId = dto.commercialAccountId;
+    if (dto.state !== undefined) dept.state = dto.state;
+
     dept.updatedBy = userId || null;
     return this.deptRepo.save(dept);
   }
 
   async softDelete(id: number): Promise<void> {
     await this.findOne(id);
+
+    // ORPHAN-CHECK: Kullanıcı atanmış mi?
+    const hasUsers = await this.userRepo.count({ where: { departmentId: id } });
+    if (hasUsers > 0) {
+      throw new BadRequestException(`Bu departmana kayıtlı ${hasUsers} adet personel bulunduğu için silinemez.`);
+    }
+
+    // ORPHAN-CHECK: Stok var mi?
+    const hasStock = await this.stockRepo.count({ where: { departmentId: id } });
+    if (hasStock > 0) {
+      throw new BadRequestException(`Bu departmanda/depoda kayıtlı stok verisi bulunduğu için silinemez.`);
+    }
+
     await this.deptRepo.softDelete(id);
   }
 
@@ -78,7 +130,9 @@ export class DepartmentsService {
     const type = await this.typeRepo.findOne({ where: { id } });
     if (!type) throw new NotFoundException('Departman türü bulunamadı');
     
-    Object.assign(type, dto);
+    if (dto.name !== undefined) type.name = dto.name;
+    if (dto.abbreviation !== undefined) type.abbreviation = dto.abbreviation;
+
     type.updatedBy = userId || null;
     return this.typeRepo.save(type);
   }

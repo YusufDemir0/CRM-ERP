@@ -1,37 +1,23 @@
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, ForbiddenException } from '@nestjs/common';
 import { Request } from 'express';
 
 @Injectable()
 export class CsrfGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     
-    // Bypass safe methods
-    const safeMethods = ['GET', 'HEAD', 'OPTIONS'];
-    if (safeMethods.includes(request.method)) {
+    // GET, HEAD, OPTIONS isteklerini muaf tut
+    if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
       return true;
     }
 
-    // Bypass login, register, and webhooks
-    if (
-      request.path.startsWith('/api/auth/login') ||
-      request.path.startsWith('/api/auth/register') ||
-      request.path.startsWith('/api/auth/logout') ||
-      request.path.startsWith('/api/webhooks')
-    ) {
-      return true;
-    }
-
+    // Double Submit Cookie Kontrolü
+    // Cookie'deki 'XSRF-TOKEN' ile Header'daki 'x-xsrf-token' eşleşmeli
     const csrfCookie = request.cookies['XSRF-TOKEN'];
     const csrfHeader = request.headers['x-xsrf-token'];
 
     if (!csrfCookie || !csrfHeader || csrfCookie !== csrfHeader) {
-      throw new ForbiddenException('CSRF doğrulaması başarısız.');
+      throw new ForbiddenException('Geçersiz veya eksik CSRF token.');
     }
 
     return true;

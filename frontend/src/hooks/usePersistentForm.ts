@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
  * Scoped by URL pathname to prevent multi-tab interference.
  */
 export function usePersistentForm<T>(baseKey: string, initialValues: T) {
-  const key = `${baseKey}_${window.location.pathname}`; // BENZERSİZLEŞTİRİLDİ
+  const key = `persistent_form_${baseKey}`;
 
   const [formData, setFormData] = useState<T>(() => {
     const saved = sessionStorage.getItem(key);

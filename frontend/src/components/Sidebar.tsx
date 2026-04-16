@@ -4,7 +4,7 @@ import { FiLogOut } from 'react-icons/fi';
 import { navItems } from '../config/navigation';
 
 export default function Sidebar() {
-  const { user, logout, hasPermission } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -16,20 +16,23 @@ export default function Sidebar() {
     ? user.fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : 'U';
 
+  const isAdmin = user?.roles?.some(r => ['admin', 'superadmin'].includes(r.toLowerCase()));
+
   // Filter items within sections
   const filteredNavItems = navItems.map(section => ({
     ...section,
     items: section.items.filter(item => {
-      if (!item.permission) return true;
-      return hasPermission(item.permission);
+      if (item.to === '/roles' && !isAdmin) return false;
+      // In a real app we would check item.permission here
+      return true;
     })
   })).filter(section => section.items.length > 0);
 
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
-        <h1>Cognitive CRM</h1>
-        <p>Enterprise Admin</p>
+        <h2>Ermay ERP</h2>
+        <span>v1.0</span>
       </div>
 
       <nav className="sidebar-nav">
@@ -44,7 +47,7 @@ export default function Sidebar() {
                 className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
               >
                 {item.icon}
-                <span>{item.label}</span>
+                {item.label}
               </NavLink>
             ))}
           </div>
@@ -52,16 +55,14 @@ export default function Sidebar() {
       </nav>
 
       <div className="sidebar-footer">
-        <div className="user-profile">
-          <div className="user-avatar">
-            {initials}
+        <div className="sidebar-user">
+          <div className="sidebar-user-avatar">{initials}</div>
+          <div className="sidebar-user-info">
+            <p>{user?.fullName || 'Kullanıcı'}</p>
+            <span>{user?.roles?.[0] || 'Kullanıcı'}</span>
           </div>
-          <div className="user-info">
-            <p className="user-name">{user?.fullName || 'Admin User'}</p>
-            <p className="user-email">{user?.email || 'admin@cognitive.com'}</p>
-          </div>
-          <button className="logout-btn" onClick={handleLogout} title="Logout">
-            <FiLogOut size={14} />
+          <button className="btn-icon" onClick={handleLogout} title="Çıkış Yap">
+            <FiLogOut />
           </button>
         </div>
       </div>

@@ -12,12 +12,17 @@ const typeorm_1 = require("@nestjs/typeorm");
 const parties_controller_1 = require("./parties.controller");
 const parties_service_1 = require("./parties.service");
 const party_entity_1 = require("./entities/party.entity");
+const finance_module_1 = require("../finance/finance.module");
+const ledger_entity_1 = require("./entities/ledger.entity");
 let PartiesModule = class PartiesModule {
 };
 exports.PartiesModule = PartiesModule;
 exports.PartiesModule = PartiesModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([party_entity_1.Party])],
+        imports: [
+            typeorm_1.TypeOrmModule.forFeature([party_entity_1.Party, ledger_entity_1.AccountingLedger]),
+            finance_module_1.FinanceModule
+        ],
         controllers: [parties_controller_1.PartiesController],
         providers: [parties_service_1.PartiesService],
         exports: [parties_service_1.PartiesService],

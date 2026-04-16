@@ -1,6 +1,6 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, IsDateString, Min } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, IsDateString, Min, Matches } from 'class-validator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export class CreateCurrencyDto {
   @IsString() @IsNotEmpty() code: string;
@@ -23,8 +23,8 @@ export class CreateAccountDto {
   @IsOptional() @IsString() bankName?: string;
   @IsOptional() @IsString() iban?: string;
   @IsOptional() @IsString() ibanName?: string;
-  @IsNumber() currencyId: number;
-  @IsOptional() @IsNumber() criticalLimit?: number; 
+  @IsNumber() @Type(() => Number) currencyId: number;
+  @IsOptional() @IsNumber() @Type(() => Number) criticalLimit?: number; 
   @IsOptional() @IsString() description?: string;
 }
 
@@ -33,19 +33,20 @@ export class UpdateAccountDto {
   @IsOptional() @IsString() bankName?: string;
   @IsOptional() @IsString() iban?: string;
   @IsOptional() @IsString() ibanName?: string;
-  @IsOptional() @IsNumber() criticalLimit?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) criticalLimit?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) currencyId?: number;
   @IsOptional() @IsString() description?: string;
-  @IsOptional() @IsNumber() state?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) state?: number;
 }
 
 export class CreateTransactionDto {
-  @IsNumber() partyId: number;
-  @IsNumber() commercialAccountId: number;
-  @IsNumber() @Min(0.01) amount: number; 
-  @IsOptional() @IsNumber() currencyId?: number;
+  @IsOptional() @Type(() => Number) @IsNumber() partyId?: number;
+  @Type(() => Number) @IsNumber() commercialAccountId: number;
+  @IsNotEmpty() @Transform(({ value }) => value !== undefined && value !== null ? value.toString() : value) @IsString() @Matches(/^-?\d+(\.\d+)?$/, { message: 'Tutar geçerli bir sayı formatında (örn: 100.50) olmalıdır' }) amount: string; 
+  @IsOptional() @Type(() => Number) @IsNumber() currencyId?: number;
   @IsEnum(['in', 'out']) type: 'in' | 'out';
-  @IsOptional() @IsEnum(['sale', 'purchase', 'manual_adjustment']) referenceType?: 'sale' | 'purchase' | 'manual_adjustment';
-  @IsOptional() @IsNumber() referenceId?: number;
+  @IsOptional() @Transform(({ value }) => (value === '' || value === null) ? undefined : value) @IsEnum(['sale', 'purchase', 'manual_adjustment', 'manual']) referenceType?: 'sale' | 'purchase' | 'manual_adjustment' | 'manual';
+  @IsOptional() @Type(() => Number) @IsNumber() referenceId?: number;
   @IsDateString() date: string;
   @IsOptional() @IsString() description?: string;
 }

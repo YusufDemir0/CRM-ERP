@@ -53,8 +53,8 @@ let PermissionsGuard = PermissionsGuard_1 = class PermissionsGuard {
             relations: ['role'],
         });
         const roleIds = userRoles.map((ur) => ur.roleId);
-        const roleNames = userRoles.map((ur) => ur.role?.name?.toLowerCase()).filter(Boolean);
-        if (roleNames.includes('admin') || roleNames.includes('superadmin')) {
+        const isSystemAdmin = userRoles.some((ur) => ur.role?.isSystemAdmin === true);
+        if (isSystemAdmin) {
             return true;
         }
         let rolePermissionKeys = [];

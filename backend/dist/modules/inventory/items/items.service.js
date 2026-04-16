@@ -1,10 +1,43 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
@@ -21,14 +54,17 @@ const item_type_entity_1 = require("./entities/item-type.entity");
 const quantity_type_entity_1 = require("./entities/quantity-type.entity");
 const item_code_group_entity_1 = require("./entities/item-code-group.entity");
 const sequence_generator_service_1 = require("../../../common/services/sequence-generator.service");
+const currencies_service_1 = require("../../finance/currencies/currencies.service");
+const decimal_js_1 = require("decimal.js");
 let ItemsService = class ItemsService {
-    constructor(itemRepo, itemTypeRepo, qtyTypeRepo, codeGroupRepo, dataSource, sequenceGenerator) {
+    constructor(itemRepo, itemTypeRepo, qtyTypeRepo, codeGroupRepo, dataSource, sequenceGenerator, currenciesService) {
         this.itemRepo = itemRepo;
         this.itemTypeRepo = itemTypeRepo;
         this.qtyTypeRepo = qtyTypeRepo;
         this.codeGroupRepo = codeGroupRepo;
         this.dataSource = dataSource;
         this.sequenceGenerator = sequenceGenerator;
+        this.currenciesService = currenciesService;
     }
     async findAll(query) {
         const qb = this.itemRepo.createQueryBuilder('item')
@@ -38,17 +74,40 @@ let ItemsService = class ItemsService {
             .leftJoinAndSelect('item.provider', 'provider')
             .leftJoinAndSelect('item.currency', 'currency');
         if (query.search) {
-            qb.where('(item.name LIKE :s OR item.code LIKE :s OR item.description LIKE :s OR itemType.name LIKE :s OR provider.name LIKE :s)', { s: `%${query.search}%` });
+            qb.andWhere('(item.name LIKE :s OR item.code LIKE :s OR item.code1 LIKE :s OR item.code2 LIKE :s OR item.description LIKE :s OR item.notes LIKE :s OR itemType.name LIKE :s OR provider.name LIKE :s)', { s: `%${query.search}%` });
         }
-        if (query.itemTypeId) {
+        if (query.itemTypeId)
             qb.andWhere('item.itemTypeId = :typeId', { typeId: query.itemTypeId });
-        }
-        if (query.state !== undefined) {
+        if (query.providerId)
+            qb.andWhere('item.providerId = :providerId', { providerId: query.providerId });
+        if (query.currencyId)
+            qb.andWhere('item.currencyId = :currencyId', { currencyId: query.currencyId });
+        if (query.state !== undefined)
             qb.andWhere('item.state = :state', { state: query.state });
+        if (query.critical === 'true') {
+            qb.andWhere('(SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE item_id = item.id) < item.criticalLimit');
+            qb.andWhere('item.criticalLimit > 0');
         }
-        const allowedSortCols = ['createdAt', 'name', 'code', 'purchasePrice', 'salePrice', 'criticalLimit'];
-        const sortCol = allowedSortCols.includes(query.sortBy || '') ? query.sortBy : 'createdAt';
-        qb.orderBy(`item.${sortCol}`, query.sortOrder || 'DESC');
+        Object.keys(query).forEach(key => {
+            const skipKeys = ['page', 'limit', 'search', 'sortBy', 'sortOrder', 'skip', 'itemTypeId', 'providerId', 'currencyId', 'state', 'critical'];
+            const allowedItemKeys = ['name', 'code', 'code1', 'code2', 'description', 'notes', 'barcode', 'taxRate'];
+            if (!skipKeys.includes(key) && allowedItemKeys.includes(key) && query[key] !== undefined) {
+                qb.andWhere(`item.${key} LIKE :${key}`, { [key]: `%${query[key]}%` });
+            }
+        });
+        const sortFieldMap = {
+            'name': 'item.name',
+            'code': 'item.code',
+            'purchasePrice': 'item.purchasePrice',
+            'salePrice': 'item.salePrice',
+            'criticalLimit': 'item.criticalLimit',
+            'createdAt': 'item.createdAt',
+            'itemType.name': 'itemType.name',
+            'provider.name': 'provider.name',
+            'state': 'item.state'
+        };
+        const sortCol = sortFieldMap[query.sortBy || ''] || 'item.createdAt';
+        qb.orderBy(sortCol, query.sortOrder || 'DESC');
         qb.skip(query.skip).take(query.limit);
         const [data, total] = await qb.getManyAndCount();
         return {
@@ -70,7 +129,20 @@ let ItemsService = class ItemsService {
         await queryRunner.connect();
         await queryRunner.startTransaction();
         try {
+            if (!dto.currencyId) {
+                try {
+                    const defaultCurrency = await this.currenciesService.getDefault();
+                    dto.currencyId = Number(defaultCurrency.id);
+                }
+                catch (error) {
+                    console.warn('Default currency not found in ItemsService, setting to null');
+                }
+            }
             const code = await this.sequenceGenerator.generateItemCode(queryRunner, dto.itemCodeGroupId);
+            const existing = await queryRunner.manager.findOne(item_entity_1.Item, { where: { code } });
+            if (existing) {
+                throw new common_1.BadRequestException(`'${code}' kodlu bir ürün zaten mevcut.`);
+            }
             const item = queryRunner.manager.create(item_entity_1.Item, {
                 ...dto,
                 code,
@@ -90,6 +162,12 @@ let ItemsService = class ItemsService {
     }
     async update(id, dto, userId) {
         const item = await this.findOne(id);
+        if (dto.code && dto.code !== item.code) {
+            const existing = await this.itemRepo.findOne({ where: { code: dto.code } });
+            if (existing && existing.id !== id) {
+                throw new common_1.BadRequestException(`'${dto.code}' kodlu bir ürün zaten mevcut.`);
+            }
+        }
         if (dto.name !== undefined)
             item.name = dto.name;
         if (dto.itemTypeId !== undefined)
@@ -102,36 +180,55 @@ let ItemsService = class ItemsService {
             item.code1 = dto.code1;
         if (dto.code2 !== undefined)
             item.code2 = dto.code2;
-        if (dto.criticalLimit !== undefined)
-            item.criticalLimit = dto.criticalLimit;
         if (dto.image !== undefined)
             item.image = dto.image;
-        if (dto.purchasePrice !== undefined)
-            item.purchasePrice = dto.purchasePrice;
-        if (dto.salePrice !== undefined)
-            item.salePrice = dto.salePrice;
-        if (dto.netPrice !== undefined)
-            item.netPrice = dto.netPrice;
         if (dto.currencyId !== undefined)
             item.currencyId = dto.currencyId;
         if (dto.quantityTypeId !== undefined)
             item.quantityTypeId = dto.quantityTypeId;
-        if (dto.kdv !== undefined)
-            item.kdv = dto.kdv;
         if (dto.description !== undefined)
             item.description = dto.description;
         if (dto.notes !== undefined)
             item.notes = dto.notes;
         if (dto.providerId !== undefined)
             item.providerId = dto.providerId;
-        if (dto.state !== undefined)
+        if (dto.state !== undefined) {
+            if (dto.state === 0)
+                await this.checkUsage(id);
             item.state = dto.state;
+        }
+        if (dto.criticalLimit !== undefined)
+            item.criticalLimit = dto.criticalLimit;
+        if (dto.purchasePrice !== undefined)
+            item.purchasePrice = dto.purchasePrice;
+        if (dto.salePrice !== undefined)
+            item.salePrice = dto.salePrice;
+        if (dto.netPrice !== undefined)
+            item.netPrice = dto.netPrice;
+        if (dto.kdv !== undefined)
+            item.kdv = dto.kdv;
         item.updatedBy = userId || null;
         return this.itemRepo.save(item);
     }
     async softDelete(id) {
-        await this.findOne(id);
+        await this.checkUsage(id);
         await this.itemRepo.softDelete(id);
+    }
+    async checkUsage(id) {
+        const Stock = (await Promise.resolve().then(() => __importStar(require('../stocks/entities/stock.entity')))).Stock;
+        const totalStock = await this.dataSource.getRepository(Stock).createQueryBuilder('stock')
+            .where('stock.itemId = :id', { id })
+            .select('SUM(stock.quantity)', 'sum')
+            .getRawOne();
+        if (totalStock && totalStock.sum && new decimal_js_1.Decimal(totalStock.sum).gt(0)) {
+            throw new common_1.BadRequestException(`Stokta ${totalStock.sum} adet bulunan ürün pasife alınamaz/silinemez. Lütfen önce stokları sıfırlayınız.`);
+        }
+        let usageCount = 0;
+        const BomItem = (await Promise.resolve().then(() => __importStar(require('../../production/entities/bom-item.entity')))).BomItem;
+        usageCount = await this.dataSource.getRepository(BomItem).count({ where: { itemId: id } });
+        if (usageCount > 0) {
+            throw new common_1.BadRequestException(`Bu ürün ${usageCount} farklı reçetede (BOM) kullanılmaktadır. Önce reçetelerden çıkarılmalıdır.`);
+        }
     }
     async findAllItemTypes() {
         return this.itemTypeRepo.find();
@@ -253,6 +350,7 @@ exports.ItemsService = ItemsService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.DataSource,
-        sequence_generator_service_1.SequenceGeneratorService])
+        sequence_generator_service_1.SequenceGeneratorService,
+        currencies_service_1.CurrenciesService])
 ], ItemsService);
 //# sourceMappingURL=items.service.js.map

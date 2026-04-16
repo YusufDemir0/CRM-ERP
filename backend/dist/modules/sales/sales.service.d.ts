@@ -1,18 +1,24 @@
+import { StocksService } from '../inventory/stocks/stocks.service';
+import { LogsService } from '../logs/logs.service';
 import { Repository, DataSource } from 'typeorm';
 import { Sale } from './entities/sale.entity';
 import { SaleItem } from './entities/sale-item.entity';
 import { SaleType } from './entities/sale-type.entity';
 import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
-import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto } from './dto/sale.dto';
+import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto, ShipSaleDto } from './dto/sale.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { InternalEventBus } from '../../common/services/event-bus.service';
 export declare class SalesService {
     private saleRepo;
     private saleItemRepo;
     private saleTypeRepo;
     private dataSource;
     private sequenceGenerator;
+    private stocksService;
+    private logsService;
+    private eventBus;
     private readonly logger;
-    constructor(saleRepo: Repository<Sale>, saleItemRepo: Repository<SaleItem>, saleTypeRepo: Repository<SaleType>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService);
+    constructor(saleRepo: Repository<Sale>, saleItemRepo: Repository<SaleItem>, saleTypeRepo: Repository<SaleType>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, stocksService: StocksService, logsService: LogsService, eventBus: InternalEventBus);
     findAllSaleTypes(): Promise<SaleType[]>;
     createSaleType(dto: CreateSaleTypeDto, userId?: number): Promise<SaleType>;
     findAll(query: PaginationDto & {
@@ -30,4 +36,5 @@ export declare class SalesService {
         monthlyOrders: number;
         pendingOrders: number;
     }>;
+    shipSale(saleId: number, dto: ShipSaleDto, userId?: number): Promise<Sale>;
 }

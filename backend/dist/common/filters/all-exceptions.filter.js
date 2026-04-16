@@ -23,25 +23,29 @@ let AllExceptionsFilter = AllExceptionsFilter_1 = class AllExceptionsFilter {
         if (exception instanceof common_1.HttpException) {
             status = exception.getStatus();
             const exResponse = exception.getResponse();
-            message = typeof exResponse === 'string' ? exResponse : exResponse;
+            message = typeof exResponse === 'string' ? exResponse : exResponse.message || exResponse;
         }
         else if (exception instanceof typeorm_1.QueryFailedError) {
             status = common_1.HttpStatus.BAD_REQUEST;
-            message = `Database Error: ${exception.message}`;
-            this.logger.error(`DB Error: ${exception.message}`, exception.stack);
+            message = 'Geçersiz işlem. Lütfen girdiğiniz bilgileri kontrol ediniz.';
+            this.logger.error(`[DATABASE ERROR] ${exception.message}`, exception.stack);
         }
-        else if (exception instanceof Error) {
-            message = exception.message;
-            this.logger.error(`Unhandled: ${exception.message}`, exception.stack);
+        else {
+            status = common_1.HttpStatus.INTERNAL_SERVER_ERROR;
+            message = 'Sistem üzerinde beklenmedik bir hata oluştu. Teknik ekip bilgilendirildi.';
+            const errorMessage = exception instanceof Error ? exception.message : 'Unknown error';
+            const errorStack = exception instanceof Error ? exception.stack : '';
+            this.logger.error(`[UNEXPECTED ERROR] ${errorMessage}`, errorStack);
         }
-        response.status(status).json({
+        const responseBody = {
             success: false,
             statusCode: status,
             timestamp: new Date().toISOString(),
             path: request.url,
             method: request.method,
             message,
-        });
+        };
+        response.status(status).json(responseBody);
     }
 };
 exports.AllExceptionsFilter = AllExceptionsFilter;

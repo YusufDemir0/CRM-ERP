@@ -11,6 +11,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DashboardService = void 0;
 const common_1 = require("@nestjs/common");
@@ -21,7 +24,10 @@ const party_entity_1 = require("../parties/entities/party.entity");
 const item_entity_1 = require("../inventory/items/entities/item.entity");
 const transaction_entity_1 = require("../finance/transactions/entities/transaction.entity");
 const department_entity_1 = require("../departments/entities/department.entity");
-const date_utils_1 = require("../../common/utils/date.utils");
+const class_transformer_1 = require("class-transformer");
+const dashboard_summary_dto_1 = require("./dto/dashboard-summary.dto");
+const decimal_js_1 = require("decimal.js");
+const dayjs_1 = __importDefault(require("dayjs"));
 let DashboardService = class DashboardService {
     constructor(userRepo, partyRepo, itemRepo, txRepo, deptRepo) {
         this.userRepo = userRepo;
@@ -29,33 +35,66 @@ let DashboardService = class DashboardService {
         this.itemRepo = itemRepo;
         this.txRepo = txRepo;
         this.deptRepo = deptRepo;
-        this.cache = null;
-        this.CACHE_TTL = 5 * 60 * 1000;
     }
     async getSummary() {
-        const now = Date.now();
-        if (this.cache && (now - this.cache.timestamp) < this.CACHE_TTL) {
-            return this.cache.data;
-        }
-        const [users, parties, items, transactions, departments] = await Promise.all([
-            this.userRepo.count(),
-            this.partyRepo.count(),
-            this.itemRepo.count(),
-            this.txRepo.count(),
-            this.deptRepo.count(),
+        const now = (0, dayjs_1.default)();
+        const todayStr = now.format('YYYY-MM-DD');
+        const thisMonthStart = now.startOf('month').format('YYYY-MM-DD');
+        const thisMonthEnd = now.endOf('month').format('YYYY-MM-DD');
+        const lastMonthStart = now.subtract(1, 'month').startOf('month').format('YYYY-MM-DD');
+        const lastMonthEnd = now.subtract(1, 'month').endOf('month').format('YYYY-MM-DD');
+        const [totalUsers, totalParties, totalItems, todayTransactions, thisMonthTransactions, lastMonthTransactions, recentActions] = await Promise.all([
+            this.userRepo.count({ where: { state: 1 } }),
+            this.partyRepo.count({ where: { state: 1 } }),
+            this.itemRepo.count({ where: { state: 1 } }),
+            this.txRepo.find({
+                where: { date: todayStr, type: 'in', status: 'completed' },
+                select: ['amount', 'exchangeRate']
+            }),
+            this.txRepo.find({
+                where: { date: (0, typeorm_2.Between)(thisMonthStart, thisMonthEnd), type: 'in', status: 'completed' },
+                select: ['amount', 'exchangeRate']
+            }),
+            this.txRepo.find({
+                where: { date: (0, typeorm_2.Between)(lastMonthStart, lastMonthEnd), type: 'in', status: 'completed' },
+                select: ['amount', 'exchangeRate']
+            }),
+            this.txRepo.find({
+                relations: ['party'],
+                order: { createdAt: 'DESC' },
+                take: 10
+            })
         ]);
-        const criticalStocks = await this.itemRepo.count({ where: { state: 1 } });
-        const result = {
-            users,
-            parties,
-            items,
-            transactions,
-            departments,
-            criticalStocks,
-            cachedAt: date_utils_1.DateUtils.getToday(),
-        };
-        this.cache = { data: result, timestamp: now };
-        return result;
+        const sumTL = (txs) => txs.reduce((sum, tx) => sum.plus(new decimal_js_1.Decimal(tx.amount || 0).mul(new decimal_js_1.Decimal(tx.exchangeRate || 1))), new decimal_js_1.Decimal(0));
+        const todaySales = sumTL(todayTransactions);
+        const thisMonthRevenue = sumTL(thisMonthTransactions);
+        const lastMonthRevenue = sumTL(lastMonthTransactions);
+        return (0, class_transformer_1.plainToInstance)(dashboard_summary_dto_1.DashboardSummaryDto, {
+            totalUsers,
+            totalParties,
+            totalItems,
+            todaySales: todaySales.toString(),
+            thisMonth: {
+                revenue: thisMonthRevenue.toString(),
+                count: thisMonthTransactions.length,
+                profit: thisMonthRevenue.mul(0.20).toString()
+            },
+            lastMonth: {
+                revenue: lastMonthRevenue.toString(),
+                count: lastMonthTransactions.length,
+                profit: lastMonthRevenue.mul(0.20).toString()
+            },
+            recentActions: recentActions.map(tx => ({
+                id: tx.id,
+                code: tx.code,
+                type: tx.type,
+                amount: tx.amount?.toString() || '0',
+                date: tx.date,
+                partyName: tx.party?.name || 'Genel İşlem',
+                referenceType: tx.referenceType,
+                description: tx.description
+            }))
+        });
     }
 };
 exports.DashboardService = DashboardService;

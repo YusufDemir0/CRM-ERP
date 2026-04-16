@@ -1,81 +1,124 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { salesAPI, departmentsAPI } from '../services/api';
-import { FiEye, FiCheck, FiX, FiXCircle, FiArrowLeft, FiPlus } from 'react-icons/fi';
+import { 
+  FiEye, FiCheck, FiXCircle, FiArrowLeft, FiPlus, 
+  FiShoppingBag, FiTruck, FiClock, FiCheckCircle, FiInfo 
+} from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { confirmDialog } from '../utils/confirmDialog';
-import { Sale, Department, SaleItem } from '../types';
-
-// SalesWizard yorum satırına alındı — yerine innerView sistemi kullanılıyor
-// import SalesWizard from './modules/SalesWizard';
+import { Sale, Department } from '../types';
+import { ApproveSaleModal } from '../components/modals/ApproveSaleModal';
+import { ViewSaleModal } from '../components/modals/ViewSaleModal';
+import { DataTable, Column } from '../components/common/DataTable';
+import { PaginationControls } from '../components/common/PaginationControls';
+import SalesWizard from './modules/SalesWizard/SalesWizard';
+import { Decimal } from 'decimal.js';
+import { useSort } from '../hooks/useSort';
 
 export default function SalesPage() {
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [filterStatus, setFilterStatus] = useState<'draft' | 'approved' | 'cancelled' | 'all'>('draft');
+  const queryClient = useQueryClient();
+  const [filterStatus, setFilterStatus] = useState<'draft' | 'approved' | 'shipped' | 'cancelled' | 'all'>('draft');
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'createdAt', order: 'DESC' });
+  const [filters] = useState<Record<string, any>>({});
 
-  // Modallar
+  // Modals
   const [approveSaleId, setApproveSaleId] = useState<number | null>(null);
   const [selectedDeptId, setSelectedDeptId] = useState('');
-  // Inner page view: 'list' = ana tablo, 'new' = yeni sipariş iç sayfası, 'edit' = düzenleme
-  const[innerView, setInnerView] = useState<'list' | 'new' | 'edit'>('list');
+  const [innerView, setInnerView] = useState<'list' | 'new' | 'edit'>('list');
   
-  // View (İnceleme) Modal State
+  // View/Ship Modal State
   const [viewSaleData, setViewSaleData] = useState<Sale | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
-  const fetchData = async () => {
-    try {
-      const [sRes, dRes] = await Promise.all([
-        salesAPI.getAll({ limit: 100 }), 
-        departmentsAPI.getAll({ limit: 50 })
-      ]);
-      setSales(sRes.data.data);
-      setDepartments(dRes.data.data.filter((d: Department) => d.state === 1));
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Satış verileri yüklenemedi");
+  // ────── QUERIES ──────
+
+  const { data: salesData, isLoading: salesLoading } = useQuery({
+    queryKey: ['sales', page, limit, searchTerm, filterStatus, sort, filters],
+    queryFn: async () => {
+      const res = await salesAPI.getAll({
+        page, limit, search: searchTerm,
+        status: filterStatus === 'all' ? undefined : filterStatus,
+        sortBy: sort.key, sortOrder: sort.order, ...filters
+      });
+      return res.data;
     }
-  };
-
-  useEffect(() => {
-    fetchData();
-  },[]);
-
-  const filteredSales = sales.filter(s => {
-    if (filterStatus !== 'all' && s.status !== filterStatus) return false;
-    const term = searchTerm.toLowerCase();
-    return s.code?.toLowerCase().includes(term) || s.party?.name?.toLowerCase().includes(term);
   });
 
-  const handleApprove = async (e: React.FormEvent) => {
+  const { data: departments = [] } = useQuery({
+    queryKey: ['departments', 'active'],
+    queryFn: async () => {
+      const res = await departmentsAPI.getAll({ limit: 50 });
+      return res.data.data.filter((d: Department) => d.state === 1);
+    }
+  });
+
+  const sales = salesData?.data || [];
+  const paginationMeta = salesData?.meta;
+  const loading = salesLoading;
+
+  const { sortedData, sortConfigs, toggleSort } = useSort<Sale>(
+    sales, 
+    [{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }],
+    (configs) => {
+      if (configs.length > 0) {
+        setSort({ key: configs[0].key, order: configs[0].direction.toUpperCase() as 'ASC' | 'DESC' });
+        setPage(1);
+      }
+    }
+  );
+
+  const approveMutation = useMutation({
+    mutationFn: ({ id, params }: { id: number; params: any }) => salesAPI.approve(id, params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      setApproveSaleId(null);
+      toast.success("Sipariş başarıyla onaylandı.");
+    },
+    onError: () => toast.error("Onaylama işlemi başarısız oldu.")
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (id: number) => salesAPI.cancel(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      toast.success("Sipariş iptal edildi.");
+    },
+    onError: () => toast.error("İptal işlemi başarısız oldu.")
+  });
+
+  const shipMutation = useMutation({
+    mutationFn: (id: number) => salesAPI.ship(id, {}), // Tam sevkiyat varsayımı
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      toast.success("Sevkiyat başarıyla gerçekleştirildi.");
+    },
+    onError: () => toast.error("Sevkiyat işlemi başarısız oldu.")
+  });
+
+  const handleApprove = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDeptId) {
       toast.error("Lütfen stokların düşüleceği depoyu seçin.");
       return;
     }
-    try {
-      await salesAPI.approve(approveSaleId!, { departmentId: Number(selectedDeptId) });
-      setApproveSaleId(null);
-      fetchData();
-      toast.success("Sipariş başarıyla onaylandı.");
-    } catch (error) {
-      console.error(error);
-      toast.error("Onaylama işlemi başarısız oldu.");
-    }
+    approveMutation.mutate({ 
+      id: approveSaleId!, 
+      params: { departmentId: Number(selectedDeptId) } 
+    });
   };
 
   const handleCancelSale = async (id: number) => {
-    const confirmed = await confirmDialog('Bu siparişi iptal etmek istediğinize emin misiniz? (Taslak Sipariş iptal edilecektir)', true);
-    if (confirmed) {
-      try {
-        await salesAPI.cancel(id);
-        fetchData();
-        toast.success("Sipariş iptal edildi.");
-      } catch (error) {
-        console.error(error);
-        toast.error("İptal işlemi başarısız oldu.");
-      }
-    }
+    const confirmed = await confirmDialog('Bu siparişi iptal etmek istediğinize emin misiniz?', true);
+    if (confirmed) cancelMutation.mutate(id);
+  };
+
+  const handleShipSale = async (id: number) => {
+    const confirmed = await confirmDialog('Tüm ürünlerin sevkiyatı yapılsın mı?', false);
+    if (confirmed) shipMutation.mutate(id);
   };
 
   const openViewModal = async (id: number) => {
@@ -84,229 +127,197 @@ export default function SalesPage() {
       setViewSaleData(res.data);
       setIsViewModalOpen(true);
     } catch (error) {
-      console.error(error);
       toast.error("Satış detayı getirilemedi.");
     }
   };
 
+  const formatCurrency = (val: any, symbol: string = '₺') => {
+    return new Decimal(val || 0).toNumber().toLocaleString('tr-TR', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    }) + ' ' + symbol;
+  };
+
+  const columns: Column<Sale>[] = [
+    { 
+      header: 'SİPARİŞ NO', 
+      accessor: (s) => (
+        <div className="flex items-center gap-2">
+           <span className="bg-primary/5 text-primary px-2.5 py-1 rounded-lg font-black text-[10px] tracking-widest border border-primary/10 uppercase">
+             {s.code}
+           </span>
+        </div>
+      ),
+      sortKey: 'code'
+    },
+    { 
+      header: 'TARİH', 
+      accessor: (s) => (
+        <div className="flex flex-col">
+          <span className="font-bold text-slate-700">{new Date(s.createdAt).toLocaleDateString('tr-TR')}</span>
+          <span className="text-[10px] text-slate-400 font-black tracking-tighter uppercase">{new Date(s.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</span>
+        </div>
+      ),
+      sortKey: 'createdAt'
+    },
+    { 
+      header: 'MÜŞTERİ (CARİ)', 
+      accessor: (s) => <div className="font-black text-slate-800 tracking-tight group-hover:text-primary transition-colors">{s.party?.name}</div>,
+      sortKey: 'party.name'
+    },
+    { 
+      header: 'TUTAR', 
+      accessor: (s: Sale) => (
+        <div className="flex flex-col items-end">
+          <span className="tabular-nums font-black text-on-surface tracking-tighter">{formatCurrency(s.grandTotal, s.currency?.symbol)}</span>
+          {new Decimal(s.deposit || 0).gt(0) && (
+            <span className="text-[9px] text-success font-black uppercase tracking-widest">KAPORA: {formatCurrency(s.deposit, s.currency?.symbol)}</span>
+          )}
+        </div>
+      ),
+      sortKey: 'grandTotal',
+      className: 'text-right'
+    },
+    { 
+      header: 'DURUM', 
+      accessor: (s) => {
+        const config: Record<string, any> = {
+          draft: { label: 'TASLAK', icon: <FiClock />, cls: 'bg-warning/10 text-warning border-warning/20' },
+          approved: { label: 'ONAYLI', icon: <FiCheckCircle />, cls: 'bg-info/10 text-info border-info/20' },
+          shipped: { label: 'SEVK EDİLDİ', icon: <FiTruck />, cls: 'bg-success/10 text-success border-success/20' },
+          cancelled: { label: 'İPTAL', icon: <FiXCircle />, cls: 'bg-danger/10 text-danger border-danger/20' },
+        };
+        const st = config[s.status] || config.draft;
+        return (
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black tracking-widest ${st.cls}`}>
+            {st.icon} {st.label}
+          </div>
+        );
+      },
+      sortKey: 'status'
+    }
+  ];
+
+  if (innerView === 'new') {
+    return (
+      <div className="animate-in flex flex-col gap-6">
+        <div className="flex justify-between items-center pb-6 border-b border-surface-container">
+          <button 
+            className="group flex items-center gap-2 text-slate-400 hover:text-primary transition-all font-black text-xs uppercase tracking-widest" 
+            onClick={() => { setInnerView('list'); queryClient.invalidateQueries({ queryKey: ['sales'] }); }}
+          >
+            <FiArrowLeft className="group-hover:-translate-x-1 transition-transform" /> Listeye Dön
+          </button>
+          <div className="text-right">
+             <h2 className="text-2xl font-black tracking-tighter text-on-surface">Yeni Satis Sihirbazi</h2>
+             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Hızlı satış ve teklif hazırlama ekranı</p>
+          </div>
+        </div>
+        
+        <div className="bg-white p-8 sm:p-12 rounded-[3.5rem] shadow-premium border border-surface-container">
+          <SalesWizard onCompleted={() => {
+            setInnerView('list');
+            queryClient.invalidateQueries({ queryKey: ['sales'] });
+          }} />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="page-container">
-      {/* ────── İNNER PAGE: YENİ SİPARİŞ ────── */}
-      {innerView === 'new' && (
-        <div style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', borderBottom: '2px solid var(--border)', paddingBottom: '15px' }}>
-            <button className="btn" style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setInnerView('list'); fetchData(); }}>
-              <FiArrowLeft size={18} /> Sipariş Listesine Dön
-            </button>
-            <h2 style={{ color: 'var(--primary)' }}>Yeni Sipariş Oluştur</h2>
-          </div>
-          <div style={{ 
-            background: 'var(--surface-container-low)', 
-            border: '2px dashed var(--border)', 
-            borderRadius: '16px', 
-            padding: '60px', 
-            textAlign: 'center',
-            color: 'var(--text-muted)'
-          }}>
-            <FiPlus size={48} style={{ marginBottom: '15px', opacity: 0.3 }} />
-            <h3 style={{ marginBottom: '10px', fontWeight: 600 }}>Yeni sipariş oluşturma alanı burada olacak</h3>
-            <p style={{ fontSize: '0.85rem' }}>Müşteri seçimi, ürün sepeti, indirim ve KDV hesaplamaları bu iç sayfada gerçekleştirilecek.</p>
-          </div>
-        </div>
-      )}
-
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+    <div className="animate-in flex flex-col gap-8">
+      {/* 🔵 HEADER SECTION */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6">
         <div>
-          <h2 style={{ color: 'var(--primary)', marginBottom: '10px' }}>Satış ve Sipariş Yönetimi</h2>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button className={`btn ${filterStatus === 'draft' ? 'btn-primary' : ''}`} onClick={() => setFilterStatus('draft')}>Bekleyenler (Taslak)</button>
-            <button className={`btn ${filterStatus === 'approved' ? 'btn-primary' : ''}`} onClick={() => setFilterStatus('approved')}>Onaylı Siparişler</button>
-            <button className={`btn ${filterStatus === 'cancelled' ? 'btn-primary' : ''}`} onClick={() => setFilterStatus('cancelled')}>İptal Edilenler</button>
-            <button className={`btn ${filterStatus === 'all' ? 'btn-primary' : ''}`} onClick={() => setFilterStatus('all')}>Tümü</button>
+          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1 rounded-xl text-[10px] font-black mb-4 uppercase tracking-widest">
+            <FiShoppingBag /> SATIŞ VE PAZARLAMA
           </div>
+          <h1 className="text-3xl font-black tracking-tighter text-on-surface">
+            Sipariş Takibi & <span className="text-primary italic text-shadow-sm">Sevkiyat</span>
+          </h1>
         </div>
-        <div style={{ display: 'flex', gap: '15px' }}>
-          <input type="text" placeholder="Sipariş No, Müşteri Ara..." className="search-bar" style={{ width: '300px' }} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-          <button className="btn btn-primary" onClick={() => setInnerView('new')}>+ YENİ SİPARİŞ OLUŞTUR</button>
-        </div>
-      </div>
 
-      <div className="table-card">
-        <table>
-          <thead>
-            <tr>
-              <th>SİPARİŞ NO</th>
-              <th>TARİH</th>
-              <th>MÜŞTERİ (CARİ)</th>
-              <th>TUTAR (KDV DAHİL)</th>
-              <th>DURUM</th>
-              <th>İŞLEMLER</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredSales.map((s) => (
-              <tr key={s.id} style={{ opacity: s.status === 'cancelled' ? 0.6 : 1 }}>
-                <td><span className="badge badge-accent">{s.code}</span></td>
-                <td>{new Date(s.createdAt).toLocaleDateString('tr-TR')}</td>
-                <td><strong>{s.party?.name}</strong></td>
-                <td className="tabular-nums" style={{ fontWeight: 800 }}>{Number(s.grandTotal).toLocaleString('tr-TR')} {s.currency?.symbol || '₺'}</td>
-                <td>
-                  <span className={`badge ${s.status === 'approved' ? 'badge-success' : s.status === 'cancelled' ? 'badge-danger' : 'badge-warning'}`}>
-                    {s.status === 'approved' ? 'ONAYLI' : s.status === 'cancelled' ? 'İPTAL' : 'TASLAK'}
-                  </span>
-                </td>
-                <td style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                  <button className="btn-icon" title="İncele" style={{ color: 'var(--primary)' }} onClick={() => openViewModal(s.id)}>
-                    <FiEye size={16} />
-                  </button>
-                  
-                  {s.status === 'draft' && (
-                    <button className="btn-icon" title="Onayla" style={{ color: 'var(--success)' }} onClick={() => setApproveSaleId(s.id)}>
-                      <FiCheck size={16} />
-                    </button>
-                  )}
-                  {s.status !== 'cancelled' && s.status === 'draft' && (
-                    <button onClick={() => handleCancelSale(s.id)} className="btn" style={{ background: '#fef2f2', color: '#ef4444', padding: '6px 12px', borderColor: '#fee2e2' }}>
-                      İptal Et
-                    </button>
-                  )}
-                </td>
-              </tr>
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex bg-surface-container-low p-1.5 rounded-2xl border border-surface-container shadow-sm">
+            {[
+              { id: 'draft', label: 'Bekleyenler', icon: <FiClock /> },
+              { id: 'approved', label: 'Onaylılar', icon: <FiCheckCircle /> },
+              { id: 'shipped', label: 'Sevk Edilenler', icon: <FiTruck /> },
+              { id: 'all', label: 'Tümü', icon: <FiInfo /> }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => { setFilterStatus(tab.id as any); setPage(1); }}
+                className={`h-10 px-4 rounded-xl text-[11px] font-black flex items-center gap-2 transition-all uppercase tracking-tight ${
+                  filterStatus === tab.id 
+                    ? 'bg-white text-primary shadow-premium border border-surface-container' 
+                    : 'text-slate-400 hover:text-on-surface hover:bg-white/50'
+                }`}
+              >
+                <span className="text-sm">{tab.icon}</span> {tab.label}
+              </button>
             ))}
-            {filteredSales.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center' }}>Kayıt bulunamadı.</td></tr>}
-          </tbody>
-        </table>
+          </div>
+          
+          <button 
+            className="h-14 px-8 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:shadow-2xl hover:-translate-y-1 active:scale-95 transition-all flex items-center gap-3" 
+            onClick={() => setInnerView('new')}
+          >
+            <FiPlus size={20} /> YENİ SİPARİŞ
+          </button>
+        </div>
       </div>
 
-      {/* SATIŞI ONAYLAMA (STOK DÜŞÜŞ) MODALI */}
+      {/* 🟡 DATA TABLE SECTION */}
+      <div className="flex flex-col gap-4">
+        <DataTable<Sale>
+          data={sortedData}
+          columns={columns}
+          isLoading={loading}
+          sortConfigs={sortConfigs}
+          onSort={toggleSort}
+          getRowKey={(s) => s.id}
+          onEdit={(s) => openViewModal(s.id)}
+          onRestore={s => {
+            if (s.status === 'draft') return (setApproveSaleId(s.id) as any);
+            if (s.status === 'approved') return handleShipSale(s.id);
+            return undefined;
+          }}
+          onArchive={s => s.status === 'draft' || s.status === 'approved' ? handleCancelSale(s.id) : undefined}
+          // Icon overrides for semantic actions
+          customIcons={{
+            restore: (s: Sale) => s.status === 'approved' ? <FiTruck /> : <FiCheck />,
+            archive: () => <FiXCircle />
+          }}
+        />
+
+        <div className="flex justify-end">
+          <PaginationControls 
+            meta={paginationMeta || { total: 0, page: 1, limit: 20, totalPages: 0 }} 
+            onPageChange={setPage} 
+            onLimitChange={setLimit} 
+            loading={loading}
+          />
+        </div>
+      </div>
+
+      {/* 🟣 MODALS */}
       {approveSaleId && (
-        <div className="loader-overlay" style={{ alignItems: 'flex-start', paddingTop: '10%' }}>
-          <div className="login-box" style={{ maxWidth: '500px', width: '100%' }}>
-            <h3 style={{ marginBottom: '20px', color: 'var(--success)', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>Satışı Onayla ve Stok Düş</h3>
-            <p style={{ fontSize: '13px', color: 'gray', marginBottom: '20px' }}>
-              Bu siparişi onayladığınızda, siparişteki kalemlerin stokları belirteceğiniz depodan otomatik düşülecektir. İşlem geri alınamaz.
-            </p>
-            <form onSubmit={handleApprove} className="login-form">
-              <div className="form-group">
-                <label>Stokların Düşüleceği Depo</label>
-                <select required className="uppercase-input" style={{ appearance: 'none' }} value={selectedDeptId} onChange={e => setSelectedDeptId(e.target.value)}>
-                  <option value="">-- DEPO SEÇİNİZ --</option>
-                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-              </div>
-              <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
-                <button type="submit" className="btn" style={{ flex: 1, background: 'var(--success)', color: 'white', height: '50px' }}>ONAYLA VE STOK DÜŞ</button>
-                <button type="button" className="btn" style={{ flex: 1, background: '#e2e8f0', height: '50px' }} onClick={() => setApproveSaleId(null)}>İPTAL</button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <ApproveSaleModal 
+          departments={departments}
+          selectedDeptId={selectedDeptId}
+          onSelectedDeptIdChange={setSelectedDeptId}
+          onSubmit={handleApprove}
+          onClose={() => setApproveSaleId(null)}
+        />
       )}
 
-      {/* YENİ EKLENEN: VIEW SALE (SATIŞ DETAY) MODAL */}
       {isViewModalOpen && viewSaleData && (
-        <div className="loader-overlay" style={{ alignItems: 'flex-start', paddingTop: '5%', paddingBottom: '5%', overflowY: 'auto' }}>
-          <div className="login-box" style={{ maxWidth: '900px', width: '100%', position: 'relative' }}>
-            <button className="btn-icon circle" style={{ position: 'absolute', top: '15px', right: '15px' }} onClick={() => setIsViewModalOpen(false)}>
-              <FiX size={20}/>
-            </button>
-            <h3 style={{ color: 'var(--primary)', marginBottom: '5px' }}>Sipariş İnceleme: {viewSaleData.code}</h3>
-            <p style={{ fontSize: '12px', color: 'gray', marginBottom: '20px' }}>
-              Tarih: {new Date(viewSaleData.createdAt).toLocaleString('tr-TR')} | 
-              Durum: <strong style={{ color: viewSaleData.status==='approved'?'var(--success)':viewSaleData.status==='cancelled'?'var(--danger)':'var(--warning)' }}>{viewSaleData.status.toUpperCase()}</strong>
-            </p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-                <div style={{ background: 'var(--surface-container-low)', padding: '15px', borderRadius: '12px' }}>
-                  <h4 style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '10px' }}>MÜŞTERİ (CARİ) BİLGİSİ</h4>
-                  <div style={{ fontWeight: 800, fontSize: '14px' }}>{viewSaleData.party?.name}</div>
-                  {viewSaleData.party?.taxNumber && <div style={{ fontSize: '12px', marginTop: '5px' }}>VKN/TC: {viewSaleData.party?.taxNumber}</div>}
-                  <div style={{ fontSize: '12px', marginTop: '5px' }}>Tel: {viewSaleData.party?.phone1 || '-'}</div>
-                </div>
-                <div style={{ background: 'var(--surface-container-low)', padding: '15px', borderRadius: '12px' }}>
-                  <h4 style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '10px' }}>SİPARİŞ ÖZETİ</h4>
-                  <div style={{ fontSize: '12px', marginBottom: '5px' }}><strong>Teslimat:</strong> {viewSaleData.deliveryDate ? new Date(viewSaleData.deliveryDate).toLocaleDateString('tr-TR') : 'Belirtilmedi'}</div>
-                  <div style={{ fontSize: '12px', marginBottom: '5px' }}><strong>Satış Tipi:</strong> {viewSaleData.saleType?.name || '-'}</div>
-                  <div style={{ fontSize: '12px', marginBottom: '5px' }}><strong>Para Birimi:</strong> {viewSaleData.currency?.name || 'TRY'} ({viewSaleData.currency?.symbol || '₺'})</div>
-                </div>
-            </div>
-
-            {/* SEPET LİSTESİ */}
-            <div style={{ overflowX: 'auto', marginBottom: '20px', border: '1px solid var(--border)', borderRadius: '12px' }}>
-              <table style={{ width: '100%', fontSize: '12px', textAlign: 'left' }}>
-                <thead style={{ background: 'var(--surface-container-highest)' }}>
-                  <tr>
-                    <th style={{ padding: '10px' }}>Ürün Adı</th>
-                    <th>Birim Fiyat</th>
-                    <th>Miktar</th>
-                    <th>İndirim</th>
-                    <th>Net Fiyat</th>
-                    <th>KDV</th>
-                    <th>Toplam Tutar</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {viewSaleData.items?.map((item: SaleItem) => (
-                    <tr key={item.itemId} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '10px', fontWeight: 600 }}>{item.item?.name} <br/><span style={{fontSize: '10px', color: 'gray', fontWeight: 'normal'}}>{item.item?.code}</span></td>
-                      <td className="tabular-nums">{Number(item.price).toLocaleString('tr-TR')} {viewSaleData.currency?.symbol || '₺'}</td>
-                      <td className="tabular-nums"><strong>{item.quantity}</strong></td>
-                      <td className="tabular-nums" style={{ color: 'var(--error)' }}>
-                        {Number(item.discountAmount) > 0 ? `-${Number(item.discountAmount)} ₺` : Number(item.discountPercent) > 0 ? `-${Number(item.discountPercent)}%` : '-'}
-                      </td>
-                      <td className="tabular-nums">{Number(item.netPrice).toLocaleString('tr-TR')} {viewSaleData.currency?.symbol || '₺'}</td>
-                      <td className="tabular-nums">%{item.kdvRate} ({Number(item.kdvAmount).toLocaleString('tr-TR')} {viewSaleData.currency?.symbol || '₺'})</td>
-                      <td className="tabular-nums" style={{ fontWeight: 800 }}>{Number(item.lineTotal).toLocaleString('tr-TR')} {viewSaleData.currency?.symbol || '₺'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* NOTLAR VE TOPLAM ÖZETİ */}
-            <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
-                <div style={{ flex: 1, background: '#fdf8f6', padding: '15px', borderRadius: '12px', border: '1px dashed #fee2e2' }}>
-                  <h4 style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '5px' }}>NOTLAR / SÖZLEŞME METNİ</h4>
-                  <p style={{ fontSize: '12px', whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>{viewSaleData.notes || 'Not bulunmuyor.'}</p>
-                </div>
-                <div style={{ flex: 1, background: 'var(--surface-container)', padding: '15px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px' }}>
-                    <span>Ara Toplam (Mal/Hizmet):</span>
-                    <span className="tabular-nums">{Number(viewSaleData.totalAmount).toLocaleString('tr-TR')} {viewSaleData.currency?.symbol || '₺'}</span>
-                  </div>
-                  {Number(viewSaleData.discountAmount) > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px', color: 'var(--error)' }}>
-                      <span>Alt İndirim (Fatura Altı):</span>
-                      <span className="tabular-nums">-{Number(viewSaleData.discountAmount).toLocaleString('tr-TR')} {viewSaleData.currency?.symbol || '₺'}</span>
-                    </div>
-                  )}
-                  {Number(viewSaleData.discountPercent) > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px', color: 'var(--error)' }}>
-                      <span>Alt İndirim (Yüzde):</span>
-                      <span className="tabular-nums">-%{Number(viewSaleData.discountPercent)}</span>
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px' }}>
-                    <span>Toplam KDV:</span>
-                    <span className="tabular-nums">+{Number(viewSaleData.kdv).toLocaleString('tr-TR')} {viewSaleData.currency?.symbol || '₺'}</span>
-                  </div>
-                  {Number(viewSaleData.deposit) > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px', color: 'var(--error)' }}>
-                      <span>Kapora / Ön Ödeme:</span>
-                      <span className="tabular-nums">-{Number(viewSaleData.deposit).toLocaleString('tr-TR')} {viewSaleData.currency?.symbol || '₺'}</span>
-                    </div>
-                  )}
-                  <div style={{ height: '1px', background: 'var(--border)', margin: '10px 0' }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 900, color: 'var(--primary)' }}>
-                    <span>ÖDENECEK NET TUTAR:</span>
-                    <span className="tabular-nums">{(Number(viewSaleData.grandTotal) - Number(viewSaleData.deposit)).toLocaleString('tr-TR')} {viewSaleData.currency?.symbol || '₺'}</span>
-                  </div>
-                </div>
-            </div>
-          </div>
-        </div>
+        <ViewSaleModal 
+          sale={viewSaleData}
+          onClose={() => setIsViewModalOpen(false)}
+        />
       )}
-
     </div>
   );
 }

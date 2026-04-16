@@ -1,12 +1,14 @@
 import React from 'react';
-import { FiEdit2, FiShield, FiUserCheck, FiUserX } from 'react-icons/fi';
+import { FiEdit2, FiShield, FiUserCheck, FiUserX, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { User, Role } from '../../../../types';
+import { useSort } from '../../../../hooks/useSort';
 
 interface UserTableProps {
   users: User[];
   onEdit: (user: User) => void;
   onToggleState: (id: number, currentState: number) => void;
   onOpenPermissions: (user: User) => void;
+  loading?: boolean;
 }
 
 export const UserTable: React.FC<UserTableProps> = ({
@@ -14,21 +16,45 @@ export const UserTable: React.FC<UserTableProps> = ({
   onEdit,
   onToggleState,
   onOpenPermissions,
+  loading,
 }) => {
+  const { sortedData, sortConfigs, toggleSort } = useSort(users);
+
+  const getSortIcon = (key: string) => {
+    const config = sortConfigs.find(s => s.key === key);
+    if (!config) return <span style={{ opacity: 0.2 }}><FiArrowUp size={12} /></span>;
+    return config.direction === 'asc' ? <FiArrowUp size={12} /> : <FiArrowDown size={12} />;
+  };
+
+  const renderHeader = (label: string, sortKey?: string) => {
+    if (!sortKey) return <th>{label}</th>;
+    return (
+      <th 
+        onClick={(e) => toggleSort(sortKey, e.shiftKey)} 
+        style={{ cursor: 'pointer', transition: 'background 0.2s' }}
+        className="sortable-header"
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          {label} {getSortIcon(sortKey)}
+        </div>
+      </th>
+    );
+  };
+
   return (
     <div className="table-card">
       <table>
         <thead>
           <tr>
-            <th>AD SOYAD / SİSTEM ADI</th>
-            <th>DEPARTMAN</th>
+            {renderHeader('AD SOYAD / SİSTEM ADI', 'fullName')}
+            {renderHeader('DEPARTMAN', 'department.name')}
             <th>ROLLERİ</th>
-            <th>E-POSTA / TELEFON</th>
+            {renderHeader('E-POSTA / TELEFON', 'email')}
             <th>İŞLEMLER</th>
           </tr>
         </thead>
         <tbody>
-          {users.map((u) => (
+          {sortedData.map((u) => (
             <tr key={u.id} style={{ opacity: u.state === 0 ? 0.6 : 1, background: u.state === 0 ? '#f1f5f9' : 'inherit' }}>
               <td>
                 <strong>{u.fullName}</strong><br/>
@@ -52,9 +78,16 @@ export const UserTable: React.FC<UserTableProps> = ({
               </td>
             </tr>
           ))}
-          {users.length === 0 && (
+          {loading && (
             <tr>
-              <td colSpan={5} style={{ textAlign: 'center' }}>
+              <td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}>
+                <div className="spinner" style={{ margin: '0 auto' }}></div>
+              </td>
+            </tr>
+          )}
+          {!loading && users.length === 0 && (
+            <tr>
+              <td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}>
                 Kayıt bulunamadı.
               </td>
             </tr>

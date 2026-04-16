@@ -11,12 +11,15 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Item = void 0;
 const typeorm_1 = require("typeorm");
+const class_transformer_1 = require("class-transformer");
+const decimal_js_1 = require("decimal.js");
 const base_entity_1 = require("../../../../common/entities/base.entity");
 const item_type_entity_1 = require("./item-type.entity");
 const item_code_group_entity_1 = require("./item-code-group.entity");
 const party_entity_1 = require("../../../parties/entities/party.entity");
 const currency_entity_1 = require("../../../finance/currencies/entities/currency.entity");
 const quantity_type_entity_1 = require("./quantity-type.entity");
+const decimal_transformer_1 = require("../../../../common/transformers/decimal.transformer");
 let Item = class Item extends base_entity_1.BaseEntity {
 };
 exports.Item = Item;
@@ -45,23 +48,27 @@ __decorate([
     __metadata("design:type", Object)
 ], Item.prototype, "code2", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'critical_limit', type: 'decimal', precision: 15, scale: 4, default: 0 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'critical_limit', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], Item.prototype, "criticalLimit", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 255, nullable: true }),
     __metadata("design:type", Object)
 ], Item.prototype, "image", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'purchase_price', type: 'decimal', precision: 15, scale: 2, nullable: true }),
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'purchase_price', type: 'decimal', precision: 15, scale: 2, nullable: true, transformer: new decimal_transformer_1.DecimalTransformer() }),
     __metadata("design:type", Object)
 ], Item.prototype, "purchasePrice", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'sale_price', type: 'decimal', precision: 15, scale: 2, nullable: true }),
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'sale_price', type: 'decimal', precision: 15, scale: 2, nullable: true, transformer: new decimal_transformer_1.DecimalTransformer() }),
     __metadata("design:type", Object)
 ], Item.prototype, "salePrice", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'net_price', type: 'decimal', precision: 15, scale: 2, nullable: true }),
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'net_price', type: 'decimal', precision: 15, scale: 2, nullable: true, transformer: new decimal_transformer_1.DecimalTransformer() }),
     __metadata("design:type", Object)
 ], Item.prototype, "netPrice", void 0);
 __decorate([
@@ -73,8 +80,9 @@ __decorate([
     __metadata("design:type", Number)
 ], Item.prototype, "quantityTypeId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, default: 20 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, default: 20, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], Item.prototype, "kdv", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),
@@ -114,7 +122,6 @@ __decorate([
     __metadata("design:type", quantity_type_entity_1.QuantityType)
 ], Item.prototype, "quantityType", void 0);
 exports.Item = Item = __decorate([
-    (0, typeorm_1.Entity)('items'),
-    (0, typeorm_1.Index)("UQ_ITEM_CODE_ACTIVE", ["code"], { where: "deleted_at IS NULL", unique: true })
+    (0, typeorm_1.Entity)('items')
 ], Item);
 //# sourceMappingURL=item.entity.js.map

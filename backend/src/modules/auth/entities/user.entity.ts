@@ -15,8 +15,8 @@ import { Role } from './role.entity';
 import { UserPermission } from './user-permission.entity';
 
 @Entity('users')
-@Index("UQ_USERNAME_ACTIVE", ["username"], { where: "deleted_at IS NULL", unique: true })
-@Index("UQ_EMAIL_ACTIVE", ["email"], { where: "deleted_at IS NULL", unique: true })
+@Index("UQ_USERNAME_ACTIVE", ["username"])
+@Index("UQ_EMAIL_ACTIVE", ["email"])
 export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 50 })
   username: string;
@@ -43,6 +43,9 @@ export class User extends BaseEntity {
 
   @Column({ name: 'failed_login_attempts', type: 'int', default: 0 })
   failedLoginAttempts: number;
+
+  @Column({ name: 'locked_until', type: 'timestamp', nullable: true })
+  lockedUntil: Date | null;
 
   @Column({ name: 'token_version', type: 'int', default: 1 })
   tokenVersion: number;

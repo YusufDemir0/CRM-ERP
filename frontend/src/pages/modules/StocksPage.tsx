@@ -1,18 +1,37 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { stocksAPI, itemsAPI, departmentsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
-import { FiX, FiRepeat } from 'react-icons/fi';
+import { 
+  FiX, FiRepeat, FiSearch, FiArrowRight, FiPlus, 
+  FiFilter, FiPackage, FiHome, FiActivity, FiAlertTriangle
+} from 'react-icons/fi';
+import { StockAdjustmentModal } from '../../components/modals/StockAdjustmentModal';
+import { StockTransferModal } from '../../components/modals/StockTransferModal';
+import { StockMovementsModal } from '../../components/modals/StockMovementsModal';
+import { Stock, Item, Department, StockMovement } from '../../types';
+import { DataTable, Column } from '../../components/common/DataTable';
+import { PaginationControls } from '../../components/common/PaginationControls';
+import { Decimal } from 'decimal.js';
+import { useSort } from '../../hooks/useSort';
 
 export function StocksPage() {
-  const[stocks, setStocks] = useState<any[]>([]);
-  const [items, setItems] = useState<any[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
+  const queryClient = useQueryClient();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const initialFilter = queryParams.get('filter') === 'critical' ? 'critical' : 'all';
+
+  const [filterTab, setFilterTab] = useState<'all' | 'critical'>(initialFilter);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'quantity', order: 'ASC' });
+  const [filters, setFilters] = useState<Record<string, any>>({});
   
-  const[searchTerm, setSearchTerm] = useState('');
-  const [filterTab, setFilterTab] = useState<'all' | 'critical'>('all');
-  
-  // Stok Giriş Çıkış Modalı
-  const[isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     itemId: '',
     departmentId: '',
@@ -21,8 +40,7 @@ export function StocksPage() {
     description: ''
   });
 
-  // Transfer Modalı (YENİ)
-  const[isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [transferData, setTransferData] = useState({
     itemId: '',
     fromDepartmentId: '',
@@ -31,65 +49,119 @@ export function StocksPage() {
     description: ''
   });
 
-  // Stok Hareketleri İnceleme Modalı
-  const[isMovementsModalOpen, setIsMovementsModalOpen] = useState(false);
-  const[selectedStockForLog, setSelectedStockForLog] = useState<any>(null);
-  const [movementsData, setMovementsData] = useState<any[]>([]);
-  const [movementsLoading, setMovementsLoading] = useState(false);
+  const [isMovementsModalOpen, setIsMovementsModalOpen] = useState(false);
+  const [selectedStockForLog, setSelectedStockForLog] = useState<Stock | null>(null);
 
-  const fetchData = async () => {
-    try {
-      const[sRes, iRes, dRes] = await Promise.all([
-        stocksAPI.getAll({ limit: 500 }),
-        itemsAPI.getAll({ state: 1, limit: 500 }),
-        departmentsAPI.getAll({ state: 1, limit: 100 })
-      ]);
-      setStocks(sRes.data.data);
-      setItems(iRes.data.data);
-      setDepartments(dRes.data.data);
-    } catch (error) {
-      console.error(error);
+  // ────── QUERIES ──────
+
+  const { data: stocksData, isLoading: loading } = useQuery({
+    queryKey: ['stocks', page, limit, debouncedSearch, filterTab, sort, filters],
+    queryFn: async () => {
+      const res = await stocksAPI.getAll({
+        page,
+        limit,
+        search: debouncedSearch,
+        isCritical: filterTab === 'critical' ? 1 : undefined,
+        sortBy: sort.key,
+        sortOrder: sort.order,
+        ...filters
+      });
+      return res.data;
     }
-  };
-
-  useEffect(() => { fetchData(); },[]);
-
-  const filteredStocks = stocks.filter(s => {
-    const term = searchTerm.toLowerCase();
-    const match = 
-      s.item?.name?.toLowerCase().includes(term) || 
-      s.item?.code?.toLowerCase().includes(term) ||
-      s.department?.name?.toLowerCase().includes(term);
-
-    if (!match) return false;
-    if (filterTab === 'critical') return Number(s.quantity) <= Number(s.item?.criticalLimit);
-    return true;
   });
 
-  // Manuel Stok İşleme
-  const handleSubmit = async (e: React.FormEvent) => {
+  const { data: items = [] } = useQuery({
+    queryKey: ['items', 'lookup'],
+    queryFn: async () => {
+      const res = await itemsAPI.getAll({ state: 1, limit: 1000 });
+      return res.data.data;
+    }
+  });
+
+  const { data: departments = [] } = useQuery({
+    queryKey: ['departments', 'lookup'],
+    queryFn: async () => {
+      const res = await departmentsAPI.getAll({ state: 1, limit: 100 });
+      return res.data.data;
+    }
+  });
+
+  const stocks = stocksData?.data || [];
+  const paginationMeta = stocksData?.meta;
+
+  const { sortedData, sortConfigs, toggleSort } = useSort<Stock>(
+    stocks, 
+    [{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }],
+    (configs) => {
+      if (configs.length > 0) {
+        setSort({ 
+          key: configs[0].key, 
+          order: configs[0].direction.toUpperCase() as 'ASC' | 'DESC' 
+        });
+        setPage(1); // FE-01: Reset page on sort change
+      }
+    }
+  );
+
+  const { data: movementsData = [], isLoading: movementsLoading } = useQuery({
+    queryKey: ['stock-movements', selectedStockForLog?.id],
+    enabled: !!selectedStockForLog,
+    queryFn: async () => {
+      const res = await stocksAPI.getMovements(selectedStockForLog!.id, { limit: 100 });
+      return res.data.data;
+    }
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(1); 
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    const f = queryParams.get('filter');
+    if (f === 'critical') setFilterTab('critical');
+    else setFilterTab('all');
+  }, [location.search]);
+
+  const adjustMutation = useMutation({
+    mutationFn: (data: any) => stocksAPI.adjust(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stocks'] });
+      setIsModalOpen(false);
+      toast.success("Stok işlemi başarıyla kaydedildi.");
+    },
+    onError: () => toast.error("Hata oluştu.")
+  });
+
+  const transferMutation = useMutation({
+    mutationFn: (data: any) => stocksAPI.transfer(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['stocks'] });
+      setIsTransferModalOpen(false);
+      toast.success("Transfer işlemi tamamlandı.");
+    },
+    onError: () => toast.error("Hata oluştu.")
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.quantity <= 0) {
       toast.error("Miktar 0'dan büyük olmalıdır.");
       return;
     }
-    try {
-      await stocksAPI.adjust({
-        itemId: Number(formData.itemId),
-        departmentId: Number(formData.departmentId),
-        quantity: Number(formData.quantity),
-        type: formData.type,
-        description: formData.description
-      });
-      setIsModalOpen(false);
-      fetchData();
-    } catch (error) {
-      console.error(error);
-    }
+    adjustMutation.mutate({
+      itemId: Number(formData.itemId),
+      departmentId: Number(formData.departmentId),
+      quantity: new Decimal(formData.quantity).toNumber(),
+      type: formData.type as 'in' | 'out',
+      description: formData.description
+    });
   };
 
-  // Stok Transfer Gönderimi (YENİ)
-  const handleTransferSubmit = async (e: React.FormEvent) => {
+  const handleTransferSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (transferData.quantity <= 0) {
       toast.error("Miktar 0'dan büyük olmalıdır.");
@@ -100,249 +172,226 @@ export function StocksPage() {
       return;
     }
     
-    try {
-      await stocksAPI.transfer({
-        itemId: Number(transferData.itemId),
-        fromDepartmentId: Number(transferData.fromDepartmentId),
-        toDepartmentId: Number(transferData.toDepartmentId),
-        quantity: Number(transferData.quantity),
-        description: transferData.description
-      });
-      setIsTransferModalOpen(false);
-      fetchData();
-    } catch (error) {
-      console.error(error);
-    }
+    transferMutation.mutate({
+      itemId: Number(transferData.itemId),
+      fromDepartmentId: Number(transferData.fromDepartmentId),
+      toDepartmentId: Number(transferData.toDepartmentId),
+      quantity: new Decimal(transferData.quantity).toNumber(),
+      description: transferData.description
+    });
   };
 
-  // Geçmişi Getir
-  const fetchMovements = async (stock: any) => {
+  const fetchMovements = (stock: Stock) => {
     setSelectedStockForLog(stock);
     setIsMovementsModalOpen(true);
-    setMovementsLoading(true);
-    try {
-      const res = await stocksAPI.getMovements(stock.id, { limit: 50 });
-      setMovementsData(res.data.data);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setMovementsLoading(false);
-    }
   };
 
-  return (
-    <div className="page-container">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <div>
-          <h2 style={{ color: 'var(--primary)', marginBottom: '10px' }}>Stok Durumu & Depo İzleme</h2>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button className={`btn ${filterTab === 'all' ? 'btn-primary' : ''}`} onClick={() => setFilterTab('all')}>Tüm Stoklar</button>
-            <button className={`btn ${filterTab === 'critical' ? 'btn-primary' : ''}`} style={{ background: filterTab === 'critical' ? 'var(--danger)' : '' }} onClick={() => setFilterTab('critical')}>Kritik Stok Uyarıları</button>
+  const columns: Column<Stock>[] = [
+    { 
+      header: 'ÜRÜN / KOD', 
+      accessor: (s) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ 
+            width: '40px', height: '40px', borderRadius: '12px', 
+            background: 'var(--primary-glow)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--primary)',
+            fontSize: '18px'
+          }}>
+            <FiPackage />
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, color: 'var(--on-surface)', fontSize: '14px' }}>{s.item?.name}</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>{s.item?.code}</div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '15px' }}>
-          <input type="text" placeholder="Ürün Kodu, Adı..." className="search-bar" style={{ width: '250px' }} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-          <button className="btn" style={{ background: 'var(--warning)', color: 'white', fontWeight: 800 }} onClick={() => {
+      ),
+      sortKey: 'item.name'
+    },
+    { 
+      header: 'DEPO / KONUM', 
+      accessor: (s) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <FiHome size={14} color="var(--primary)" />
+          <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--on-surface-variant)' }}>{s.department?.name}</span>
+        </div>
+      ),
+      sortKey: 'department.name'
+    },
+    { 
+      header: 'GÜNCEL STOK', 
+      accessor: (s) => {
+        const quantity = new Decimal(s.quantity || 0);
+        const itemCriticalLimit = new Decimal(s.item?.criticalLimit || 0);
+        const isCritical = !itemCriticalLimit.isZero() && quantity.lte(itemCriticalLimit);
+        return (
+          <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+            <span className="tabular-nums" style={{ 
+              fontWeight: 900, 
+              fontSize: '15px',
+              color: isCritical ? 'var(--error)' : 'var(--on-surface)',
+              letterSpacing: '-0.5px'
+            }}>
+              {quantity.toNumber().toLocaleString('tr-TR')} {s.item?.quantityType?.abbreviation || 'ADET'}
+            </span>
+            {isCritical && (
+              <span style={{ fontSize: '9px', fontWeight: 900, color: 'var(--error)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <FiAlertTriangle style={{ verticalAlign: 'middle', marginRight: '3px' }} /> KRİTİK SEVİYE
+              </span>
+            )}
+          </div>
+        );
+      },
+      sortKey: 'quantity',
+      className: 'text-right'
+    },
+    { 
+      header: 'DURUM ANALİZİ', 
+      accessor: (s) => {
+        const quantity = new Decimal(s.quantity || 0);
+        const itemCriticalLimit = new Decimal(s.item?.criticalLimit || 0);
+        const isCritical = !itemCriticalLimit.isZero() && quantity.lte(itemCriticalLimit);
+        
+        return (
+          <span style={{ 
+            fontSize: '10px', fontWeight: 800, 
+            padding: '4px 10px', borderRadius: '8px',
+            background: isCritical ? 'var(--error-glow)' : 'var(--success-glow)',
+            color: isCritical ? 'var(--error)' : 'var(--success)',
+            textTransform: 'uppercase'
+          }}>
+            {isCritical ? 'ACİL TEDARİK' : 'STOK YETERLİ'}
+          </span>
+        );
+      }
+    }
+  ];
+
+  return (
+    <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+      
+      {/* 🔴 HEADER SECTION */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div>
+          <div style={{ 
+            display: 'inline-flex', alignItems: 'center', gap: '8px', 
+            background: 'var(--secondary-glow)', color: 'var(--secondary)', 
+            padding: '6px 14px', borderRadius: '12px', fontSize: '12px', 
+            fontWeight: 800, marginBottom: '16px'
+          }}>
+            <FiActivity /> STOK & ENVANTER YÖNETİMİ
+          </div>
+          <h1 style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--on-surface)' }}>
+            Depo Bazlı <span style={{ color: 'var(--primary)' }}>Stok Takibi</span>
+          </h1>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', background: 'var(--surface-container-low)', padding: '4px', borderRadius: '14px', border: '1px solid var(--border)' }}>
+            {[
+              { id: 'all', label: 'Tüm Liste', icon: <FiPackage /> },
+              { id: 'critical', label: 'Kritik Stok', icon: <FiAlertTriangle /> }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => { setFilterTab(tab.id as any); setPage(1); }}
+                style={{
+                  height: '36px', padding: '0 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 700,
+                  display: 'flex', alignItems: 'center', gap: '8px', border: 'none', transition: '0.2s',
+                  background: filterTab === tab.id ? (tab.id === 'critical' ? 'var(--error)' : 'white') : 'transparent',
+                  color: filterTab === tab.id ? (tab.id === 'critical' ? 'white' : 'var(--primary)') : 'var(--text-muted)',
+                  boxShadow: filterTab === tab.id ? 'var(--shadow-md)' : 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                {tab.icon} {tab.label}
+              </button>
+            ))}
+          </div>
+          <button className="btn btn-warning" style={{ height: '44px', fontWeight: 800, color: 'white' }} onClick={() => {
             setTransferData({ itemId: '', fromDepartmentId: '', toDepartmentId: '', quantity: 0, description: '' });
             setIsTransferModalOpen(true);
           }}>
-            <FiRepeat style={{ marginRight: '5px' }}/> TRANSFER / SEVK
+            <FiRepeat size={18} /> Transfer / Sevk
           </button>
-          <button className="btn btn-primary" onClick={() => {
+          <button className="btn btn-primary" style={{ height: '44px', boxShadow: '0 10px 20px var(--primary-glow)' }} onClick={() => {
             setFormData({ itemId: '', departmentId: '', quantity: 0, type: 'in', description: '' });
             setIsModalOpen(true);
-          }}>+ MANUEL FİŞ EKLE</button>
+          }}>
+            <FiPlus size={18} /> Manuel Fiş Ekle
+          </button>
         </div>
       </div>
 
-      <div className="table-card">
-        <table>
-          <thead>
-            <tr>
-              <th>ÜRÜN KODU</th>
-              <th>ÜRÜN ADI</th>
-              <th>DEPO / DEPARTMAN</th>
-              <th>MEVCUT STOK</th>
-              <th>BİRİM</th>
-              <th>DURUM</th>
-              <th>İŞLEMLER</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredStocks.map((s) => {
-              const isCritical = Number(s.quantity) <= Number(s.item?.criticalLimit) && Number(s.item?.criticalLimit) > 0;
-              return (
-                <tr key={s.id}>
-                  <td><span className="badge badge-accent">{s.item?.code}</span></td>
-                  <td><strong>{s.item?.name}</strong></td>
-                  <td>{s.department?.name}</td>
-                  <td className="tabular-nums" style={{ fontWeight: 800, fontSize: '15px', color: isCritical ? 'var(--danger)' : 'var(--text-primary)' }}>
-                    {Number(s.quantity).toLocaleString('tr-TR')}
-                  </td>
-                  <td>{s.item?.quantityType?.abbreviation}</td>
-                  <td>
-                    {isCritical ? <span className="badge badge-danger">KRİTİK!</span> : <span className="badge badge-success">YETERLİ</span>}
-                  </td>
-                  <td>
-                     <button className="btn" style={{ background: 'var(--surface-container-highest)', color: 'var(--primary)', padding: '5px 10px', height: '30px', fontSize: '11px' }} onClick={() => fetchMovements(s)}>
-                        👁 Hareketleri İzle
-                     </button>
-                  </td>
-                </tr>
-              );
-            })}
-            {filteredStocks.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center' }}>Stok kaydı bulunamadı.</td></tr>}
-          </tbody>
-        </table>
+      {/* 🟠 SEARCH & FILTERS */}
+      <div className="glass-panel" style={{ padding: '20px', borderRadius: '24px', display: 'flex', gap: '20px', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: 1 }}>
+          <FiSearch style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <input 
+            type="text" 
+            placeholder="Ürün adı, stok kodu veya depo ismi ile hızlı ara..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ paddingLeft: '48px', height: '52px', border: 'none', background: 'var(--surface-container-low)' }}
+          />
+        </div>
+        <button className="btn btn-secondary" style={{ height: '52px', background: 'white' }}>
+          <FiFilter /> Gelişmiş Filtrele
+        </button>
       </div>
 
-      {/* MANUEL STOK FİŞİ MODALI */}
+      {/* 🟡 DATA TABLE SECTION */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <DataTable<Stock>
+          data={sortedData}
+          columns={columns}
+          isLoading={loading}
+          sortConfigs={sortConfigs}
+          onSort={toggleSort}
+          getRowKey={(s) => s.id}
+          onEdit={(s) => fetchMovements(s)}
+        />
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <PaginationControls 
+            meta={paginationMeta || { total: 0, page: 1, limit: 20, totalPages: 0 }} 
+            onPageChange={setPage} 
+            onLimitChange={setLimit} 
+            loading={loading}
+          />
+        </div>
+      </div>
+
+      {/* MODALS */}
       {isModalOpen && (
-        <div className="loader-overlay" style={{ alignItems: 'flex-start', paddingTop: '5%' }}>
-          <div className="login-box" style={{ maxWidth: '600px', width: '100%', position: 'relative' }}>
-            <button className="btn-icon circle" style={{ position: 'absolute', top: '15px', right: '15px' }} onClick={() => setIsModalOpen(false)}><FiX size={20}/></button>
-            <h3 style={{ marginBottom: '20px', color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>Manuel Stok Fişi</h3>
-            <form onSubmit={handleSubmit} className="login-form">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                <div className="form-group">
-                  <label>İşlem Yönü</label>
-                  <select required className="uppercase-input" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
-                    <option value="in">STOK GİRİŞİ (+)</option>
-                    <option value="out">STOK ÇIKIŞI / FİRE (-)</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Depo / Şube</label>
-                  <select required className="uppercase-input" value={formData.departmentId} onChange={e => setFormData({...formData, departmentId: e.target.value})}>
-                    <option value="">-- SEÇİNİZ --</option>
-                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="form-group">
-                <label>İşlem Yapılacak Ürün</label>
-                <select required className="uppercase-input" value={formData.itemId} onChange={e => setFormData({...formData, itemId: e.target.value})}>
-                  <option value="">-- ÜRÜN SEÇİNİZ --</option>
-                  {items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>İşlem Miktarı</label>
-                <input type="number" step="0.0001" required className="uppercase-input tabular-nums" style={{ color: formData.type === 'in' ? 'green' : 'red', fontWeight: 800, fontSize: '1.2rem' }} value={formData.quantity} onChange={e => setFormData({...formData, quantity: Number(e.target.value)})} placeholder="0" />
-              </div>
-              <div className="form-group">
-                <label>Açıklama / Sebep</label>
-                <input required className="uppercase-input" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value.toLocaleUpperCase('tr-TR')})} placeholder="ÖR: SAYIM FAZLASI, FİRE VB." />
-              </div>
-              <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1, height: '50px' }}>ONAYLA VE STOĞA İŞLE</button>
-                <button type="button" className="btn" style={{ flex: 0.5, background: '#e2e8f0', height: '50px' }} onClick={() => setIsModalOpen(false)}>İPTAL</button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <StockAdjustmentModal 
+          items={items}
+          departments={departments}
+          formData={formData}
+          onFormDataChange={setFormData}
+          onSubmit={handleSubmit}
+          onClose={() => setIsModalOpen(false)}
+        />
       )}
 
-      {/* YENİ TRANSFER / SEVK MODALI */}
       {isTransferModalOpen && (
-        <div className="loader-overlay" style={{ alignItems: 'flex-start', paddingTop: '5%' }}>
-          <div className="login-box" style={{ maxWidth: '650px', width: '100%', position: 'relative' }}>
-            <button className="btn-icon circle" style={{ position: 'absolute', top: '15px', right: '15px' }} onClick={() => setIsTransferModalOpen(false)}><FiX size={20}/></button>
-            <h3 style={{ marginBottom: '20px', color: 'var(--warning)', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}><FiRepeat style={{ marginRight: '8px' }}/>Depolar Arası Transfer</h3>
-            <p style={{ fontSize: '12px', color: 'gray', marginBottom: '15px' }}>Seçili depodan ürün düşülüp (Çıkış), hedef depoya eklenecektir (Giriş).</p>
-            <form onSubmit={handleTransferSubmit} className="login-form">
-              <div className="form-group">
-                <label>Transfer Edilecek Ürün</label>
-                <select required className="uppercase-input" value={transferData.itemId} onChange={e => setTransferData({...transferData, itemId: e.target.value})}>
-                  <option value="">-- ÜRÜN SEÇİNİZ --</option>
-                  {items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}
-                </select>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', background: 'var(--surface-container-highest)', padding: '15px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                <div className="form-group">
-                  <label style={{ color: 'var(--danger)' }}>Çıkış Deposu (Kaynak)</label>
-                  <select required className="uppercase-input" value={transferData.fromDepartmentId} onChange={e => setTransferData({...transferData, fromDepartmentId: e.target.value})}>
-                    <option value="">-- SEÇİNİZ --</option>
-                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label style={{ color: 'var(--success)' }}>Giriş Deposu (Hedef)</label>
-                  <select required className="uppercase-input" value={transferData.toDepartmentId} onChange={e => setTransferData({...transferData, toDepartmentId: e.target.value})}>
-                    <option value="">-- SEÇİNİZ --</option>
-                    {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="form-group" style={{ marginTop: '15px' }}>
-                <label>Transfer Miktarı</label>
-                <input type="number" step="0.0001" required className="uppercase-input tabular-nums" style={{ fontWeight: 800, fontSize: '1.2rem' }} value={transferData.quantity} onChange={e => setTransferData({...transferData, quantity: Number(e.target.value)})} placeholder="0" />
-              </div>
-              <div className="form-group">
-                <label>Açıklama / Şoför - Plaka vs.</label>
-                <input className="uppercase-input" value={transferData.description} onChange={e => setTransferData({...transferData, description: e.target.value.toLocaleUpperCase('tr-TR')})} placeholder="ÖR: 34 ABC 123 SEVK İRSALİYESİ" />
-              </div>
-              <div style={{ display: 'flex', gap: '15px', marginTop: '15px' }}>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1, height: '50px', background: 'var(--warning)', color: 'white' }}>TRANSFERİ BAŞLAT VE ONAYLA</button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <StockTransferModal 
+          items={items}
+          departments={departments}
+          transferData={transferData}
+          onTransferDataChange={setTransferData}
+          onSubmit={handleTransferSubmit}
+          onClose={() => setIsTransferModalOpen(false)}
+        />
       )}
 
-      {/* Stok Hareketleri İnceleme Modalı */}
-      {isMovementsModalOpen && (
-        <div className="loader-overlay" style={{ alignItems: 'flex-start', paddingTop: '3%' }}>
-          <div className="login-box" style={{ maxWidth: '900px', width: '100%', position: 'relative' }}>
-            <button className="btn-icon circle" style={{ position: 'absolute', top: '15px', right: '15px' }} onClick={() => setIsMovementsModalOpen(false)}><FiX size={20}/></button>
-            <h3 style={{ color: 'var(--primary)' }}>Stok Hareket Logları</h3>
-            <p style={{ fontSize: '12px', color: 'gray', marginTop: '5px', marginBottom: '15px', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
-              <strong style={{color:'var(--on-surface)'}}>[{selectedStockForLog?.item?.code}] {selectedStockForLog?.item?.name}</strong> için ({selectedStockForLog?.department?.name}) deposundaki hareketler
-            </p>
-
-            {movementsLoading ? (
-               <div style={{ padding: '30px', textAlign: 'center' }}>
-                 <div className="spinner" style={{ margin: '0 auto 10px auto' }}></div>
-                 Kayıtlar yükleniyor...
-               </div>
-            ) : (
-               <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                 <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
-                   <thead>
-                     <tr style={{ background: 'var(--surface-container-highest)', textAlign: 'left' }}>
-                       <th style={{ padding: '10px', borderBottom: '1px solid var(--border)' }}>TARİH</th>
-                       <th style={{ borderBottom: '1px solid var(--border)' }}>İŞLEM YÖNÜ</th>
-                       <th style={{ borderBottom: '1px solid var(--border)' }}>MİKTAR</th>
-                       <th style={{ borderBottom: '1px solid var(--border)' }}>ÖNCEKİ BKY.</th>
-                       <th style={{ borderBottom: '1px solid var(--border)' }}>YENİ BKY.</th>
-                       <th style={{ borderBottom: '1px solid var(--border)' }}>AÇIKLAMA / BAĞLANTI</th>
-                     </tr>
-                   </thead>
-                   <tbody>
-                     {movementsData.length === 0 ? (
-                       <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px' }}>Geçmiş hareket kaydı bulunamadı.</td></tr>
-                     ) : (
-                       movementsData.map((m) => (
-                         <tr key={m.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                           <td style={{ padding: '10px' }}>{new Date(m.createdAt).toLocaleString('tr-TR')}</td>
-                           <td>
-                              <span style={{ fontWeight: 800, color: m.type === 'in' ? 'var(--success)' : 'var(--danger)' }}>
-                                {m.type === 'in' ? '↑ GİRİŞ' : '↓ ÇIKIŞ'}
-                              </span>
-                           </td>
-                           <td className="tabular-nums" style={{ fontWeight: 700 }}>{Number(m.quantity).toLocaleString()}</td>
-                           <td className="tabular-nums" style={{ color: 'gray' }}>{Number(m.quantityBefore).toLocaleString()}</td>
-                           <td className="tabular-nums" style={{ color: 'var(--primary)', fontWeight: 800 }}>{Number(m.quantityAfter).toLocaleString()}</td>
-                           <td>{m.description || '-'}</td>
-                         </tr>
-                       ))
-                     )}
-                   </tbody>
-                 </table>
-               </div>
-            )}
-          </div>
-        </div>
+      {isMovementsModalOpen && selectedStockForLog && (
+        <StockMovementsModal 
+          stock={selectedStockForLog}
+          loading={movementsLoading}
+          movements={movementsData}
+          onClose={() => setIsMovementsModalOpen(false)}
+        />
       )}
     </div>
   );

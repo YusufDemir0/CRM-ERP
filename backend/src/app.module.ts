@@ -2,7 +2,9 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerProxyGuard } from './common/guards/throttler-proxy.guard';
+import { CacheModule } from '@nestjs/cache-manager';
 import { ClsModule } from 'nestjs-cls';
 
 // Config
@@ -14,7 +16,10 @@ import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { LogsInterceptor } from './common/interceptors/logs.interceptor';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
+import { CsrfGuard } from './common/guards/csrf.guard';
+import { CsrfInterceptor } from './common/interceptors/csrf.interceptor';
 import { AuditSubscriber } from './common/subscribers/audit.subscriber';
+import { CommonModule } from './common/common.module';
 
 // Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -30,6 +35,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { LogsModule } from './modules/logs/logs.module';
 import { NotesModule } from './modules/notes/notes.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
 @Module({
   imports:[
@@ -60,6 +66,7 @@ import { NotesModule } from './modules/notes/notes.module';
       }),
     }),
 
+    CacheModule.register({ isGlobal: true, ttl: 60000 }),
     AuthModule,
     UsersModule,
     RolesModule,
@@ -73,6 +80,8 @@ import { NotesModule } from './modules/notes/notes.module';
     SettingsModule,
     LogsModule,
     NotesModule,
+    WebhooksModule,
+    CommonModule,
   ],
   providers:[
     {
@@ -81,12 +90,21 @@ import { NotesModule } from './modules/notes/notes.module';
     },
     {
       provide: APP_INTERCEPTOR,
+      useClass: CsrfInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
       useClass: LogsInterceptor,
     },
     // Sistem geneli Throttler (Hız Sınırlayıcı)
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: ThrottlerProxyGuard,
+    },
+
+    {
+      provide: APP_GUARD,
+      useClass: CsrfGuard,
     },
     {
       provide: APP_GUARD,

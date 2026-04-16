@@ -69,31 +69,39 @@ let AuthService = class AuthService {
             relations: ['roles'],
         });
         if (!user) {
-            throw new common_1.UnauthorizedException('INVALID_USERNAME');
+            await bcrypt.compare(dto.password, '$2b$12$L7p8Y3W0m6vJ0.rXvC9.7OqE0G9qG9qG9qG9qG9qG9qG9qG9qG9qG');
+            throw new common_1.UnauthorizedException('Kullanıcı adı veya şifre hatalı');
         }
         if (user.state === 2) {
-            throw new common_1.UnauthorizedException('Hesabınız kilitlenmiştir. Lütfen sistem yöneticisi ile iletişime geçiniz.');
+            throw new common_1.UnauthorizedException('Hesabınız kalıcı olarak kilitlenmiştir. Lütfen sistem yöneticisi ile iletişime geçiniz.');
+        }
+        if (user.lockedUntil && new Date() < user.lockedUntil) {
+            const remainingMinutes = Math.ceil((user.lockedUntil.getTime() - new Date().getTime()) / 60000);
+            throw new common_1.UnauthorizedException(`Çok fazla hatalı deneme. Hesabınız ${remainingMinutes} dakika daha kilitli kalacaktır.`);
         }
         if (user.state !== 1) {
             throw new common_1.UnauthorizedException('Hesabınız devre dışı bırakılmıştır');
         }
         const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
         if (!isMatch) {
-            user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
-            if (user.failedLoginAttempts >= 3) {
-                user.state = 2;
+            const failedAttempts = (user.failedLoginAttempts || 0) + 1;
+            const updates = { failedLoginAttempts: failedAttempts };
+            if (failedAttempts >= 5) {
+                const lockDuration = 15 * 60 * 1000;
+                updates.lockedUntil = new Date(Date.now() + lockDuration);
+                updates.failedLoginAttempts = 0;
             }
-            await this.userRepo.save(user);
-            throw new common_1.UnauthorizedException('INVALID_PASSWORD');
+            await this.userRepo.update(user.id, updates);
+            throw new common_1.UnauthorizedException('Kullanıcı adı veya şifre hatalı');
         }
-        if (user.failedLoginAttempts > 0) {
-            user.failedLoginAttempts = 0;
-            await this.userRepo.save(user);
+        if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+            await this.userRepo.update(user.id, { failedLoginAttempts: 0, lockedUntil: null });
         }
         const payload = {
             sub: user.id,
             username: user.username,
             departmentId: user.departmentId,
+            tokenVersion: user.tokenVersion,
         };
         return {
             access_token: this.jwtService.sign(payload),
@@ -133,27 +141,26 @@ let AuthService = class AuthService {
         };
     }
     async getProfile(userId) {
-        const user = await this.userRepo.findOne({
-            where: { id: userId },
-            relations: ['roles', 'department'],
-        });
+        const user = await this.userRepo.createQueryBuilder('user')
+            .leftJoinAndSelect('user.department', 'department')
+            .leftJoinAndSelect('user.roles', 'role')
+            .leftJoinAndSelect('role.permissions', 'permission')
+            .leftJoinAndSelect('user.userPermissions', 'userPerm')
+            .leftJoinAndSelect('userPerm.permission', 'userPermData')
+            .where('user.id = :userId', { userId })
+            .getOne();
         if (!user) {
             throw new common_1.UnauthorizedException('Kullanıcı bulunamadı');
         }
-        const userRoles = await this.userRoleRepo.find({ where: { userId }, relations: ['role'] });
-        const roleIds = userRoles.map(ur => ur.roleId);
-        let permissions = [];
-        if (roleIds.length > 0) {
-            const rolePerms = await this.rolePermRepo.find({
-                where: { roleId: (0, typeorm_2.In)(roleIds) },
-                relations: ['permission']
-            });
-            permissions = rolePerms.map(rp => rp.permission?.key).filter(Boolean);
-        }
-        const userPerms = await this.userPermRepo.find({ where: { userId }, relations: ['permission'] });
-        const userAllowKeys = userPerms.filter(up => up.effect === 'allow').map(up => up.permission?.key);
-        const userDenyKeys = userPerms.filter(up => up.effect === 'deny').map(up => up.permission?.key);
-        const finalPermissions = Array.from(new Set([...permissions, ...userAllowKeys])).filter(key => !userDenyKeys.includes(key));
+        const rolePermissions = user.roles?.flatMap(r => r.permissions?.map(p => p.key) || []) || [];
+        const userAllowKeys = user.userPermissions
+            ?.filter(up => up.effect === 'allow')
+            .map(up => up.permission?.key) || [];
+        const userDenyKeys = user.userPermissions
+            ?.filter(up => up.effect === 'deny')
+            .map(up => up.permission?.key) || [];
+        const finalPermissions = Array.from(new Set([...rolePermissions, ...userAllowKeys]))
+            .filter(key => key && !userDenyKeys.includes(key));
         return {
             id: user.id,
             username: user.username,

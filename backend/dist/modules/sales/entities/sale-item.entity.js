@@ -11,8 +11,11 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SaleItem = void 0;
 const typeorm_1 = require("typeorm");
+const class_transformer_1 = require("class-transformer");
+const decimal_js_1 = require("decimal.js");
 const sale_entity_1 = require("./sale.entity");
 const item_entity_1 = require("../../inventory/items/entities/item.entity");
+const decimal_transformer_1 = require("../../../common/transformers/decimal.transformer");
 let SaleItem = class SaleItem {
 };
 exports.SaleItem = SaleItem;
@@ -25,36 +28,49 @@ __decorate([
     __metadata("design:type", Number)
 ], SaleItem.prototype, "itemId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 4 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 4, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], SaleItem.prototype, "quantity", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 2 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'shipped_quantity', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
+], SaleItem.prototype, "shippedQuantity", void 0);
+__decorate([
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 2, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], SaleItem.prototype, "price", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'discount_amount', type: 'decimal', precision: 15, scale: 2, default: 0 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'discount_amount', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], SaleItem.prototype, "discountAmount", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'discount_percent', type: 'decimal', precision: 5, scale: 2, default: 0 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'discount_percent', type: 'decimal', precision: 5, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], SaleItem.prototype, "discountPercent", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'net_price', type: 'decimal', precision: 15, scale: 2 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'net_price', type: 'decimal', precision: 15, scale: 2, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], SaleItem.prototype, "netPrice", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'kdv_rate', type: 'decimal', precision: 5, scale: 2, default: 20 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'kdv_rate', type: 'decimal', precision: 5, scale: 2, default: 20, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], SaleItem.prototype, "kdvRate", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'kdv_amount', type: 'decimal', precision: 15, scale: 2, default: 0 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'kdv_amount', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], SaleItem.prototype, "kdvAmount", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'line_total', type: 'decimal', precision: 15, scale: 2 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'line_total', type: 'decimal', precision: 15, scale: 2, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], SaleItem.prototype, "lineTotal", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),

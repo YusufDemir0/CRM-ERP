@@ -42,7 +42,7 @@ export class UpdateBomDto {
 
 export class CreateProductionOrderDto {
   @IsNumber() @IsInt() @Type(() => Number) bomId: number;
-  @IsNumber() @Min(0.0001) @Type(() => Number) plannedQuantity: number;
+  @IsNotEmpty() plannedQuantity: string | number;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) sourceDepartmentId?: number;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) targetDepartmentId?: number;
   @IsOptional() @IsDateString() startDate?: string;
@@ -51,11 +51,11 @@ export class CreateProductionOrderDto {
 }
 
 export class UpdateProductionOrderDto {
-  @IsOptional() @IsNumber() @Min(0.0001) plannedQuantity?: number;
-  @IsOptional() @IsNumber() @Min(0) producedQuantity?: number;
-  @IsOptional() @IsNumber() @Min(0) wastageQuantity?: number;
-  @IsOptional() @IsNumber() sourceDepartmentId?: number;
-  @IsOptional() @IsNumber() targetDepartmentId?: number;
+  @IsOptional() plannedQuantity?: string | number;
+  @IsOptional() producedQuantity?: string | number;
+  @IsOptional() wastageQuantity?: string | number;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) sourceDepartmentId?: number;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) targetDepartmentId?: number;
   @IsOptional() @IsEnum(['draft', 'planned', 'in_progress', 'completed', 'cancelled']) status?: string;
   @IsOptional() @IsDateString() startDate?: string;
   @IsOptional() @IsDateString() endDate?: string;

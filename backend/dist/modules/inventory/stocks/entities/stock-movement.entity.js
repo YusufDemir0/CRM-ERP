@@ -11,8 +11,10 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StockMovement = void 0;
 const typeorm_1 = require("typeorm");
+const decimal_js_1 = require("decimal.js");
 const base_entity_1 = require("../../../../common/entities/base.entity");
 const stock_entity_1 = require("./stock.entity");
+const decimal_transformer_1 = require("../../../../common/transformers/decimal.transformer");
 let StockMovement = class StockMovement extends base_entity_1.BaseEntity {
 };
 exports.StockMovement = StockMovement;
@@ -21,16 +23,16 @@ __decorate([
     __metadata("design:type", Number)
 ], StockMovement.prototype, "stockId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 4 }),
-    __metadata("design:type", Number)
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 4, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], StockMovement.prototype, "quantity", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'quantity_before', type: 'decimal', precision: 15, scale: 4 }),
-    __metadata("design:type", Number)
+    (0, typeorm_1.Column)({ name: 'quantity_before', type: 'decimal', precision: 15, scale: 4, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], StockMovement.prototype, "quantityBefore", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'quantity_after', type: 'decimal', precision: 15, scale: 4 }),
-    __metadata("design:type", Number)
+    (0, typeorm_1.Column)({ name: 'quantity_after', type: 'decimal', precision: 15, scale: 4, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], StockMovement.prototype, "quantityAfter", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'enum', enum: ['in', 'out'] }),

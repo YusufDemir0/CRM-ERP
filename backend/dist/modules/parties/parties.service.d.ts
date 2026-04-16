@@ -2,9 +2,12 @@ import { Repository } from 'typeorm';
 import { Party } from './entities/party.entity';
 import { CreatePartyDto, UpdatePartyDto } from './dto/party.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { CurrenciesService } from '../finance/currencies/currencies.service';
+import { Decimal } from 'decimal.js';
 export declare class PartiesService {
     private partyRepo;
-    constructor(partyRepo: Repository<Party>);
+    private currenciesService;
+    constructor(partyRepo: Repository<Party>, currenciesService: CurrenciesService);
     findAll(query: PaginationDto & {
         type?: string;
     }): Promise<PaginatedResult<Party>>;
@@ -36,8 +39,8 @@ export declare class PartiesService {
         requiresAttention: {
             id: number;
             name: string;
-            balance: number;
-            limit: number;
+            balance: Decimal;
+            limit: Decimal;
         }[];
     }>;
 }

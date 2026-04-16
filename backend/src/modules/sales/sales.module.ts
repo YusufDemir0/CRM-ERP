@@ -6,20 +6,32 @@ import { Sale } from './entities/sale.entity';
 import { SaleItem } from './entities/sale-item.entity';
 import { SaleType } from './entities/sale-type.entity';
 import { SaleSequence } from './entities/sale-sequence.entity';
-import { Stock } from '../inventory/stocks/entities/stock.entity';
-import { StockMovement } from '../inventory/stocks/entities/stock-movement.entity';
 import { Party } from '../parties/entities/party.entity';
 import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
+import { InventoryModule } from '../inventory/inventory.module';
+import { LogsModule } from '../logs/logs.module';
+import { InventorySaleListener } from './listeners/inventory-sale.listener';
+import { FinanceSaleListener } from './listeners/finance-sale.listener';
+import { AccountingLedger } from '../parties/entities/ledger.entity';
+import { Transaction } from '../finance/transactions/entities/transaction.entity';
+import { CommonModule } from '../../common/common.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-      Sale, SaleItem, SaleType, SaleSequence,
-      Stock, StockMovement, Party,
+      Sale, SaleItem, SaleType, SaleSequence, Party, AccountingLedger, Transaction
     ]),
+    CommonModule,
+    InventoryModule,
+    LogsModule,
   ],
   controllers: [SalesController],
-  providers: [SalesService, SequenceGeneratorService],
+  providers: [
+    SalesService, 
+    SequenceGeneratorService, 
+    InventorySaleListener, 
+    FinanceSaleListener
+  ],
   exports: [SalesService],
 })
 export class SalesModule {}

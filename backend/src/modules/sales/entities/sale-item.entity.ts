@@ -13,35 +13,39 @@ export class SaleItem {
   @PrimaryColumn({ name: 'item_id', type: 'bigint' })
   itemId: number;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ type: 'decimal', precision: 15, scale: 4, transformer: new DecimalTransformer() })
   quantity: Decimal;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
+  @Column({ name: 'shipped_quantity', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
+  shippedQuantity: Decimal;
+
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ type: 'decimal', precision: 15, scale: 2, transformer: new DecimalTransformer() })
   price: Decimal;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'discount_amount', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
   discountAmount: Decimal;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'discount_percent', type: 'decimal', precision: 5, scale: 2, default: 0, transformer: new DecimalTransformer() })
   discountPercent: Decimal;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'net_price', type: 'decimal', precision: 15, scale: 2, transformer: new DecimalTransformer() })
   netPrice: Decimal;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'kdv_rate', type: 'decimal', precision: 5, scale: 2, default: 20, transformer: new DecimalTransformer() })
   kdvRate: Decimal;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'kdv_amount', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
   kdvAmount: Decimal;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'line_total', type: 'decimal', precision: 15, scale: 2, transformer: new DecimalTransformer() })
   lineTotal: Decimal;
 

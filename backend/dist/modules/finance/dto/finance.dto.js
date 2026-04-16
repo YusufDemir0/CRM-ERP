@@ -96,11 +96,13 @@ __decorate([
 ], CreateAccountDto.prototype, "ibanName", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
     __metadata("design:type", Number)
 ], CreateAccountDto.prototype, "currencyId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
     __metadata("design:type", Number)
 ], CreateAccountDto.prototype, "criticalLimit", void 0);
 __decorate([
@@ -134,8 +136,15 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
     __metadata("design:type", Number)
 ], UpdateAccountDto.prototype, "criticalLimit", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], UpdateAccountDto.prototype, "currencyId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -144,26 +153,33 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
     __metadata("design:type", Number)
 ], UpdateAccountDto.prototype, "state", void 0);
 class CreateTransactionDto {
 }
 exports.CreateTransactionDto = CreateTransactionDto;
 __decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CreateTransactionDto.prototype, "partyId", void 0);
 __decorate([
+    (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CreateTransactionDto.prototype, "commercialAccountId", void 0);
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0.01),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_transformer_1.Transform)(({ value }) => value !== undefined && value !== null ? value.toString() : value),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Matches)(/^-?\d+(\.\d+)?$/, { message: 'Tutar geçerli bir sayı formatında (örn: 100.50) olmalıdır' }),
+    __metadata("design:type", String)
 ], CreateTransactionDto.prototype, "amount", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CreateTransactionDto.prototype, "currencyId", void 0);
@@ -173,11 +189,13 @@ __decorate([
 ], CreateTransactionDto.prototype, "type", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEnum)(['sale', 'purchase', 'manual_adjustment']),
+    (0, class_transformer_1.Transform)(({ value }) => (value === '' || value === null) ? undefined : value),
+    (0, class_validator_1.IsEnum)(['sale', 'purchase', 'manual_adjustment', 'manual']),
     __metadata("design:type", String)
 ], CreateTransactionDto.prototype, "referenceType", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CreateTransactionDto.prototype, "referenceId", void 0);

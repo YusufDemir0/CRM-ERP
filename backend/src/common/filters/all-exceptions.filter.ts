@@ -24,14 +24,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exResponse = exception.getResponse();
-      message = typeof exResponse === 'string' ? exResponse : exResponse;
+      message = typeof exResponse === 'string' ? exResponse : (exResponse as any).message || exResponse;
     } else if (exception instanceof QueryFailedError) {
+      // SEC-01: Mask DB internal errors
       status = HttpStatus.BAD_REQUEST;
-      message = 'Geçersiz işlem veya veri hatası.';
-      this.logger.error(`[DB Error] ${exception.message}`, exception.stack);
-    } else if (exception instanceof Error) {
-      message = (exception as any).status ? exception.message : 'İşlem sırasında beklenmedik bir hata oluştu.';
-      this.logger.error(`[Unhandled Error] ${exception.message}`, exception.stack);
+      message = 'Geçersiz işlem. Lütfen girdiğiniz bilgileri kontrol ediniz.';
+      this.logger.error(`[DATABASE ERROR] ${exception.message}`, exception.stack);
+    } else {
+      // SEC-01: Mask unexpected errors and log details
+      status = HttpStatus.INTERNAL_SERVER_ERROR;
+      message = 'Sistem üzerinde beklenmedik bir hata oluştu. Teknik ekip bilgilendirildi.';
+      const errorMessage = exception instanceof Error ? exception.message : 'Unknown error';
+      const errorStack = exception instanceof Error ? exception.stack : '';
+      this.logger.error(`[UNEXPECTED ERROR] ${errorMessage}`, errorStack);
     }
 
     const responseBody = {

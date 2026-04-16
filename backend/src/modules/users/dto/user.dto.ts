@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsNumber, IsEmail, MinLength, IsInt } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsEmail, MinLength, IsInt, IsIn, Matches, IsArray } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateUserDto {
@@ -6,7 +6,10 @@ export class CreateUserDto {
   username: string;
 
   @IsString()
-  @MinLength(4)
+  @MinLength(8, { message: 'Şifre en az 8 karakter olmalıdır' })
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/, {
+    message: 'Şifre en az bir büyük harf, bir küçük harf ve bir rakam içermelidir',
+  })
   password: string;
 
   @IsString()
@@ -24,6 +27,12 @@ export class CreateUserDto {
   @IsInt()
   @Type(() => Number)
   departmentId?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  @Type(() => Number)
+  roleIds?: number[];
 }
 
 export class UpdateUserDto {
@@ -37,7 +46,10 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(4)
+  @MinLength(8, { message: 'Şifre en az 8 karakter olmalıdır' })
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/, {
+    message: 'Şifre en az bir büyük harf, bir küçük harf ve bir rakam içermelidir',
+  })
   password?: string;
 
   @IsOptional()
@@ -55,8 +67,15 @@ export class UpdateUserDto {
   departmentId?: number;
 
   @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  @Type(() => Number)
+  roleIds?: number[];
+
+  @IsOptional()
   @IsNumber()
   @IsInt()
+  @IsIn([0, 1])
   @Type(() => Number)
   state?: number;
 }

@@ -24,7 +24,7 @@ export declare class UpdateBomDto {
 }
 export declare class CreateProductionOrderDto {
     bomId: number;
-    plannedQuantity: number;
+    plannedQuantity: string | number;
     sourceDepartmentId?: number;
     targetDepartmentId?: number;
     startDate?: string;
@@ -32,9 +32,9 @@ export declare class CreateProductionOrderDto {
     notes?: string;
 }
 export declare class UpdateProductionOrderDto {
-    plannedQuantity?: number;
-    producedQuantity?: number;
-    wastageQuantity?: number;
+    plannedQuantity?: string | number;
+    producedQuantity?: string | number;
+    wastageQuantity?: string | number;
     sourceDepartmentId?: number;
     targetDepartmentId?: number;
     status?: string;

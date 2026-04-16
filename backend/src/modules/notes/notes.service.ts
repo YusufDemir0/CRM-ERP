@@ -27,7 +27,12 @@ export class NotesService {
     if (!note) {
       throw new NotFoundException('Note not found');
     }
-    Object.assign(note, data);
+    if (data.title !== undefined) note.title = data.title;
+    if (data.content !== undefined) note.content = data.content;
+    if (data.color !== undefined) note.color = data.color;
+    if (data.isPinned !== undefined) note.isPinned = data.isPinned;
+    if (data.state !== undefined) note.state = data.state;
+
     return this.noteRepository.save(note);
   }
 

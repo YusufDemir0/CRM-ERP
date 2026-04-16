@@ -37,11 +37,13 @@ let LogsInterceptor = LogsInterceptor_1 = class LogsInterceptor {
             return (0, rxjs_1.throwError)(() => err);
         }));
     }
-    sanitizeBody(body) {
+    sanitizeBody(body, depth = 0) {
+        if (depth > 1)
+            return '[NESTED_CONTENT_TRUNCATED]';
         if (!body || typeof body !== 'object')
             return body;
         if (Array.isArray(body))
-            return body.map(item => this.sanitizeBody(item));
+            return body.map(item => this.sanitizeBody(item, depth + 1));
         const sanitized = { ...body };
         const sensitiveFields = [
             'password', 'token', 'access_token', 'secret', 'passwordHash',
@@ -52,7 +54,7 @@ let LogsInterceptor = LogsInterceptor_1 = class LogsInterceptor {
                 sanitized[key] = '********';
             }
             else if (typeof sanitized[key] === 'object' && sanitized[key] !== null) {
-                sanitized[key] = this.sanitizeBody(sanitized[key]);
+                sanitized[key] = this.sanitizeBody(sanitized[key], depth + 1);
             }
         }
         return sanitized;
@@ -83,9 +85,9 @@ let LogsInterceptor = LogsInterceptor_1 = class LogsInterceptor {
                 module: moduleName,
                 tag: status,
                 details: JSON.stringify({
-                    body: cleanBody && Object.keys(cleanBody).length > 0 ? cleanBody : null,
+                    body: cleanBody && Object.keys(cleanBody).length > 0 ? (JSON.stringify(cleanBody).length > 5120 ? '[PAYLOAD_TOO_LARGE]' : cleanBody) : null,
                     status,
-                    response: responseSummary,
+                    response: typeof responseSummary === 'string' && responseSummary.length > 1000 ? responseSummary.substring(0, 1000) + '...' : responseSummary,
                 }),
                 ipAddress: ip,
             });

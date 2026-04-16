@@ -48,12 +48,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UsersService = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
+const cache_manager_1 = require("@nestjs/cache-manager");
 const typeorm_2 = require("typeorm");
 const bcrypt = __importStar(require("bcrypt"));
 const user_entity_1 = require("../auth/entities/user.entity");
+const role_entity_1 = require("../auth/entities/role.entity");
 let UsersService = class UsersService {
-    constructor(userRepo) {
+    constructor(userRepo, roleRepo, cacheManager) {
         this.userRepo = userRepo;
+        this.roleRepo = roleRepo;
+        this.cacheManager = cacheManager;
     }
     async findAll(query) {
         const qb = this.userRepo.createQueryBuilder('user')
@@ -69,6 +73,9 @@ let UsersService = class UsersService {
             qb.where('(user.fullName LIKE :search OR user.username LIKE :search OR user.email LIKE :search OR department.name LIKE :search OR roles.name LIKE :search)', {
                 search: `%${query.search}%`,
             });
+        }
+        if (query.state !== undefined) {
+            qb.andWhere('user.state = :state', { state: query.state });
         }
         qb.orderBy(`user.${query.sortBy || 'createdAt'}`, query.sortOrder || 'DESC');
         qb.skip(query.skip).take(query.limit);
@@ -109,13 +116,31 @@ let UsersService = class UsersService {
             departmentId: dto.departmentId || null,
             createdBy: currentUserId || null,
         });
+        if (dto.roleIds && dto.roleIds.length > 0) {
+            user.roles = await this.roleRepo.find({
+                where: { id: (0, typeorm_2.In)(dto.roleIds) }
+            });
+        }
         return this.userRepo.save(user);
     }
     async update(id, dto, currentUserId) {
         const user = await this.findOne(id);
+        if (dto.username && dto.username !== user.username) {
+            const existing = await this.userRepo.findOne({ where: { username: dto.username } });
+            if (existing && existing.id !== id)
+                throw new common_1.ConflictException('Kullanıcı adı zaten mevcut');
+            user.username = dto.username;
+        }
+        if (dto.email && dto.email !== user.email) {
+            const existing = await this.userRepo.findOne({ where: { email: dto.email } });
+            if (existing && existing.id !== id)
+                throw new common_1.ConflictException('Email zaten mevcut');
+            user.email = dto.email;
+        }
         if (dto.password && dto.password.trim() !== '') {
             const salt = await bcrypt.genSalt(12);
             user.passwordHash = await bcrypt.hash(dto.password, salt);
+            user.tokenVersion += 1;
         }
         if (dto.username !== undefined)
             user.username = dto.username;
@@ -127,10 +152,26 @@ let UsersService = class UsersService {
             user.phone = dto.phone;
         if (dto.departmentId !== undefined)
             user.departmentId = dto.departmentId;
-        if (dto.state !== undefined)
+        if (dto.roleIds !== undefined) {
+            if (dto.roleIds.length > 0) {
+                user.roles = await this.roleRepo.find({
+                    where: { id: (0, typeorm_2.In)(dto.roleIds) }
+                });
+            }
+            else {
+                user.roles = [];
+            }
+        }
+        if (dto.state !== undefined && user.state !== dto.state) {
             user.state = dto.state;
+            user.tokenVersion += 1;
+        }
         user.updatedBy = currentUserId || null;
-        return this.userRepo.save(user);
+        const savedUser = await this.userRepo.save(user);
+        if (dto.password || dto.state !== undefined) {
+            await this.cacheManager.del(`user_state_${id}`);
+        }
+        return savedUser;
     }
     async softDelete(id, currentUserId) {
         const user = await this.findOne(id);
@@ -155,6 +196,9 @@ exports.UsersService = UsersService;
 exports.UsersService = UsersService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __param(1, (0, typeorm_1.InjectRepository)(role_entity_1.Role)),
+    __param(2, (0, common_1.Inject)(cache_manager_1.CACHE_MANAGER)),
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository, Object])
 ], UsersService);
 //# sourceMappingURL=users.service.js.map

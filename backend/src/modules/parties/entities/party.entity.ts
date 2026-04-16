@@ -6,7 +6,6 @@ import { Currency } from '../../finance/currencies/entities/currency.entity';
 import { DecimalTransformer } from '../../../common/transformers/decimal.transformer';
 
 @Entity('parties')
-@Index("UQ_PARTY_TAX_NUMBER_ACTIVE", ["taxNumber"], { where: "deleted_at IS NULL", unique: true })
 export class Party extends BaseEntity {
   @Column({ type: 'enum', enum: ['customer', 'provider', 'both'], default: 'customer' })
   type: 'customer' | 'provider' | 'both';
@@ -38,11 +37,11 @@ export class Party extends BaseEntity {
   @Column({ name: 'district_name', type: 'varchar', length: 100, nullable: true })
   districtName: string | null;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
   balance: Decimal;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'credit_limit', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
   creditLimit: Decimal;
 

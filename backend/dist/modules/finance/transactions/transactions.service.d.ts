@@ -20,10 +20,10 @@ export declare class TransactionsService {
         message: string;
     }>;
     getStatus(): Promise<{
-        monthlyIncome: number;
-        monthlyExpense: number;
+        monthlyIncome: any;
+        monthlyExpense: any;
         count: number;
-        totalVolume: number;
+        totalVolume: string;
     }>;
     getDailyTrends(): Promise<any[]>;
 }

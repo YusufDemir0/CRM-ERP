@@ -29,3 +29,21 @@ DELETE FROM department_types WHERE id BETWEEN 5 AND 8;
 -- Gelecekte tekrar etmesini önlemek için UNIQUE kısıtlaması eklenmesi
 ALTER TABLE department_types ADD UNIQUE INDEX idx_unique_dept_type (name, abbreviation);
 ```
+---
+
+### [2026-04-13 22:15] - Ürün Türleri (Item Types) Modülü
+Ürün türleri (Hammadde, Mamul vb.) yönetimi için tablo yapısı ve kısıtlamalar eklendi.
+
+```sql
+-- Ürün Türleri Tablosunun Oluşturulması (Eğer yoksa)
+CREATE TABLE IF NOT EXISTS item_types (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  abbreviation VARCHAR(20) NOT NULL,
+  state TINYINT NOT NULL DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Benzersizlik kısıtlamasının eklenmesi
+ALTER TABLE item_types ADD UNIQUE INDEX idx_unique_item_type (name, abbreviation);
+```

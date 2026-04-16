@@ -8,6 +8,9 @@ export class Role extends BaseEntity {
   @Column({ type: 'varchar', length: 50 })
   name: string;
 
+  @Column({ type: 'boolean', default: false })
+  isSystemAdmin: boolean;
+
   @ManyToMany(() => Permission)
   @JoinTable({
     name: 'role_permissions',

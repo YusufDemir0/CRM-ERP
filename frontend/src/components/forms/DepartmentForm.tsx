@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { departmentsAPI, accountsAPI } from '../../services/api';
 import { FiX, FiCheck } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import { useQuickCreate } from '../../context/QuickCreateContext';
+import { useQuickCreateStore } from '../../store/useQuickCreateStore';
+import { Account } from '../../types';
 
 interface DepartmentFormProps {
-  initialData?: any;
+  initialData?: Record<string, unknown>;
   editingId?: number | null;
-  onSuccess: (data: any) => void;
+  onSuccess: (data: unknown) => void;
   onCancel: () => void;
 }
 
@@ -20,17 +21,27 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
   onSuccess,
   onCancel,
 }) => {
-  const [formData, setFormData] = useState({
-    name: initialData?.name || '',
-    description: initialData?.description || '',
-    abbreviation: initialData?.abbreviation || '',
-    departmentTypeId: initialData?.departmentTypeId || '',
-    commercialAccountId: initialData?.commercialAccountId || ''
+  const { openCreate, updateCache, getCache, clearCache } = useQuickCreateStore();
+  const cacheKey = editingId ? `dept_edit_${editingId}` : 'dept_create';
+
+  const [formData, setFormData] = useState<Record<string, string | number>>(() => {
+    const cached = getCache(cacheKey) as Record<string, string | number> | null;
+    return cached || {
+      name: (initialData?.name as string) || '',
+      description: (initialData?.description as string) || '',
+      abbreviation: (initialData?.abbreviation as string) || '',
+      departmentTypeId: (initialData?.departmentTypeId as number) || '',
+      commercialAccountId: (initialData?.commercialAccountId as number) || ''
+    };
   });
 
-  const [accounts, setAccounts] = useState<any[]>([]);
-  const [deptTypes, setDeptTypes] = useState<any[]>([]);
-  const { openCreate } = useQuickCreate();
+  // Caching strategy: Update only on blur or unmount to prevent re-render loops
+  const saveDraft = useCallback(() => {
+    updateCache(cacheKey, formData);
+  }, [formData, cacheKey, updateCache]);
+
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [deptTypes, setDeptTypes] = useState<Record<string, unknown>[]>([]);
 
   useEffect(() => {
     async function fetchData() {
@@ -39,8 +50,8 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
           accountsAPI.getAll({ limit: 100 }),
           departmentsAPI.getTypes()
         ]);
-        setAccounts(accRes.data.data.filter((a: any) => a.state === 1));
-        setDeptTypes(typesRes.data);
+        setAccounts(accRes.data.data.filter((a: Account) => a.state === 1));
+        setDeptTypes(typesRes.data as Record<string, unknown>[]);
       } catch (err) {
         console.error(err);
       }
@@ -50,7 +61,7 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.abbreviation && formData.abbreviation.length > 4) {
+    if (formData.abbreviation && String(formData.abbreviation).length > 4) {
       toast.error('Kısa kod en fazla 4 karakter olmalıdır.');
       return;
     }
@@ -58,14 +69,16 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
       ...formData,
       departmentTypeId: formData.departmentTypeId ? Number(formData.departmentTypeId) : undefined,
       commercialAccountId: formData.commercialAccountId ? Number(formData.commercialAccountId) : undefined
-    };
+    } as any;
 
     try {
       if (editingId) {
         const res = await departmentsAPI.update(editingId, payload);
+        clearCache(cacheKey);
         onSuccess(res.data);
       } else {
         const res = await departmentsAPI.create(payload);
+        clearCache(cacheKey);
         onSuccess(res.data);
       }
     } catch (error) {
@@ -75,16 +88,16 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
 
   const handleAddAccount = () => {
     openCreate('account', {
-      onSuccess: (newAcc: any) => {
-        setFormData((prev: any) => ({ ...prev, commercialAccountId: newAcc.id }));
+      onSuccess: (newAcc: unknown) => {
+        setFormData((prev) => ({ ...prev, commercialAccountId: (newAcc as Account).id }));
         // Refresh accounts list
-        accountsAPI.getAll({ limit: 100 }).then((res: any) => setAccounts(res.data.data.filter((a: any) => a.state === 1)));
+        accountsAPI.getAll({ limit: 100 }).then((res: { data: { data: Account[] } }) => setAccounts(res.data.data.filter((a: Account) => a.state === 1)));
       }
     });
   };
 
   return (
-    <form onSubmit={handleSubmit} className="login-form">
+    <form onSubmit={handleSubmit} onBlur={saveDraft} className="login-form">
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '15px' }}>
         <div className="form-group">
           <label>Departman Adı (Zorunlu)</label>
@@ -106,9 +119,9 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
         <div className="form-group">
           <label>Departman Tipi</label>
-          <select className="uppercase-input" style={{ appearance: 'none' }} value={formData.departmentTypeId} onChange={e => setFormData({ ...formData, departmentTypeId: e.target.value })}>
+          <select className="uppercase-input" style={{ appearance: 'none' }} value={formData.departmentTypeId} onChange={e => setFormData({ ...formData, departmentTypeId: Number(e.target.value) })}>
             <option value="">Lütfen Seçiniz</option>
-            {deptTypes.map((dt: any) => <option key={dt.id} value={dt.id}>{dt.name} ({dt.abbreviation})</option>)}
+            {deptTypes.map((dt) => <option key={String(dt.id)} value={String(dt.id)}>{String(dt.name)} ({String(dt.abbreviation)})</option>)}
           </select>
         </div>
         <div className="form-group">
@@ -123,9 +136,9 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
               + YENİ HESAP EKLE
             </button>
           </div>
-          <select className="uppercase-input" style={{ appearance: 'none' }} value={formData.commercialAccountId} onChange={e => setFormData({ ...formData, commercialAccountId: e.target.value })}>
+          <select className="uppercase-input" style={{ appearance: 'none' }} value={formData.commercialAccountId} onChange={e => setFormData({ ...formData, commercialAccountId: Number(e.target.value) })}>
             <option value="">Lütfen Seçiniz</option>
-            {accounts.map((acc: any) => (
+            {accounts.map((acc: Account) => (
               <option key={acc.id} value={acc.id}>{acc.name}</option>
             ))}
           </select>

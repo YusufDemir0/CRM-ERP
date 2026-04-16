@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn, PrimaryColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, PrimaryColumn, DeleteDateColumn } from 'typeorm';
 import { Transform } from 'class-transformer';
 import { Decimal } from 'decimal.js';
 import { Bom } from './bom.entity';
@@ -13,7 +13,7 @@ export class BomItem {
   @PrimaryColumn({ name: 'item_id', type: 'bigint' })
   itemId: number;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ type: 'decimal', precision: 15, scale: 4, transformer: new DecimalTransformer() })
   quantity: Decimal;
 
@@ -32,7 +32,7 @@ export class BomItem {
   @Column({ name: 'updated_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   updatedAt: Date;
 
-  @Column({ name: 'deleted_at', type: 'timestamp', nullable: true })
+  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamp', nullable: true })
   deletedAt: Date | null;
 
   @ManyToOne(() => Bom, (bom) => bom.items)

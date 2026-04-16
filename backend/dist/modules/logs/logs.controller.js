@@ -18,21 +18,22 @@ const logs_service_1 = require("./logs.service");
 const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
 const permissions_guard_1 = require("../../common/guards/permissions.guard");
 const permissions_decorator_1 = require("../../common/decorators/permissions.decorator");
+const logs_query_dto_1 = require("./dto/logs-query.dto");
 let LogsController = class LogsController {
     constructor(logsService) {
         this.logsService = logsService;
     }
-    async findAll(limit) {
-        return this.logsService.findAll(limit || 100);
+    async findAll(query) {
+        return this.logsService.findAll(query);
     }
 };
 exports.LogsController = LogsController;
 __decorate([
     (0, common_1.Get)(),
     (0, permissions_decorator_1.RequirePermissions)('system:manage'),
-    __param(0, (0, common_1.Query)('limit')),
+    __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [logs_query_dto_1.LogsQueryDto]),
     __metadata("design:returntype", Promise)
 ], LogsController.prototype, "findAll", null);
 exports.LogsController = LogsController = __decorate([

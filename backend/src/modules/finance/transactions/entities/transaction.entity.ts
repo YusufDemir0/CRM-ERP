@@ -19,22 +19,22 @@ export class Transaction extends BaseEntity {
   @Column({ name: 'commercial_account_id', type: 'bigint', nullable: true })
   commercialAccountId: number;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ type: 'decimal', precision: 15, scale: 2, transformer: new DecimalTransformer() })
   amount: Decimal;
 
   @Column({ name: 'currency_id', type: 'bigint', nullable: true })
   currencyId: number | null;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'exchange_rate', type: 'decimal', precision: 15, scale: 6, default: 1, transformer: new DecimalTransformer() })
   exchangeRate: Decimal;
 
   @Column({ type: 'enum', enum: ['in', 'out'] })
   type: 'in' | 'out';
 
-  @Column({ name: 'reference_type', type: 'enum', enum: ['sale', 'purchase', 'manual_adjustment'], nullable: true })
-  referenceType: 'sale' | 'purchase' | 'manual_adjustment' | null;
+  @Column({ name: 'reference_type', type: 'enum', enum: ['sale', 'purchase', 'manual_adjustment', 'manual'], nullable: true })
+  referenceType: 'sale' | 'purchase' | 'manual_adjustment' | 'manual' | null;
 
   @Column({ name: 'reference_id', type: 'bigint', nullable: true })
   referenceId: number | null;

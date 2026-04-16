@@ -1,8 +1,8 @@
 import { NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { DataSource } from 'typeorm';
+import { ClsService } from 'nestjs-cls';
 export declare class AuditInterceptor implements NestInterceptor {
-    private readonly dataSource;
-    constructor(dataSource: DataSource);
+    private readonly cls;
+    constructor(cls: ClsService);
     intercept(context: ExecutionContext, next: CallHandler): Observable<any>;
 }

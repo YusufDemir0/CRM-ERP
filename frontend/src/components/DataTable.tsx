@@ -2,9 +2,10 @@ import { ReactNode, useState } from 'react';
 import { FiSearch, FiChevronLeft, FiChevronRight, FiFilter, FiX, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 
 interface Column<T> {
-  key: string;
+  key: (keyof T & string) | string; // Supports nested keys like 'party.name'
   label: string;
   sortable?: boolean;
+  align?: 'left' | 'center' | 'right';
   render?: (item: T, index: number) => ReactNode;
 }
 
@@ -37,20 +38,28 @@ interface DataTableProps<T> {
   onSearchChange?: (val: string) => void;
   onPageChange?: (page: number) => void;
   onSort?: (config: SortConfig) => void;
-  onFilterChange?: (filters: Record<string, any>) => void;
+  onFilterChange?: (filters: Record<string, string | number | (string | number)[]>) => void;
   actions?: ReactNode;
   loading?: boolean;
   emptyMessage?: string;
   hideToolbar?: boolean;
 }
 
-export default function DataTable<T extends Record<string, any>>({
+export default function DataTable<T extends { id: string | number }>({
   columns, data, total = 0, page = 1, limit = 20,
   search, sort, filterConfig, onSearchChange, onPageChange, onSort, onFilterChange,
   actions, loading, emptyMessage, hideToolbar,
 }: DataTableProps<T>) {
   const [showFilters, setShowFilters] = useState(false);
-  const [columnFilters, setColumnFilters] = useState<Record<string, any>>({});
+  const [columnFilters, setColumnFilters] = useState<Record<string, string | number | (string | number)[]>>({});
+
+  // Typed accessor supporting nested keys like 'party.name'
+  const getNestedValue = (obj: T, key: string): unknown => {
+    return key.split('.').reduce<unknown>((acc, part) => {
+      if (acc && typeof acc === 'object') return (acc as Record<string, unknown>)[part];
+      return undefined;
+    }, obj);
+  };
 
   const visibleColumns = columns.filter(c => c.key !== 'id');
   const totalPages = Math.ceil(total / limit);
@@ -61,7 +70,7 @@ export default function DataTable<T extends Record<string, any>>({
     onSort({ key, order });
   };
 
-  const handleColumnFilterChange = (key: string, value: any) => {
+  const handleColumnFilterChange = (key: string, value: string | number | (string | number)[]) => {
     const newFilters = { ...columnFilters, [key]: value };
     if (value === '' || value === null || (Array.isArray(value) && value.length === 0)) {
       delete newFilters[key];
@@ -70,10 +79,10 @@ export default function DataTable<T extends Record<string, any>>({
     onFilterChange?.(newFilters);
   };
 
-  const toggleCheckboxFilter = (key: string, value: any) => {
-    const current = columnFilters[key] || [];
+  const toggleCheckboxFilter = (key: string, value: string | number) => {
+    const current = (columnFilters[key] || []) as (string | number)[];
     const next = current.includes(value) 
-      ? current.filter((v: any) => v !== value)
+      ? current.filter((v) => v !== value)
       : [...current, value];
     handleColumnFilterChange(key, next);
   };
@@ -87,6 +96,7 @@ export default function DataTable<T extends Record<string, any>>({
     if (Array.isArray(val)) return val.length > 0;
     return val !== '' && val !== null;
   });
+
   
   return (
     <div className="table-container animate-in">
@@ -139,7 +149,7 @@ export default function DataTable<T extends Record<string, any>>({
                         <label key={String(opt.value)} className="checkbox-item">
                           <input 
                             type="checkbox" 
-                            checked={(columnFilters[f.key] || []).includes(opt.value)}
+                            checked={Array.isArray(columnFilters[f.key]) && (columnFilters[f.key] as (string | number)[]).includes(opt.value)}
                             onChange={() => toggleCheckboxFilter(f.key, opt.value)}
                           />
                           <span>{opt.label}</span>
@@ -149,7 +159,7 @@ export default function DataTable<T extends Record<string, any>>({
                   ) : f.type === 'select' && f.options ? (
                     <select 
                       className="form-input"
-                      value={columnFilters[f.key] || ''}
+                      value={String(columnFilters[f.key] ?? '')}
                       onChange={(e) => handleColumnFilterChange(f.key, e.target.value)}
                     >
                       <option value="">Tümü</option>
@@ -162,23 +172,23 @@ export default function DataTable<T extends Record<string, any>>({
                       type={f.type === 'date' ? 'date' : 'text'}
                       className="form-input"
                       placeholder={`${f.label} ara...`}
-                      value={columnFilters[f.key] || ''}
+                      value={String(columnFilters[f.key] ?? '')}
                       onChange={(e) => handleColumnFilterChange(f.key, e.target.value)}
                     />
                   )}
                 </div>
               ))}
 
-              {!filterConfig && visibleColumns.map((col) => (
+              {!filterConfig && visibleColumns.map((col: Column<T>) => (
                 col.key !== 'actions' && col.key !== 'id' ? (
-                  <div key={col.key} className="filter-section">
+                  <div key={String(col.key)} className="filter-section">
                     <label className="section-label">{col.label}</label>
                     <input 
                       type="text" 
                       placeholder={`${col.label} ara...`} 
                       className="form-input"
-                      value={columnFilters[col.key] || ''}
-                      onChange={(e) => handleColumnFilterChange(col.key, e.target.value)}
+                      value={String(columnFilters[String(col.key)] ?? '')}
+                      onChange={(e) => handleColumnFilterChange(String(col.key), e.target.value)}
                     />
                   </div>
                 ) : null
@@ -227,13 +237,14 @@ export default function DataTable<T extends Record<string, any>>({
           <table>
             <thead>
               <tr>
-                {visibleColumns.map((col) => (
+                {visibleColumns.map((col: Column<T>) => (
                   <th 
-                    key={col.key} 
-                    onClick={() => col.sortable !== false && handleSort(col.key)}
+                    key={String(col.key)} 
+                    onClick={() => col.sortable !== false && handleSort(String(col.key))}
                     className={col.sortable !== false ? 'sortable' : ''}
+                    style={{ textAlign: col.align || 'left' }}
                   >
-                    <div className="th-content">
+                    <div className="th-content" style={{ justifyContent: col.align === 'center' ? 'center' : col.align === 'right' ? 'flex-end' : 'flex-start' }}>
                       {col.label}
                       {col.sortable !== false && (
                         <span className={`sort-icon ${sort?.key === col.key ? 'active' : ''}`}>
@@ -248,17 +259,17 @@ export default function DataTable<T extends Record<string, any>>({
             <tbody>
               {data.map((item, idx) => (
                 <tr key={item.id || idx}>
-                  {visibleColumns.map((col) => (
-                    <td key={col.key}>
+                  {visibleColumns.map((col: Column<T>) => (
+                    <td key={String(col.key)} style={{ textAlign: col.align || 'left' }}>
                       {col.render ? (
                         col.render(item, idx)
-                      ) : col.key === 'state' ? (
-                        <span className={`badge ${item[col.key] === 1 ? 'badge-success' : 'badge-danger'}`}>
-                          {item[col.key] === 1 ? 'AKTİF' : 'PASİF'}
+                      ) : (col.key as string) === 'state' ? (
+                        <span className={`badge ${getNestedValue(item, String(col.key)) === 1 ? 'badge-success' : 'badge-danger'}`}>
+                          {getNestedValue(item, String(col.key)) === 1 ? 'AKTİF' : 'PASİF'}
                         </span>
                       ) : (
                         <span className={col.key === 'name' || col.key === 'title' ? 'text-bold' : ''}>
-                          {String(item[col.key] ?? '') || '—'}
+                          {String(getNestedValue(item, String(col.key)) ?? '') || '—'}
                         </span>
                       )}
                     </td>
@@ -286,6 +297,7 @@ export default function DataTable<T extends Record<string, any>>({
           </div>
         </div>
       )}
+
 
       <style>{`
         .table-container { background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column; position: relative; }

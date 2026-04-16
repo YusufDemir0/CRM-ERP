@@ -1,3 +1,6 @@
+import { StocksService } from '../inventory/stocks/stocks.service';
+import { ItemsService } from '../inventory/items/items.service';
+import { LogsService } from '../logs/logs.service';
 import { Repository, DataSource } from 'typeorm';
 import { Bom } from './entities/bom.entity';
 import { BomItem } from './entities/bom-item.entity';
@@ -13,13 +16,17 @@ export declare class ProductionService {
     private itemRepo;
     private dataSource;
     private sequenceGenerator;
+    private stocksService;
+    private itemsService;
+    private logsService;
     private readonly logger;
-    constructor(bomRepo: Repository<Bom>, bomItemRepo: Repository<BomItem>, poRepo: Repository<ProductionOrder>, itemRepo: Repository<Item>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService);
+    constructor(bomRepo: Repository<Bom>, bomItemRepo: Repository<BomItem>, poRepo: Repository<ProductionOrder>, itemRepo: Repository<Item>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, stocksService: StocksService, itemsService: ItemsService, logsService: LogsService);
     findAllBoms(query: BomQueryDto): Promise<PaginatedResult<Bom>>;
     findOneBom(id: number): Promise<Bom>;
     createBom(dto: CreateBomDto, userId?: number): Promise<Bom>;
     updateBom(id: number, dto: UpdateBomDto, userId?: number): Promise<Bom>;
     deleteBom(id: number): Promise<void>;
+    countItemUsageInBoms(itemId: number): Promise<number>;
     findAllOrders(query: ProductionOrderQueryDto): Promise<PaginatedResult<ProductionOrder>>;
     findOneOrder(id: number): Promise<ProductionOrder>;
     createOrder(dto: CreateProductionOrderDto, userId?: number): Promise<ProductionOrder>;

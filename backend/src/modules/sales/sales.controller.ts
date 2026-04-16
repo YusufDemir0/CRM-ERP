@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { SalesService } from './sales.service';
-import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto, SalesQueryDto } from './dto/sale.dto';
+import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto, SalesQueryDto, ShipSaleDto } from './dto/sale.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 
@@ -70,6 +70,12 @@ export class SalesController {
   @RequirePermissions('satis_iptal')
   cancel(@Param('id', ParseIntPipe) id: number, @CurrentUser('sub') userId: number) {
     return this.salesService.cancelSale(id, userId);
+  }
+
+  @Post(':id/ship')
+  @RequirePermissions('satis_onaylama') // Reuse approval permission or add 'satis_sevk'
+  ship(@Param('id', ParseIntPipe) id: number, @Body() dto: ShipSaleDto, @CurrentUser('sub') userId: number) {
+    return this.salesService.shipSale(id, dto, userId);
   }
 
   @Delete(':id')

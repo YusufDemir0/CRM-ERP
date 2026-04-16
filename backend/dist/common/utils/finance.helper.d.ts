@@ -1,11 +1,11 @@
+import { Decimal } from 'decimal.js';
 export declare class FinanceHelper {
     private static readonly DEFAULT_DECIMALS;
-    private static readonly PRECISION_DECIMALS;
-    static round(value: number, decimals?: number): number;
-    static calculateKdv(matrah: number, rate: number): number;
-    static calculateTotal(matrah: number, rate: number): number;
-    static add(a: number, b: number, decimals?: number): number;
-    static sub(a: number, b: number, decimals?: number): number;
-    static mul(a: number, b: number, decimals?: number): number;
-    static div(a: number, b: number, decimals?: number): number;
+    static round(value: Decimal | number | string, decimals?: number): Decimal;
+    static calculateKdv(matrah: Decimal | number | string, rate: number): Decimal;
+    static calculateTotal(matrah: Decimal | number | string, rate: number): Decimal;
+    static add(a: Decimal | number | string, b: Decimal | number | string): Decimal;
+    static sub(a: Decimal | number | string, b: Decimal | number | string): Decimal;
+    static mul(a: Decimal | number | string, b: Decimal | number | string): Decimal;
+    static div(a: Decimal | number | string, b: Decimal | number | string, decimals?: number): Decimal;
 }

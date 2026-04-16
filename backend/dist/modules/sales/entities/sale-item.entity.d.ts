@@ -1,16 +1,18 @@
+import { Decimal } from 'decimal.js';
 import { Sale } from './sale.entity';
 import { Item } from '../../inventory/items/entities/item.entity';
 export declare class SaleItem {
     saleId: number;
     itemId: number;
-    quantity: number;
-    price: number;
-    discountAmount: number;
-    discountPercent: number;
-    netPrice: number;
-    kdvRate: number;
-    kdvAmount: number;
-    lineTotal: number;
+    quantity: Decimal;
+    shippedQuantity: Decimal;
+    price: Decimal;
+    discountAmount: Decimal;
+    discountPercent: Decimal;
+    netPrice: Decimal;
+    kdvRate: Decimal;
+    kdvAmount: Decimal;
+    lineTotal: Decimal;
     description: string | null;
     createdBy: number | null;
     createdAt: Date;

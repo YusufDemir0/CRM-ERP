@@ -5,6 +5,7 @@ import {
   UpdateDateColumn,
   DeleteDateColumn,
 } from 'typeorm';
+import { RecordState } from '../enums/record-state.enum';
 
 /**
  * BaseEntity — Tüm entity'lerin extend edeceği temel sınıf.
@@ -17,8 +18,8 @@ export abstract class BaseEntity {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;
 
-  @Column({ type: 'tinyint', default: 1 })
-  state: number;
+  @Column({ type: 'tinyint', default: RecordState.ACTIVE })
+  state: RecordState;
 
   @Column({ name: 'created_by', type: 'bigint', nullable: true })
   createdBy: number | null;

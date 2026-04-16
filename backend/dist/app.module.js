@@ -15,12 +15,19 @@ const config_1 = require("@nestjs/config");
 const typeorm_1 = require("@nestjs/typeorm");
 const core_1 = require("@nestjs/core");
 const throttler_1 = require("@nestjs/throttler");
+const throttler_proxy_guard_1 = require("./common/guards/throttler-proxy.guard");
+const cache_manager_1 = require("@nestjs/cache-manager");
+const nestjs_cls_1 = require("nestjs-cls");
 const database_config_1 = __importDefault(require("./config/database.config"));
 const jwt_config_1 = __importDefault(require("./config/jwt.config"));
 const audit_interceptor_1 = require("./common/interceptors/audit.interceptor");
 const logs_interceptor_1 = require("./common/interceptors/logs.interceptor");
 const jwt_auth_guard_1 = require("./common/guards/jwt-auth.guard");
 const permissions_guard_1 = require("./common/guards/permissions.guard");
+const csrf_guard_1 = require("./common/guards/csrf.guard");
+const csrf_interceptor_1 = require("./common/interceptors/csrf.interceptor");
+const audit_subscriber_1 = require("./common/subscribers/audit.subscriber");
+const common_module_1 = require("./common/common.module");
 const auth_module_1 = require("./modules/auth/auth.module");
 const users_module_1 = require("./modules/users/users.module");
 const roles_module_1 = require("./modules/roles/roles.module");
@@ -34,6 +41,7 @@ const dashboard_module_1 = require("./modules/dashboard/dashboard.module");
 const settings_module_1 = require("./modules/settings/settings.module");
 const logs_module_1 = require("./modules/logs/logs.module");
 const notes_module_1 = require("./modules/notes/notes.module");
+const webhooks_module_1 = require("./modules/webhooks/webhooks.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -42,8 +50,12 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             throttler_1.ThrottlerModule.forRoot([{
                     ttl: 60000,
-                    limit: 120,
+                    limit: 100,
                 }]),
+            nestjs_cls_1.ClsModule.forRoot({
+                global: true,
+                middleware: { mount: true },
+            }),
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
                 load: [database_config_1.default, jwt_config_1.default],
@@ -56,6 +68,7 @@ exports.AppModule = AppModule = __decorate([
                     ...configService.get('database'),
                 }),
             }),
+            cache_manager_1.CacheModule.register({ isGlobal: true, ttl: 60000 }),
             auth_module_1.AuthModule,
             users_module_1.UsersModule,
             roles_module_1.RolesModule,
@@ -69,6 +82,8 @@ exports.AppModule = AppModule = __decorate([
             settings_module_1.SettingsModule,
             logs_module_1.LogsModule,
             notes_module_1.NotesModule,
+            webhooks_module_1.WebhooksModule,
+            common_module_1.CommonModule,
         ],
         providers: [
             {
@@ -77,11 +92,19 @@ exports.AppModule = AppModule = __decorate([
             },
             {
                 provide: core_1.APP_INTERCEPTOR,
+                useClass: csrf_interceptor_1.CsrfInterceptor,
+            },
+            {
+                provide: core_1.APP_INTERCEPTOR,
                 useClass: logs_interceptor_1.LogsInterceptor,
             },
             {
                 provide: core_1.APP_GUARD,
-                useClass: throttler_1.ThrottlerGuard,
+                useClass: throttler_proxy_guard_1.ThrottlerProxyGuard,
+            },
+            {
+                provide: core_1.APP_GUARD,
+                useClass: csrf_guard_1.CsrfGuard,
             },
             {
                 provide: core_1.APP_GUARD,
@@ -91,6 +114,7 @@ exports.AppModule = AppModule = __decorate([
                 provide: core_1.APP_GUARD,
                 useClass: permissions_guard_1.PermissionsGuard,
             },
+            audit_subscriber_1.AuditSubscriber,
         ],
     })
 ], AppModule);

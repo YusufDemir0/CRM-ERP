@@ -10,7 +10,6 @@ import { QuantityType } from './quantity-type.entity';
 import { DecimalTransformer } from '../../../../common/transformers/decimal.transformer';
 
 @Entity('items')
-@Index("UQ_ITEM_CODE_ACTIVE", ["code"], { where: "deleted_at IS NULL", unique: true })
 export class Item extends BaseEntity {
   @Column({ type: 'varchar', length: 150 })
   name: string;
@@ -30,22 +29,22 @@ export class Item extends BaseEntity {
   @Column({ name: 'code2', type: 'varchar', length: 50, nullable: true })
   code2: string | null;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'critical_limit', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
   criticalLimit: Decimal;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   image: string | null;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'purchase_price', type: 'decimal', precision: 15, scale: 2, nullable: true, transformer: new DecimalTransformer() })
   purchasePrice: Decimal | null;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'sale_price', type: 'decimal', precision: 15, scale: 2, nullable: true, transformer: new DecimalTransformer() })
   salePrice: Decimal | null;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'net_price', type: 'decimal', precision: 15, scale: 2, nullable: true, transformer: new DecimalTransformer() })
   netPrice: Decimal | null;
 
@@ -55,7 +54,7 @@ export class Item extends BaseEntity {
   @Column({ name: 'quantity_type_id', type: 'bigint' })
   quantityTypeId: number;
 
-  @Transform(({ value }) => value ? Number(value) : value)
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 20, transformer: new DecimalTransformer() })
   kdv: Decimal;
 

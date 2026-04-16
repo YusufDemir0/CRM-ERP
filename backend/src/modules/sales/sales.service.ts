@@ -4,14 +4,15 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import { StocksService } from '../inventory/stocks/stocks.service';
+import { LogsService } from '../logs/logs.service';
 import { Item } from '../inventory/items/entities/item.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Sale } from './entities/sale.entity';
 import { SaleItem } from './entities/sale-item.entity';
 import { SaleType } from './entities/sale-type.entity';
-import { Stock } from '../inventory/stocks/entities/stock.entity';
-import { StockMovement } from '../inventory/stocks/entities/stock-movement.entity';
+
 import { Party } from '../parties/entities/party.entity';
 import { Currency } from '../finance/currencies/entities/currency.entity';
 import { Transaction } from '../finance/transactions/entities/transaction.entity';
@@ -23,9 +24,12 @@ import {
   UpdateSaleDto,
   CreateSaleTypeDto,
   ApproveSaleDto,
+  ShipSaleDto,
 } from './dto/sale.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
 import { FinanceHelper as FH } from '../../common/utils/finance.helper';
+import { AccountingLedger } from '../parties/entities/ledger.entity';
+import { InternalEventBus } from '../../common/services/event-bus.service';
 import { DateUtils } from '../../common/utils/date.utils';
 import dayjs from 'dayjs';
 
@@ -39,6 +43,9 @@ export class SalesService {
     @InjectRepository(SaleType) private saleTypeRepo: Repository<SaleType>,
     private dataSource: DataSource,
     private sequenceGenerator: SequenceGeneratorService,
+    private stocksService: StocksService,
+    private logsService: LogsService,
+    private eventBus: InternalEventBus,
   ) {}
 
   // ────── SALE TYPES ──────
@@ -300,7 +307,6 @@ export class SalesService {
       if (!sale) throw new NotFoundException('Satış bulunamadı');
       if (sale.status !== 'draft') throw new BadRequestException('Sadece taslak (draft) durumundaki siparişler onaylanabilir.');
 
-      // PESIMISTIC LOCKING: Cariyi kilitle ki bakiye kontrolü ve güncellemesi sırasında başka işlem girmesin
       const party = await queryRunner.manager.findOne(Party, { 
         where: { id: sale.partyId },
         lock: { mode: 'pessimistic_write' }
@@ -309,79 +315,37 @@ export class SalesService {
 
       const tlGrandTotal = FH.mul(sale.grandTotal, sale.exchangeRate);
 
-      // KREDİ LİMİT KONTROLÜ
+      // KREDİ LİMİT KONTROLÜ (Still needed before approval)
       if (party.creditLimit.gt(0) && (FH.add(party.balance, tlGrandTotal)).gt(party.creditLimit)) {
          throw new BadRequestException(`Cari limit aşıldı! Firmanın Kredi Limiti: ${party.creditLimit}. Sipariş sonrası bakiye: ${FH.add(party.balance, tlGrandTotal)} olmaktadır. İşlem gerçekleştirilemez.`);
       }
 
-      // STOK DÜŞME
-      // DB-02: Deadlock Prevention - Sıralı Kilitleme (Ordered Locking)
-      // Kalemleri Item ID'ye göre sıralıyoruz ki eşzamanlı onaylarda deadlock oluşmasın.
-      const sortedItems = [...sale.items].sort((a, b) => a.itemId - b.itemId);
+      sale.status = 'approved';
+      sale.departmentId = dto.departmentId;
+      sale.updatedBy = userId || null;
+      await queryRunner.manager.save(Sale, sale);
 
-      for (const saleItem of sortedItems) {
-        const stock = await queryRunner.manager.findOne(Stock, {
-          where: { itemId: saleItem.itemId, departmentId: dto.departmentId },
-          lock: { mode: 'pessimistic_write' },
-        });
-
-        if (!stock || stock.quantity.lt(saleItem.quantity)) {
-          throw new BadRequestException(`Yetersiz stok durumu. (Ürün ID: ${saleItem.itemId}, Depo ID: ${dto.departmentId}) Üretim emri açmanız veya mal alımı yapmanız gerekebilir.`);
-        }
-
-        const quantityBefore = stock.quantity;
-        const quantityAfter = FH.sub(quantityBefore, saleItem.quantity);
-
-        // Atomic update
-        await queryRunner.manager.update(Stock, stock.id, {
-          quantity: () => `quantity - ${saleItem.quantity}`,
-          updatedBy: userId,
-        });
-
-        await queryRunner.manager.save(queryRunner.manager.create(StockMovement, {
-          stockId: stock.id, quantity: saleItem.quantity, quantityBefore, quantityAfter,
-          type: 'out', referenceType: 'sale', referenceId: sale.id, description: `Satış Onayı: ${sale.code}`, createdBy: userId,
-        }));
-      }
-
-      // MÜŞTERİYİ BORÇLANDIR (Bakiyeyi Artır) - Precision-safe Increment
-      await queryRunner.manager.createQueryBuilder()
-        .update(Party)
-        .set({ balance: () => `balance + ${tlGrandTotal.toString()}` })
-        .where('id = :id', { id: party.id })
-        .execute();
-
-      // KAPORANIN FİNANSA KAYDI (Varsa)
-      let finalDepositSaved: Decimal = new Decimal(0);
-      if (sale.deposit.gt(0)) {
-        if (!dto.commercialAccountId) {
-          throw new BadRequestException('Siparişte kapora alınmış. Bu paranın gireceği Finans (Kasa/Banka) hesabını seçmelisiniz.');
-        }
-
-        const txCode = await this.sequenceGenerator.generateTransactionCode(queryRunner, 'MKB');
-        const tlDeposit = FH.mul(sale.deposit, sale.exchangeRate);
-
-        await queryRunner.manager.save(queryRunner.manager.create(Transaction, {
-          code: txCode, partyId: party.id, commercialAccountId: dto.commercialAccountId,
-          amount: sale.deposit, currencyId: sale.currencyId, exchangeRate: sale.exchangeRate,
-          type: 'in', referenceType: 'sale', referenceId: sale.id, date: DateUtils.getToday(),
-          description: `${sale.code} Nolu Sipariş Peşinat / Kaporası`, status: 'completed', createdBy: userId
-        }));
-
-        // Kaporayı müşterinin bakiyesinden geri düşüyoruz (Borcu kapattı) - Precision-safe Decrement
-        await queryRunner.manager.createQueryBuilder()
-          .update(Party)
-          .set({ balance: () => `balance - ${tlDeposit.toString()}` })
-          .where('id = :id', { id: party.id })
-          .execute();
-        finalDepositSaved = tlDeposit;
-      }
-
-      await queryRunner.manager.update(Sale, sale.id, { status: 'approved', updatedBy: userId });
       await queryRunner.commitTransaction();
       
-      this.logger.log(`✅ Sipariş Onaylandı: ${sale.code}, Satış Tutarı: ${tlGrandTotal}, Kapora Düşüşü: ${finalDepositSaved}`);
-      return this.findOne(saleId);
+      // Emit event for decoupled modules (Inventory, Finance)
+      this.eventBus.emit('sale.approved', { 
+        sale, 
+        departmentId: dto.departmentId, 
+        tlGrandTotal,
+        deposit: FH.mul(sale.deposit, sale.exchangeRate),
+        commercialAccountId: dto.commercialAccountId,
+        userId 
+      });
+      
+      this.logsService.logActivity({
+        userId,
+        module: 'sales',
+        action: 'APPROVE_SALE',
+        tag: 'SUCCESS',
+        details: `Satış onaylandı: ${sale.code}, Toplam: ${sale.totalAmount} ${sale.currency?.code || 'TL'}`,
+      });
+
+      return this.findOne(sale.id);
     } catch (error) {
       await queryRunner.rollbackTransaction();
       this.logger.error(`❌ Sipariş Onay Hata: ${error.message}`);
@@ -409,19 +373,11 @@ export class SalesService {
         });
         if (!party) throw new NotFoundException('Cari hesap bulunamadı');
         
-        // 1. Düşülen stokları bul ve depoya geri sok (In)
-        const outMovements = await queryRunner.manager.find(StockMovement, { where: { referenceType: 'sale', referenceId: sale.id, type: 'out' }, relations: ['stock'] });
-        for (const mov of outMovements) {
-           const stock = await queryRunner.manager.findOne(Stock, { where: { id: mov.stockId }});
-           if (stock) {
-              const newQty = FH.add(stock.quantity, mov.quantity);
-              await queryRunner.manager.update(Stock, stock.id, { quantity: newQty });
-              
-              await queryRunner.manager.save(queryRunner.manager.create(StockMovement, {
-                 stockId: stock.id, quantity: mov.quantity, quantityBefore: stock.quantity, quantityAfter: newQty,
-                 type: 'in', referenceType: 'return', referenceId: sale.id, description: `${sale.code} Sipariş İptaliyle Stoka İade`, createdBy: userId
-              }));
-           }
+        // 1. Stok Revert (Eğer sevkiyat yapıldıysa fiziksel iade, sadece onaylandıysa rezervasyon iptali)
+        if (sale.status === 'shipped') {
+           await this.stocksService.revertStockMovementsByReference('sale', sale.id, queryRunner.manager, userId);
+        } else {
+           await this.stocksService.unreserveStockBulk(sale.items, sale.departmentId || 1, queryRunner.manager, userId);
         }
 
         // 2. Bakiyeyi geri al - Atomic Adjustments
@@ -432,7 +388,37 @@ export class SalesService {
         const targetBalance = FH.add(FH.sub(party.balance, tlGrandTotal), tlDeposit);
         await queryRunner.manager.update(Party, party.id, { balance: targetBalance, updatedBy: userId });
 
-        // 3. Fatura ödemesini/Kaporasını iptal edilmiş işaretle
+        // 3. Defter Kayıtlarını Geri Al (Audit Trail)
+        // Satış Borçlandırması Ters Kayıt (Alacak)
+        await queryRunner.manager.save(queryRunner.manager.create(AccountingLedger, {
+          date: DateUtils.getToday(),
+          partyId: party.id,
+          debit: new Decimal(0),
+          credit: tlGrandTotal,
+          transactionId: sale.id,
+          source: 'CANCEL_SALE',
+          description: `${sale.code} Satış İptali - Borç Revert`
+        }));
+
+        // Kapora Alacağı Ters Kayıt (Borç)
+        if (tlDeposit.gt(0)) {
+          const depositTx = await queryRunner.manager.findOne(Transaction, { 
+            where: { referenceType: 'sale', referenceId: sale.id, type: 'in' } 
+          });
+          
+          await queryRunner.manager.save(queryRunner.manager.create(AccountingLedger, {
+            date: DateUtils.getToday(),
+            partyId: party.id,
+            accountId: depositTx?.commercialAccountId,
+            debit: tlDeposit,
+            credit: new Decimal(0),
+            transactionId: sale.id,
+            source: 'CANCEL_DEPOSIT',
+            description: `${sale.code} Kapora İptali - Alacak Revert`
+          }));
+        }
+
+        // 4. Fatura ödemesini/Kaporasını iptal edilmiş işaretle
         await queryRunner.manager.update(Transaction, { referenceType: 'sale', referenceId: sale.id }, { status: 'cancelled', updatedBy: userId });
       }
 
@@ -458,12 +444,11 @@ export class SalesService {
   async getStatus() {
     const firstDayOfMonth = dayjs().startOf('month').toDate();
 
-    // KURLA ÇARPILMIŞ CİRO HESABI EKLENDİ
-    const[stats, pending] = await Promise.all([
+    const [stats, pending] = await Promise.all([
       this.saleRepo.createQueryBuilder('sale')
         .select("SUM(sale.grandTotal * sale.exchangeRate)", "revenue")
         .addSelect("COUNT(*)", "total")
-        .where("sale.createdAt >= :date", { date: DateUtils.formatDate(firstDayOfMonth) })
+        .where("sale.createdAt >= :date", { date: DateUtils.getStartOfDay(firstDayOfMonth) })
         .andWhere("sale.status != 'cancelled'")
         .getRawOne(),
       this.saleRepo.count({ where: { status: 'draft' } }),
@@ -474,5 +459,57 @@ export class SalesService {
       monthlyOrders: Number(stats.total || 0),
       pendingOrders: Number(pending || 0),
     };
+  }
+
+  async shipSale(saleId: number, dto: ShipSaleDto, userId?: number): Promise<Sale> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const sale = await queryRunner.manager.findOne(Sale, { where: { id: saleId }, relations: ['items'] });
+      if (!sale) throw new NotFoundException('Satış bulunamadı');
+      if (sale.status !== 'approved' && sale.status !== 'shipped') {
+        throw new BadRequestException('Sadece onaylanmış veya kısmi sevk edilmiş siparişler sevk edilebilir.');
+      }
+
+      if (!sale.departmentId) throw new BadRequestException('Bu satışın rezerve edildiği depo bilgisi bulunamadı.');
+
+      const shipItems = dto.items || sale.items.map(i => ({ itemId: Number(i.itemId), quantity: Number(i.quantity) }));
+
+      await this.stocksService.finalizeShipmentBulk(
+        shipItems as any,
+        sale.departmentId,
+        queryRunner.manager,
+        { type: 'sale', id: sale.id, description: `Sevkiyat Çıkışı: ${sale.code}` },
+        userId
+      );
+
+      for (const item of shipItems) {
+         const saleItem = sale.items.find(si => Number(si.itemId) === Number(item.itemId));
+         if (saleItem) {
+            saleItem.shippedQuantity = new Decimal(saleItem.shippedQuantity || 0).add(item.quantity);
+            await queryRunner.manager.save(SaleItem, saleItem);
+         }
+      }
+
+      sale.status = 'shipped';
+      sale.updatedBy = userId || null;
+      await queryRunner.manager.save(Sale, sale);
+
+      await queryRunner.commitTransaction();
+
+      this.logsService.logActivity({
+        userId, module: 'sales', action: 'SHIP_SALE', tag: 'SUCCESS',
+        details: `Sevkiyat yapıldı: ${sale.code}`
+      });
+
+      return this.findOne(sale.id);
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 }

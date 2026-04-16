@@ -18,16 +18,54 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const log_entity_1 = require("./entities/log.entity");
+const rxjs_1 = require("rxjs");
+const operators_1 = require("rxjs/operators");
 let LogsService = LogsService_1 = class LogsService {
     constructor(logRepository) {
         this.logRepository = logRepository;
         this.logger = new common_1.Logger(LogsService_1.name);
+        this.logSubject = new rxjs_1.Subject();
     }
-    async findAll(limit = 100) {
-        return this.logRepository.find({
-            order: { createdAt: 'DESC' },
-            take: limit,
+    onModuleInit() {
+        this.logger.log('LogsService initialized (Batch Logger enabled).');
+        this.logSubscription = this.logSubject.pipe((0, operators_1.bufferTime)(5000), (0, operators_1.filter)(logs => logs.length > 0)).subscribe(async (logs) => {
+            try {
+                const entities = this.logRepository.create(logs);
+                await this.logRepository.save(entities);
+            }
+            catch (err) {
+                this.logger.error(`Failed to save batched logs: ${err.message}`);
+            }
         });
+    }
+    onModuleDestroy() {
+        if (this.logSubscription) {
+            this.logSubscription.unsubscribe();
+        }
+    }
+    async findAll(query) {
+        const qb = this.logRepository.createQueryBuilder('log');
+        if (query.search) {
+            qb.where('(log.username LIKE :s OR log.fullName LIKE :s OR log.action LIKE :s OR log.module LIKE :s OR log.details LIKE :s)', { s: `%${query.search}%` });
+        }
+        if (query.module) {
+            qb.andWhere('log.module = :module', { module: query.module });
+        }
+        qb.orderBy(`log.${query.sortBy || 'createdAt'}`, query.sortOrder || 'DESC');
+        qb.skip(query.skip).take(query.limit);
+        const [data, total] = await qb.getManyAndCount();
+        return {
+            data,
+            meta: {
+                total,
+                page: query.page || 1,
+                limit: query.limit || 20,
+                totalPages: Math.ceil(total / (query.limit || 20))
+            }
+        };
+    }
+    logActivity(data) {
+        this.logSubject.next(data);
     }
     async addLog(data) {
         const log = this.logRepository.create(data);

@@ -22,6 +22,7 @@ let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGenera
     async generateItemCode(queryRunner, itemCodeGroupId) {
         const codeGroup = await queryRunner.manager.findOne(item_code_group_entity_1.ItemCodeGroup, {
             where: { id: itemCodeGroupId },
+            lock: { mode: 'pessimistic_write' },
         });
         if (!codeGroup) {
             throw new common_1.NotFoundException(`Item code group bulunamadı: ${itemCodeGroupId}`);
@@ -33,12 +34,23 @@ let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGenera
         });
         let currentNumber;
         if (!sequence) {
-            sequence = queryRunner.manager.create(item_code_sequence_entity_1.ItemCodeSequence, {
-                itemCodeGroupId,
-                currentNumber: 1,
-            });
-            await queryRunner.manager.save(sequence);
-            currentNumber = 1;
+            try {
+                sequence = queryRunner.manager.create(item_code_sequence_entity_1.ItemCodeSequence, {
+                    itemCodeGroupId,
+                    currentNumber: 1,
+                });
+                await queryRunner.manager.save(sequence);
+                currentNumber = 1;
+            }
+            catch (e) {
+                sequence = await queryRunner.manager.findOne(item_code_sequence_entity_1.ItemCodeSequence, {
+                    where: { itemCodeGroupId },
+                    lock: { mode: 'pessimistic_write' },
+                });
+                if (!sequence)
+                    throw e;
+                currentNumber = sequence.currentNumber;
+            }
         }
         else {
             currentNumber = sequence.currentNumber;
@@ -53,6 +65,7 @@ let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGenera
     async generateSaleCode(queryRunner, saleTypeId) {
         const saleType = await queryRunner.manager.findOne(sale_type_entity_1.SaleType, {
             where: { id: saleTypeId },
+            lock: { mode: 'pessimistic_write' },
         });
         if (!saleType) {
             throw new common_1.NotFoundException(`Sale type bulunamadı: ${saleTypeId}`);
@@ -64,12 +77,23 @@ let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGenera
         });
         let currentNumber;
         if (!sequence) {
-            sequence = queryRunner.manager.create(sale_sequence_entity_1.SaleSequence, {
-                saleTypeId,
-                currentNumber: 1,
-            });
-            await queryRunner.manager.save(sequence);
-            currentNumber = 1;
+            try {
+                sequence = queryRunner.manager.create(sale_sequence_entity_1.SaleSequence, {
+                    saleTypeId,
+                    currentNumber: 1,
+                });
+                await queryRunner.manager.save(sequence);
+                currentNumber = 1;
+            }
+            catch (e) {
+                sequence = await queryRunner.manager.findOne(sale_sequence_entity_1.SaleSequence, {
+                    where: { saleTypeId },
+                    lock: { mode: 'pessimistic_write' },
+                });
+                if (!sequence)
+                    throw e;
+                currentNumber = sequence.currentNumber;
+            }
         }
         else {
             currentNumber = sequence.currentNumber;
@@ -88,12 +112,23 @@ let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGenera
         });
         let currentNumber;
         if (!sequence) {
-            sequence = queryRunner.manager.create(production_sequence_entity_1.ProductionSequence, {
-                prefix,
-                currentNumber: 1,
-            });
-            await queryRunner.manager.save(sequence);
-            currentNumber = 1;
+            try {
+                sequence = queryRunner.manager.create(production_sequence_entity_1.ProductionSequence, {
+                    prefix,
+                    currentNumber: 1,
+                });
+                await queryRunner.manager.save(sequence);
+                currentNumber = 1;
+            }
+            catch (e) {
+                sequence = await queryRunner.manager.findOne(production_sequence_entity_1.ProductionSequence, {
+                    where: { prefix },
+                    lock: { mode: 'pessimistic_write' },
+                });
+                if (!sequence)
+                    throw e;
+                currentNumber = sequence.currentNumber;
+            }
         }
         else {
             currentNumber = sequence.currentNumber;
@@ -112,12 +147,23 @@ let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGenera
         });
         let currentNumber;
         if (!sequence) {
-            sequence = queryRunner.manager.create(transaction_sequence_entity_1.TransactionSequence, {
-                prefix,
-                currentNumber: 1,
-            });
-            await queryRunner.manager.save(sequence);
-            currentNumber = 1;
+            try {
+                sequence = queryRunner.manager.create(transaction_sequence_entity_1.TransactionSequence, {
+                    prefix,
+                    currentNumber: 1,
+                });
+                await queryRunner.manager.save(sequence);
+                currentNumber = 1;
+            }
+            catch (e) {
+                sequence = await queryRunner.manager.findOne(transaction_sequence_entity_1.TransactionSequence, {
+                    where: { prefix },
+                    lock: { mode: 'pessimistic_write' },
+                });
+                if (!sequence)
+                    throw e;
+                currentNumber = sequence.currentNumber;
+            }
         }
         else {
             currentNumber = sequence.currentNumber;

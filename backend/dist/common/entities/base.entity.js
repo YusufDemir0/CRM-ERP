@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BaseEntity = void 0;
 const typeorm_1 = require("typeorm");
+const record_state_enum_1 = require("../enums/record-state.enum");
 class BaseEntity {
 }
 exports.BaseEntity = BaseEntity;
@@ -19,7 +20,7 @@ __decorate([
     __metadata("design:type", Number)
 ], BaseEntity.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'tinyint', default: 1 }),
+    (0, typeorm_1.Column)({ type: 'tinyint', default: record_state_enum_1.RecordState.ACTIVE }),
     __metadata("design:type", Number)
 ], BaseEntity.prototype, "state", void 0);
 __decorate([

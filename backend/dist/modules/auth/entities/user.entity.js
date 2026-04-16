@@ -11,9 +11,11 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.User = void 0;
 const typeorm_1 = require("typeorm");
+const class_transformer_1 = require("class-transformer");
 const base_entity_1 = require("../../../common/entities/base.entity");
 const department_entity_1 = require("../../departments/entities/department.entity");
 const role_entity_1 = require("./role.entity");
+const user_permission_entity_1 = require("./user-permission.entity");
 let User = class User extends base_entity_1.BaseEntity {
 };
 exports.User = User;
@@ -22,6 +24,7 @@ __decorate([
     __metadata("design:type", String)
 ], User.prototype, "username", void 0);
 __decorate([
+    (0, class_transformer_1.Exclude)(),
     (0, typeorm_1.Column)({ name: 'password_hash', type: 'varchar', length: 255 }),
     __metadata("design:type", String)
 ], User.prototype, "passwordHash", void 0);
@@ -51,6 +54,14 @@ __decorate([
     __metadata("design:type", Number)
 ], User.prototype, "failedLoginAttempts", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'locked_until', type: 'timestamp', nullable: true }),
+    __metadata("design:type", Object)
+], User.prototype, "lockedUntil", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'token_version', type: 'int', default: 1 }),
+    __metadata("design:type", Number)
+], User.prototype, "tokenVersion", void 0);
+__decorate([
     (0, typeorm_1.ManyToMany)(() => role_entity_1.Role),
     (0, typeorm_1.JoinTable)({
         name: 'user_roles',
@@ -59,9 +70,13 @@ __decorate([
     }),
     __metadata("design:type", Array)
 ], User.prototype, "roles", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => user_permission_entity_1.UserPermission, (up) => up.user),
+    __metadata("design:type", Array)
+], User.prototype, "userPermissions", void 0);
 exports.User = User = __decorate([
     (0, typeorm_1.Entity)('users'),
-    (0, typeorm_1.Index)("UQ_USERNAME_ACTIVE", ["username"], { where: "deleted_at IS NULL", unique: true }),
-    (0, typeorm_1.Index)("UQ_EMAIL_ACTIVE", ["email"], { where: "deleted_at IS NULL", unique: true })
+    (0, typeorm_1.Index)("UQ_USERNAME_ACTIVE", ["username"]),
+    (0, typeorm_1.Index)("UQ_EMAIL_ACTIVE", ["email"])
 ], User);
 //# sourceMappingURL=user.entity.js.map

@@ -11,8 +11,11 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Party = void 0;
 const typeorm_1 = require("typeorm");
+const class_transformer_1 = require("class-transformer");
+const decimal_js_1 = require("decimal.js");
 const base_entity_1 = require("../../../common/entities/base.entity");
 const currency_entity_1 = require("../../finance/currencies/entities/currency.entity");
+const decimal_transformer_1 = require("../../../common/transformers/decimal.transformer");
 let Party = class Party extends base_entity_1.BaseEntity {
 };
 exports.Party = Party;
@@ -33,6 +36,10 @@ __decorate([
     __metadata("design:type", Object)
 ], Party.prototype, "phone2", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'tax_office', type: 'varchar', length: 100, nullable: true }),
+    __metadata("design:type", Object)
+], Party.prototype, "taxOffice", void 0);
+__decorate([
     (0, typeorm_1.Column)({ name: 'tax_number', type: 'varchar', length: 20, nullable: true }),
     __metadata("design:type", Object)
 ], Party.prototype, "taxNumber", void 0);
@@ -45,17 +52,23 @@ __decorate([
     __metadata("design:type", Object)
 ], Party.prototype, "address", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 2, default: 0 }),
-    __metadata("design:type", Number)
+    (0, typeorm_1.Column)({ name: 'city_id', type: 'int', nullable: true }),
+    __metadata("design:type", Object)
+], Party.prototype, "cityId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'district_name', type: 'varchar', length: 100, nullable: true }),
+    __metadata("design:type", Object)
+], Party.prototype, "districtName", void 0);
+__decorate([
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], Party.prototype, "balance", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'credit_limit_plus', type: 'decimal', precision: 15, scale: 2, default: 0 }),
-    __metadata("design:type", Number)
-], Party.prototype, "creditLimitPlus", void 0);
-__decorate([
-    (0, typeorm_1.Column)({ name: 'credit_limit_minus', type: 'decimal', precision: 15, scale: 2, default: 0 }),
-    __metadata("design:type", Number)
-], Party.prototype, "creditLimitMinus", void 0);
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'credit_limit', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
+], Party.prototype, "creditLimit", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'payment_terms', type: 'varchar', length: 50, nullable: true }),
     __metadata("design:type", Object)

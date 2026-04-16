@@ -18,22 +18,46 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const department_entity_1 = require("./entities/department.entity");
 const department_type_entity_1 = require("./entities/department-type.entity");
+const user_entity_1 = require("../auth/entities/user.entity");
+const stock_entity_1 = require("../inventory/stocks/entities/stock.entity");
 let DepartmentsService = class DepartmentsService {
-    constructor(deptRepo, typeRepo) {
+    constructor(deptRepo, typeRepo, userRepo, stockRepo) {
         this.deptRepo = deptRepo;
         this.typeRepo = typeRepo;
+        this.userRepo = userRepo;
+        this.stockRepo = stockRepo;
     }
     async findAll(query) {
         const qb = this.deptRepo.createQueryBuilder('dept')
             .leftJoinAndSelect('dept.departmentType', 'type')
             .leftJoinAndSelect('dept.commercialAccount', 'account');
         if (query.search) {
-            qb.where('(dept.name LIKE :s OR dept.abbreviation LIKE :s OR dept.description LIKE :s OR type.name LIKE :s OR account.name LIKE :s)', { s: `%${query.search}%` });
+            qb.andWhere('(dept.name LIKE :s OR dept.abbreviation LIKE :s OR dept.description LIKE :s OR type.name LIKE :s OR account.name LIKE :s)', { s: `%${query.search}%` });
+        }
+        if (query.departmentTypeId) {
+            qb.andWhere('dept.departmentTypeId = :typeId', { typeId: query.departmentTypeId });
+        }
+        if (query.commercialAccountId) {
+            qb.andWhere('dept.commercialAccountId = :accountId', { accountId: query.commercialAccountId });
         }
         if (query.state !== undefined) {
             qb.andWhere('dept.state = :state', { state: query.state });
         }
-        qb.orderBy(`dept.${query.sortBy || 'name'}`, query.sortOrder || 'ASC');
+        const allowedSortMap = {
+            'name': 'dept.name',
+            'abbreviation': 'dept.abbreviation',
+            'createdAt': 'dept.createdAt',
+            'departmentType.name': 'type.name',
+            'type.name': 'type.name',
+            'commercialAccount.name': 'account.name',
+            'account.name': 'account.name',
+            'state': 'dept.state'
+        };
+        const sortField = allowedSortMap[query.sortBy || ''] || 'dept.name';
+        qb.orderBy(sortField, query.sortOrder || 'ASC');
+        if (sortField !== 'dept.createdAt') {
+            qb.addOrderBy('dept.createdAt', 'DESC');
+        }
         qb.skip(query.skip).take(query.limit);
         const [data, total] = await qb.getManyAndCount();
         return {
@@ -56,12 +80,31 @@ let DepartmentsService = class DepartmentsService {
     }
     async update(id, dto, userId) {
         const dept = await this.findOne(id);
-        Object.assign(dept, dto);
+        if (dto.name !== undefined)
+            dept.name = dto.name;
+        if (dto.abbreviation !== undefined)
+            dept.abbreviation = dto.abbreviation;
+        if (dto.description !== undefined)
+            dept.description = dto.description;
+        if (dto.departmentTypeId !== undefined)
+            dept.departmentTypeId = dto.departmentTypeId;
+        if (dto.commercialAccountId !== undefined)
+            dept.commercialAccountId = dto.commercialAccountId;
+        if (dto.state !== undefined)
+            dept.state = dto.state;
         dept.updatedBy = userId || null;
         return this.deptRepo.save(dept);
     }
     async softDelete(id) {
         await this.findOne(id);
+        const hasUsers = await this.userRepo.count({ where: { departmentId: id } });
+        if (hasUsers > 0) {
+            throw new common_1.BadRequestException(`Bu departmana kayıtlı ${hasUsers} adet personel bulunduğu için silinemez.`);
+        }
+        const hasStock = await this.stockRepo.count({ where: { departmentId: id } });
+        if (hasStock > 0) {
+            throw new common_1.BadRequestException(`Bu departmanda/depoda kayıtlı stok verisi bulunduğu için silinemez.`);
+        }
         await this.deptRepo.softDelete(id);
     }
     async findAllTypes() {
@@ -75,7 +118,10 @@ let DepartmentsService = class DepartmentsService {
         const type = await this.typeRepo.findOne({ where: { id } });
         if (!type)
             throw new common_1.NotFoundException('Departman türü bulunamadı');
-        Object.assign(type, dto);
+        if (dto.name !== undefined)
+            type.name = dto.name;
+        if (dto.abbreviation !== undefined)
+            type.abbreviation = dto.abbreviation;
         type.updatedBy = userId || null;
         return this.typeRepo.save(type);
     }
@@ -111,7 +157,11 @@ exports.DepartmentsService = DepartmentsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(department_entity_1.Department)),
     __param(1, (0, typeorm_1.InjectRepository)(department_type_entity_1.DepartmentType)),
+    __param(2, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
+    __param(3, (0, typeorm_1.InjectRepository)(stock_entity_1.Stock)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository])
 ], DepartmentsService);
 //# sourceMappingURL=departments.service.js.map

@@ -41,3 +41,9 @@ export declare class SalesQueryDto extends PaginationDto {
     status?: string;
     partyId?: number;
 }
+export declare class ShipSaleDto {
+    items?: {
+        itemId: number;
+        quantity: number;
+    }[];
+}

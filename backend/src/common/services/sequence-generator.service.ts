@@ -15,8 +15,10 @@ export class SequenceGeneratorService {
     queryRunner: QueryRunner,
     itemCodeGroupId: number,
   ): Promise<string> {
+    // ARCH-02: Lock the parent record to serialize generation for this group
     const codeGroup = await queryRunner.manager.findOne(ItemCodeGroup, {
       where: { id: itemCodeGroupId },
+      lock: { mode: 'pessimistic_write' },
     });
 
     if (!codeGroup) {
@@ -33,12 +35,22 @@ export class SequenceGeneratorService {
     let currentNumber: number;
 
     if (!sequence) {
-      sequence = queryRunner.manager.create(ItemCodeSequence, {
-        itemCodeGroupId,
-        currentNumber: 1,
-      });
-      await queryRunner.manager.save(sequence);
-      currentNumber = 1;
+      try {
+        sequence = queryRunner.manager.create(ItemCodeSequence, {
+          itemCodeGroupId,
+          currentNumber: 1,
+        });
+        await queryRunner.manager.save(sequence);
+        currentNumber = 1;
+      } catch (e) {
+        // Race condition: Someone else created the sequence record while we were looking for it
+        sequence = await queryRunner.manager.findOne(ItemCodeSequence, {
+          where: { itemCodeGroupId },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!sequence) throw e;
+        currentNumber = sequence.currentNumber;
+      }
     } else {
       currentNumber = sequence.currentNumber;
     }
@@ -57,8 +69,10 @@ export class SequenceGeneratorService {
     queryRunner: QueryRunner,
     saleTypeId: number,
   ): Promise<string> {
+    // ARCH-02: Lock the parent record to serialize generation for this type
     const saleType = await queryRunner.manager.findOne(SaleType, {
       where: { id: saleTypeId },
+      lock: { mode: 'pessimistic_write' },
     });
 
     if (!saleType) {
@@ -75,12 +89,21 @@ export class SequenceGeneratorService {
     let currentNumber: number;
 
     if (!sequence) {
-      sequence = queryRunner.manager.create(SaleSequence, {
-        saleTypeId,
-        currentNumber: 1,
-      });
-      await queryRunner.manager.save(sequence);
-      currentNumber = 1;
+      try {
+        sequence = queryRunner.manager.create(SaleSequence, {
+          saleTypeId,
+          currentNumber: 1,
+        });
+        await queryRunner.manager.save(sequence);
+        currentNumber = 1;
+      } catch (e) {
+        sequence = await queryRunner.manager.findOne(SaleSequence, {
+          where: { saleTypeId },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!sequence) throw e;
+        currentNumber = sequence.currentNumber;
+      }
     } else {
       currentNumber = sequence.currentNumber;
     }
@@ -107,12 +130,21 @@ export class SequenceGeneratorService {
     let currentNumber: number;
 
     if (!sequence) {
-      sequence = queryRunner.manager.create(ProductionSequence, {
-        prefix,
-        currentNumber: 1,
-      });
-      await queryRunner.manager.save(sequence);
-      currentNumber = 1;
+      try {
+        sequence = queryRunner.manager.create(ProductionSequence, {
+          prefix,
+          currentNumber: 1,
+        });
+        await queryRunner.manager.save(sequence);
+        currentNumber = 1;
+      } catch (e) {
+        sequence = await queryRunner.manager.findOne(ProductionSequence, {
+          where: { prefix },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!sequence) throw e;
+        currentNumber = sequence.currentNumber;
+      }
     } else {
       currentNumber = sequence.currentNumber;
     }
@@ -139,12 +171,21 @@ export class SequenceGeneratorService {
     let currentNumber: number;
 
     if (!sequence) {
-      sequence = queryRunner.manager.create(TransactionSequence, {
-        prefix,
-        currentNumber: 1,
-      });
-      await queryRunner.manager.save(sequence);
-      currentNumber = 1;
+      try {
+        sequence = queryRunner.manager.create(TransactionSequence, {
+          prefix,
+          currentNumber: 1,
+        });
+        await queryRunner.manager.save(sequence);
+        currentNumber = 1;
+      } catch (e) {
+        sequence = await queryRunner.manager.findOne(TransactionSequence, {
+          where: { prefix },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!sequence) throw e;
+        currentNumber = sequence.currentNumber;
+      }
     } else {
       currentNumber = sequence.currentNumber;
     }

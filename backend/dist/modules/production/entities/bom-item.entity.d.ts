@@ -1,9 +1,10 @@
+import { Decimal } from 'decimal.js';
 import { Bom } from './bom.entity';
 import { Item } from '../../inventory/items/entities/item.entity';
 export declare class BomItem {
     bomId: number;
     itemId: number;
-    quantity: number;
+    quantity: Decimal;
     description: string | null;
     createdBy: number | null;
     createdAt: Date;

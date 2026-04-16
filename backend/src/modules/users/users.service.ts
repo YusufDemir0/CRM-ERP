@@ -1,8 +1,11 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+import { Repository, In } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '../auth/entities/user.entity';
+import { Role } from '../auth/entities/role.entity';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
 
@@ -11,6 +14,10 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private userRepo: Repository<User>,
+    @InjectRepository(Role)
+    private roleRepo: Repository<Role>,
+    @Inject(CACHE_MANAGER)
+    private cacheManager: Cache,
   ) {}
 
   async findAll(query: PaginationDto): Promise<PaginatedResult<User>> {
@@ -77,12 +84,30 @@ export class UsersService {
       createdBy: currentUserId || null,
     });
 
+    if (dto.roleIds && dto.roleIds.length > 0) {
+      user.roles = await this.roleRepo.find({
+        where: { id: In(dto.roleIds) }
+      });
+    }
+
     return this.userRepo.save(user);
   }
 
   async update(id: number, dto: UpdateUserDto, currentUserId?: number): Promise<User> {
     const user = await this.findOne(id);
     
+    if (dto.username && dto.username !== user.username) {
+      const existing = await this.userRepo.findOne({ where: { username: dto.username } });
+      if (existing && existing.id !== id) throw new ConflictException('Kullanıcı adı zaten mevcut');
+      user.username = dto.username;
+    }
+
+    if (dto.email && dto.email !== user.email) {
+      const existing = await this.userRepo.findOne({ where: { email: dto.email } });
+      if (existing && existing.id !== id) throw new ConflictException('Email zaten mevcut');
+      user.email = dto.email;
+    }
+
     // Şifre güncellenmek isteniyorsa güvenli şekilde hash'le
     if (dto.password && dto.password.trim() !== '') {
       const salt = await bcrypt.genSalt(12);
@@ -96,6 +121,16 @@ export class UsersService {
     if (dto.email !== undefined) user.email = dto.email;
     if (dto.phone !== undefined) user.phone = dto.phone;
     if (dto.departmentId !== undefined) user.departmentId = dto.departmentId;
+
+    if (dto.roleIds !== undefined) {
+      if (dto.roleIds.length > 0) {
+        user.roles = await this.roleRepo.find({
+          where: { id: In(dto.roleIds) }
+        });
+      } else {
+        user.roles = [];
+      }
+    }
     
     if (dto.state !== undefined && user.state !== dto.state) {
       user.state = dto.state;
@@ -104,7 +139,15 @@ export class UsersService {
     }
 
     user.updatedBy = currentUserId || null;
-    return this.userRepo.save(user);
+    const savedUser = await this.userRepo.save(user);
+
+    // SEC-07: Immediate Cache Invalidation
+    // If state or tokenVersion changed, clear the cache to enforce immediate redirection/logout
+    if (dto.password || dto.state !== undefined) {
+      await this.cacheManager.del(`user_state_${id}`);
+    }
+
+    return savedUser;
   }
 
   async softDelete(id: number, currentUserId?: number): Promise<void> {

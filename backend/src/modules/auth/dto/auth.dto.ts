@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, MinLength, IsNumber, IsInt, IsOptional, IsEmail } from 'class-validator';
+import { IsString, IsNotEmpty, MinLength, IsNumber, IsInt, IsOptional, IsEmail, Matches } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class LoginDto {
@@ -20,7 +20,10 @@ export class RegisterDto {
 
   @IsString()
   @IsNotEmpty()
-  @MinLength(6)
+  @MinLength(8, { message: 'Şifre en az 8 karakter olmalıdır' })
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/, {
+    message: 'Şifre en az bir büyük harf, bir küçük harf ve bir rakam içermelidir',
+  })
   password: string;
 
   @IsString()

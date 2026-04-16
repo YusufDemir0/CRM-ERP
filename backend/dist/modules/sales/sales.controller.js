@@ -48,6 +48,9 @@ let SalesController = class SalesController {
     cancel(id, userId) {
         return this.salesService.cancelSale(id, userId);
     }
+    ship(id, dto, userId) {
+        return this.salesService.shipSale(id, dto, userId);
+    }
     remove(id) {
         return this.salesService.softDelete(id);
     }
@@ -129,6 +132,16 @@ __decorate([
     __metadata("design:paramtypes", [Number, Number]),
     __metadata("design:returntype", void 0)
 ], SalesController.prototype, "cancel", null);
+__decorate([
+    (0, common_1.Post)(':id/ship'),
+    (0, permissions_decorator_1.RequirePermissions)('satis_onaylama'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, sale_dto_1.ShipSaleDto, Number]),
+    __metadata("design:returntype", void 0)
+], SalesController.prototype, "ship", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     (0, permissions_decorator_1.RequirePermissions)('satis_silme'),

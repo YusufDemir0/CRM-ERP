@@ -11,10 +11,13 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Transaction = void 0;
 const typeorm_1 = require("typeorm");
+const class_transformer_1 = require("class-transformer");
+const decimal_js_1 = require("decimal.js");
 const base_entity_1 = require("../../../../common/entities/base.entity");
 const party_entity_1 = require("../../../parties/entities/party.entity");
 const commercial_account_entity_1 = require("../../accounts/entities/commercial-account.entity");
 const currency_entity_1 = require("../../currencies/entities/currency.entity");
+const decimal_transformer_1 = require("../../../../common/transformers/decimal.transformer");
 let Transaction = class Transaction extends base_entity_1.BaseEntity {
 };
 exports.Transaction = Transaction;
@@ -31,23 +34,25 @@ __decorate([
     __metadata("design:type", Number)
 ], Transaction.prototype, "commercialAccountId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 2 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 2, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], Transaction.prototype, "amount", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'currency_id', type: 'bigint', nullable: true }),
     __metadata("design:type", Object)
 ], Transaction.prototype, "currencyId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'exchange_rate', type: 'decimal', precision: 15, scale: 6, default: 1 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'exchange_rate', type: 'decimal', precision: 15, scale: 6, default: 1, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], Transaction.prototype, "exchangeRate", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'enum', enum: ['in', 'out'] }),
     __metadata("design:type", String)
 ], Transaction.prototype, "type", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'reference_type', type: 'enum', enum: ['sale', 'purchase', 'manual_adjustment'], nullable: true }),
+    (0, typeorm_1.Column)({ name: 'reference_type', type: 'enum', enum: ['sale', 'purchase', 'manual_adjustment', 'manual'], nullable: true }),
     __metadata("design:type", Object)
 ], Transaction.prototype, "referenceType", void 0);
 __decorate([

@@ -11,9 +11,12 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProductionOrder = void 0;
 const typeorm_1 = require("typeorm");
+const class_transformer_1 = require("class-transformer");
+const decimal_js_1 = require("decimal.js");
 const base_entity_1 = require("../../../common/entities/base.entity");
 const bom_entity_1 = require("./bom.entity");
 const department_entity_1 = require("../../departments/entities/department.entity");
+const decimal_transformer_1 = require("../../../common/transformers/decimal.transformer");
 let ProductionOrder = class ProductionOrder extends base_entity_1.BaseEntity {
 };
 exports.ProductionOrder = ProductionOrder;
@@ -34,28 +37,33 @@ __decorate([
     __metadata("design:type", Object)
 ], ProductionOrder.prototype, "targetDepartmentId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'planned_quantity', type: 'decimal', precision: 15, scale: 4 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'planned_quantity', type: 'decimal', precision: 15, scale: 4, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], ProductionOrder.prototype, "plannedQuantity", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'produced_quantity', type: 'decimal', precision: 15, scale: 4, default: 0 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'produced_quantity', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], ProductionOrder.prototype, "producedQuantity", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'wastage_quantity', type: 'decimal', precision: 15, scale: 4, default: 0 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'wastage_quantity', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], ProductionOrder.prototype, "wastageQuantity", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'enum', enum: ['draft', 'planned', 'in_progress', 'completed', 'cancelled'], default: 'draft' }),
     __metadata("design:type", String)
 ], ProductionOrder.prototype, "status", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'unit_cost', type: 'decimal', precision: 15, scale: 4, default: 0 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'unit_cost', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], ProductionOrder.prototype, "unitCost", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'total_cost', type: 'decimal', precision: 15, scale: 4, default: 0 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'total_cost', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], ProductionOrder.prototype, "totalCost", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'start_date', type: 'date', nullable: true }),

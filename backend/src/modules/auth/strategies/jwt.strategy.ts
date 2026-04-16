@@ -1,12 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { DataSource } from 'typeorm';
 import { User } from '../entities/user.entity';
-import { UnauthorizedException } from '@nestjs/common';
 import { RecordState } from '../../../common/enums/record-state.enum';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 export interface JwtPayload {
   sub: number;
@@ -19,7 +20,8 @@ export interface JwtPayload {
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     configService: ConfigService,
-    private dataSource: DataSource
+    private dataSource: DataSource,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache
   ) {
     super({
       jwtFromRequest: (req: Request) => {
@@ -34,16 +36,30 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
-    const user = await this.dataSource.getRepository(User).findOne({
-      where: { id: payload.sub },
-      select: ['id', 'state', 'tokenVersion']
-    });
+    const cacheKey = `user_state_${payload.sub}`;
+    let userState = await this.cacheManager.get<{ state: RecordState, tokenVersion: number }>(cacheKey);
 
-    if (!user || user.state !== RecordState.ACTIVE) {
-      throw new UnauthorizedException('Kullanıcı hesabı pasif veya bulunamadı.');
+    if (!userState) {
+      const user = await this.dataSource.getRepository(User).findOne({
+        where: { id: payload.sub },
+        select: ['id', 'state', 'tokenVersion']
+      });
+      
+      if (!user) {
+        throw new UnauthorizedException('Kullanıcı bulunamadı.');
+      }
+
+      userState = { state: user.state, tokenVersion: user.tokenVersion };
+      await this.cacheManager.set(cacheKey, userState, 60000); // Cache for 60 seconds
     }
 
-    if (user.tokenVersion !== payload.tokenVersion) {
+    if (userState.state !== RecordState.ACTIVE) {
+      await this.cacheManager.del(cacheKey);
+      throw new UnauthorizedException('Kullanıcı hesabı pasif.');
+    }
+
+    if (userState.tokenVersion !== payload.tokenVersion) {
+      await this.cacheManager.del(cacheKey);
       throw new UnauthorizedException('Oturum sonlandırılmış veya geçersiz.');
     }
 

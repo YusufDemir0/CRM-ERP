@@ -1,56 +1,86 @@
-import React, { useState, useEffect } from 'react';
-import { departmentsAPI, accountsAPI } from '../../services/api';
-import { FiEdit2, FiArchive, FiRefreshCw } from 'react-icons/fi';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { departmentsAPI } from '../../services/api';
+import { 
+  FiEdit2, FiArchive, FiRefreshCw, FiSearch, FiPlus, 
+  FiFilter, FiBriefcase, FiActivity, FiUsers, FiGlobe
+} from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { confirmDialog } from '../../utils/confirmDialog';
-import { useQuickCreate } from '../../context/QuickCreateContext';
+import { useQuickCreateStore } from '../../store/useQuickCreateStore';
+import { useSort } from '../../hooks/useSort';
+import { DataTable, Column } from '../../components/common/DataTable';
+import { PaginationControls } from '../../components/common/PaginationControls';
 
-/** Sadece harf ve boşluk (Türkçe dahil) — sayı yasak */
-const onlyLetters = (val: string) => val.replace(/[0-9]/g, '');
-/** Kısaltma: sadece büyük harf, rakam ve boşluk yok, max 4 */
-const onlyAbbrLetters = (val: string) => val.replace(/[^A-ZÇĞİÖŞÜa-zçğıöşü]/g, '').toLocaleUpperCase('tr-TR');
+import { Department } from '../../types';
 
 export default function DepartmentsPage() {
-  const [departments, setDepartments] = useState<any[]>([]);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterTab, setFilterTab] = useState<'active' | 'passive' | 'all'>('active');
-  const { openCreate } = useQuickCreate();
+  const { openCreate } = useQuickCreateStore();
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'name', order: 'ASC' });
 
-  const fetchData = async () => {
-    try {
-      const depRes = await departmentsAPI.getAll({ limit: 100 });
-      setDepartments(depRes.data.data);
-    } catch (error) {
-      console.error(error);
+  const { data: departmentsData, isLoading: loading } = useQuery({
+    queryKey: ['departments', page, limit, debouncedSearch, filterTab, sort],
+    queryFn: async () => {
+      const res = await departmentsAPI.getAll({ 
+        page, 
+        limit, 
+        search: debouncedSearch,
+        state: filterTab === 'all' ? undefined : (filterTab === 'active' ? 1 : 0),
+        sortBy: sort.key,
+        sortOrder: sort.order
+      });
+      return res.data;
     }
-  };
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const departments: Department[] = departmentsData?.data || [];
 
-  const filteredDepartments = departments
-    .filter(d => {
-      const s = searchTerm.toLowerCase();
-      const tabMatch = filterTab === 'all' || (filterTab === 'active' ? d.state === 1 : d.state === 0);
-      
-      const textMatch = 
-        d.name?.toLowerCase().includes(s) || 
-        d.description?.toLowerCase().includes(s) || 
-        d.abbreviation?.toLowerCase().includes(s) ||
-        d.departmentType?.name?.toLowerCase().includes(s) ||
-        d.commercialAccount?.name?.toLowerCase().includes(s);
+  const { sortedData, sortConfigs, toggleSort } = useSort<Department>(
+    departments, 
+    [{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }],
+    (configs) => {
+      if (configs.length > 0) {
+        setSort({ 
+          key: configs[0].key, 
+          order: configs[0].direction.toUpperCase() as 'ASC' | 'DESC' 
+        });
+        setPage(1);
+      }
+    }
+  );
 
-      return tabMatch && textMatch;
-    })
-    .sort((a, b) => b.state - a.state);
+  // Search Debounce
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const paginationMeta = departmentsData?.meta || { total: 0, page: 1, limit: 20, totalPages: 0 };
+
+  const mutation = useMutation({
+    mutationFn: ({ id, state }: { id: number; state: number }) => departmentsAPI.toggleState(id, state),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
+      toast.success("Durum güncellendi.");
+    },
+    onError: () => toast.error("Hata oluştu.")
+  });
 
   const handleFormSuccess = () => {
-    fetchData();
+    queryClient.invalidateQueries({ queryKey: ['departments'] });
     toast.success("Departman bilgileri kaydedildi.");
   };
 
-  const handleEdit = (dept: any) => {
+  const handleEdit = (dept: Department) => {
     openCreate('department', {
       editingId: dept.id,
       initialData: {
@@ -67,65 +97,159 @@ export default function DepartmentsPage() {
   const toggleState = async (id: number, currentState: number) => {
     const confirmed = await confirmDialog(currentState === 1 ? 'Departmanı arşivlemek istediğinize emin misiniz?' : 'Departman tekrar aktif edilecektir. Onaylıyor musunuz?', currentState === 1);
     if (confirmed) {
-      await departmentsAPI.toggleState(id, currentState);
-      fetchData();
+      mutation.mutate({ id, state: currentState });
     }
   };
 
-  return (
-    <div className="page-container">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <div>
-          <h2 style={{ color: 'var(--primary)', marginBottom: '10px' }}>Organizasyon & Departmanlar</h2>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button className={`btn ${filterTab === 'active' ? 'btn-primary' : ''}`} onClick={() => setFilterTab('active')}>Aktif Kayıtlar</button>
-            <button className={`btn ${filterTab === 'passive' ? 'btn-primary' : ''}`} onClick={() => setFilterTab('passive')}>Arşiv / Pasif</button>
-            <button className={`btn ${filterTab === 'all' ? 'btn-primary' : ''}`} onClick={() => setFilterTab('all')}>Tümü</button>
+  const columns: Column<Department>[] = [
+    { 
+      header: 'BİRİM ADI', 
+      accessor: (d) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ 
+            width: '40px', height: '40px', borderRadius: '12px', 
+            background: 'var(--primary-glow)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--primary)',
+            fontSize: '18px'
+          }}>
+            <FiBriefcase />
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, color: 'var(--on-surface)', fontSize: '14px' }}>{d.name}</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600, display: 'flex', gap: '6px' }}>
+              {d.abbreviation ? `#${d.abbreviation}` : 'BİRİM KODU YOK'}
+              {d.state === 0 && <span style={{ color: 'var(--error)', fontWeight: 900 }}>• PASİF</span>}
+            </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '15px' }}>
-          <input type="text" placeholder="İsim, Açıklama, Kısa Kod ara..." className="search-bar" style={{ width: '400px' }} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-          <button className="btn btn-primary" onClick={() => {
-            openCreate('department', {
-              onSuccess: handleFormSuccess
-            });
-          }}>+ YENİ DEPARTMAN</button>
+      ),
+      sortKey: 'name'
+    },
+    { 
+      header: 'TÜR / KATEGORİ', 
+      accessor: (d) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ 
+            padding: '4px 12px', borderRadius: '8px', 
+            background: 'var(--surface-container)', color: 'var(--secondary)',
+            fontSize: '11px', fontWeight: 800, textTransform: 'uppercase'
+          }}>
+            {d.departmentType?.name || 'GENEL'}
+          </div>
+        </div>
+      ),
+      sortKey: 'departmentType.name'
+    },
+    { 
+      header: 'FİNANSAL BAĞLANTI', 
+      accessor: (d) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <FiGlobe size={13} color="var(--primary)" />
+          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--on-surface-variant)' }}>
+            {d.commercialAccount?.name || 'NAKİT / MERKEZ'}
+          </span>
+        </div>
+      ),
+      sortKey: 'commercialAccount.name'
+    },
+    { 
+      header: 'AÇIKLAMA', 
+      accessor: (d) => <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 500 }}>{d.description || 'NOT BELİRTİLMEMİŞ'}</span>
+    }
+  ];
+
+  return (
+    <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+      
+      {/* 🔴 HEADER SECTION */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div>
+          <div style={{ 
+            display: 'inline-flex', alignItems: 'center', gap: '8px', 
+            background: 'var(--primary-glow)', color: 'var(--primary)', 
+            padding: '6px 14px', borderRadius: '12px', fontSize: '12px', 
+            fontWeight: 800, marginBottom: '16px'
+          }}>
+            <FiUsers /> ORGANİZASYON ŞEMASI
+          </div>
+          <h1 style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--on-surface)' }}>
+            Şirket <span style={{ color: 'var(--primary)' }}>Departmanları</span>
+          </h1>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', background: 'var(--surface-container-low)', padding: '4px', borderRadius: '14px', border: '1px solid var(--border)' }}>
+            {[
+              { id: 'active', label: 'Aktif', icon: <FiActivity /> },
+              { id: 'passive', label: 'Arşiv', icon: <FiArchive /> },
+              { id: 'all', label: 'Tümü', icon: <FiFilter /> }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => { setFilterTab(tab.id as any); setPage(1); }}
+                style={{
+                  height: '36px', padding: '0 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 700,
+                  display: 'flex', alignItems: 'center', gap: '8px', border: 'none', transition: '0.2s',
+                  background: filterTab === tab.id ? 'white' : 'transparent',
+                  color: filterTab === tab.id ? 'var(--primary)' : 'var(--text-muted)',
+                  boxShadow: filterTab === tab.id ? 'var(--shadow-md)' : 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                {tab.icon} {tab.label}
+              </button>
+            ))}
+          </div>
+          <button className="btn btn-primary" style={{ height: '44px', boxShadow: '0 10px 20px var(--primary-glow)' }} onClick={() => {
+            openCreate('department', { onSuccess: handleFormSuccess });
+          }}>
+            <FiPlus size={18} /> Yeni Departman
+          </button>
         </div>
       </div>
 
-      <div className="table-card">
-        <table>
-          <thead>
-            <tr>
-              <th>DEPARTMAN ADI</th>
-              <th>TÜR/KATEGORİ</th>
-              <th>KISA KOD</th>
-              <th>AÇIKLAMA</th>
-              <th>BAĞLI HESAP (KASA/BANKA)</th>
-              <th>İŞLEMLER</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredDepartments.map((dept) => (
-              <tr key={dept.id} style={{ opacity: dept.state === 0 ? 0.5 : 1, background: dept.state === 0 ? 'var(--surface-container-low)' : 'inherit' }}>
-                <td><strong>{dept.name}</strong> {dept.state === 0 && <span className="badge" style={{ background: '#94a3b8', color: 'white' }}>ARŞİVLENDİ</span>}</td>
-                <td><span className="badge badge-outline">{dept.departmentType?.name || 'Lütfen Seçiniz'}</span></td>
-                <td><span className="badge">{dept.abbreviation || '-'}</span></td>
-                <td>{dept.description}</td>
-                <td>{dept.commercialAccount?.name || <span style={{ color: 'gray' }}>Lütfen Seçiniz</span>}</td>
-                <td style={{ display: 'flex', gap: '5px' }}>
-                  <button className="btn-icon" title="Düzenle" onClick={() => handleEdit(dept)}>
-                    <FiEdit2 size={16} />
-                  </button>
-                  <button className="btn-icon" title={dept.state === 1 ? 'Arşivle' : 'Aktif Et'} style={{ color: dept.state === 1 ? 'var(--error)' : 'var(--success)' }} onClick={() => toggleState(dept.id, dept.state)}>
-                    {dept.state === 1 ? <FiArchive size={16} /> : <FiRefreshCw size={16} />}
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {filteredDepartments.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: 'gray' }}>Kayıt bulunamadı.</td></tr>}
-          </tbody>
-        </table>
+      {/* 🟠 SEARCH & FILTERS */}
+      <div className="glass-panel" style={{ padding: '20px', borderRadius: '24px', display: 'flex', gap: '20px', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: 1 }}>
+          <FiSearch style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <input 
+            type="text" 
+            placeholder="Departman adı, kod veya açıklama ile ara..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ paddingLeft: '48px', height: '52px', border: 'none', background: 'var(--surface-container-low)' }}
+          />
+        </div>
+        <button className="btn btn-secondary" style={{ height: '52px', background: 'white' }}>
+          <FiFilter /> Gelişmiş Filtrele
+        </button>
+      </div>
+
+      {/* 🟡 DATA TABLE SECTION */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <DataTable<Department>
+          data={sortedData}
+          columns={columns}
+          isLoading={loading}
+          sortConfigs={sortConfigs}
+          onSort={toggleSort}
+          getRowKey={(d) => d.id}
+          hasState={(d) => d.state === 1}
+          onEdit={handleEdit}
+          onArchive={(d) => toggleState(d.id, 1)}
+          onRestore={(d) => toggleState(d.id, 0)}
+          getRowOpacity={(d) => d.state === 0 ? 0.5 : 1}
+        />
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+          <PaginationControls 
+            meta={paginationMeta} 
+            onPageChange={setPage} 
+            onLimitChange={setLimit} 
+            loading={loading}
+          />
+        </div>
       </div>
     </div>
   );

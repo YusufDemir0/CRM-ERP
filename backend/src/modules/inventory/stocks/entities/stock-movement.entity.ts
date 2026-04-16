@@ -1,20 +1,22 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Decimal } from 'decimal.js';
 import { BaseEntity } from '../../../../common/entities/base.entity';
 import { Stock } from './stock.entity';
+import { DecimalTransformer } from '../../../../common/transformers/decimal.transformer';
 
 @Entity('stock_movements')
 export class StockMovement extends BaseEntity {
   @Column({ name: 'stock_id', type: 'bigint' })
   stockId: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 4 })
-  quantity: number;
+  @Column({ type: 'decimal', precision: 15, scale: 4, transformer: new DecimalTransformer() })
+  quantity: Decimal;
 
-  @Column({ name: 'quantity_before', type: 'decimal', precision: 15, scale: 4 })
-  quantityBefore: number;
+  @Column({ name: 'quantity_before', type: 'decimal', precision: 15, scale: 4, transformer: new DecimalTransformer() })
+  quantityBefore: Decimal;
 
-  @Column({ name: 'quantity_after', type: 'decimal', precision: 15, scale: 4 })
-  quantityAfter: number;
+  @Column({ name: 'quantity_after', type: 'decimal', precision: 15, scale: 4, transformer: new DecimalTransformer() })
+  quantityAfter: Decimal;
 
   @Column({ type: 'enum', enum: ['in', 'out'] })
   type: 'in' | 'out';

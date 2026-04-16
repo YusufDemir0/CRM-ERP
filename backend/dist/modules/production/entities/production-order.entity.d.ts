@@ -1,3 +1,4 @@
+import { Decimal } from 'decimal.js';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { Bom } from './bom.entity';
 import { Department } from '../../departments/entities/department.entity';
@@ -6,12 +7,12 @@ export declare class ProductionOrder extends BaseEntity {
     bomId: number;
     sourceDepartmentId: number | null;
     targetDepartmentId: number | null;
-    plannedQuantity: number;
-    producedQuantity: number;
-    wastageQuantity: number;
+    plannedQuantity: Decimal;
+    producedQuantity: Decimal;
+    wastageQuantity: Decimal;
     status: 'draft' | 'planned' | 'in_progress' | 'completed' | 'cancelled';
-    unitCost: number;
-    totalCost: number;
+    unitCost: Decimal;
+    totalCost: Decimal;
     startDate: string | null;
     endDate: string | null;
     notes: string | null;

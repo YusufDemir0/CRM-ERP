@@ -30,11 +30,18 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('INVALID_USERNAME');
+      // SEC-07: Constant-time comparison simulation to prevent username enumeration
+      await bcrypt.compare(dto.password, '$2b$12$L7p8Y3W0m6vJ0.rXvC9.7OqE0G9qG9qG9qG9qG9qG9qG9qG9qG9qG');
+      throw new UnauthorizedException('Kullanıcı adı veya şifre hatalı');
     }
 
     if (user.state === 2) {
-      throw new UnauthorizedException('Hesabınız kilitlenmiştir. Lütfen sistem yöneticisi ile iletişime geçiniz.');
+      throw new UnauthorizedException('Hesabınız kalıcı olarak kilitlenmiştir. Lütfen sistem yöneticisi ile iletişime geçiniz.');
+    }
+
+    if (user.lockedUntil && new Date() < user.lockedUntil) {
+      const remainingMinutes = Math.ceil((user.lockedUntil.getTime() - new Date().getTime()) / 60000);
+      throw new UnauthorizedException(`Çok fazla hatalı deneme. Hesabınız ${remainingMinutes} dakika daha kilitli kalacaktır.`);
     }
 
     if (user.state !== 1) {
@@ -45,19 +52,22 @@ export class AuthService {
     if (!isMatch) {
       // Increment failed attempts
       const failedAttempts = (user.failedLoginAttempts || 0) + 1;
-      const updates: any = { failedLoginAttempts: failedAttempts };
+      const updates: Partial<User> = { failedLoginAttempts: failedAttempts };
       
-      if (failedAttempts >= 5) { // Increased from 3 to 5 for better UX
-        updates.state = 2; // Locked
+      if (failedAttempts >= 5) {
+         // Lock for 15 minutes
+         const lockDuration = 15 * 60 * 1000;
+         updates.lockedUntil = new Date(Date.now() + lockDuration);
+         updates.failedLoginAttempts = 0; // Reset counter but lock is active
       }
       
       await this.userRepo.update(user.id, updates);
-      throw new UnauthorizedException('INVALID_PASSWORD');
+      throw new UnauthorizedException('Kullanıcı adı veya şifre hatalı');
     }
 
-    // Reset failed attempts on success
-    if (user.failedLoginAttempts > 0) {
-      await this.userRepo.update(user.id, { failedLoginAttempts: 0 });
+    // Reset failed attempts & lockout on success
+    if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+      await this.userRepo.update(user.id, { failedLoginAttempts: 0, lockedUntil: null });
     }
 
     const payload = {

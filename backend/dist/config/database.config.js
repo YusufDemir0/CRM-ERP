@@ -14,7 +14,7 @@ exports.default = (0, config_1.registerAs)('database', () => ({
     charset: 'utf8mb4',
     timezone: '+00:00',
     extra: {
-        connectionLimit: 10,
+        connectionLimit: 50,
     },
 }));
 //# sourceMappingURL=database.config.js.map

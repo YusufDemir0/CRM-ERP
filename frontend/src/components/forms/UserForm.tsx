@@ -1,14 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Department, Role } from '../../types';
 import { departmentsAPI, rolesAPI, usersAPI } from '../../services/api';
 import { FiCheck, FiPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import { useQuickCreate } from '../../context/QuickCreateContext';
+import { useQuickCreateStore } from '../../store/useQuickCreateStore';
+
+interface UserFormData {
+  fullName: string;
+  username: string;
+  password: string;
+  email: string;
+  phone: string;
+  departmentId: string;
+  selectedRoles: number[];
+}
 
 interface UserFormProps {
-  initialData?: any;
+  initialData?: Partial<UserFormData>;
   editingId?: number | null;
-  onSuccess: (data: any) => void;
+  onSuccess: (data: unknown) => void;
   onCancel: () => void;
 }
 
@@ -18,19 +28,43 @@ export const UserForm: React.FC<UserFormProps> = ({
   onSuccess,
   onCancel,
 }) => {
-  const [formData, setFormData] = useState({
-    fullName: initialData?.fullName || '',
-    username: initialData?.username || '',
-    password: initialData?.password || '',
-    email: initialData?.email || '',
-    phone: initialData?.phone || '',
-    departmentId: initialData?.departmentId || '',
-    selectedRoles: initialData?.selectedRoles || [] as number[],
-  });
-  const [countryCode, setCountryCode] = useState('+90');
   const [departments, setDepartments] = useState<Department[]>([]);
   const [availableRoles, setAvailableRoles] = useState<Role[]>([]);
-  const { openCreate } = useQuickCreate();
+  const { openCreate, updateCache, getCache, clearCache } = useQuickCreateStore();
+
+  const [formData, setFormData] = useState<UserFormData>(() => {
+    // Only use cache if NOT editing
+    if (!editingId) {
+      const cached = getCache('user') as { formData?: UserFormData; countryCode?: string } | null;
+      if (cached?.formData) return cached.formData;
+    }
+    
+    return {
+      fullName: initialData?.fullName || '',
+      username: initialData?.username || '',
+      password: initialData?.password || '',
+      email: initialData?.email || '',
+      phone: initialData?.phone || '',
+      departmentId: initialData?.departmentId || '',
+      selectedRoles: initialData?.selectedRoles || [],
+    };
+  });
+
+  const [countryCode, setCountryCode] = useState(() => {
+    // Only use cache if NOT editing
+    if (!editingId) {
+      const cached = getCache('user') as { formData?: UserFormData; countryCode?: string } | null;
+      if (cached?.countryCode) return cached.countryCode;
+    }
+    return '+90';
+  });
+
+  // Caching strategy: Update only on blur or unmount to prevent re-render loops
+  const saveDraft = useCallback(() => {
+    if (!editingId) {
+      updateCache('user', { formData, countryCode });
+    }
+  }, [formData, countryCode, updateCache, editingId]);
 
   useEffect(() => {
     async function fetchData() {
@@ -51,7 +85,7 @@ export const UserForm: React.FC<UserFormProps> = ({
   useEffect(() => {
     if (initialData?.phone?.startsWith('+90 ')) {
       setCountryCode('+90');
-      setFormData((prev: any) => ({ ...prev, phone: initialData.phone.substring(4) }));
+      setFormData(prev => ({ ...prev, phone: initialData.phone?.substring(4) || '' }));
     }
   }, [initialData]);
 
@@ -68,7 +102,7 @@ export const UserForm: React.FC<UserFormProps> = ({
   };
 
   const handleRoleToggle = (roleId: number) => {
-    setFormData((prev: any) => ({
+    setFormData(prev => ({
       ...prev,
       selectedRoles: prev.selectedRoles.includes(roleId)
         ? prev.selectedRoles.filter((id: number) => id !== roleId)
@@ -76,26 +110,59 @@ export const UserForm: React.FC<UserFormProps> = ({
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSuccess({
-      ...formData,
-      fullPhone: `${countryCode} ${formData.phone}`,
-    });
+    if (formData.selectedRoles.length === 0) {
+      toast.error("En az bir rol seçilmelidir.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        username: formData.username,
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: `${countryCode} ${formData.phone}`,
+        departmentId: formData.departmentId ? Number(formData.departmentId) : undefined,
+        roleIds: formData.selectedRoles,
+        password: formData.password || undefined,
+      };
+
+      if (editingId) {
+        const res = await usersAPI.update(editingId, payload);
+        toast.success("Kullanıcı güncellendi.");
+        onSuccess(res.data);
+      } else {
+        const res = await usersAPI.create(payload as any);
+        toast.success("Yeni kullanıcı eklendi.");
+        clearCache('user');
+        onSuccess(res.data);
+      }
+    } catch (error: any) {
+      console.error(error);
+      const msg = error.response?.data?.message || "İşlem başarısız";
+      toast.error(Array.isArray(msg) ? msg[0] : msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleAddDepartment = () => {
     openCreate('department', {
-      onSuccess: (newDept: any) => {
-        setFormData((prev: any) => ({ ...prev, departmentId: newDept.id }));
+      onSuccess: (newDept: unknown) => {
+        const dept = newDept as { id: number };
+        setFormData(prev => ({ ...prev, departmentId: String(dept.id) }));
         // Refresh departments
-        departmentsAPI.getAll({ limit: 100 }).then((res: any) => setDepartments(res.data.data.filter((d: any) => d.state === 1)));
+        departmentsAPI.getAll({ limit: 100 }).then(res => setDepartments(res.data.data.filter((d: Department) => d.state === 1)));
       }
     });
   };
 
   return (
-    <form onSubmit={handleSubmit} className="login-form">
+    <form onSubmit={handleSubmit} onBlur={saveDraft} className="login-form">
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <div className="form-group">
@@ -121,6 +188,18 @@ export const UserForm: React.FC<UserFormProps> = ({
               />
             </div>
             <div className="form-group" style={{ flex: 1 }}>
+              <label>E-Posta *</label>
+              <input
+                required
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value.toLowerCase() })}
+                placeholder="ahmet@ermay.com"
+              />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '15px' }}>
+            <div className="form-group" style={{ flex: 1 }}>
               <label>Şifre {editingId && <span style={{ fontSize: '9px', color: 'red' }}>(Boş=Aynı)</span>}</label>
               <input
                 type="password"
@@ -131,32 +210,6 @@ export const UserForm: React.FC<UserFormProps> = ({
                 placeholder="****"
               />
             </div>
-          </div>
-          <div style={{ display: 'flex', gap: '15px' }}>
-            <div className="form-group" style={{ flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label>Departman *</label>
-                <button
-                  type="button"
-                  className="btn-link"
-                  style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary)', marginBottom: '5px' }}
-                  onClick={handleAddDepartment}
-                >
-                  <FiPlus size={12} /> YENİ
-                </button>
-              </div>
-              <select
-                required
-                className="uppercase-input"
-                value={formData.departmentId}
-                onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
-              >
-                <option value="">Lütfen Seçiniz</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-            </div>
             <div className="form-group" style={{ flex: 1 }}>
               <label>Telefon *</label>
               <div style={{ display: 'flex', gap: '5px' }}>
@@ -166,6 +219,30 @@ export const UserForm: React.FC<UserFormProps> = ({
                 <input required style={{ flex: 1 }} className="uppercase-input tabular-nums" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: formatPhone(e.target.value) })} placeholder="5XX XXX XX XX" />
               </div>
             </div>
+          </div>
+          <div className="form-group">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label>Departman *</label>
+              <button
+                type="button"
+                className="btn-link"
+                style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary)', marginBottom: '5px' }}
+                onClick={handleAddDepartment}
+              >
+                <FiPlus size={12} /> YENİ
+              </button>
+            </div>
+            <select
+              required
+              className="uppercase-input"
+              value={formData.departmentId}
+              onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
+            >
+              <option value="">Lütfen Seçiniz</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -183,10 +260,10 @@ export const UserForm: React.FC<UserFormProps> = ({
       </div>
 
       <div style={{ display: 'flex', gap: '15px', marginTop: '30px' }}>
-        <button type="submit" className="btn btn-primary" disabled={formData.selectedRoles.length === 0} style={{ flex: 1, height: '50px' }}>
-          <FiCheck /> {editingId ? 'GÜNCELLE' : 'PERSONELİ KAYDET'}
+        <button type="submit" className="btn btn-primary" disabled={formData.selectedRoles.length === 0 || isSubmitting} style={{ flex: 1, height: '50px' }}>
+          {isSubmitting ? <FiPlus className="spin" /> : <FiCheck />} {editingId ? 'GÜNCELLE' : 'PERSONELİ KAYDET'}
         </button>
-        <button type="button" className="btn" style={{ flex: 0.5, background: '#e2e8f0', height: '50px' }} onClick={onCancel}>İPTAL</button>
+        <button type="button" className="btn" style={{ flex: 0.5, background: '#e2e8f0', height: '50px' }} onClick={onCancel} disabled={isSubmitting}>İPTAL</button>
       </div>
     </form>
   );

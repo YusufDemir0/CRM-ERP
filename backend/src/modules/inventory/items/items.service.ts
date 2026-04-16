@@ -5,7 +5,17 @@ import { Item } from './entities/item.entity';
 import { ItemType } from './entities/item-type.entity';
 import { QuantityType } from './entities/quantity-type.entity';
 import { ItemCodeGroup } from './entities/item-code-group.entity';
-import { CreateItemDto, UpdateItemDto, CreateItemTypeDto, CreateQuantityTypeDto, CreateItemCodeGroupDto, ItemsQueryDto } from '../dto/inventory.dto';
+import { 
+  CreateItemDto, 
+  UpdateItemDto, 
+  CreateItemTypeDto, 
+  CreateQuantityTypeDto, 
+  CreateItemCodeGroupDto, 
+  ItemsQueryDto,
+  UpdateItemTypeDto,
+  UpdateQuantityTypeDto,
+  UpdateItemCodeGroupDto 
+} from '../dto/inventory.dto';
 import { SequenceGeneratorService } from '../../../common/services/sequence-generator.service';
 import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
 import { CurrenciesService } from '../../finance/currencies/currencies.service';
@@ -36,21 +46,40 @@ export class ItemsService {
     if (query.search) {
       qb.andWhere('(item.name LIKE :s OR item.code LIKE :s OR item.code1 LIKE :s OR item.code2 LIKE :s OR item.description LIKE :s OR item.notes LIKE :s OR itemType.name LIKE :s OR provider.name LIKE :s)', { s: `%${query.search}%` });
     }
-    if (query.itemTypeId) {
-      qb.andWhere('item.itemTypeId = :typeId', { typeId: query.itemTypeId });
-    }
-    if (query.state !== undefined) {
-      qb.andWhere('item.state = :state', { state: query.state });
-    }
+    if (query.itemTypeId) qb.andWhere('item.itemTypeId = :typeId', { typeId: query.itemTypeId });
+    if (query.providerId) qb.andWhere('item.providerId = :providerId', { providerId: query.providerId });
+    if (query.currencyId) qb.andWhere('item.currencyId = :currencyId', { currencyId: query.currencyId });
+    if (query.state !== undefined) qb.andWhere('item.state = :state', { state: query.state });
+    
     if (query.critical === 'true') {
       qb.andWhere('(SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE item_id = item.id) < item.criticalLimit');
       qb.andWhere('item.criticalLimit > 0');
     }
 
-    // Validate sortBy against allowed columns to prevent SQL injection
-    const allowedSortCols = ['createdAt', 'name', 'code', 'purchasePrice', 'salePrice', 'criticalLimit'];
-    const sortCol = allowedSortCols.includes(query.sortBy || '') ? query.sortBy! : 'createdAt';
-    qb.orderBy(`item.${sortCol}`, query.sortOrder || 'DESC');
+    // Dynamic Advanced Filters (Sidebar filters)
+    Object.keys(query).forEach(key => {
+      const skipKeys = ['page', 'limit', 'search', 'sortBy', 'sortOrder', 'skip', 'itemTypeId', 'providerId', 'currencyId', 'state', 'critical'];
+      const allowedItemKeys = ['name', 'code', 'code1', 'code2', 'description', 'notes', 'barcode', 'taxRate'];
+      if (!skipKeys.includes(key) && allowedItemKeys.includes(key) && query[key as keyof typeof query] !== undefined) {
+        qb.andWhere(`item.${key} LIKE :${key}`, { [key]: `%${query[key as keyof typeof query]}%` });
+      }
+    });
+
+    // FE-01: Correct prefixed sorting for joined tables
+    const sortFieldMap: Record<string, string> = {
+      'name': 'item.name',
+      'code': 'item.code',
+      'purchasePrice': 'item.purchasePrice',
+      'salePrice': 'item.salePrice',
+      'criticalLimit': 'item.criticalLimit',
+      'createdAt': 'item.createdAt',
+      'itemType.name': 'itemType.name',
+      'provider.name': 'provider.name',
+      'state': 'item.state'
+    };
+    
+    const sortCol = sortFieldMap[query.sortBy || ''] || 'item.createdAt';
+    qb.orderBy(sortCol, query.sortOrder || 'DESC');
     qb.skip(query.skip).take(query.limit);
 
     const [data, total] = await qb.getManyAndCount();
@@ -84,8 +113,6 @@ export class ItemsService {
         }
       }
 
-      // DB-05: App-level Unique Check (Code)
-      // Sequence generator zaten uniq üretiyor ama manuel kod desteği için kontrol şart.
       const code = await this.sequenceGenerator.generateItemCode(queryRunner, dto.itemCodeGroupId);
       
       const existing = await queryRunner.manager.findOne(Item, { where: { code } });
@@ -113,7 +140,6 @@ export class ItemsService {
   async update(id: number, dto: UpdateItemDto, userId?: number): Promise<Item> {
     const item = await this.findOne(id);
 
-    // DB-05: Uniqueness Check for Update
     if (dto.code && dto.code !== item.code) {
       const existing = await this.itemRepo.findOne({ where: { code: dto.code } });
       if (existing && existing.id !== id) {
@@ -121,35 +147,42 @@ export class ItemsService {
       }
     }
 
-    // Modernize mapping with strict field control
-    const fields = [
-      'name', 'itemTypeId', 'itemCodeGroupId', 'code', 'code1', 'code2',
-      'image', 'currencyId', 'quantityTypeId', 'description', 'notes',
-      'providerId', 'state'
-    ];
+    // Modernize mapping with strict field control and no 'any'
+    if (dto.name !== undefined) item.name = dto.name;
+    if (dto.itemTypeId !== undefined) item.itemTypeId = dto.itemTypeId;
+    if (dto.itemCodeGroupId !== undefined) item.itemCodeGroupId = dto.itemCodeGroupId;
+    if (dto.code !== undefined) item.code = dto.code;
+    if (dto.code1 !== undefined) item.code1 = dto.code1;
+    if (dto.code2 !== undefined) item.code2 = dto.code2;
+    if (dto.image !== undefined) item.image = dto.image;
+    if (dto.currencyId !== undefined) item.currencyId = dto.currencyId;
+    if (dto.quantityTypeId !== undefined) item.quantityTypeId = dto.quantityTypeId;
+    if (dto.description !== undefined) item.description = dto.description;
+    if (dto.notes !== undefined) item.notes = dto.notes;
+    if (dto.providerId !== undefined) item.providerId = dto.providerId;
+    
+    if (dto.state !== undefined) {
+      if (dto.state === 0) await this.checkUsage(id);
+      item.state = dto.state;
+    }
 
-    fields.forEach((field: any) => {
-      if (dto[field as keyof UpdateItemDto] !== undefined) {
-        (item as any)[field] = dto[field as keyof UpdateItemDto];
-      }
-    });
-
-    // Explicit Decimal fields
-    const decimalFields = ['criticalLimit', 'purchasePrice', 'salePrice', 'netPrice', 'kdv'];
-    decimalFields.forEach((field: any) => {
-      if (dto[field as keyof UpdateItemDto] !== undefined) {
-        (item as any)[field] = new Decimal(dto[field as keyof UpdateItemDto] as any);
-      }
-    });
+    // Decimal fields (Already transformed by DTO)
+    if (dto.criticalLimit !== undefined) item.criticalLimit = dto.criticalLimit;
+    if (dto.purchasePrice !== undefined) item.purchasePrice = dto.purchasePrice;
+    if (dto.salePrice !== undefined) item.salePrice = dto.salePrice;
+    if (dto.netPrice !== undefined) item.netPrice = dto.netPrice;
+    if (dto.kdv !== undefined) item.kdv = dto.kdv;
 
     item.updatedBy = userId || null;
     return this.itemRepo.save(item);
   }
 
   async softDelete(id: number): Promise<void> {
-    const item = await this.findOne(id);
-    
-    // DB-04: Stok varsa silmeyi engelle
+    await this.checkUsage(id);
+    await this.itemRepo.softDelete(id);
+  }
+
+  async checkUsage(id: number): Promise<void> {
     const Stock = (await import('../stocks/entities/stock.entity')).Stock;
     const totalStock = await this.dataSource.getRepository(Stock).createQueryBuilder('stock')
       .where('stock.itemId = :id', { id })
@@ -157,17 +190,16 @@ export class ItemsService {
       .getRawOne();
     
     if (totalStock && totalStock.sum && new Decimal(totalStock.sum).gt(0)) {
-      throw new BadRequestException(`Stokta ${totalStock.sum} adet bulunan ürün silinemez. Lütfen önce stokları sıfırlayınız.`);
+      throw new BadRequestException(`Stokta ${totalStock.sum} adet bulunan ürün pasife alınamaz/silinemez. Lütfen önce stokları sıfırlayınız.`);
     }
 
-    // Reçete (BOM) kullanımı kontrolü
+    let usageCount = 0;
     const BomItem = (await import('../../production/entities/bom-item.entity')).BomItem;
-    const usageCount = await this.dataSource.getRepository(BomItem).count({ where: { itemId: id } });
+    usageCount = await this.dataSource.getRepository(BomItem).count({ where: { itemId: id } });
+
     if (usageCount > 0) {
       throw new BadRequestException(`Bu ürün ${usageCount} farklı reçetede (BOM) kullanılmaktadır. Önce reçetelerden çıkarılmalıdır.`);
     }
-
-    await this.itemRepo.softDelete(id);
   }
 
   // ────── ITEM TYPES ──────
@@ -181,7 +213,7 @@ export class ItemsService {
     return this.itemTypeRepo.save(type);
   }
 
-  async updateItemType(id: number, dto: Partial<ItemType>, userId?: number): Promise<ItemType> {
+  async updateItemType(id: number, dto: UpdateItemTypeDto, userId?: number): Promise<ItemType> {
     const type = await this.itemTypeRepo.findOne({ where: { id } });
     if (!type) throw new NotFoundException('Ürün tipi bulunamadı');
 
@@ -219,7 +251,7 @@ export class ItemsService {
     return this.codeGroupRepo.save(group);
   }
 
-  async updateItemCodeGroup(id: number, dto: Partial<ItemCodeGroup>, userId?: number): Promise<ItemCodeGroup> {
+  async updateItemCodeGroup(id: number, dto: UpdateItemCodeGroupDto, userId?: number): Promise<ItemCodeGroup> {
     const group = await this.codeGroupRepo.findOne({ where: { id } });
     if (!group) throw new NotFoundException('Ürün kod grubu bulunamadı');
 
@@ -257,11 +289,10 @@ export class ItemsService {
     return this.qtyTypeRepo.save(type);
   }
 
-  async updateQuantityType(id: number, dto: Partial<QuantityType>, userId?: number): Promise<QuantityType> {
+  async updateQuantityType(id: number, dto: UpdateQuantityTypeDto, userId?: number): Promise<QuantityType> {
     const type = await this.qtyTypeRepo.findOne({ where: { id } });
     if (!type) throw new NotFoundException('Birim bulunamadı');
 
-    // If deactivating, check if items use it
     if (dto.state === 0) {
       const activeItems = await this.itemRepo.count({ where: { quantityTypeId: id, state: 1 } });
       if (activeItems > 0) {

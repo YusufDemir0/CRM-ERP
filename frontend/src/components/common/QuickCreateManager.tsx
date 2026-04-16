@@ -1,5 +1,5 @@
 import React from 'react';
-import { useQuickCreate } from '../../context/QuickCreateContext';
+import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 import { DepartmentForm } from '../forms/DepartmentForm';
 import { AccountForm } from '../forms/AccountForm';
 import { UserForm } from '../forms/UserForm';
@@ -9,7 +9,7 @@ import { BomForm } from '../forms/BomForm';
 import { FiX } from 'react-icons/fi';
 
 export const QuickCreateManager: React.FC = () => {
-  const { stack, closeCurrent } = useQuickCreate();
+  const { stack, closeCurrent, clearCache } = useQuickCreateStore();
 
   if (stack.length === 0) return null;
 
@@ -25,7 +25,7 @@ export const QuickCreateManager: React.FC = () => {
             style={{ 
               alignItems: 'flex-start', 
               paddingTop: `${5 + index * 2}%`, 
-              zIndex: 1000 + index, 
+              zIndex: 9000 + index, 
               display: isTop ? 'flex' : 'none',
               overflowY: 'auto'
             }}
@@ -35,6 +35,7 @@ export const QuickCreateManager: React.FC = () => {
                 className="btn-icon circle" 
                 style={{ position: 'absolute', top: '15px', right: '15px' }} 
                 onClick={() => {
+                  clearCache(item.type);
                   item.onCancel();
                   closeCurrent();
                 }}
@@ -46,13 +47,39 @@ export const QuickCreateManager: React.FC = () => {
                 {getTitle(item.type, !!item.editingId)}
               </h3>
 
-              {renderForm(item, () => closeCurrent())}
+              {renderFormInternal(item, () => closeCurrent())}
             </div>
           </div>
         );
       })}
     </>
   );
+
+  function renderFormInternal(item: any, close: () => void) {
+    const props = {
+      initialData: item.initialData,
+      editingId: item.editingId,
+      onSuccess: (data: any) => {
+        item.onSuccess(data);
+        close();
+      },
+      onCancel: () => {
+        clearCache(item.type);
+        item.onCancel();
+        close();
+      }
+    };
+
+    switch (item.type) {
+      case 'user': return <UserForm {...props} />;
+      case 'department': return <DepartmentForm {...props} />;
+      case 'account': return <AccountForm {...props} />;
+      case 'party': return <PartyForm {...props} />;
+      case 'item': return <ItemForm {...props} />;
+      case 'bom': return <BomForm {...props} />;
+      default: return <div>Henüz form hazırlanmadı: {item.type}</div>;
+    }
+  }
 };
 
 function getTitle(type: string, isEditing: boolean) {
@@ -66,28 +93,3 @@ function getTitle(type: string, isEditing: boolean) {
   return titles[type] || 'Hızlı Oluştur';
 }
 
-function renderForm(item: any, close: () => void) {
-  const props = {
-    initialData: item.initialData,
-    editingId: item.editingId,
-    onSuccess: (data: any) => {
-      item.onSuccess(data);
-      close();
-    },
-    onCancel: () => {
-      item.onCancel();
-      close();
-    }
-  };
-
-  switch (item.type) {
-    case 'user': return <UserForm {...props} />;
-    case 'department': return <DepartmentForm {...props} />;
-    case 'account': return <AccountForm {...props} />;
-    case 'party': return <PartyForm {...props} />;
-    case 'item': return <ItemForm {...props} />;
-    case 'bom': return <BomForm {...props} />;
-    // Add other forms as they are created
-    default: return <div>Henüz form hazırlanmadı: {item.type}</div>;
-  }
-}

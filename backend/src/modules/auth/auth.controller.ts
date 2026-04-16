@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 
 import { Throttle } from '@nestjs/throttler';
 
@@ -12,7 +13,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // SEC-05: Login throttle = hesap kilitleme limiti (5)
   @Post('login')
   async login(
     @Body() dto: LoginDto,
@@ -20,21 +21,11 @@ export class AuthController {
   ) {
     const { access_token, user } = await this.authService.login(dto);
 
-    // CSRF Token (Double Submit Cookie Pattern)
-    const csrfToken = require('crypto').randomBytes(32).toString('hex');
-    
     res.cookie('erp_token', access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: 8 * 60 * 60 * 1000, 
-    });
-
-    res.cookie('XSRF-TOKEN', csrfToken, {
-      httpOnly: false, // Must be readable by JS
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 8 * 60 * 60 * 1000,
     });
 
     return { 
@@ -50,7 +41,9 @@ export class AuthController {
     return { message: 'Çıkış başarılı' };
   }
 
-  @Public()
+  // SEC-06: Register endpoint artık Public DEĞİL.
+  // Sadece 'users.create' yetkisine sahip kullanıcılar (admin) kullanıcı oluşturabilir.
+  @RequirePermissions('users.create')
   @Post('register')
   async register(@Body() dto: RegisterDto) {
     await this.authService.register(dto);

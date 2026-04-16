@@ -8,6 +8,7 @@ import { Transaction } from '../finance/transactions/entities/transaction.entity
 import { Department } from '../departments/entities/department.entity';
 import { plainToInstance } from 'class-transformer';
 import { DashboardSummaryDto } from './dto/dashboard-summary.dto';
+import { Decimal } from 'decimal.js';
 import dayjs from 'dayjs';
 
 @Injectable()
@@ -37,40 +38,32 @@ export class DashboardService {
       totalUsers,
       totalParties,
       totalItems,
-      todaySalesRes,
-      thisMonthSales,
-      lastMonthSales,
+      todayTransactions,
+      thisMonthTransactions,
+      lastMonthTransactions,
       recentActions
     ] = await Promise.all([
       this.userRepo.count({ where: { state: 1 } }),
       this.partyRepo.count({ where: { state: 1 } }),
       this.itemRepo.count({ where: { state: 1 } }),
       
-      // Bugünün Satışları
-      this.txRepo.createQueryBuilder('tx')
-        .where('tx.date = :today', { today: todayStr })
-        .andWhere('tx.type = :type', { type: 'in' })
-        .andWhere('tx.status = :status', { status: 'completed' })
-        .select('SUM(tx.amount)', 'total')
-        .getRawOne(),
+      // Bugünün Satışları - Fetch raw for Decimal.js precision
+      this.txRepo.find({
+        where: { date: todayStr, type: 'in', status: 'completed' },
+        select: ['amount', 'exchangeRate']
+      }),
 
       // Bu Ayın İstatistikleri
-      this.txRepo.createQueryBuilder('tx')
-        .where('tx.date BETWEEN :start AND :end', { start: thisMonthStart, end: thisMonthEnd })
-        .andWhere('tx.type = :type', { type: 'in' })
-        .andWhere('tx.status = :status', { status: 'completed' })
-        .select('SUM(tx.amount)', 'revenue')
-        .addSelect('COUNT(tx.id)', 'count')
-        .getRawOne(),
+      this.txRepo.find({
+        where: { date: Between(thisMonthStart, thisMonthEnd), type: 'in', status: 'completed' },
+        select: ['amount', 'exchangeRate']
+      }),
 
       // Geçen Ayın İstatistikleri
-      this.txRepo.createQueryBuilder('tx')
-        .where('tx.date BETWEEN :start AND :end', { start: lastMonthStart, end: lastMonthEnd })
-        .andWhere('tx.type = :type', { type: 'in' })
-        .andWhere('tx.status = :status', { status: 'completed' })
-        .select('SUM(tx.amount)', 'revenue')
-        .addSelect('COUNT(tx.id)', 'count')
-        .getRawOne(),
+      this.txRepo.find({
+        where: { date: Between(lastMonthStart, lastMonthEnd), type: 'in', status: 'completed' },
+        select: ['amount', 'exchangeRate']
+      }),
 
       // Son İşlemler (Gelişmiş)
       this.txRepo.find({
@@ -80,30 +73,35 @@ export class DashboardService {
       })
     ]);
 
-    // Kâr tahmini (Şimdilik cironun %20'si olarak hesaplanıyor, ileride maliyet tabanlı kâr eklenebilir)
-    const thisMonthRevenue = Number(thisMonthSales.revenue || 0);
-    const lastMonthRevenue = Number(lastMonthSales.revenue || 0);
+    const sumTL = (txs: any[]) => txs.reduce((sum, tx) => 
+      sum.plus(new Decimal(tx.amount || 0).mul(new Decimal(tx.exchangeRate || 1))), 
+      new Decimal(0)
+    );
+
+    const todaySales = sumTL(todayTransactions);
+    const thisMonthRevenue = sumTL(thisMonthTransactions);
+    const lastMonthRevenue = sumTL(lastMonthTransactions);
     
     return plainToInstance(DashboardSummaryDto, {
       totalUsers,
       totalParties,
       totalItems,
-      todaySales: Number(todaySalesRes.total || 0),
+      todaySales: todaySales.toString(),
       thisMonth: {
-        revenue: thisMonthRevenue,
-        count: Number(thisMonthSales.count || 0),
-        profit: thisMonthRevenue * 0.20
+        revenue: thisMonthRevenue.toString(),
+        count: thisMonthTransactions.length,
+        profit: thisMonthRevenue.mul(0.20).toString() 
       },
       lastMonth: {
-        revenue: lastMonthRevenue,
-        count: Number(lastMonthSales.count || 0),
-        profit: lastMonthRevenue * 0.20
+        revenue: lastMonthRevenue.toString(),
+        count: lastMonthTransactions.length,
+        profit: lastMonthRevenue.mul(0.20).toString()
       },
       recentActions: recentActions.map(tx => ({
         id: tx.id,
         code: tx.code,
         type: tx.type,
-        amount: Number(tx.amount || 0),
+        amount: tx.amount?.toString() || '0',
         date: tx.date,
         partyName: tx.party?.name || 'Genel İşlem',
         referenceType: tx.referenceType,

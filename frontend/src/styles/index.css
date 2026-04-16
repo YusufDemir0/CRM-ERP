@@ -1,3 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .animate-in {
+    animation: animate-in 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .pulse-slow {
+    animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.3) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer-swipe 2s infinite;
+  }
+}
+
+@keyframes animate-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes shimmer-swipe {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
 
@@ -32,6 +73,7 @@
   --outline: #81b5f6;
 
   --error: #9e3f4e;
+  --error-glow: rgba(158, 63, 78, 0.1);
   --success: #10b981;
   --warning: #f59e0b;
 
@@ -73,7 +115,6 @@ body {
   color: var(--on-surface);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  overflow: hidden;
 }
 
 /* ─── SCROLLBAR ─── */
@@ -273,14 +314,6 @@ body {
 
 .logout-btn:hover {
   color: white;
-}
-
-.search-bar input {
-  background: transparent;
-  border: none;
-  outline: none;
-  font-size: 0.875rem;
-  width: 100%;
 }
 
 /* ─── V2 NAVBAR (Semantic & Functional) ─── */
@@ -491,7 +524,6 @@ tr:hover td {
   0% {
     background-position: -1000px 0;
   }
-
   100% {
     background-position: 1000px 0;
   }
@@ -554,7 +586,6 @@ tr:hover td {
   transition: var(--transition);
 }
 
-/* İkon-only buton — tablo satırlarında kullanılır */
 .btn-icon {
   width: 34px;
   height: 34px;
@@ -618,323 +649,74 @@ tr:hover td {
   :root {
     --sidebar-w: 80px;
   }
-
-  .sidebar-logo p,
-  .nav-link span {
+  .sidebar-logo p, .nav-link span {
     display: none;
   }
-
   .main-content {
     margin-left: var(--sidebar-w);
   }
 }
 
-/* ─── KÜRESEL İŞLENİYOR MODALI ─── */
+/* ─── COGNITIVE ELEMENTS ─── */
 .loader-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 52, 94, 0.7);
-  backdrop-filter: blur(5px);
+  background: rgba(0, 52, 94, 0.4);
+  backdrop-filter: blur(8px);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 9999;
-  overflow-y: auto;
-  padding: 2rem 0;
+  z-index: 9000;
+  animation: fadeIn 0.3s ease-out;
 }
 
-.loader-box {
-  background: white;
-  padding: 2.5rem 3.5rem;
-  border-radius: var(--radius-lg);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-.loader-box h3 {
-  font-size: 1rem;
-  font-weight: 800;
-  color: var(--on-surface);
-  letter-spacing: 0.5px;
-}
-
-.spinner {
-  width: 48px;
-  height: 48px;
-  border: 4px solid var(--surface-container-highest);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: spin 1s infinite cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* ─── YENİ LOGİN EKRANI TASARIMI ─── */
-.login-container {
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: linear-gradient(135deg, var(--background) 0%, var(--surface-container-low) 100%);
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .login-box {
-  width: 100%;
-  max-width: 420px;
   background: var(--surface);
-  padding: 3rem 2.5rem;
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-premium);
+  padding: 2.5rem;
+  border-radius: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 52, 94, 0.25);
   border: 1px solid var(--border);
+  position: relative;
+  max-width: 500px;
+  width: 90%;
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.login-logo {
-  text-align: center;
-  margin-bottom: 2.5rem;
-}
-
-.login-logo h2 {
-  font-size: 2.2rem;
-  font-weight: 900;
-  color: var(--primary);
-  letter-spacing: -1px;
-}
-
-.login-logo p {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  letter-spacing: 3px;
-  text-transform: uppercase;
-}
-
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.form-group label {
-  display: block;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--on-surface-variant);
-  margin-bottom: 0.5rem;
-  text-transform: uppercase;
-}
-
-.uppercase-input {
-  width: 100%;
-  height: 48px;
-  padding: 0 1rem;
-  border-radius: 12px;
-  border: 2px solid var(--border);
-  background: var(--surface-container-low);
-  font-family: inherit;
-  font-weight: 600;
-  font-size: 1rem;
-  text-transform: uppercase;
-  /* Görsel olarak büyük harf tutar */
-  transition: var(--transition);
-  color: var(--on-surface);
-}
-
-.uppercase-input:focus {
-  outline: none;
-  border-color: var(--primary);
-  background: white;
-  box-shadow: 0 0 0 4px var(--primary-glow);
-}
-
-.login-btn {
-  width: 100%;
-  height: 52px;
-  justify-content: center;
-  font-size: 0.95rem;
-  margin-top: 1rem;
+@keyframes slideUp {
+  from { transform: translateY(20px) scale(0.98); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 .login-error {
-  background: #ffe5e5;
-  color: #b00020;
-  border: 1px solid #ffb3b3;
-  padding: 10px;
-  margin-bottom: 15px;
-  border-radius: 6px;
-  font-weight: 500;
-  text-align: center;
-}
-
-/* SAYFA */
-
-.login-page {
-  height: 100vh;
-  background: linear-gradient(135deg,
-      #1e3c72,
-      #2a5298);
-
-  display: flex;
-  justify-content: center;
-  align-items: center;
-
-  font-family: -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
-}
-
-/* CARD */
-
-.login-card {
-  width: 100%;
-  max-width: 380px;
-
-  background: white;
-  border-radius: 14px;
-
-  padding: 35px;
-
-  box-shadow:
-    0 10px 35px rgba(0, 0, 0, 0.2);
-}
-
-/* HEADER */
-
-.login-header {
-  text-align: center;
-  margin-bottom: 25px;
-}
-
-.logo {
-  margin: 0;
-  font-size: 50px;
+  background: var(--error-glow);
+  color: var(--error);
+  padding: 12px;
+  margin-bottom: 20px;
+  border-radius: 12px;
   font-weight: 700;
-  color: #1e3c72;
-}
-
-.subtitle {
-  margin-top: 5px;
-  font-size: 20px;
-  color: #666;
-}
-
-/* ALERT */
-
-.login-alert {
-  background: #ffe5e5;
-  color: #b00020;
-
-  padding: 12px;
-  border-radius: 8px;
-
-  margin-bottom: 18px;
-
-  font-size: 0.85rem;
   text-align: center;
-
-  border: 1px solid #ffb3b3;
+  font-size: 13px;
+  border: 1px solid var(--error);
 }
 
-/* FORM */
-
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.input-group label {
-  font-size: 0.8rem;
-  color: #444;
-  margin-bottom: 4px;
-}
-
-.input-group input {
-  width: 100%;
-
-  padding: 11px 12px;
-
-  border-radius: 8px;
-  border: 1px solid #ccc;
-
-  font-size: 20px;
-
-  transition: all 0.2s;
-}
-
-.input-group input:focus {
-  border-color: #2a5298;
-  outline: none;
-
-  box-shadow:
-    0 0 0 2px rgba(42, 82, 152, 0.15);
-}
-
-/* BUTTON */
-
-.login-button {
-  margin-top: 8px;
-
-  padding: 12px;
-
-  background: linear-gradient(135deg,
-      #2a5298,
-      #1e3c72);
-
-  color: white;
-
-  border: none;
-  border-radius: 8px;
-
-  font-size: 15px;
-  font-weight: 600;
-
-  cursor: pointer;
-
-  transition: all 0.2s;
-}
-
-.login-button:hover {
-  transform: translateY(-1px);
-
-  box-shadow:
-    0 6px 14px rgba(0, 0, 0, 0.2);
-}
-
-/* FOOTER */
-
-.login-footer {
-  margin-top: 20px;
-
-  text-align: center;
-
-  font-size: 12px;
-  color: #888;
-}
-
-/* ─── BASE FORM CONTROLS ─── */
-
+/* Global Form Elements Adjustment */
 input, select, textarea {
   width: 100%;
-  padding: 0.75rem 1rem;
+  height: 48px;
+  padding: 0 16px;
   border-radius: 12px;
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--surface-container);
   background: var(--surface-container-low);
   font-family: inherit;
-  font-size: 0.875rem;
+  font-size: 14px;
   font-weight: 500;
   color: var(--on-surface);
   transition: var(--transition);
@@ -947,21 +729,30 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 4px var(--primary-glow);
 }
 
-select {
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 1rem center;
-  padding-right: 2.5rem;
+label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-input::placeholder, textarea::placeholder {
-  color: #94a3b8;
-  font-weight: 400;
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-/* ─── SCROLLBAR FOR SELECT / DATALIST (Browser Dependent) ─── */
-option {
-  padding: 0.5rem;
-  font-weight: 500;
+.uppercase-input {
+  text-transform: uppercase;
+}
+
+/* FOOTER */
+.login-footer {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
 }

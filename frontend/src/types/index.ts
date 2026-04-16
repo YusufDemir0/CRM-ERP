@@ -19,9 +19,18 @@ export interface User extends BaseEntity {
   failedLoginAttempts?: number;
 }
 
+export interface DepartmentType extends BaseEntity {
+  name: string;
+}
+
 export interface Department extends BaseEntity {
   name: string;
   description?: string;
+  abbreviation?: string;
+  departmentTypeId?: number;
+  departmentType?: DepartmentType;
+  commercialAccountId?: number;
+  commercialAccount?: Account;
 }
 
 export interface Role extends BaseEntity {
@@ -41,12 +50,11 @@ export interface Currency extends BaseEntity {
   code: string;
   name: string;
   symbol: string;
-  exchangeRate: number;
+  exchangeRate: string; // DB-03: Decimal → JSON string
   isDefault: number;
 }
 
 export interface Party extends BaseEntity {
-  [key: string]: any; // Index signature for sorting
   name: string;
   type: 'customer' | 'provider' | 'both';
   phone1?: string | null;
@@ -56,13 +64,23 @@ export interface Party extends BaseEntity {
   address?: string | null;
   addressDetail?: string; // UI only
   districtName?: string; // UI only
-  balance: number;
-  creditLimitPlus: number;
-  creditLimitMinus: number;
+  balance: string; // DB-03: Decimal → JSON string
+  creditLimit: string; // DB-03: Decimal → JSON string
   paymentTerms?: string | null;
   notes?: string | null;
   currencyId?: number | null;
   currency?: Currency;
+}
+
+export interface Account extends BaseEntity {
+  name: string;
+  bankName: string | null;
+  iban: string | null;
+  ibanName: string | null;
+  currencyId: number | null;
+  currency?: Currency;
+  criticalLimit: string; // DB-03: Decimal → JSON string
+  description: string | null;
 }
 
 export interface ItemType extends BaseEntity {
@@ -80,7 +98,6 @@ export interface QuantityType extends BaseEntity {
 }
 
 export interface Item extends BaseEntity {
-  [key: string]: any; // Index signature for sorting
   name: string;
   itemTypeId: number;
   itemType?: ItemType;
@@ -91,13 +108,14 @@ export interface Item extends BaseEntity {
   code2?: string | null;
   criticalLimit: number;
   image?: string | null;
-  purchasePrice: number | null;
-  salePrice: number | null;
-  netPrice: number | null;
+  purchasePrice: string | null; // DB-03: Decimal → JSON string
+  salePrice: string | null; // DB-03: Decimal → JSON string
+  netPrice: string | null; // DB-03: Decimal → JSON string
   currencyId: number | null;
   currency?: Currency;
   quantityTypeId: number;
   quantityType?: QuantityType;
+  totalStock?: number;
   kdv: number;
   description?: string | null;
   notes?: string | null;
@@ -118,13 +136,13 @@ export interface Sale extends BaseEntity {
   saleType?: SaleType;
   currencyId: number | null;
   currency?: Currency;
-  exchangeRate: number;
-  totalAmount: number;
-  discountAmount: number;
-  discountPercent: number;
-  kdv: number;
-  grandTotal: number;
-  deposit: number;
+  exchangeRate: string; // DB-03: Decimal → JSON string
+  totalAmount: string; // DB-03: Decimal → JSON string
+  discountAmount: string; // DB-03: Decimal → JSON string
+  discountPercent: string; // DB-03: Decimal → JSON string
+  kdv: string; // DB-03: Decimal → JSON string
+  grandTotal: string; // DB-03: Decimal → JSON string
+  deposit: string; // DB-03: Decimal → JSON string
   status: 'draft' | 'approved' | 'shipped' | 'invoiced' | 'cancelled';
   notes?: string | null;
   deliveryDate?: string | null;
@@ -135,14 +153,14 @@ export interface SaleItem extends BaseEntity {
   saleId: number;
   itemId: number;
   item?: Item;
-  quantity: number;
-  price: number;
-  discountAmount: number;
-  discountPercent: number;
-  netPrice: number;
-  kdvRate: number;
-  kdvAmount: number;
-  lineTotal: number;
+  quantity: string; // DB-03: Decimal → JSON string
+  price: string; // DB-03: Decimal → JSON string
+  discountAmount: string; // DB-03: Decimal → JSON string
+  discountPercent: string; // DB-03: Decimal → JSON string
+  netPrice: string; // DB-03: Decimal → JSON string
+  kdvRate: string; // DB-03: Decimal → JSON string
+  kdvAmount: string; // DB-03: Decimal → JSON string
+  lineTotal: string; // DB-03: Decimal → JSON string
   description?: string;
 }
 
@@ -179,9 +197,27 @@ export interface ProductionOrder extends BaseEntity {
   startDate?: string | null;
   endDate?: string | null;
   status: 'draft' | 'planned' | 'in_progress' | 'completed' | 'cancelled';
-  unitCost: number;
-  totalCost: number;
+  unitCost: string; // DB-03: Decimal → JSON string
+  totalCost: string; // DB-03: Decimal → JSON string
   notes?: string | null;
+}
+
+export interface Transaction extends BaseEntity {
+  code: string;
+  partyId: number | null;
+  party?: Party;
+  commercialAccountId: number | null;
+  commercialAccount?: Account;
+  amount: string; // DB-03: Decimal → JSON string
+  currencyId: number | null;
+  currency?: Currency;
+  exchangeRate: string; // DB-03: Decimal → JSON string
+  type: 'in' | 'out';
+  referenceType?: string;
+  referenceId?: number;
+  date: string;
+  description?: string;
+  status: 'completed' | 'cancelled';
 }
 
 export interface PaginatedResult<T> {
@@ -194,10 +230,181 @@ export interface PaginatedResult<T> {
   };
 }
 
+
+export interface Stock extends BaseEntity {
+  itemId: number;
+  item?: Item;
+  departmentId: number;
+  department?: Department;
+  quantity: string; // DB-03: Decimal → JSON string
+}
+
+export interface StockMovement extends BaseEntity {
+  stockId: number;
+  itemId: number;
+  item?: Item;
+  departmentId: number;
+  department?: Department;
+  quantity: number;
+  type: 'in' | 'out';
+  referenceType?: string;
+  referenceId?: number;
+  description?: string;
+  previousQuantity: number;
+  newQuantity: number;
+}
+
 export interface PaginationParams {
   page?: number;
   limit?: number;
   search?: string;
   sortBy?: string;
   sortOrder?: 'ASC' | 'DESC';
+  state?: number;
+  [key: string]: string | number | undefined; // For additional query filters
+}
+
+// ────── UTILITY TYPES ──────
+
+/** Type-safe sortable column key extraction (replaces index signature hack) */
+export type SortableColumn<T> = keyof T & string;
+
+// ────── API REQUEST DTOs ──────
+
+export interface CreateUserDto {
+  username: string;
+  password: string;
+  fullName: string;
+  email: string;
+  phone?: string;
+  departmentId?: number;
+}
+
+export interface UpdateUserDto extends Partial<Omit<CreateUserDto, 'password'>> {
+  state?: number;
+  password?: string;
+}
+
+export interface CreatePartyDto {
+  name: string;
+  type: 'customer' | 'provider' | 'both';
+  phone1?: string;
+  phone2?: string;
+  taxNumber?: string;
+  email?: string;
+  address?: string;
+  creditLimit?: string | number;
+  paymentTerms?: string;
+  notes?: string;
+  currencyId?: number;
+}
+
+export type UpdatePartyDto = Partial<CreatePartyDto> & { state?: number };
+
+export interface CreateTransactionDto {
+  partyId?: number;
+  commercialAccountId?: number;
+  amount: string | number;
+  currencyId?: number;
+  type: 'in' | 'out';
+  referenceType?: string;
+  referenceId?: number;
+  date: string;
+  description?: string;
+}
+
+export interface StockAdjustmentDto {
+  itemId: number;
+  departmentId: number;
+  quantity: string | number;
+  type: 'in' | 'out';
+  description?: string;
+  notes?: string;
+}
+
+export interface StockTransferDto {
+  itemId: number;
+  fromDepartmentId: number;
+  toDepartmentId: number;
+  quantity: string | number;
+  description?: string;
+}
+
+export interface Note extends BaseEntity {
+  title: string;
+  content: string;
+  color?: string;
+}
+
+export interface CreateNoteDto {
+  title?: string;
+  content: string;
+  color?: string;
+}
+
+export type UpdateNoteDto = Partial<CreateNoteDto>;
+
+export interface CreateSaleItemDto {
+  itemId: number;
+  quantity: string | number;
+  price: string | number;
+  discountAmount?: string | number;
+  discountPercent?: string | number;
+  kdvRate?: string | number;
+  description?: string;
+}
+
+export interface CreateSaleDto {
+  partyId: number;
+  saleTypeId: number;
+  currencyId?: number;
+  deliveryDate?: string;
+  deposit?: string | number;
+  discountAmount?: string | number;
+  discountPercent?: string | number;
+  items: CreateSaleItemDto[];
+  notes?: string;
+}
+
+export interface ProductionOrderFormData {
+  bomId: string | number;
+  plannedQuantity: string | number;
+  producedQuantity: string | number;
+  wastageQuantity: string | number;
+  status: 'draft' | 'planned' | 'in_progress' | 'completed' | 'cancelled';
+  sourceDepartmentId: string | number;
+  targetDepartmentId: string | number;
+  startDate: string;
+  endDate: string;
+  notes: string;
+}
+
+// ────── SALES WIZARD TYPES ──────
+
+export interface CartItem {
+  item: Item;
+  qty: number | string;
+  price: number | string;
+  discountValue: number | string;
+  discountType: 'amount' | 'percent';
+  kdvRate: number | string;
+  maxQtyDesc?: number;
+}
+
+export interface SalesWizardState {
+  step: number;
+  partyId: string;
+  customerSearch: string;
+  isCustomerDropdownOpen: boolean;
+  saleTypeId: string;
+  currencyId: string;
+  deliveryDate: string;
+  repId: string;
+  invoiceType: 'billed' | 'unbilled' | null;
+  cart: CartItem[];
+  searchTerm: string;
+  genDiscountType: 'amount' | 'percent';
+  genDiscountValue: string;
+  deposit: string;
+  saleNotes: string;
 }

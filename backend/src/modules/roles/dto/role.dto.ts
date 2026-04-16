@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsArray, IsNumber } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsArray, IsNumber, IsIn } from 'class-validator';
 
 export class CreateRoleDto {
   @IsString()
@@ -23,6 +23,7 @@ export class UpdateRoleDto {
 
   @IsOptional()
   @IsNumber()
+  @IsIn([0, 1])
   state?: number;
 }
 
@@ -56,9 +57,11 @@ export class SetUserPermissionDto {
   permissionId: number;
 
   @IsString()
+  @IsIn(['allow', 'deny'])
   effect: 'allow' | 'deny';
 
   @IsString()
+  @IsIn(['global', 'department', 'own'])
   scopeType: 'global' | 'department' | 'own';
 
   @IsOptional()

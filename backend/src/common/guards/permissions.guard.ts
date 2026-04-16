@@ -69,16 +69,18 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
 
-    // ─── BYPASS: Admin rolü kontrolü ───
-    // 'admin' veya 'superadmin' rolüne sahip kullanıcılar tüm endpoint'lere erişebilir
+    // ─── BYPASS: System Admin kontrolü ───
+    // 'isSystemAdmin' bayrağı true olan roller tüm endpoint'lere erişebilir
     const userRoles = await this.userRoleRepo.find({
       where: { userId },
       relations: ['role'],
     });
     const roleIds = userRoles.map((ur) => ur.roleId);
-    const roleNames = userRoles.map((ur) => ur.role?.name?.toLowerCase()).filter(Boolean);
-
-    if (roleNames.includes('admin') || roleNames.includes('superadmin')) {
+    
+    // Güvenlik Düzeltmesi (1.4): Hardcode isim kontrolü yerine DB kolonuna bakıyoruz.
+    const isSystemAdmin = userRoles.some((ur) => ur.role?.isSystemAdmin === true);
+    
+    if (isSystemAdmin) {
       return true;
     }
 

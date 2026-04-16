@@ -1,62 +1,64 @@
+import { Decimal } from 'decimal.js';
+
 /**
- * FinanceHelper — Provides robust rounding and basic arithmetic for currency.
- * Addresses floating-point arithmetic issues (e.g., 0.1 + 0.2 !== 0.3)
- * without requiring external big-decimal libraries.
+ * FinanceHelper — ERP standartlarında yüksek hassasiyetli finansal hesaplamalar sağlar.
+ * JavaScript'in float hatalarını önlemek için decimal.js kullanır.
  */
 export class FinanceHelper {
   private static readonly DEFAULT_DECIMALS = 2;
-  private static readonly PRECISION_DECIMALS = 4; // Use for unit prices
 
   /**
-   * Rounds a number to a specific number of decimal places.
-   * Uses Number.EPSILON to ensure correct rounding of edge cases.
+   * Sayıyı belirtilen ondalık basamağa yuvarlar (Decimal nesnesi olarak).
    */
-  static round(value: number, decimals: number = this.DEFAULT_DECIMALS): number {
-    const factor = Math.pow(10, decimals);
-    return Math.round((value + Number.EPSILON) * factor) / factor;
+  static round(value: Decimal | number | string, decimals: number = this.DEFAULT_DECIMALS): Decimal {
+    return new Decimal(value).toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP);
   }
 
   /**
-   * Calculates KDV (VAT) amount.
+   * KDV tutarını hesaplar.
    */
-  static calculateKdv(matrah: number, rate: number): number {
-    return this.round(matrah * (rate / 100));
+  static calculateKdv(matrah: Decimal | number | string, rate: number): Decimal {
+    const dMatrah = new Decimal(matrah);
+    const dRate = new Decimal(rate).div(100);
+    return this.round(dMatrah.mul(dRate));
   }
 
   /**
-   * Calculates Total (Matrah + KDV).
+   * Toplam tutarı (Matrah + KDV) hesaplar.
    */
-  static calculateTotal(matrah: number, rate: number): number {
-    const kdv = this.calculateKdv(matrah, rate);
-    return this.round(matrah + kdv);
+  static calculateTotal(matrah: Decimal | number | string, rate: number): Decimal {
+    const dMatrah = new Decimal(matrah);
+    const kdv = this.calculateKdv(dMatrah, rate);
+    return this.round(dMatrah.plus(kdv));
   }
 
   /**
-   * Safely adds two numbers and rounds them.
+   * Güvenli Toplama
    */
-  static add(a: number, b: number, decimals: number = this.DEFAULT_DECIMALS): number {
-    return this.round(Number(a) + Number(b), decimals);
+  static add(a: Decimal | number | string, b: Decimal | number | string): Decimal {
+    return new Decimal(a).plus(new Decimal(b));
   }
 
   /**
-   * Safely subtracts two numbers and rounds them.
+   * Güvenli Çıkarma
    */
-  static sub(a: number, b: number, decimals: number = this.DEFAULT_DECIMALS): number {
-    return this.round(Number(a) - Number(b), decimals);
+  static sub(a: Decimal | number | string, b: Decimal | number | string): Decimal {
+    return new Decimal(a).minus(new Decimal(b));
   }
 
   /**
-   * Safely multiplies two numbers and rounds them.
+   * Güvenli Çarpma
    */
-  static mul(a: number, b: number, decimals: number = this.DEFAULT_DECIMALS): number {
-    return this.round(Number(a) * Number(b), decimals);
+  static mul(a: Decimal | number | string, b: Decimal | number | string): Decimal {
+    return new Decimal(a).mul(new Decimal(b));
   }
 
   /**
-   * Safely divides two numbers and rounds them.
+   * Güvenli Bölme
    */
-  static div(a: number, b: number, decimals: number = this.DEFAULT_DECIMALS): number {
-    if (Number(b) === 0) return 0;
-    return this.round(Number(a) / Number(b), decimals);
+  static div(a: Decimal | number | string, b: Decimal | number | string, decimals: number = 4): Decimal {
+    const dOut = new Decimal(b);
+    if (dOut.isZero()) return new Decimal(0);
+    return new Decimal(a).div(dOut).toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP);
   }
 }

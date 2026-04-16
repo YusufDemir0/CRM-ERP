@@ -20,8 +20,17 @@ export class PartiesService {
       .leftJoinAndSelect('party.currency', 'currency');
 
     if (query.search) {
-      qb.where('(party.name LIKE :s OR party.phone1 LIKE :s OR party.email LIKE :s OR party.taxNumber LIKE :s OR party.taxOffice LIKE :s OR party.city LIKE :s OR party.address LIKE :s OR party.notes LIKE :s OR currency.name LIKE :s)', { s: `%${query.search}%` });
+      qb.andWhere('(party.name LIKE :s OR party.phone1 LIKE :s OR party.email LIKE :s OR party.taxNumber LIKE :s OR party.taxOffice LIKE :s OR party.districtName LIKE :s OR party.address LIKE :s OR party.notes LIKE :s OR currency.name LIKE :s)', { s: `%${query.search}%` });
     }
+
+    // Dynamic Advanced Filters (Sidebar filters)
+    Object.keys(query).forEach(key => {
+      const skipKeys = ['page', 'limit', 'search', 'sortBy', 'sortOrder', 'skip', 'type', 'state'];
+      const allowedPartyKeys = ['name', 'phone1', 'email', 'taxNumber', 'taxOffice', 'cityId', 'districtName', 'type'];
+      if (!skipKeys.includes(key) && allowedPartyKeys.includes(key) && query[key as keyof typeof query] !== undefined) {
+        qb.andWhere(`party.${key} LIKE :${key}`, { [key]: `%${query[key as keyof typeof query]}%` });
+      }
+    });
 
     if (query.type) {
       qb.andWhere('party.type = :type', { type: query.type });
@@ -53,9 +62,12 @@ export class PartiesService {
 
   async create(dto: CreatePartyDto, userId?: number): Promise<Party> {
     if (dto.taxNumber) {
-      const existing = await this.partyRepo.findOne({ where: { taxNumber: dto.taxNumber } });
+      const existing = await this.partyRepo.findOne({ 
+        where: { taxNumber: dto.taxNumber },
+        withDeleted: true 
+      });
       if (existing) {
-        throw new BadRequestException(`'${dto.taxNumber}' vergi numarası ile başka bir cari mevcut (${existing.name}).`);
+        throw new BadRequestException(`'${dto.taxNumber}' vergi numarası ile başka bir cari mevcut (ID: ${existing.id}, İsim: ${existing.name}).`);
       }
     }
 
@@ -83,14 +95,23 @@ export class PartiesService {
     }
 
     // Modernize mapping with strict field control
-    const fields = [
-      'name', 'type', 'phone1', 'phone2', 'taxNumber', 'email', 
-      'address', 'paymentTerms', 'currencyId', 'notes', 'state'
+    const fields: (keyof Party)[] = [
+      'name', 'type', 'phone1', 'phone2', 'taxOffice', 'taxNumber', 'email', 
+      'address', 'cityId', 'districtName', 'paymentTerms', 'currencyId', 'notes', 'state'
     ];
 
-    fields.forEach((field: any) => {
-      if (dto[field as keyof UpdatePartyDto] !== undefined) {
-        (party as any)[field] = dto[field as keyof UpdatePartyDto];
+    fields.forEach((field) => {
+      const dtoValue = dto[field as keyof UpdatePartyDto];
+      if (dtoValue !== undefined) {
+        // DB-04: Pasife alma kontrolü
+        if (field === 'state' && dtoValue === 0 && !new Decimal(party.balance).isZero()) {
+          throw new BadRequestException(
+            `Bakiyesi olan cari hesaplar pasife alınamaz. Mevcut Bakiye: ${party.balance.toString()}. ` +
+            `Lütfen önce finansal hesabı sıfırlayınız.`
+          );
+        }
+
+        (party as any)[field] = dtoValue;
       }
     });
 
@@ -133,37 +154,62 @@ export class PartiesService {
     const [active, passive, all] = await Promise.all([
       this.partyRepo.count({ where: { state: 1 } }),
       this.partyRepo.count({ where: { state: 0 } }),
-      this.partyRepo.find(),
+      this.partyRepo.find({ relations: ['currency'] }),
     ]);
 
-    const totalReceivable = all.reduce((sum, p) => sum + Number(p.balance || 0), 0);
-    const totalCreditLimit = all.reduce((sum, p) => sum + Number(p.creditLimit || 0), 0);
-    const atRisk = all.filter(p => p.state === 1 && Number(p.balance) >= Number(p.creditLimit) * 0.9);
+    const totalReceivable = all.reduce((sum, p) => {
+      const exchangeRate = new Decimal(p.currency?.exchangeRate || 1);
+      return sum.plus(new Decimal(p.balance || 0).mul(exchangeRate));
+    }, new Decimal(0));
+
+    const totalCreditLimit = all.reduce((sum, p) => {
+      const exchangeRate = new Decimal(p.currency?.exchangeRate || 1);
+      return sum.plus(new Decimal(p.creditLimit || 0).mul(exchangeRate));
+    }, new Decimal(0));
+
+    const atRisk = all.filter(p => {
+      const exchangeRate = new Decimal(p.currency?.exchangeRate || 1);
+      const tlBalance = new Decimal(p.balance || 0).mul(exchangeRate);
+      const tlLimit = new Decimal(p.creditLimit || 0).mul(exchangeRate);
+      return p.state === 1 && tlLimit.gt(0) && tlBalance.abs().gte(tlLimit.mul(0.9));
+    });
     
     return { 
       active, 
       passive,
-      totalReceivable,
-      exposurePercentage: totalCreditLimit > 0 ? Math.round((totalReceivable / totalCreditLimit) * 100) : 0,
+      totalReceivable: totalReceivable.toNumber(),
+      exposurePercentage: totalCreditLimit.gt(0) ? totalReceivable.div(totalCreditLimit).mul(100).toDecimalPlaces(0).toNumber() : 0,
       atRiskCount: atRisk.length
     };
   }
 
   async getGlobalExposure() {
-    const all = await this.partyRepo.find();
-    const totalReceivable = all.reduce((sum, p) => sum + Number(p.balance || 0), 0);
-    const totalCreditLimit = all.reduce((sum, p) => sum + Number(p.creditLimit || 0), 0);
+    const all = await this.partyRepo.find({ relations: ['currency'] });
+    const totalReceivable = all.reduce((sum, p) => {
+      const exchangeRate = p.currency?.exchangeRate || new Decimal(1);
+      return sum.plus(new Decimal(p.balance || 0).mul(exchangeRate));
+    }, new Decimal(0));
+
+    const totalCreditLimit = all.reduce((sum, p) => {
+      const exchangeRate = p.currency?.exchangeRate || new Decimal(1);
+      return sum.plus(new Decimal(p.creditLimit || 0).mul(exchangeRate));
+    }, new Decimal(0));
     
     return {
-      totalReceivable,
-      totalCreditLimit,
-      exposurePercentage: totalCreditLimit > 0 ? (totalReceivable / totalCreditLimit) * 100 : 0
+      totalReceivable: totalReceivable.toNumber(),
+      totalCreditLimit: totalCreditLimit.toNumber(),
+      exposurePercentage: totalCreditLimit.gt(0) ? totalReceivable.div(totalCreditLimit).mul(100).toNumber() : 0
     };
   }
 
   async getHealthMetrics() {
-    const all = await this.partyRepo.find({ where: { state: 1 } });
-    const atRisk = all.filter(p => Number(p.balance) >= Number(p.creditLimit) * 0.9);
+    const all = await this.partyRepo.find({ where: { state: 1 }, relations: ['currency'] });
+    const atRisk = all.filter(p => {
+      const exchangeRate = p.currency?.exchangeRate || new Decimal(1);
+      const tlBalance = new Decimal(p.balance || 0).mul(exchangeRate);
+      const tlLimit = new Decimal(p.creditLimit || 0).mul(exchangeRate);
+      return tlLimit.gt(0) && tlBalance.gte(tlLimit.mul(0.9));
+    });
     
     return {
       healthyCount: all.length - atRisk.length,

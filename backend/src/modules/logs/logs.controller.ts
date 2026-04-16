@@ -3,6 +3,7 @@ import { LogsService } from './logs.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { LogsQueryDto } from './dto/logs-query.dto';
 
 @Controller('logs')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -11,7 +12,7 @@ export class LogsController {
 
   @Get()
   @RequirePermissions('system:manage')
-  async findAll(@Query('limit') limit?: number) {
-    return this.logsService.findAll(limit || 100);
+  async findAll(@Query() query: LogsQueryDto) {
+    return this.logsService.findAll(query);
   }
 }

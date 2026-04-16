@@ -1,43 +1,60 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { bomsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { confirmDialog } from '../../utils/confirmDialog';
-import { FiEdit2, FiArchive, FiRefreshCw, FiCopy, FiSearch } from 'react-icons/fi';
+import { 
+  FiEdit2, FiArchive, FiRefreshCw, FiCopy, FiSearch, FiPlus, 
+  FiFilter, FiLayers, FiPackage, FiActivity, FiTag
+} from 'react-icons/fi';
 import { Bom, BomItem } from '../../types';
+import { DataTable, Column } from '../../components/common/DataTable';
 import { PaginationControls } from '../../components/common/PaginationControls';
-import { useQuickCreate } from '../../context/QuickCreateContext';
+import { useQuickCreateStore } from '../../store/useQuickCreateStore';
+import { useSort } from '../../hooks/useSort';
 
 export function BomsPage() {
-  const [boms, setBoms] = useState<Bom[]>([]);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterTab, setFilterTab] = useState<'active' | 'passive' | 'all'>('active');
-  const [loading, setLoading] = useState(false);
 
-  // Pagination State
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
-  const [paginationMeta, setPaginationMeta] = useState({ total: 0, page: 1, limit: 20, totalPages: 0 });
+  const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'name', order: 'ASC' });
 
-  const { openCreate } = useQuickCreate();
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const bRes = await bomsAPI.getAll({ 
-        page, 
-        limit, 
+  const { data: bomsData, isLoading: loading } = useQuery({
+    queryKey: ['boms', page, limit, debouncedSearch, filterTab, sort],
+    queryFn: async () => {
+      const res = await bomsAPI.getAll({
+        page,
+        limit,
         search: debouncedSearch,
-        state: filterTab === 'all' ? undefined : (filterTab === 'active' ? 1 : 0)
+        state: filterTab === 'all' ? undefined : (filterTab === 'active' ? 1 : 0),
+        sortBy: sort.key,
+        sortOrder: sort.order
       });
-      setBoms(bRes.data.data);
-      setPaginationMeta(bRes.data.meta);
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "Reçete verileri yüklenemedi");
-    } finally {
-      setLoading(false);
+      return res.data;
     }
-  };
+  });
+
+  const boms = bomsData?.data || [];
+  const paginationMeta = bomsData?.meta || { total: 0, page: 1, limit: 20, totalPages: 0 };
+
+  const { sortedData, sortConfigs, toggleSort } = useSort<Bom>(
+    boms, 
+    [{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }],
+    (configs) => {
+      if (configs.length > 0) {
+        setSort({ 
+          key: configs[0].key, 
+          order: configs[0].direction.toUpperCase() as 'ASC' | 'DESC' 
+        });
+        setPage(1); // FE-01: Reset page on sort change
+      }
+    }
+  );
+  const { openCreate } = useQuickCreateStore();
 
   // Search Debounce
   useEffect(() => {
@@ -48,10 +65,17 @@ export function BomsPage() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  useEffect(() => { fetchData(); }, [page, limit, debouncedSearch, filterTab]);
+  const mutation = useMutation({
+    mutationFn: ({ id, state }: { id: number; state: number }) => bomsAPI.update(id, { state }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['boms'] });
+      toast.success("Durum güncellendi");
+    },
+    onError: () => toast.error("Hata oluştu")
+  });
 
   const handleFormSuccess = () => {
-    fetchData();
+    queryClient.invalidateQueries({ queryKey: ['boms'] });
     toast.success("Reçete başarıyla kaydedildi.");
   };
 
@@ -84,90 +108,162 @@ export function BomsPage() {
   const toggleState = async (id: number, currentState: number) => {
     const confirmed = await confirmDialog(currentState === 1 ? 'Reçeteyi pasife alıp arşivlemek istiyor musunuz?' : 'Reçeteyi yeniden aktif ediyorsunuz. Emin misiniz?', currentState === 1);
     if (confirmed) {
-      try {
-        await bomsAPI.update(id, { state: currentState === 1 ? 0 : 1 });
-        fetchData();
-        toast.success("Durum güncellendi");
-      } catch (error: any) {
-        toast.error(error.response?.data?.message || "Hata oluştu");
-      }
+      mutation.mutate({ id, state: currentState === 1 ? 0 : 1 });
     }
   };
 
-  return (
-    <div className="page-container">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <div>
-          <h2 style={{ color: 'var(--primary)', marginBottom: '10px' }}>Üretim Reçeteleri (BOM)</h2>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button className={`btn ${filterTab === 'active' ? 'btn-primary' : ''}`} onClick={() => setFilterTab('active')}>Aktif Reçeteler</button>
-            <button className={`btn ${filterTab === 'passive' ? 'btn-primary' : ''}`} onClick={() => setFilterTab('passive')}>Arşiv</button>
-            <button className={`btn ${filterTab === 'all' ? 'btn-primary' : ''}`} onClick={() => setFilterTab('all')}>Tümü</button>
+  const columns: Column<Bom>[] = [
+    { 
+      header: 'REÇETE KİMLİĞİ', 
+      accessor: (b) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ 
+            width: '40px', height: '40px', borderRadius: '12px', 
+            background: 'var(--primary-glow)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--primary)',
+            fontSize: '18px'
+          }}>
+            <FiLayers />
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, color: 'var(--on-surface)', fontSize: '14px' }}>{b.name}</div>
+            <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)' }}>V{b.version}</span>
+              {b.isActive && <span style={{ fontSize: '9px', fontWeight: 900, color: 'var(--success)', textTransform: 'uppercase' }}>• AKTİF</span>}
+            </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '15px' }}>
-          <div className="search-container" style={{ position: 'relative' }}>
-             <FiSearch style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-             <input type="text" placeholder="Reçete Ara..." className="search-bar" style={{ width: '300px', paddingLeft: '40px' }} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+      ),
+      sortKey: 'name'
+    },
+    { 
+      header: 'HEDEF ÜRÜN', 
+      accessor: (b) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <FiPackage size={14} color="var(--primary)" />
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--on-surface-variant)' }}>{b.targetItem?.name || '-'}</span>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>{b.targetItem?.code}</span>
           </div>
-          <button className="btn btn-primary" onClick={() => {
-            openCreate('bom', {
-              onSuccess: handleFormSuccess
-            });
-          }}>+ YENİ REÇETE</button>
+        </div>
+      ),
+      sortKey: 'targetItemId'
+    },
+    { 
+      header: 'BİLEŞEN SAYISI', 
+      accessor: (b) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ 
+            padding: '4px 12px', borderRadius: '8px', 
+            background: 'var(--surface-container)', color: 'var(--on-surface)',
+            fontSize: '13px', fontWeight: 800
+          }}>
+            {b.items?.length || 0}
+          </div>
+          <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>KALEM</span>
+        </div>
+      ),
+      sortKey: 'items'
+    },
+    { 
+      header: 'AÇIKLAMA', 
+      accessor: (b) => <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 500 }}>{b.description || 'NOT BELİRTİLMEMİŞ'}</span>
+    }
+  ];
+
+  return (
+    <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+      
+      {/* 🔴 HEADER SECTION */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div>
+          <div style={{ 
+            display: 'inline-flex', alignItems: 'center', gap: '8px', 
+            background: 'var(--primary-glow)', color: 'var(--primary)', 
+            padding: '6px 14px', borderRadius: '12px', fontSize: '12px', 
+            fontWeight: 800, marginBottom: '16px'
+          }}>
+            <FiTag /> ÜRETİM MİMARİSİ
+          </div>
+          <h1 style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--on-surface)' }}>
+            Üretim <span style={{ color: 'var(--primary)' }}>Reçeteleri (BOM)</span>
+          </h1>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', background: 'var(--surface-container-low)', padding: '4px', borderRadius: '14px', border: '1px solid var(--border)' }}>
+            {[
+              { id: 'active', label: 'Aktif', icon: <FiActivity /> },
+              { id: 'passive', label: 'Arşiv', icon: <FiArchive /> },
+              { id: 'all', label: 'Tümü', icon: <FiFilter /> }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setFilterTab(tab.id as any)}
+                style={{
+                  height: '36px', padding: '0 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 700,
+                  display: 'flex', alignItems: 'center', gap: '8px', border: 'none', transition: '0.2s',
+                  background: filterTab === tab.id ? 'white' : 'transparent',
+                  color: filterTab === tab.id ? 'var(--primary)' : 'var(--text-muted)',
+                  boxShadow: filterTab === tab.id ? 'var(--shadow-md)' : 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                {tab.icon} {tab.label}
+              </button>
+            ))}
+          </div>
+          <button className="btn btn-primary" style={{ height: '44px', boxShadow: '0 10px 20px var(--primary-glow)' }} onClick={() => {
+            openCreate('bom', { onSuccess: handleFormSuccess });
+          }}>
+            <FiPlus size={18} /> Yeni Reçete
+          </button>
         </div>
       </div>
 
-      <div className="table-card">
-        <table>
-          <thead>
-            <tr><th>REÇETE ADI</th><th>HEDEF ÜRÜN</th><th>AÇIKLAMA</th><th>MALZEMELER</th><th>İŞLEMLER</th></tr>
-          </thead>
-          <tbody>
-            {boms.map((b) => (
-              <tr key={b.id} style={{ opacity: b.isActive === false ? 0.6 : 1, background: b.isActive === false ? 'var(--surface-container-low)' : 'inherit' }}>
-                <td>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <strong>{b.name}</strong>
-                    <div style={{ display: 'flex', gap: '5px', marginTop: '4px' }}>
-                      <span className="badge" style={{ fontSize: '10px' }}>v{b.version}</span>
-                      {b.isActive ? 
-                        <span className="badge badge-success" style={{ fontSize: '10px' }}>VARSAYILAN</span> : 
-                        <span className="badge badge-secondary" style={{ fontSize: '10px' }}>ESKİ</span>
-                      }
-                    </div>
-                  </div>
-                </td>
-                <td><span className="badge badge-outline">{b.targetItem?.name || '-'}</span></td>
-                <td style={{ fontSize: '12px' }}>{b.description || '-'}</td>
-                <td><span className="badge">{b.items?.length || 0} Kalem</span></td>
-                <td style={{ display: 'flex', gap: '5px' }}>
-                  <button className="btn-icon" title="Düzenle" onClick={() => handleEdit(b)}>
-                    <FiEdit2 size={16} />
-                  </button>
-                  <button className="btn-icon" title="Klonla (Yeni Versiyon)" style={{ color: 'var(--primary)' }} onClick={() => handleClone(b)}>
-                    <FiCopy size={16} />
-                  </button>
-                  <button className="btn-icon" title={b.state === 1 ? 'Arşivle' : 'Aktif Et'} style={{ color: b.state === 1 ? 'var(--error)' : 'var(--success)' }} onClick={() => toggleState(b.id, b.state)}>
-                    {b.state === 1 ? <FiArchive size={16} /> : <FiRefreshCw size={16} />}
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {boms.length === 0 && !loading && (
-              <tr><td colSpan={5} style={{textAlign:'center', padding: '40px', color: 'gray'}}>Reçete kaydı bulunmuyor.</td></tr>
-            )}
-            {loading && (
-               <tr><td colSpan={5} style={{textAlign:'center', padding: '40px'}}><div className="spinner" style={{margin:'0 auto'}}></div></td></tr>
-            )}
-          </tbody>
-        </table>
-        <PaginationControls 
-          meta={paginationMeta} 
-          onPageChange={setPage} 
-          onLimitChange={setLimit} 
-          loading={loading}
+      {/* 🟠 SEARCH & FILTERS */}
+      <div className="glass-panel" style={{ padding: '20px', borderRadius: '24px', display: 'flex', gap: '20px', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: 1 }}>
+          <FiSearch style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <input 
+            type="text" 
+            placeholder="Reçete adı, hedef ürün veya açıklama ile ara..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ paddingLeft: '48px', height: '52px', border: 'none', background: 'var(--surface-container-low)' }}
+          />
+        </div>
+        <button className="btn btn-secondary" style={{ height: '52px', background: 'white' }}>
+          <FiFilter /> Gelişmiş Filtrele
+        </button>
+      </div>
+
+      {/* 🟡 DATA TABLE SECTION */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <DataTable<Bom>
+          data={sortedData}
+          columns={columns}
+          isLoading={loading}
+          sortConfigs={sortConfigs}
+          onSort={toggleSort}
+          getRowKey={(b) => b.id}
+          hasState={(b) => b.state === 1}
+          onEdit={handleEdit}
+          onClone={handleClone}
+          onArchive={(b) => toggleState(b.id, 1)}
+          onRestore={(b) => toggleState(b.id, 0)}
+          getRowOpacity={(b) => b.state === 0 ? 0.5 : 1}
         />
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <PaginationControls 
+            meta={paginationMeta} 
+            onPageChange={setPage} 
+            onLimitChange={setLimit} 
+            loading={loading}
+          />
+        </div>
       </div>
     </div>
   );

@@ -1,20 +1,34 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, Min, IsInt } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, Min, IsInt, IsIn, IsBooleanString } from 'class-validator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
+import { Decimal } from 'decimal.js';
 
 export class CreateItemDto {
   @IsString() @IsNotEmpty() name: string;
   @IsNumber() @IsInt() @Type(() => Number) itemTypeId: number;
   @IsNumber() @IsInt() @Type(() => Number) itemCodeGroupId: number;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) providerId?: number;
-  @IsOptional() @IsNumber() @Min(0) @Type(() => Number) criticalLimit?: number;
+  
+  @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : new Decimal(0)) 
+  criticalLimit?: Decimal;
+
   @IsOptional() @IsString() image?: string;
-  @IsOptional() @IsNumber() @Min(0) @Type(() => Number) purchasePrice?: number;
-  @IsOptional() @IsNumber() @Min(0) @Type(() => Number) salePrice?: number;
-  @IsOptional() @IsNumber() @Min(0) @Type(() => Number) netPrice?: number;
+
+  @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : new Decimal(0))
+  purchasePrice?: Decimal;
+
+  @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : new Decimal(0))
+  salePrice?: Decimal;
+
+  @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : new Decimal(0))
+  netPrice?: Decimal;
+
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) currencyId?: number;
   @IsNumber() @IsInt() @Type(() => Number) quantityTypeId: number;
-  @IsOptional() @IsNumber() @Min(0) @Type(() => Number) kdv?: number;
+
+  @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : new Decimal(20))
+  kdv?: Decimal;
+
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsString() notes?: string;
 }
@@ -27,14 +41,27 @@ export class UpdateItemDto {
   @IsOptional() @IsString() code1?: string;
   @IsOptional() @IsString() code2?: string;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) providerId?: number;
-  @IsOptional() @IsNumber() @Min(0) @Type(() => Number) criticalLimit?: number;
+
+  @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : undefined)
+  criticalLimit?: Decimal;
+
   @IsOptional() @IsString() image?: string;
-  @IsOptional() @IsNumber() @Min(0) @Type(() => Number) purchasePrice?: number;
-  @IsOptional() @IsNumber() @Min(0) @Type(() => Number) salePrice?: number;
-  @IsOptional() @IsNumber() @Min(0) @Type(() => Number) netPrice?: number;
+
+  @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : undefined)
+  purchasePrice?: Decimal;
+
+  @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : undefined)
+  salePrice?: Decimal;
+
+  @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : undefined)
+  netPrice?: Decimal;
+
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) currencyId?: number;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) quantityTypeId?: number;
-  @IsOptional() @IsNumber() @Min(0) @Type(() => Number) kdv?: number;
+
+  @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : undefined)
+  kdv?: Decimal;
+
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsString() notes?: string;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) state?: number;
@@ -45,9 +72,21 @@ export class CreateItemTypeDto {
   @IsString() @IsNotEmpty() abbreviation: string;
 }
 
+export class UpdateItemTypeDto {
+  @IsOptional() @IsString() name?: string;
+  @IsOptional() @IsString() abbreviation?: string;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) state?: number;
+}
+
 export class CreateQuantityTypeDto {
   @IsString() @IsNotEmpty() name: string;
   @IsString() @IsNotEmpty() abbreviation: string;
+}
+
+export class UpdateQuantityTypeDto {
+  @IsOptional() @IsString() name?: string;
+  @IsOptional() @IsString() abbreviation?: string;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) state?: number;
 }
 
 export class CreateItemCodeGroupDto {
@@ -55,16 +94,21 @@ export class CreateItemCodeGroupDto {
   @IsString() @IsNotEmpty() prefix: string;
 }
 
+export class UpdateItemCodeGroupDto {
+  @IsOptional() @IsString() name?: string;
+  @IsOptional() @IsString() prefix?: string;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) state?: number;
+}
+
 export class StockAdjustmentDto {
   @IsNumber() @IsInt() @Type(() => Number) itemId: number;
   @IsNumber() @IsInt() @Type(() => Number) departmentId: number;
   @IsNumber() @Min(0.0001) @Type(() => Number) quantity: number;
-  @IsString() type: 'in' | 'out';
+  @IsString() @IsIn(['in', 'out']) type: 'in' | 'out';
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsString() notes?: string;
 }
 
-// YENİ EKLENDİ: STOK TRANSFER DTO'su
 export class TransferStockDto {
   @IsNumber() @IsInt() @Type(() => Number) itemId: number;
   @IsNumber() @IsInt() @Type(() => Number) fromDepartmentId: number;
@@ -75,12 +119,15 @@ export class TransferStockDto {
 
 export class ItemsQueryDto extends PaginationDto {
   @IsOptional() @Type(() => Number) @IsNumber() itemTypeId?: number;
-  @IsOptional() @Type(() => String) search?: string; // Explicitly allowed
-  @IsOptional() @IsString() critical?: string; // Sent as "true" string from browser usually
+  @IsOptional() @Type(() => Number) @IsNumber() providerId?: number;
+  @IsOptional() @Type(() => Number) @IsNumber() currencyId?: number;
+  @IsOptional() @Type(() => Number) @IsNumber() state?: number;
+  @IsOptional() @IsString() search?: string;
+  @IsOptional() @IsBooleanString() critical?: string;
 }
 
 export class StocksQueryDto extends PaginationDto {
   @IsOptional() @Type(() => Number) @IsNumber() departmentId?: number;
   @IsOptional() @Type(() => Number) @IsNumber() itemId?: number;
-  @IsOptional() isCritical?: any;
+  @IsOptional() @IsBooleanString() isCritical?: string;
 }

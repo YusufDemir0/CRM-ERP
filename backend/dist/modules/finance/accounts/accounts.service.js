@@ -17,19 +17,26 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const commercial_account_entity_1 = require("./entities/commercial-account.entity");
-const transaction_entity_1 = require("../transactions/entities/transaction.entity");
+const currencies_service_1 = require("../currencies/currencies.service");
+const ledger_entity_1 = require("../../parties/entities/ledger.entity");
 let AccountsService = class AccountsService {
-    constructor(accRepo, dataSource) {
+    constructor(accRepo, dataSource, currenciesService) {
         this.accRepo = accRepo;
         this.dataSource = dataSource;
+        this.currenciesService = currenciesService;
     }
     async findAll(query) {
         const qb = this.accRepo.createQueryBuilder('acc')
             .leftJoinAndSelect('acc.currency', 'currency');
         if (query.search) {
-            qb.where('(acc.name LIKE :s OR acc.bankName LIKE :s)', { s: `%${query.search}%` });
+            const s = `%${query.search}%`;
+            const cleanS = `%${query.search.replace(/[\s-]/g, '').replace(/^TR/i, '')}%`;
+            qb.andWhere('(acc.name LIKE :s OR acc.bankName LIKE :s OR acc.description LIKE :s OR acc.iban LIKE :s OR REPLACE(REPLACE(acc.iban, " ", ""), "TR", "") LIKE :cleanS)', { s, cleanS });
         }
-        qb.orderBy('acc.name', 'ASC').skip(query.skip).take(query.limit);
+        const allowedSortCols = ['name', 'bankName', 'iban', 'criticalLimit', 'createdAt'];
+        const sortField = allowedSortCols.includes(query.sortBy || '') ? query.sortBy : 'name';
+        qb.orderBy(`acc.${sortField}`, query.sortOrder || 'ASC');
+        qb.skip(query.skip).take(query.limit);
         const [data, total] = await qb.getManyAndCount();
         return {
             data,
@@ -43,12 +50,36 @@ let AccountsService = class AccountsService {
         return acc;
     }
     async create(dto, userId) {
+        if (!dto.currencyId) {
+            try {
+                const defaultCurrency = await this.currenciesService.getDefault();
+                dto.currencyId = Number(defaultCurrency.id);
+            }
+            catch (error) {
+                console.warn('Default currency not found in AccountsService, setting to null');
+            }
+        }
         const acc = this.accRepo.create({ ...dto, createdBy: userId });
         return this.accRepo.save(acc);
     }
     async update(id, dto, userId) {
         const acc = await this.findOne(id);
-        Object.assign(acc, dto);
+        if (dto.name !== undefined)
+            acc.name = dto.name;
+        if (dto.bankName !== undefined)
+            acc.bankName = dto.bankName;
+        if (dto.iban !== undefined)
+            acc.iban = dto.iban;
+        if (dto.ibanName !== undefined)
+            acc.ibanName = dto.ibanName;
+        if (dto.currencyId !== undefined)
+            acc.currencyId = dto.currencyId;
+        if (dto.criticalLimit !== undefined)
+            acc.criticalLimit = dto.criticalLimit;
+        if (dto.description !== undefined)
+            acc.description = dto.description;
+        if (dto.state !== undefined)
+            acc.state = dto.state;
         acc.updatedBy = userId || null;
         return this.accRepo.save(acc);
     }
@@ -63,8 +94,9 @@ let AccountsService = class AccountsService {
                 .addSelect("SUM(CASE WHEN acc.state = 1 THEN 1 ELSE 0 END)", "active")
                 .addSelect("SUM(CASE WHEN acc.state = 0 THEN 1 ELSE 0 END)", "passive")
                 .getRawOne(),
-            this.dataSource.getRepository(transaction_entity_1.Transaction).createQueryBuilder('tx')
-                .select("SUM(CASE WHEN tx.type = 'in' THEN tx.amount ELSE -tx.amount END)", "balance")
+            this.dataSource.getRepository(ledger_entity_1.AccountingLedger).createQueryBuilder('al')
+                .select("SUM(al.debit - al.credit)", "balance")
+                .where("al.accountId IS NOT NULL")
                 .getRawOne(),
         ]);
         return {
@@ -80,6 +112,7 @@ exports.AccountsService = AccountsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(commercial_account_entity_1.CommercialAccount)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
-        typeorm_2.DataSource])
+        typeorm_2.DataSource,
+        currencies_service_1.CurrenciesService])
 ], AccountsService);
 //# sourceMappingURL=accounts.service.js.map

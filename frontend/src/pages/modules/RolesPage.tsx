@@ -1,40 +1,58 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { rolesAPI } from '../../services/api';
-import { FiEdit2, FiToggleLeft, FiToggleRight } from 'react-icons/fi';
+import { 
+  FiEdit2, FiShield, FiPlus, FiCheckCircle, FiLock, 
+  FiActivity, FiCommand, FiGrid, FiX
+} from 'react-icons/fi';
+import toast from 'react-hot-toast';
+import { DataTable, Column } from '../../components/common/DataTable';
+import { Role } from '../../types';
+import { useSort } from '../../hooks/useSort';
 
 export function RolesPage() {
-  const [roles, setRoles] = useState<any[]>([]);
-  const [allPermissions, setAllPermissions] = useState<any[]>([]);
+  const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-
   const [formData, setFormData] = useState({ name: '', permissionIds: [] as number[] });
 
-  const fetchData = async () => {
-    try {
-      const [rRes, pRes] = await Promise.all([
-        rolesAPI.getAll({ limit: 100 }),
-        rolesAPI.getPermissions({ limit: 500 })
-      ]);
-      setRoles(rRes.data.data);
-      setAllPermissions(pRes.data.data);
-    } catch (error) { console.error(error); }
-  };
+  // ────── QUERIES ──────
 
-  useEffect(() => { fetchData(); },[]);
+  const { data: roles = [] } = useQuery({
+    queryKey: ['roles'],
+    queryFn: async () => {
+      const res = await rolesAPI.getAll({ limit: 100 });
+      return res.data.data;
+    }
+  });
+  
+  const { sortedData, sortConfigs, toggleSort } = useSort(roles);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const payload = {
-        ...formData,
-        permissionIds: formData.permissionIds.map(Number)
-      };
-      if (editingId) await rolesAPI.update(editingId, payload);
-      else await rolesAPI.create(payload);
+  const { data: allPermissions = [] } = useQuery({
+    queryKey: ['permissions'],
+    queryFn: async () => {
+      const res = await rolesAPI.getPermissions({ limit: 500 });
+      return res.data.data;
+    }
+  });
+
+  const mutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number | null; data: any }) => {
+      const payload = { ...data, permissionIds: data.permissionIds.map(Number) };
+      if (id) return rolesAPI.update(id, payload);
+      return rolesAPI.create(payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['roles'] });
       setIsModalOpen(false);
-      fetchData();
-    } catch (error) { console.error(error); }
+      toast.success("Rol başarıyla kaydedildi.");
+    },
+    onError: () => toast.error("Hata oluştu")
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate({ id: editingId, data: formData });
   };
 
   const handleEdit = (role: any) => {
@@ -46,9 +64,17 @@ export function RolesPage() {
     setIsModalOpen(true);
   };
 
-  const toggleState = async (id: number, currentState: number) => {
-    await rolesAPI.toggleState(id, currentState);
-    fetchData();
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, state }: { id: number; state: number }) => rolesAPI.toggleState(id, state),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['roles'] });
+      toast.success("Durum güncellendi.");
+    },
+    onError: () => toast.error("Hata oluştu")
+  });
+
+  const toggleState = (id: number, currentState: number) => {
+    toggleMutation.mutate({ id, state: currentState });
   };
 
   const togglePermission = (permId: number) => {
@@ -67,12 +93,12 @@ export function RolesPage() {
     'roles': 'Roller ve Yetkiler',
     'departments': 'Departmanlar',
     'parties': 'Cariler (Müşteri/Tedarikçi)',
-    'sales': 'Satışlar',
-    'finance': 'Finans',
-    'production': 'Üretim',
-    'system': 'Sistem Ayarları',
-    'satışlar': 'Satışlar',
-    'satislar': 'Satışlar'
+    'sales': 'Satış Yönetimi',
+    'finance': 'Finansal Hareketler',
+    'production': 'Üretim Planlama',
+    'system': 'Sistem Konfigürasyonu',
+    'satışlar': 'Satış Yönetimi',
+    'satislar': 'Satış Yönetimi'
   };
 
   const groupedPermissions = allPermissions.reduce((acc: any, perm: any) => {
@@ -83,75 +109,171 @@ export function RolesPage() {
     return acc;
   }, {});
 
+  const columns: Column<Role>[] = [
+    { 
+      header: 'YETKİ PROFİLİ', 
+      accessor: (r) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ 
+            width: '40px', height: '40px', borderRadius: '12px', 
+            background: 'var(--primary-glow)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--primary)',
+            fontSize: '18px'
+          }}>
+            <FiShield />
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, color: 'var(--on-surface)', fontSize: '14px' }}>{r.name}</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600, display: 'flex', gap: '6px' }}>
+              İD: #{r.id} {r.state === 0 && <span style={{ color: 'var(--error)', fontWeight: 900 }}>• PASİF</span>}
+            </div>
+          </div>
+        </div>
+      ),
+      sortKey: 'name'
+    },
+    { 
+      header: 'İZİN MATRİSİ', 
+      accessor: (r) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ 
+            padding: '4px 12px', borderRadius: '8px', 
+            background: 'var(--surface-container)', color: 'var(--secondary)',
+            fontSize: '12px', fontWeight: 900
+          }}>
+            {r.permissions?.length || 0}
+          </div>
+          <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>AKTİF YETKİ</span>
+        </div>
+      ),
+      sortKey: 'permissions.length'
+    },
+    { 
+      header: 'ERİŞİM DURUMU', 
+      accessor: (r) => (
+        <span style={{ 
+          fontSize: '10px', fontWeight: 900, 
+          padding: '4px 10px', borderRadius: '8px',
+          background: r.state === 1 ? 'var(--success-glow)' : 'var(--error-glow)',
+          color: r.state === 1 ? 'var(--success)' : 'var(--error)',
+          textTransform: 'uppercase'
+        }}>
+          {r.state === 1 ? 'TAM ERİŞİM' : 'KISITLI / PASİF'}
+        </span>
+      ),
+      sortKey: 'state'
+    }
+  ];
+
   return (
-    <div className="page-container">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2 style={{ color: 'var(--primary)' }}>Erişim & Rol Yönetimi</h2>
-        <button className="btn btn-primary" onClick={() => {
+    <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+      
+      {/* 🔴 HEADER SECTION */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div>
+          <div style={{ 
+            display: 'inline-flex', alignItems: 'center', gap: '8px', 
+            background: 'var(--error-glow)', color: 'var(--error)', 
+            padding: '6px 14px', borderRadius: '12px', fontSize: '12px', 
+            fontWeight: 800, marginBottom: '16px'
+          }}>
+            <FiLock /> GÜVENLİK VE ERİŞİM
+          </div>
+          <h1 style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--on-surface)' }}>
+            Kullanıcı <span style={{ color: 'var(--primary)' }}>Rol & Yetkileri</span>
+          </h1>
+        </div>
+        
+        <button className="btn btn-primary" style={{ height: '44px', boxShadow: '0 10px 20px var(--primary-glow)' }} onClick={() => {
           setEditingId(null); setFormData({ name: '', permissionIds:[] }); setIsModalOpen(true);
-        }}>+ YENİ ROL OLUŞTUR</button>
+        }}>
+          <FiPlus size={18} /> Yeni Rol Tanımla
+        </button>
       </div>
 
-      <div className="table-card">
-        <table>
-          <thead>
-            <tr>
-              <th>ROL ADI</th>
-              <th>YETKİ SAYISI</th>
-              <th>DURUM</th>
-              <th>İŞLEMLER</th>
-            </tr>
-          </thead>
-          <tbody>
-            {roles.map((r) => (
-              <tr key={r.id}>
-                <td><strong>{r.name}</strong></td>
-                <td><span className="badge badge-accent">{r.permissions?.length || 0} Aktif Yetki</span></td>
-                <td><span className={`badge ${r.state === 1 ? 'badge-success' : 'badge-danger'}`}>{r.state === 1 ? 'Aktif' : 'Pasif'}</span></td>
-                <td style={{ display: 'flex', gap: '5px' }}>
-                  <button className="btn-icon" title="Düzenle" onClick={() => handleEdit(r)}>
-                    <FiEdit2 size={16} />
-                  </button>
-                  <button className="btn-icon" title={r.state === 1 ? 'Pasif Yap' : 'Aktif Et'} style={{ color: r.state === 1 ? 'var(--error)' : 'var(--success)' }} onClick={() => toggleState(r.id, r.state)}>
-                    {r.state === 1 ? <FiToggleRight size={16} /> : <FiToggleLeft size={16} />}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* 🟡 DATA TABLE SECTION */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <DataTable<Role>
+          data={sortedData}
+          columns={columns}
+          sortConfigs={sortConfigs}
+          onSort={toggleSort}
+          getRowKey={(r) => r.id}
+          hasState={(r) => r.state === 1}
+          onEdit={handleEdit}
+          onArchive={(r) => toggleState(r.id, 0)}
+          onRestore={(r) => toggleState(r.id, 1)}
+          getRowOpacity={(r) => r.state === 0 ? 0.5 : 1}
+        />
       </div>
 
+      {/* 🟢 MODAL SECTION */}
       {isModalOpen && (
-        <div className="loader-overlay" style={{ alignItems: 'flex-start', paddingTop: '3%', overflowY: 'auto' }}>
-          <div className="login-box" style={{ maxWidth: '800px', width: '100%', marginBottom: '5%' }}>
-            <h3 style={{ marginBottom: '20px', color: 'var(--primary)' }}>{editingId ? 'Rolü Düzenle' : 'Yeni Rol'}</h3>
-            <form onSubmit={handleSubmit} className="login-form">
+        <div className="loader-overlay" style={{ alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', background: 'rgba(15, 23, 42, 0.4)' }}>
+          <div className="glass-panel" style={{ maxWidth: '900px', width: '95%', maxHeight: '90vh', overflowY: 'auto', padding: '40px', borderRadius: '32px', background: 'white' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--on-surface)' }}>
+                {editingId ? 'Rol Revizyonu' : 'Yeni Güvenlik Profili'}
+              </h2>
+              <button className="btn-icon circle" onClick={() => setIsModalOpen(false)}><FiX size={20} /></button>
+            </div>
+            
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
               <div className="form-group">
-                <label>Rol Adı</label>
-                <input required className="uppercase-input" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value.toLocaleUpperCase('tr-TR')})} placeholder="ÖR: MUHASEBE UZMANI" />
+                <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>ROL İSMİ (GÖREV TANIMI)</label>
+                <input required className="uppercase-input" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value.toLocaleUpperCase('tr-TR')})} placeholder="ÖR: MUHASEBE VE FİNANS MÜDÜRÜ" style={{ height: '52px' }} />
               </div>
 
-              <div className="form-group" style={{ marginTop: '20px' }}>
-                <label style={{ marginBottom: '10px', display: 'block', color: 'var(--primary)', fontSize: '1rem' }}>Yetki Matrisi (Capability Matrix)</label>
-                <div style={{ background: 'var(--surface-container-low)', padding: '15px', borderRadius: '12px', border: '1px solid var(--border)', maxHeight: '400px', overflowY: 'auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <div>
+                <label style={{ fontSize: '14px', fontWeight: 900, color: 'var(--primary)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FiGrid /> YETKİ MATRİSİ (CAPABILITY MATRIX)
+                </label>
+                <div style={{ 
+                  display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px',
+                  background: 'var(--surface-container-low)', padding: '24px', borderRadius: '24px', border: '1px solid var(--border)'
+                }}>
                   {Object.keys(groupedPermissions).map(moduleName => (
-                    <div key={moduleName} style={{ background: 'white', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                      <h4 style={{ fontSize: '12px', fontWeight: 800, color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '5px', marginBottom: '10px', textTransform: 'uppercase' }}>{moduleName}</h4>
-                      {groupedPermissions[moduleName].map((perm: any) => (
-                        <label key={perm.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', marginBottom: '8px', cursor: 'pointer' }}>
-                          <input type="checkbox" checked={formData.permissionIds.includes(perm.id)} onChange={() => togglePermission(perm.id)} style={{ transform: 'scale(1.2)', accentColor: 'var(--primary)' }} />
-                          {perm.name}
-                        </label>
-                      ))}
+                    <div key={moduleName} style={{ 
+                      background: 'white', padding: '16px', borderRadius: '16px', 
+                      boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border)',
+                      display: 'flex', flexDirection: 'column', gap: '12px'
+                    }}>
+                      <div style={{ 
+                        fontSize: '11px', fontWeight: 900, color: 'var(--primary)', 
+                        paddingBottom: '8px', borderBottom: '1px solid var(--surface-container)',
+                        textTransform: 'uppercase', letterSpacing: '0.05em'
+                      }}>
+                        {moduleName}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {groupedPermissions[moduleName].map((perm: any) => (
+                          <label key={perm.id} style={{ 
+                            display: 'flex', alignItems: 'center', gap: '10px', 
+                            fontSize: '13px', fontWeight: 700, color: 'var(--on-surface-variant)',
+                            cursor: 'pointer', padding: '6px', borderRadius: '8px',
+                            transition: '0.2s', background: formData.permissionIds.includes(perm.id) ? 'var(--primary-glow)' : 'transparent'
+                          }}>
+                            <input 
+                              type="checkbox" 
+                              checked={formData.permissionIds.includes(perm.id)} 
+                              onChange={() => togglePermission(perm.id)} 
+                              style={{ width: '18px', height: '18px', accentColor: 'var(--primary)', cursor: 'pointer' }} 
+                            />
+                            {perm.name}
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '15px', marginTop: '20px' }}>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1, height: '50px' }}>KAYDET</button>
-                <button type="button" className="btn" style={{ flex: 0.5, background: '#e2e8f0', height: '50px' }} onClick={() => setIsModalOpen(false)}>İPTAL</button>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1, height: '56px', fontSize: '15px' }}>
+                  <FiCheckCircle size={18} style={{ marginRight: '8px' }} /> YARATILAN PROFİLİ KAYDET
+                </button>
+                <button type="button" className="btn btn-secondary" style={{ flex: 0.4, height: '56px', background: 'white' }} onClick={() => setIsModalOpen(false)}>PTAL ET</button>
               </div>
             </form>
           </div>

@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { itemsAPI, currenciesAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { FiCheck } from 'react-icons/fi';
 
+import { Item, ItemType, ItemCodeGroup, QuantityType, Currency } from '../../types';
+import { useQuickCreateStore } from '../../store/useQuickCreateStore';
+
 interface ItemFormProps {
-  initialData?: any;
+  initialData?: Partial<Item>;
   editingId?: number | null;
-  onSuccess: (data: any) => void;
+  onSuccess: (data: unknown) => void;
   onCancel: () => void;
 }
 
@@ -16,53 +19,68 @@ export const ItemForm: React.FC<ItemFormProps> = ({
   onSuccess,
   onCancel,
 }) => {
-  const [itemTypes, setItemTypes] = useState<any[]>([]);
-  const [itemCodeGroups, setItemCodeGroups] = useState<any[]>([]);
-  const [quantityTypes, setQuantityTypes] = useState<any[]>([]);
-  const [currencies, setCurrencies] = useState<any[]>([]);
+  const { updateCache, getCache, clearCache } = useQuickCreateStore();
+  const cacheKey = editingId ? `item_edit_${editingId}` : 'item_create';
+
+  const [itemTypes, setItemTypes] = useState<ItemType[]>([]);
+  const [itemCodeGroups, setItemCodeGroups] = useState<ItemCodeGroup[]>([]);
+  const [quantityTypes, setQuantityTypes] = useState<QuantityType[]>([]);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
   
-  const [formData, setFormData] = useState({
-    name: initialData?.name || '',
-    itemTypeId: initialData?.itemTypeId || '',
-    itemCodeGroupId: initialData?.itemCodeGroupId || '',
-    criticalLimit: initialData?.criticalLimit || 0,
-    purchasePrice: initialData?.purchasePrice || 0,
-    salePrice: initialData?.salePrice || 0,
-    currencyId: initialData?.currencyId || '',
-    quantityTypeId: initialData?.quantityTypeId || '',
-    kdv: initialData?.kdv !== undefined ? initialData.kdv : 20,
-    image: initialData?.image || '',
-    description: initialData?.description || '',
-    notes: initialData?.notes || ''
+  const [formData, setFormData] = useState<Record<string, string | number>>(() => {
+    const cached = getCache(cacheKey) as Record<string, string | number> | null;
+    return cached || {
+      name: (initialData?.name as string) || '',
+      itemTypeId: (initialData?.itemTypeId as number) || '',
+      itemCodeGroupId: (initialData?.itemCodeGroupId as number) || '',
+      criticalLimit: (initialData?.criticalLimit as string | number) || 0,
+      purchasePrice: (initialData?.purchasePrice as string | number) || 0,
+      salePrice: (initialData?.salePrice as string | number) || 0,
+      currencyId: (initialData?.currencyId as number) || '',
+      quantityTypeId: (initialData?.quantityTypeId as number) || '',
+      kdv: initialData?.kdv !== undefined ? Number(initialData.kdv) : 20,
+      image: (initialData?.image as string) || '',
+      description: (initialData?.description as string) || '',
+      notes: (initialData?.notes as string) || ''
+    };
   });
+
+  // Caching strategy: Update only on blur or unmount to prevent re-render loops
+  const saveDraft = useCallback(() => {
+    updateCache(cacheKey, formData);
+  }, [formData, cacheKey, updateCache]);
 
   const [customKdv, setCustomKdv] = useState<number | null>(
     [0, 1, 10, 20].includes(Number(formData.kdv)) ? null : Number(formData.kdv)
   );
 
   useEffect(() => {
+    const controller = new AbortController();
     const loadDependencies = async () => {
       try {
         const [types, groups, qtys, curs] = await Promise.all([
-          itemsAPI.getTypes(),
-          itemsAPI.getCodeGroups(),
-          itemsAPI.getQuantityTypes(),
-          currenciesAPI.getAll()
+          itemsAPI.getTypes({ signal: controller.signal }),
+          itemsAPI.getCodeGroups({ signal: controller.signal }),
+          itemsAPI.getQuantityTypes({ signal: controller.signal }),
+          currenciesAPI.getAll({}, { signal: controller.signal })
         ]);
         setItemTypes(types.data);
         setItemCodeGroups(groups.data);
         setQuantityTypes(qtys.data);
         setCurrencies(curs.data);
 
-        if (!formData.currencyId) {
-          const def = curs.data.find((c: any) => c.isDefault === 1);
-          if (def) setFormData((p: any) => ({ ...p, currencyId: String(def.id) }));
+        if (!formData.currencyId && curs.data.length > 0) {
+          const def = curs.data.find((c: Currency) => c.isDefault === 1);
+          if (def) setFormData((p) => ({ ...p, currencyId: String(def.id) }));
         }
-      } catch (error) {
-        console.error("Dependency loading failed", error);
+      } catch (error: any) {
+        if (error.name !== 'AbortError') {
+          console.error("Dependency loading failed", error);
+        }
       }
     };
     loadDependencies();
+    return () => controller.abort();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,23 +95,25 @@ export const ItemForm: React.FC<ItemFormProps> = ({
       purchasePrice: Number(formData.purchasePrice),
       salePrice: Number(formData.salePrice),
       criticalLimit: Number(formData.criticalLimit)
-    };
+    } as any;
 
     try {
       if (editingId) {
         const res = await itemsAPI.update(editingId, payload);
+        clearCache(cacheKey);
         onSuccess(res.data);
       } else {
         const res = await itemsAPI.create(payload);
+        clearCache(cacheKey);
         onSuccess(res.data);
       }
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || "İşlem başarısız");
+    } catch (error: unknown) {
+      toast.error("İşlem başarısız");
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="login-form">
+    <form onSubmit={handleSubmit} onBlur={saveDraft} className="login-form">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: '15px' }}>
         <div className="form-group">
           <label>Ürün Türü</label>
@@ -158,11 +178,25 @@ export const ItemForm: React.FC<ItemFormProps> = ({
           </div>
         </div>
         <div className="form-group">
-          <label>Kritik Limit</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--surface-container-low)', padding: '5px', borderRadius: '14px', border: '1px solid var(--border)' }}>
-            <button type="button" className="btn btn-icon" onClick={() => setFormData((p: any) => ({ ...p, criticalLimit: Math.max(0, Number(p.criticalLimit) - 10) }))}>-10</button>
-            <input type="number" className="uppercase-input tabular-nums" style={{ flex: 1, textAlign: 'center', margin: 0, border: 'none', background: 'transparent', fontWeight: 800 }} value={formData.criticalLimit} onChange={e => setFormData({ ...formData, criticalLimit: e.target.value })} />
-            <button type="button" className="btn btn-icon" onClick={() => setFormData((p: any) => ({ ...p, criticalLimit: Number(p.criticalLimit) + 10 }))}>+10</button>
+          <label>Kritik Limit (Görüntüleme Eşik Değeri)</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <button type="button" className="btn btn-sm" style={{ background: '#f8fafc', border: '1px solid var(--border)', padding: '5px 8px', fontSize: '10px' }} onClick={() => setFormData((p) => ({ ...p, criticalLimit: Math.max(0, Number(p.criticalLimit) - 100) }))}>-100</button>
+              <button type="button" className="btn btn-sm" style={{ background: '#f8fafc', border: '1px solid var(--border)', padding: '5px 8px', fontSize: '10px' }} onClick={() => setFormData((p) => ({ ...p, criticalLimit: Math.max(0, Number(p.criticalLimit) - 10) }))}>-10</button>
+            </div>
+            
+            <input 
+              type="number" 
+              className="uppercase-input tabular-nums" 
+              style={{ width: '100px', textAlign: 'center', fontWeight: '900', fontSize: '1.4rem', height: '45px', border: '2px solid var(--primary-glow)', borderRadius: '10px' }} 
+              value={formData.criticalLimit} 
+              onChange={e => setFormData({ ...formData, criticalLimit: e.target.value })} 
+            />
+
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <button type="button" className="btn btn-sm" style={{ background: '#f8fafc', border: '1px solid var(--border)', padding: '5px 8px', fontSize: '10px' }} onClick={() => setFormData((p) => ({ ...p, criticalLimit: Number(p.criticalLimit) + 10 }))}>+10</button>
+              <button type="button" className="btn btn-sm" style={{ background: '#f8fafc', border: '1px solid var(--border)', padding: '5px 8px', fontSize: '10px' }} onClick={() => setFormData((p) => ({ ...p, criticalLimit: Number(p.criticalLimit) + 100 }))}>+100</button>
+            </div>
           </div>
         </div>
       </div>

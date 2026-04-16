@@ -15,10 +15,15 @@ const sale_entity_1 = require("./entities/sale.entity");
 const sale_item_entity_1 = require("./entities/sale-item.entity");
 const sale_type_entity_1 = require("./entities/sale-type.entity");
 const sale_sequence_entity_1 = require("./entities/sale-sequence.entity");
-const stock_entity_1 = require("../inventory/stocks/entities/stock.entity");
-const stock_movement_entity_1 = require("../inventory/stocks/entities/stock-movement.entity");
 const party_entity_1 = require("../parties/entities/party.entity");
 const sequence_generator_service_1 = require("../../common/services/sequence-generator.service");
+const inventory_module_1 = require("../inventory/inventory.module");
+const logs_module_1 = require("../logs/logs.module");
+const inventory_sale_listener_1 = require("./listeners/inventory-sale.listener");
+const finance_sale_listener_1 = require("./listeners/finance-sale.listener");
+const ledger_entity_1 = require("../parties/entities/ledger.entity");
+const transaction_entity_1 = require("../finance/transactions/entities/transaction.entity");
+const common_module_1 = require("../../common/common.module");
 let SalesModule = class SalesModule {
 };
 exports.SalesModule = SalesModule;
@@ -26,12 +31,19 @@ exports.SalesModule = SalesModule = __decorate([
     (0, common_1.Module)({
         imports: [
             typeorm_1.TypeOrmModule.forFeature([
-                sale_entity_1.Sale, sale_item_entity_1.SaleItem, sale_type_entity_1.SaleType, sale_sequence_entity_1.SaleSequence,
-                stock_entity_1.Stock, stock_movement_entity_1.StockMovement, party_entity_1.Party,
+                sale_entity_1.Sale, sale_item_entity_1.SaleItem, sale_type_entity_1.SaleType, sale_sequence_entity_1.SaleSequence, party_entity_1.Party, ledger_entity_1.AccountingLedger, transaction_entity_1.Transaction
             ]),
+            common_module_1.CommonModule,
+            inventory_module_1.InventoryModule,
+            logs_module_1.LogsModule,
         ],
         controllers: [sales_controller_1.SalesController],
-        providers: [sales_service_1.SalesService, sequence_generator_service_1.SequenceGeneratorService],
+        providers: [
+            sales_service_1.SalesService,
+            sequence_generator_service_1.SequenceGeneratorService,
+            inventory_sale_listener_1.InventorySaleListener,
+            finance_sale_listener_1.FinanceSaleListener
+        ],
         exports: [sales_service_1.SalesService],
     })
 ], SalesModule);

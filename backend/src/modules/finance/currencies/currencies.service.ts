@@ -25,7 +25,13 @@ export class CurrenciesService {
 
   async update(id: number, dto: UpdateCurrencyDto, userId?: number): Promise<Currency> {
     const curr = await this.findOne(id);
-    Object.assign(curr, dto);
+    
+    if (dto.name !== undefined) curr.name = dto.name;
+    if (dto.symbol !== undefined) curr.symbol = dto.symbol;
+    if (dto.exchangeRate !== undefined) curr.exchangeRate = dto.exchangeRate;
+    if (dto.isDefault !== undefined) curr.isDefault = dto.isDefault;
+    if (dto.state !== undefined) curr.state = dto.state;
+
     curr.updatedBy = userId || null;
     return this.currencyRepo.save(curr);
   }

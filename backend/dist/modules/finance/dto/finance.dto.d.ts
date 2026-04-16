@@ -28,16 +28,17 @@ export declare class UpdateAccountDto {
     iban?: string;
     ibanName?: string;
     criticalLimit?: number;
+    currencyId?: number;
     description?: string;
     state?: number;
 }
 export declare class CreateTransactionDto {
-    partyId: number;
+    partyId?: number;
     commercialAccountId: number;
-    amount: number;
+    amount: string;
     currencyId?: number;
     type: 'in' | 'out';
-    referenceType?: 'sale' | 'purchase' | 'manual_adjustment';
+    referenceType?: 'sale' | 'purchase' | 'manual_adjustment' | 'manual';
     referenceId?: number;
     date: string;
     description?: string;
