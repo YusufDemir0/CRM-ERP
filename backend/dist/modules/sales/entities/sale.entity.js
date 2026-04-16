@@ -27,6 +27,7 @@ __decorate([
     __metadata("design:type", String)
 ], Sale.prototype, "code", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'party_id', type: 'bigint' }),
     __metadata("design:type", Number)
 ], Sale.prototype, "partyId", void 0);
@@ -35,6 +36,7 @@ __decorate([
     __metadata("design:type", Number)
 ], Sale.prototype, "saleTypeId", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'department_id', type: 'bigint', nullable: true }),
     __metadata("design:type", Object)
 ], Sale.prototype, "departmentId", void 0);
@@ -52,6 +54,7 @@ __decorate([
     __metadata("design:type", Object)
 ], Sale.prototype, "deliveryDate", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ type: 'enum', enum: ['draft', 'approved', 'shipped', 'invoiced', 'cancelled'], default: 'draft' }),
     __metadata("design:type", String)
 ], Sale.prototype, "status", void 0);

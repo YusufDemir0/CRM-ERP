@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn, OneToMany, Unique } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, OneToMany, Unique, Index } from 'typeorm';
 import { Transform } from 'class-transformer';
 import { Decimal } from 'decimal.js';
 import { BaseEntity } from '../../../common/entities/base.entity';
@@ -14,12 +14,14 @@ export class Sale extends BaseEntity {
   @Column({ type: 'varchar', length: 50 })
   code: string;
 
+  @Index()
   @Column({ name: 'party_id', type: 'bigint' })
   partyId: number;
 
   @Column({ name: 'sale_type_id', type: 'bigint' })
   saleTypeId: number;
 
+  @Index()
   @Column({ name: 'department_id', type: 'bigint', nullable: true })
   departmentId: number | null;
 
@@ -33,6 +35,7 @@ export class Sale extends BaseEntity {
   @Column({ name: 'delivery_date', type: 'date', nullable: true })
   deliveryDate: string | null;
 
+  @Index()
   @Column({ type: 'enum', enum: ['draft', 'approved', 'shipped', 'invoiced', 'cancelled'], default: 'draft' })
   status: 'draft' | 'approved' | 'shipped' | 'invoiced' | 'cancelled';
 

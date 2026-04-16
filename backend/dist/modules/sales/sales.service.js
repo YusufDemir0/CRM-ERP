@@ -287,15 +287,16 @@ let SalesService = SalesService_1 = class SalesService {
             sale.departmentId = dto.departmentId;
             sale.updatedBy = userId || null;
             await queryRunner.manager.save(sale_entity_1.Sale, sale);
-            await queryRunner.commitTransaction();
-            this.eventBus.emit('sale.approved', {
+            await this.eventBus.emitSync('sale.approved', {
                 sale,
                 departmentId: dto.departmentId,
                 tlGrandTotal,
                 deposit: finance_helper_1.FinanceHelper.mul(sale.deposit, sale.exchangeRate),
                 commercialAccountId: dto.commercialAccountId,
-                userId
+                userId,
+                manager: queryRunner.manager
             });
+            await queryRunner.commitTransaction();
             this.logsService.logActivity({
                 userId,
                 module: 'sales',

@@ -325,17 +325,19 @@ export class SalesService {
       sale.updatedBy = userId || null;
       await queryRunner.manager.save(Sale, sale);
 
-      await queryRunner.commitTransaction();
-      
       // Emit event for decoupled modules (Inventory, Finance)
-      this.eventBus.emit('sale.approved', { 
+      // SYNC & TRANSACTIONAL: We pass the manager so listeners run in the SAME transaction.
+      await this.eventBus.emitSync('sale.approved', { 
         sale, 
         departmentId: dto.departmentId, 
         tlGrandTotal,
         deposit: FH.mul(sale.deposit, sale.exchangeRate),
         commercialAccountId: dto.commercialAccountId,
-        userId 
+        userId,
+        manager: queryRunner.manager // CRITICAL: Share transaction
       });
+
+      await queryRunner.commitTransaction();
       
       this.logsService.logActivity({
         userId,

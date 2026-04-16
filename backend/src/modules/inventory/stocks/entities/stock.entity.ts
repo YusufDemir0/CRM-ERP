@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn, Unique, Check } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Unique, Check, Index } from 'typeorm';
 import { Transform } from 'class-transformer';
 import { Decimal } from 'decimal.js';
 import { BaseEntity } from '../../../../common/entities/base.entity';
@@ -13,6 +13,7 @@ export class Stock extends BaseEntity {
   @Column({ name: 'item_id', type: 'bigint' })
   itemId: number;
 
+  @Index()
   @Column({ name: 'department_id', type: 'bigint' })
   departmentId: number;
 

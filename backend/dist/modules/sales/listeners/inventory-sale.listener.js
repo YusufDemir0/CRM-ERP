@@ -19,12 +19,12 @@ let InventorySaleListener = class InventorySaleListener {
         this.stocksService = stocksService;
     }
     onModuleInit() {
-        this.eventBus.on('sale.approved').subscribe(async (payload) => {
+        this.eventBus.subscribeSync('sale.approved', async (payload) => {
             await this.handleSaleApproved(payload);
         });
     }
     async handleSaleApproved(payload) {
-        await this.stocksService.reserveStockBulk(payload.sale.items, payload.departmentId, undefined, payload.userId);
+        await this.stocksService.reserveStockBulk(payload.sale.items, payload.departmentId, payload.manager, payload.userId);
     }
 };
 exports.InventorySaleListener = InventorySaleListener;

@@ -224,7 +224,7 @@ export const stocksAPI = {
   getMovements: (stockId: number, params?: PaginationParams, config?: AxiosRequestConfig) => api.get(`/stocks/${stockId}/movements`, { params, ...config }),
   adjust: (data: StockAdjustmentDto, config?: AxiosRequestConfig) => api.post('/stocks/adjust', data, config),
   transfer: (data: StockTransferDto, config?: AxiosRequestConfig) => api.post('/stocks/transfer', data, config),
-  search: (query: string, config?: AxiosRequestConfig) => api.get<any[]>(`/stocks/search?q=${query}`, config), // Grouped stock results
+  search: (query: string, config?: AxiosRequestConfig) => api.get<Array<{ itemId: number; itemName: string; totalQuantity: string; departmentQuantities: Record<number, string> }>>(`/stocks/search?q=${query}`, config),
 };
 
 // ────── SALES API ──────
@@ -239,7 +239,7 @@ export const salesAPI = {
   delete: (id: number, config?: AxiosRequestConfig) => api.delete(`/sales/${id}`, config),
   getTypes: (config?: AxiosRequestConfig) => api.get<SaleType[]>('/sales/types', config),
   getStatus: (config?: AxiosRequestConfig) => api.get('/sales/status', config),
-  ship: (id: number, data: any, config?: AxiosRequestConfig) => api.post(`/sales/${id}/ship`, data, config),
+  ship: (id: number, data: { items: Array<{ itemId: number; quantity: string }> }, config?: AxiosRequestConfig) => api.post(`/sales/${id}/ship`, data, config),
 };
 
 // ────── CURRENCIES API ──────

@@ -11,17 +11,17 @@ export class InventorySaleListener implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    this.eventBus.on('sale.approved').subscribe(async (payload: { sale: Sale, departmentId: number, userId?: number }) => {
+    this.eventBus.subscribeSync('sale.approved', async (payload: { sale: Sale, departmentId: number, userId?: number, manager?: any }) => {
       await this.handleSaleApproved(payload);
     });
   }
 
-  private async handleSaleApproved(payload: { sale: Sale, departmentId: number, userId?: number }) {
+  private async handleSaleApproved(payload: { sale: Sale, departmentId: number, userId?: number, manager?: any }) {
     // DB-02: Reservoir Stock for approved sales
     await this.stocksService.reserveStockBulk(
       payload.sale.items,
       payload.departmentId,
-      undefined, // Runs in its own transaction or as side effect
+      payload.manager, // Use shared transaction if provided
       payload.userId
     );
   }

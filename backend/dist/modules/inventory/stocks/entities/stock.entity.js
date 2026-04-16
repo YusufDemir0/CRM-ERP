@@ -25,6 +25,7 @@ __decorate([
     __metadata("design:type", Number)
 ], Stock.prototype, "itemId", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'department_id', type: 'bigint' }),
     __metadata("design:type", Number)
 ], Stock.prototype, "departmentId", void 0);

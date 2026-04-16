@@ -15,10 +15,25 @@ let InternalEventBus = InternalEventBus_1 = class InternalEventBus {
     constructor() {
         this.logger = new common_1.Logger(InternalEventBus_1.name);
         this.bus$ = new rxjs_1.Subject();
+        this.handlers = new Map();
     }
     emit(type, payload, metadata) {
-        this.logger.debug(`Event emitted: ${type}`);
+        this.logger.debug(`Event emitted (Async): ${type}`);
         this.bus$.next({ type, payload, metadata });
+    }
+    async emitSync(type, payload, metadata) {
+        this.logger.debug(`Event emitted (Sync): ${type}`);
+        this.bus$.next({ type, payload, metadata });
+        const typeHandlers = this.handlers.get(type);
+        if (typeHandlers && typeHandlers.length > 0) {
+            await Promise.all(typeHandlers.map(handler => handler(payload)));
+        }
+    }
+    subscribeSync(type, handler) {
+        if (!this.handlers.has(type)) {
+            this.handlers.set(type, []);
+        }
+        this.handlers.get(type).push(handler);
     }
     on(type) {
         return this.bus$.pipe((0, operators_1.filter)(event => event.type === type), (0, operators_1.map)(event => event.payload));

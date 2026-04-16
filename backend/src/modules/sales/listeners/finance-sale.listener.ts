@@ -25,12 +25,13 @@ export class FinanceSaleListener implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    this.eventBus.on('sale.approved').subscribe(async (payload: { 
+    this.eventBus.subscribeSync('sale.approved', async (payload: { 
       sale: Sale, 
       tlGrandTotal: Decimal, 
       deposit: Decimal, 
       commercialAccountId?: number,
-      userId?: number 
+      userId?: number,
+      manager?: any
     }) => {
       await this.handleFinanceLogic(payload);
     });
@@ -41,17 +42,15 @@ export class FinanceSaleListener implements OnModuleInit {
     tlGrandTotal: Decimal, 
     deposit: Decimal, 
     commercialAccountId?: number,
-    userId?: number 
+    userId?: number,
+    manager?: any
   }) {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+    const { sale, tlGrandTotal, deposit, commercialAccountId, userId, manager } = payload;
+    const qr = manager || this.dataSource.manager;
 
     try {
-      const { sale, tlGrandTotal, deposit, commercialAccountId, userId } = payload;
-      
       // 1. Debit Party
-      await queryRunner.manager.save(queryRunner.manager.create(AccountingLedger, {
+      await qr.save(qr.create(AccountingLedger, {
         date: DateUtils.getToday(),
         partyId: sale.partyId,
         debit: tlGrandTotal,
@@ -61,7 +60,7 @@ export class FinanceSaleListener implements OnModuleInit {
         description: `${sale.code} numaralı Satış Faturası Borçlandırması`
       }));
 
-      const party = await queryRunner.manager.findOne(Party, { 
+      const party = await qr.findOne(Party, { 
         where: { id: sale.partyId },
         lock: { mode: 'pessimistic_write' }
       });
@@ -71,9 +70,10 @@ export class FinanceSaleListener implements OnModuleInit {
         
         // 2. Handle Deposit if exists
         if (deposit.gt(0) && commercialAccountId) {
-          const txCode = await this.sequenceGenerator.generateTransactionCode(queryRunner, 'MKB');
+          // Note: sequenceGenerator should ideally also support manager
+          const txCode = await this.sequenceGenerator.generateTransactionCode(qr, 'MKB');
           
-          await queryRunner.manager.save(queryRunner.manager.create(Transaction, {
+          await qr.save(qr.create(Transaction, {
             code: txCode, 
             partyId: party.id, 
             commercialAccountId,
@@ -89,7 +89,7 @@ export class FinanceSaleListener implements OnModuleInit {
             createdBy: userId
           }));
 
-          await queryRunner.manager.save(queryRunner.manager.create(AccountingLedger, {
+          await qr.save(qr.create(AccountingLedger, {
             date: DateUtils.getToday(),
             partyId: party.id,
             accountId: commercialAccountId,
@@ -104,16 +104,13 @@ export class FinanceSaleListener implements OnModuleInit {
         }
 
         party.updatedBy = userId || null;
-        await queryRunner.manager.save(Party, party);
+        await qr.save(Party, party);
       }
 
-      await queryRunner.commitTransaction();
       this.logger.log(`Finance logic completed for sale ${sale.code}`);
     } catch (err) {
-      await queryRunner.rollbackTransaction();
       this.logger.error(`Failed to process finance for sale ${payload.sale.code}: ${err.message}`);
-    } finally {
-      await queryRunner.release();
+      throw err; // RE-THROW so emitSync knows about the failure
     }
   }
 }

@@ -36,17 +36,15 @@ let FinanceSaleListener = FinanceSaleListener_1 = class FinanceSaleListener {
         this.logger = new common_1.Logger(FinanceSaleListener_1.name);
     }
     onModuleInit() {
-        this.eventBus.on('sale.approved').subscribe(async (payload) => {
+        this.eventBus.subscribeSync('sale.approved', async (payload) => {
             await this.handleFinanceLogic(payload);
         });
     }
     async handleFinanceLogic(payload) {
-        const queryRunner = this.dataSource.createQueryRunner();
-        await queryRunner.connect();
-        await queryRunner.startTransaction();
+        const { sale, tlGrandTotal, deposit, commercialAccountId, userId, manager } = payload;
+        const qr = manager || this.dataSource.manager;
         try {
-            const { sale, tlGrandTotal, deposit, commercialAccountId, userId } = payload;
-            await queryRunner.manager.save(queryRunner.manager.create(ledger_entity_1.AccountingLedger, {
+            await qr.save(qr.create(ledger_entity_1.AccountingLedger, {
                 date: date_utils_1.DateUtils.getToday(),
                 partyId: sale.partyId,
                 debit: tlGrandTotal,
@@ -55,15 +53,15 @@ let FinanceSaleListener = FinanceSaleListener_1 = class FinanceSaleListener {
                 source: 'SALE',
                 description: `${sale.code} numaralı Satış Faturası Borçlandırması`
             }));
-            const party = await queryRunner.manager.findOne(party_entity_1.Party, {
+            const party = await qr.findOne(party_entity_1.Party, {
                 where: { id: sale.partyId },
                 lock: { mode: 'pessimistic_write' }
             });
             if (party) {
                 party.balance = finance_helper_1.FinanceHelper.add(party.balance, tlGrandTotal);
                 if (deposit.gt(0) && commercialAccountId) {
-                    const txCode = await this.sequenceGenerator.generateTransactionCode(queryRunner, 'MKB');
-                    await queryRunner.manager.save(queryRunner.manager.create(transaction_entity_1.Transaction, {
+                    const txCode = await this.sequenceGenerator.generateTransactionCode(qr, 'MKB');
+                    await qr.save(qr.create(transaction_entity_1.Transaction, {
                         code: txCode,
                         partyId: party.id,
                         commercialAccountId,
@@ -78,7 +76,7 @@ let FinanceSaleListener = FinanceSaleListener_1 = class FinanceSaleListener {
                         status: 'completed',
                         createdBy: userId
                     }));
-                    await queryRunner.manager.save(queryRunner.manager.create(ledger_entity_1.AccountingLedger, {
+                    await qr.save(qr.create(ledger_entity_1.AccountingLedger, {
                         date: date_utils_1.DateUtils.getToday(),
                         partyId: party.id,
                         accountId: commercialAccountId,
@@ -91,17 +89,13 @@ let FinanceSaleListener = FinanceSaleListener_1 = class FinanceSaleListener {
                     party.balance = finance_helper_1.FinanceHelper.sub(party.balance, deposit);
                 }
                 party.updatedBy = userId || null;
-                await queryRunner.manager.save(party_entity_1.Party, party);
+                await qr.save(party_entity_1.Party, party);
             }
-            await queryRunner.commitTransaction();
             this.logger.log(`Finance logic completed for sale ${sale.code}`);
         }
         catch (err) {
-            await queryRunner.rollbackTransaction();
             this.logger.error(`Failed to process finance for sale ${payload.sale.code}: ${err.message}`);
-        }
-        finally {
-            await queryRunner.release();
+            throw err;
         }
     }
 };

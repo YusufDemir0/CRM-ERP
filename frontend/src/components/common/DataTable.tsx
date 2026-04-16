@@ -38,7 +38,7 @@ interface DataTableProps<T> {
   };
 }
 
-export function DataTable<T>({
+const DataTableInner = <T,>({
   data,
   columns,
   isLoading,
@@ -56,7 +56,7 @@ export function DataTable<T>({
   isPinned,
   hasState,
   customIcons,
-}: DataTableProps<T>) {
+}: DataTableProps<T>) => {
   if (isLoading) {
     return (
       <div className="bg-white/70 backdrop-blur-xl border border-white/40 shadow-premium rounded-[2rem] overflow-hidden">
@@ -133,7 +133,7 @@ export function DataTable<T>({
                         <div className="flex items-center group-hover:translate-x-1 transition-transform duration-300">
                           {typeof col.accessor === 'function' 
                             ? col.accessor(item) 
-                            : String(item[col.accessor] || '—')}
+                            : String(item[col.accessor as keyof T] || '—')}
                         </div>
                       </td>
                     ))}
@@ -213,4 +213,6 @@ export function DataTable<T>({
       </div>
     </div>
   );
-}
+};
+
+export const DataTable = React.memo(DataTableInner) as <T,>(props: DataTableProps<T>) => React.ReactElement;

@@ -19,6 +19,7 @@ let StockMovement = class StockMovement extends base_entity_1.BaseEntity {
 };
 exports.StockMovement = StockMovement;
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'stock_id', type: 'bigint' }),
     __metadata("design:type", Number)
 ], StockMovement.prototype, "stockId", void 0);
@@ -39,10 +40,12 @@ __decorate([
     __metadata("design:type", String)
 ], StockMovement.prototype, "type", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'reference_type', type: 'enum', enum: ['sale', 'purchase', 'production', 'adjustment', 'return', 'manual'] }),
     __metadata("design:type", String)
 ], StockMovement.prototype, "referenceType", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'reference_id', type: 'bigint', nullable: true }),
     __metadata("design:type", Object)
 ], StockMovement.prototype, "referenceId", void 0);

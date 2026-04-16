@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Inject,
   CanActivate,
   ExecutionContext,
   ForbiddenException,
@@ -24,12 +25,16 @@ import { User } from '../../modules/auth/entities/user.entity';
  * 4. scope_type kontrolü: global, department, own
  * 5. İlk kullanıcı (ID=1) veya hiç permission tanımlı değilse → bypass
  */
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+
 @Injectable()
 export class PermissionsGuard implements CanActivate {
   private readonly logger = new Logger(PermissionsGuard.name);
 
   constructor(
     private reflector: Reflector,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
     @InjectRepository(UserRole)
     private userRoleRepo: Repository<UserRole>,
     @InjectRepository(RolePermission)
@@ -84,62 +89,49 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
 
-    // 2. Rol bazlı permission'ları al
-    let rolePermissionKeys: string[] = [];
-    if (roleIds.length > 0) {
-      const rolePerms = await this.rolePermRepo.find({
-        where: { roleId: In(roleIds) },
+    // ─── CACHE CHECK ───
+    const cacheKey = `user_perms_${userId}`;
+    const cachedPerms = await this.cacheManager.get<string[]>(cacheKey);
+    
+    let finalPermissions: string[] = [];
+    
+    if (cachedPerms) {
+      finalPermissions = cachedPerms;
+    } else {
+      // 2. Rol bazlı permission'ları al
+      let rolePermissionKeys: string[] = [];
+      if (roleIds.length > 0) {
+        const rolePerms = await this.rolePermRepo.find({
+          where: { roleId: In(roleIds) },
+          relations: ['permission'],
+        });
+        rolePermissionKeys = rolePerms
+          .filter((rp) => rp.permission)
+          .map((rp) => rp.permission.key);
+      }
+
+      // 3. Kullanıcı bazlı override'ları al
+      const userPerms = await this.userPermRepo.find({
+        where: { userId },
         relations: ['permission'],
       });
-      rolePermissionKeys = rolePerms
-        .filter((rp) => rp.permission)
-        .map((rp) => rp.permission.key);
+
+      // Combine and filter
+      const userAllowKeys = userPerms.filter(up => up.effect === 'allow').map(up => up.permission?.key);
+      const userDenyKeys = userPerms.filter(up => up.effect === 'deny').map(up => up.permission?.key);
+      
+      finalPermissions = Array.from(new Set([...rolePermissionKeys, ...userAllowKeys]))
+        .filter(key => key && !userDenyKeys.includes(key)) as string[];
+
+      await this.cacheManager.set(cacheKey, finalPermissions, 60000); // 1 dk cache
     }
 
-    // 3. Kullanıcı bazlı override'ları al
-    const userPerms = await this.userPermRepo.find({
-      where: { userId },
-      relations: ['permission'],
-    });
-
     // 4. Her required permission için kontrol
-    for (const requiredKey of requiredPermissions) {
-      // User-level deny kontrolü (deny her zaman kazanır)
-      const denyOverride = userPerms.find(
-        (up) => up.permission?.key === requiredKey && up.effect === 'deny',
-      );
-      if (denyOverride) {
-        this.logger.warn(
-          `User ${userId} denied permission: ${requiredKey} (explicit deny)`,
-        );
-        throw new ForbiddenException(
-          `Bu işlem için yetkiniz bulunmamaktadır: ${requiredKey}`,
-        );
-      }
-
-      // User-level allow override kontrolü
-      const allowOverride = userPerms.find(
-        (up) => up.permission?.key === requiredKey && up.effect === 'allow',
-      );
-
-      if (allowOverride) {
-        // Scope kontrolü metadata'yı request'e ekle
-        request.permissionScope = {
-          type: allowOverride.scopeType,
-          scopeId: allowOverride.scopeId,
-        };
-        continue; // Bu permission OK
-      }
-
-      // Rol bazlı kontrol
-      if (!rolePermissionKeys.includes(requiredKey)) {
-        this.logger.warn(
-          `User ${userId} missing permission: ${requiredKey}`,
-        );
-        throw new ForbiddenException(
-          `Bu işlem için yetkiniz bulunmamaktadır: ${requiredKey}`,
-        );
-      }
+    const hasAll = requiredPermissions.every(key => finalPermissions.includes(key));
+    
+    if (!hasAll) {
+       this.logger.warn(`User ${userId} missing one of: ${requiredPermissions.join(', ')}`);
+       throw new ForbiddenException(`Bu işlem için yetkiniz bulunmamaktadır.`);
     }
 
     return true;

@@ -23,9 +23,11 @@ const user_permission_entity_1 = require("../../modules/auth/entities/user-permi
 const role_permission_entity_1 = require("../../modules/auth/entities/role-permission.entity");
 const user_role_entity_1 = require("../../modules/auth/entities/user-role.entity");
 const permission_entity_1 = require("../../modules/auth/entities/permission.entity");
+const cache_manager_1 = require("@nestjs/cache-manager");
 let PermissionsGuard = PermissionsGuard_1 = class PermissionsGuard {
-    constructor(reflector, userRoleRepo, rolePermRepo, userPermRepo, permissionRepo) {
+    constructor(reflector, cacheManager, userRoleRepo, rolePermRepo, userPermRepo, permissionRepo) {
         this.reflector = reflector;
+        this.cacheManager = cacheManager;
         this.userRoleRepo = userRoleRepo;
         this.rolePermRepo = rolePermRepo;
         this.userPermRepo = userPermRepo;
@@ -57,38 +59,37 @@ let PermissionsGuard = PermissionsGuard_1 = class PermissionsGuard {
         if (isSystemAdmin) {
             return true;
         }
-        let rolePermissionKeys = [];
-        if (roleIds.length > 0) {
-            const rolePerms = await this.rolePermRepo.find({
-                where: { roleId: (0, typeorm_2.In)(roleIds) },
+        const cacheKey = `user_perms_${userId}`;
+        const cachedPerms = await this.cacheManager.get(cacheKey);
+        let finalPermissions = [];
+        if (cachedPerms) {
+            finalPermissions = cachedPerms;
+        }
+        else {
+            let rolePermissionKeys = [];
+            if (roleIds.length > 0) {
+                const rolePerms = await this.rolePermRepo.find({
+                    where: { roleId: (0, typeorm_2.In)(roleIds) },
+                    relations: ['permission'],
+                });
+                rolePermissionKeys = rolePerms
+                    .filter((rp) => rp.permission)
+                    .map((rp) => rp.permission.key);
+            }
+            const userPerms = await this.userPermRepo.find({
+                where: { userId },
                 relations: ['permission'],
             });
-            rolePermissionKeys = rolePerms
-                .filter((rp) => rp.permission)
-                .map((rp) => rp.permission.key);
+            const userAllowKeys = userPerms.filter(up => up.effect === 'allow').map(up => up.permission?.key);
+            const userDenyKeys = userPerms.filter(up => up.effect === 'deny').map(up => up.permission?.key);
+            finalPermissions = Array.from(new Set([...rolePermissionKeys, ...userAllowKeys]))
+                .filter(key => key && !userDenyKeys.includes(key));
+            await this.cacheManager.set(cacheKey, finalPermissions, 60000);
         }
-        const userPerms = await this.userPermRepo.find({
-            where: { userId },
-            relations: ['permission'],
-        });
-        for (const requiredKey of requiredPermissions) {
-            const denyOverride = userPerms.find((up) => up.permission?.key === requiredKey && up.effect === 'deny');
-            if (denyOverride) {
-                this.logger.warn(`User ${userId} denied permission: ${requiredKey} (explicit deny)`);
-                throw new common_1.ForbiddenException(`Bu işlem için yetkiniz bulunmamaktadır: ${requiredKey}`);
-            }
-            const allowOverride = userPerms.find((up) => up.permission?.key === requiredKey && up.effect === 'allow');
-            if (allowOverride) {
-                request.permissionScope = {
-                    type: allowOverride.scopeType,
-                    scopeId: allowOverride.scopeId,
-                };
-                continue;
-            }
-            if (!rolePermissionKeys.includes(requiredKey)) {
-                this.logger.warn(`User ${userId} missing permission: ${requiredKey}`);
-                throw new common_1.ForbiddenException(`Bu işlem için yetkiniz bulunmamaktadır: ${requiredKey}`);
-            }
+        const hasAll = requiredPermissions.every(key => finalPermissions.includes(key));
+        if (!hasAll) {
+            this.logger.warn(`User ${userId} missing one of: ${requiredPermissions.join(', ')}`);
+            throw new common_1.ForbiddenException(`Bu işlem için yetkiniz bulunmamaktadır.`);
         }
         return true;
     }
@@ -96,12 +97,12 @@ let PermissionsGuard = PermissionsGuard_1 = class PermissionsGuard {
 exports.PermissionsGuard = PermissionsGuard;
 exports.PermissionsGuard = PermissionsGuard = PermissionsGuard_1 = __decorate([
     (0, common_1.Injectable)(),
-    __param(1, (0, typeorm_1.InjectRepository)(user_role_entity_1.UserRole)),
-    __param(2, (0, typeorm_1.InjectRepository)(role_permission_entity_1.RolePermission)),
-    __param(3, (0, typeorm_1.InjectRepository)(user_permission_entity_1.UserPermission)),
-    __param(4, (0, typeorm_1.InjectRepository)(permission_entity_1.Permission)),
-    __metadata("design:paramtypes", [core_1.Reflector,
-        typeorm_2.Repository,
+    __param(1, (0, common_1.Inject)(cache_manager_1.CACHE_MANAGER)),
+    __param(2, (0, typeorm_1.InjectRepository)(user_role_entity_1.UserRole)),
+    __param(3, (0, typeorm_1.InjectRepository)(role_permission_entity_1.RolePermission)),
+    __param(4, (0, typeorm_1.InjectRepository)(user_permission_entity_1.UserPermission)),
+    __param(5, (0, typeorm_1.InjectRepository)(permission_entity_1.Permission)),
+    __metadata("design:paramtypes", [core_1.Reflector, Object, typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository])
