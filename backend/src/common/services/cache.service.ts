@@ -7,7 +7,8 @@ export class CacheService {
   constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
 
   async get<T>(key: string): Promise<T | null> {
-    return await this.cacheManager.get<T>(key);
+    const value = await this.cacheManager.get<T>(key);
+    return value ?? null;
   }
 
   async set(key: string, value: unknown, ttl?: number): Promise<void> {

@@ -27,11 +27,21 @@ export default defineConfig({
     cssMinify: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-query': ['@tanstack/react-query'],
-          'vendor-ui': ['react-icons', 'react-hot-toast'],
-          'vendor-utils': ['axios', 'zustand', 'decimal.js', 'dayjs'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('@tanstack/react-query')) {
+              return 'vendor-query';
+            }
+            if (id.includes('react-icons') || id.includes('react-hot-toast')) {
+              return 'vendor-ui';
+            }
+            if (id.includes('axios') || id.includes('zustand') || id.includes('decimal.js') || id.includes('dayjs')) {
+              return 'vendor-utils';
+            }
+          }
         },
       },
     },
