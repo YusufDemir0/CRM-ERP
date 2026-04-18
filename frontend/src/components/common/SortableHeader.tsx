@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { FiChevronUp, FiChevronDown, FiMinus } from 'react-icons/fi';
 import { SortConfig } from '../../hooks/useSort';
 
@@ -25,15 +25,15 @@ export const SortableHeader: React.FC<SortableHeaderProps> = ({
   return (
     <th 
       onClick={(e) => onSort(sortKey, e.shiftKey)}
-      style={{ cursor: 'pointer', userSelect: 'none', ...style }}
-      className={`sortable-header ${className || ''}`}
+      className={`sortable-header cursor-pointer select-none ${className || ''}`}
+      style={style}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+      <div className="flex items-center gap-1.5">
         {label}
-        <span style={{ display: 'inline-flex', alignItems: 'center', opacity: config ? 1 : 0.3 }}>
+        <span className={`inline-flex items-center ${config ? 'opacity-100' : 'opacity-30'}`}>
           {config?.direction === 'asc' ? <FiChevronUp /> : config?.direction === 'desc' ? <FiChevronDown /> : <FiMinus size={12} />}
           {sortConfigs.length > 1 && index !== -1 && (
-            <span style={{ fontSize: '10px', marginLeft: '2px', fontWeight: 800 }}>{index + 1}</span>
+            <span className="text-[10px] ml-0.5 font-extrabold">{index + 1}</span>
           )}
         </span>
       </div>

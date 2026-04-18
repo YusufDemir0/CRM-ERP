@@ -23,12 +23,22 @@ export class PartiesService {
       qb.andWhere('(party.name LIKE :s OR party.phone1 LIKE :s OR party.email LIKE :s OR party.taxNumber LIKE :s OR party.taxOffice LIKE :s OR party.districtName LIKE :s OR party.address LIKE :s OR party.notes LIKE :s OR currency.name LIKE :s)', { s: `%${query.search}%` });
     }
 
-    // Dynamic Advanced Filters (Sidebar filters)
+    // DB-04: Dynamic Advanced Filters (Sidebar filters) with Map-based whitelist
+    const partyFilterMap: Record<string, string> = {
+      name: 'party.name',
+      phone1: 'party.phone1',
+      email: 'party.email',
+      taxNumber: 'party.taxNumber',
+      taxOffice: 'party.taxOffice',
+      cityId: 'party.cityId',
+      districtName: 'party.districtName',
+      type: 'party.type',
+    };
+
     Object.keys(query).forEach(key => {
-      const skipKeys = ['page', 'limit', 'search', 'sortBy', 'sortOrder', 'skip', 'type', 'state'];
-      const allowedPartyKeys = ['name', 'phone1', 'email', 'taxNumber', 'taxOffice', 'cityId', 'districtName', 'type'];
-      if (!skipKeys.includes(key) && allowedPartyKeys.includes(key) && query[key as keyof typeof query] !== undefined) {
-        qb.andWhere(`party.${key} LIKE :${key}`, { [key]: `%${query[key as keyof typeof query]}%` });
+      const dbCol = partyFilterMap[key];
+      if (dbCol && query[key as keyof typeof query] !== undefined) {
+        qb.andWhere(`${dbCol} LIKE :${key}`, { [key]: `%${query[key as keyof typeof query]}%` });
       }
     });
 
@@ -111,7 +121,7 @@ export class PartiesService {
           );
         }
 
-        (party as any)[field] = dtoValue;
+        (party as unknown as Record<string, unknown>)[field] = dtoValue;
       }
     });
 
@@ -135,6 +145,11 @@ export class PartiesService {
       );
     }
 
+    const timestamp = Date.now();
+    await this.partyRepo.update(id, {
+      taxNumber: `_DEL_${timestamp}_${party.taxNumber || id}`.substring(0, 50),
+      state: 0,
+    });
     await this.partyRepo.softDelete(id);
   }
 

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 import type { AuthUser } from '../store/useAuthStore';
+import { useShallow } from 'zustand/react/shallow';
 
 // ────── COMPATIBILITY SHIM ──────
 // Re-exports useAuthStore as useAuth() for backward compatibility.
@@ -27,18 +28,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useAuth(): AuthContextType {
-  const user = useAuthStore((s) => s.user);
-  const isLoading = useAuthStore((s) => s.isLoading);
-  const login = useAuthStore((s) => s.login);
-  const logout = useAuthStore((s) => s.logout);
-  const hasPermission = useAuthStore((s) => s.hasPermission);
-
-  return {
-    user,
+  return useAuthStore(useShallow((s) => ({
+    user: s.user,
     token: null, // JWT is in httpOnly cookie, not exposed to client
-    login,
-    logout,
-    isLoading,
-    hasPermission,
-  };
+    login: s.login,
+    logout: s.logout,
+    isLoading: s.isLoading,
+    hasPermission: s.hasPermission,
+  })));
 }

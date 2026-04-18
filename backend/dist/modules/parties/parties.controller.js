@@ -14,7 +14,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PartiesController = void 0;
 const common_1 = require("@nestjs/common");
-const passport_1 = require("@nestjs/passport");
 const parties_service_1 = require("./parties.service");
 const party_dto_1 = require("./dto/party.dto");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
@@ -94,7 +93,6 @@ __decorate([
 ], PartiesController.prototype, "remove", null);
 exports.PartiesController = PartiesController = __decorate([
     (0, common_1.Controller)('parties'),
-    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __metadata("design:paramtypes", [parties_service_1.PartiesService])
 ], PartiesController);
 //# sourceMappingURL=parties.controller.js.map

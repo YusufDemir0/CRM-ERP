@@ -24,12 +24,15 @@ let AuthController = class AuthController {
     constructor(authService) {
         this.authService = authService;
     }
+    async getCsrf() {
+        return { success: true };
+    }
     async login(dto, res) {
         const { access_token, user } = await this.authService.login(dto);
         res.cookie('erp_token', access_token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            sameSite: 'lax',
             maxAge: 8 * 60 * 60 * 1000,
         });
         return {
@@ -48,8 +51,21 @@ let AuthController = class AuthController {
     async getProfile(userId) {
         return this.authService.getProfile(userId);
     }
+    async forgotPassword(dto) {
+        return this.authService.forgotPassword(dto);
+    }
+    async changePassword(userId, dto) {
+        return this.authService.changePassword(userId, dto);
+    }
 };
 exports.AuthController = AuthController;
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Get)('csrf'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "getCsrf", null);
 __decorate([
     (0, public_decorator_1.Public)(),
     (0, throttler_1.Throttle)({ default: { limit: 5, ttl: 60000 } }),
@@ -83,6 +99,24 @@ __decorate([
     __metadata("design:paramtypes", [Number]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "getProfile", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, throttler_1.Throttle)({ default: { limit: 3, ttl: 300000 } }),
+    (0, common_1.Post)('forgot-password'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [auth_dto_1.ForgotPasswordDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "forgotPassword", null);
+__decorate([
+    (0, throttler_1.Throttle)({ default: { limit: 5, ttl: 300000 } }),
+    (0, common_1.Post)('change-password'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)('sub')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, auth_dto_1.ChangePasswordDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "changePassword", null);
 exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)('auth'),
     __metadata("design:paramtypes", [auth_service_1.AuthService])

@@ -9,7 +9,23 @@ export declare class LogsService implements OnModuleInit, OnModuleDestroy {
     constructor(logRepository: Repository<SystemLog>);
     onModuleInit(): void;
     onModuleDestroy(): void;
-    findAll(query: any): Promise<any>;
+    findAll(query: {
+        search?: string;
+        module?: string;
+        sortBy?: string;
+        sortOrder?: 'ASC' | 'DESC';
+        skip?: number;
+        limit?: number;
+        page?: number;
+    }): Promise<{
+        data: SystemLog[];
+        meta: {
+            total: number;
+            page: number;
+            limit: number;
+            totalPages: number;
+        };
+    }>;
     logActivity(data: Partial<SystemLog>): void;
     addLog(data: Partial<SystemLog>): Promise<SystemLog>;
 }

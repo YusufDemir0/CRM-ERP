@@ -17,7 +17,7 @@ import { LogsInterceptor } from './common/interceptors/logs.interceptor';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 import { CsrfGuard } from './common/guards/csrf.guard';
-import { CsrfInterceptor } from './common/interceptors/csrf.interceptor';
+import { CsrfMiddleware } from './common/middleware/csrf.middleware';
 import { AuditSubscriber } from './common/subscribers/audit.subscriber';
 import { CommonModule } from './common/common.module';
 
@@ -90,10 +90,6 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     },
     {
       provide: APP_INTERCEPTOR,
-      useClass: CsrfInterceptor,
-    },
-    {
-      provide: APP_INTERCEPTOR,
       useClass: LogsInterceptor,
     },
     // Sistem geneli Throttler (Hız Sınırlayıcı)
@@ -117,4 +113,10 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     AuditSubscriber,
   ],
 })
-export class AppModule {}
+export class AppModule {
+  configure(consumer: import('@nestjs/common').MiddlewareConsumer) {
+    consumer
+      .apply(CsrfMiddleware)
+      .forRoutes('*');
+  }
+}

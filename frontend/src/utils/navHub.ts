@@ -8,7 +8,7 @@ const HUB_KEY = 'ERMAY_NAV_HUB';
 
 export interface NavState {
   returnPath: string;
-  formData: any;
+  formData: Record<string, unknown>;
   editingId: number | null;
 }
 

@@ -7,9 +7,6 @@ export class CreateUserDto {
 
   @IsString()
   @MinLength(8, { message: 'Şifre en az 8 karakter olmalıdır' })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/, {
-    message: 'Şifre en az bir büyük harf, bir küçük harf ve bir rakam içermelidir',
-  })
   password: string;
 
   @IsString()
@@ -47,9 +44,6 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   @MinLength(8, { message: 'Şifre en az 8 karakter olmalıdır' })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/, {
-    message: 'Şifre en az bir büyük harf, bir küçük harf ve bir rakam içermelidir',
-  })
   password?: string;
 
   @IsOptional()

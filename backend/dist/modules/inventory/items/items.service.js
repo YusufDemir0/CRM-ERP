@@ -53,11 +53,14 @@ const item_entity_1 = require("./entities/item.entity");
 const item_type_entity_1 = require("./entities/item-type.entity");
 const quantity_type_entity_1 = require("./entities/quantity-type.entity");
 const item_code_group_entity_1 = require("./entities/item-code-group.entity");
+const inventory_dto_1 = require("../dto/inventory.dto");
 const sequence_generator_service_1 = require("../../../common/services/sequence-generator.service");
 const currencies_service_1 = require("../../finance/currencies/currencies.service");
 const decimal_js_1 = require("decimal.js");
+const transactional_decorator_1 = require("../../../common/decorators/transactional.decorator");
+const transaction_context_service_1 = require("../../../common/services/transaction-context.service");
 let ItemsService = class ItemsService {
-    constructor(itemRepo, itemTypeRepo, qtyTypeRepo, codeGroupRepo, dataSource, sequenceGenerator, currenciesService) {
+    constructor(itemRepo, itemTypeRepo, qtyTypeRepo, codeGroupRepo, dataSource, sequenceGenerator, currenciesService, transactionContext) {
         this.itemRepo = itemRepo;
         this.itemTypeRepo = itemTypeRepo;
         this.qtyTypeRepo = qtyTypeRepo;
@@ -65,6 +68,7 @@ let ItemsService = class ItemsService {
         this.dataSource = dataSource;
         this.sequenceGenerator = sequenceGenerator;
         this.currenciesService = currenciesService;
+        this.transactionContext = transactionContext;
     }
     async findAll(query) {
         const qb = this.itemRepo.createQueryBuilder('item')
@@ -88,11 +92,20 @@ let ItemsService = class ItemsService {
             qb.andWhere('(SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE item_id = item.id) < item.criticalLimit');
             qb.andWhere('item.criticalLimit > 0');
         }
+        const itemFilterMap = {
+            name: 'item.name',
+            code: 'item.code',
+            code1: 'item.code1',
+            code2: 'item.code2',
+            description: 'item.description',
+            notes: 'item.notes',
+            barcode: 'item.barcode',
+            taxRate: 'item.taxRate',
+        };
         Object.keys(query).forEach(key => {
-            const skipKeys = ['page', 'limit', 'search', 'sortBy', 'sortOrder', 'skip', 'itemTypeId', 'providerId', 'currencyId', 'state', 'critical'];
-            const allowedItemKeys = ['name', 'code', 'code1', 'code2', 'description', 'notes', 'barcode', 'taxRate'];
-            if (!skipKeys.includes(key) && allowedItemKeys.includes(key) && query[key] !== undefined) {
-                qb.andWhere(`item.${key} LIKE :${key}`, { [key]: `%${query[key]}%` });
+            const dbCol = itemFilterMap[key];
+            if (dbCol && query[key] !== undefined) {
+                qb.andWhere(`${dbCol} LIKE :${key}`, { [key]: `%${query[key]}%` });
             }
         });
         const sortFieldMap = {
@@ -125,40 +138,27 @@ let ItemsService = class ItemsService {
         return item;
     }
     async create(dto, userId) {
-        const queryRunner = this.dataSource.createQueryRunner();
-        await queryRunner.connect();
-        await queryRunner.startTransaction();
-        try {
-            if (!dto.currencyId) {
-                try {
-                    const defaultCurrency = await this.currenciesService.getDefault();
-                    dto.currencyId = Number(defaultCurrency.id);
-                }
-                catch (error) {
-                    console.warn('Default currency not found in ItemsService, setting to null');
-                }
+        const manager = this.transactionContext.manager;
+        if (!dto.currencyId) {
+            try {
+                const defaultCurrency = await this.currenciesService.getDefault();
+                dto.currencyId = Number(defaultCurrency.id);
             }
-            const code = await this.sequenceGenerator.generateItemCode(queryRunner, dto.itemCodeGroupId);
-            const existing = await queryRunner.manager.findOne(item_entity_1.Item, { where: { code } });
-            if (existing) {
-                throw new common_1.BadRequestException(`'${code}' kodlu bir ürün zaten mevcut.`);
+            catch (error) {
+                console.warn('Default currency not found in ItemsService, setting to null');
             }
-            const item = queryRunner.manager.create(item_entity_1.Item, {
-                ...dto,
-                code,
-                createdBy: userId,
-            });
-            const savedItem = await queryRunner.manager.save(item);
-            await queryRunner.commitTransaction();
-            return savedItem;
         }
-        catch (error) {
-            await queryRunner.rollbackTransaction();
-            throw error;
+        const code = await this.sequenceGenerator.generateItemCode(manager, dto.itemCodeGroupId);
+        const existing = await manager.findOne(item_entity_1.Item, { where: { code } });
+        if (existing) {
+            throw new common_1.BadRequestException(`'${code}' kodlu bir ürün zaten mevcut.`);
         }
-        finally {
-            await queryRunner.release();
-        }
+        const item = manager.create(item_entity_1.Item, {
+            ...dto,
+            code,
+            createdBy: userId,
+        });
+        return manager.save(item);
     }
     async update(id, dto, userId) {
         const item = await this.findOne(id);
@@ -339,6 +339,12 @@ let ItemsService = class ItemsService {
     }
 };
 exports.ItemsService = ItemsService;
+__decorate([
+    (0, transactional_decorator_1.Transactional)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [inventory_dto_1.CreateItemDto, Number]),
+    __metadata("design:returntype", Promise)
+], ItemsService.prototype, "create", null);
 exports.ItemsService = ItemsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(item_entity_1.Item)),
@@ -351,6 +357,7 @@ exports.ItemsService = ItemsService = __decorate([
         typeorm_2.Repository,
         typeorm_2.DataSource,
         sequence_generator_service_1.SequenceGeneratorService,
-        currencies_service_1.CurrenciesService])
+        currencies_service_1.CurrenciesService,
+        transaction_context_service_1.TransactionContextService])
 ], ItemsService);
 //# sourceMappingURL=items.service.js.map

@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { 
   FiArrowRight, FiCheckCircle, FiClock, 
   FiSettings, FiX, FiCalendar 
@@ -45,7 +45,7 @@ export const getProductionColumns = (): Column<ProductionOrder>[] => [
           </div>
           <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden shadow-inner">
             <div 
-              className="h-full bg-success transition-all duration-500 ease-out shadow-[0_0_10px_rgba(34,197,94,0.3)]" 
+              className="h-full bg-success transition-colors duration-500 ease-out shadow-[0_0_10px_rgba(34,197,94,0.3)]" 
               style={{ width: `${progress}%` }} 
             />
           </div>
@@ -72,7 +72,7 @@ export const getProductionColumns = (): Column<ProductionOrder>[] => [
   { 
     header: 'DURUM', 
     accessor: (o) => {
-      const statusColors: any = {
+      const statusColors: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
         completed: { bg: 'bg-success/10', text: 'text-success', icon: <FiCheckCircle /> },
         in_progress: { bg: 'bg-primary/10', text: 'text-primary', icon: <FiClock /> },
         cancelled: { bg: 'bg-danger/10', text: 'text-danger', icon: <FiX /> },

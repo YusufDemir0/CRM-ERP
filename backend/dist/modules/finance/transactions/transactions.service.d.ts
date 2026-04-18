@@ -3,11 +3,13 @@ import { Transaction } from './entities/transaction.entity';
 import { SequenceGeneratorService } from '../../../common/services/sequence-generator.service';
 import { CreateTransactionDto } from '../dto/finance.dto';
 import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
+import { TransactionContextService } from '../../../common/services/transaction-context.service';
 export declare class TransactionsService {
     private txRepo;
     private dataSource;
     private sequenceGenerator;
-    constructor(txRepo: Repository<Transaction>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService);
+    private transactionContext;
+    constructor(txRepo: Repository<Transaction>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, transactionContext: TransactionContextService);
     findAll(query: PaginationDto & {
         partyId?: number;
         type?: string;
@@ -20,8 +22,8 @@ export declare class TransactionsService {
         message: string;
     }>;
     getStatus(): Promise<{
-        monthlyIncome: any;
-        monthlyExpense: any;
+        monthlyIncome: string;
+        monthlyExpense: string;
         count: number;
         totalVolume: string;
     }>;

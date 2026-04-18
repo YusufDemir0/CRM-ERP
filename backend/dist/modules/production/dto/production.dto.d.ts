@@ -38,6 +38,8 @@ export declare class UpdateProductionOrderDto {
     sourceDepartmentId?: number;
     targetDepartmentId?: number;
     status?: string;
+    laborCost?: string | number;
+    overheadCost?: string | number;
     startDate?: string;
     endDate?: string;
     notes?: string;

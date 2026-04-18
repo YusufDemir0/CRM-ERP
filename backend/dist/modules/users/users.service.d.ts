@@ -4,11 +4,13 @@ import { User } from '../auth/entities/user.entity';
 import { Role } from '../auth/entities/role.entity';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { TransactionContextService } from '../../common/services/transaction-context.service';
 export declare class UsersService {
     private userRepo;
     private roleRepo;
     private cacheManager;
-    constructor(userRepo: Repository<User>, roleRepo: Repository<Role>, cacheManager: Cache);
+    private transactionContext;
+    constructor(userRepo: Repository<User>, roleRepo: Repository<Role>, cacheManager: Cache, transactionContext: TransactionContextService);
     findAll(query: PaginationDto): Promise<PaginatedResult<User>>;
     findOne(id: number): Promise<User>;
     create(dto: CreateUserDto, currentUserId?: number): Promise<User>;

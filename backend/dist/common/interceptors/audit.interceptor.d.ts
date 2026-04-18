@@ -4,5 +4,5 @@ import { ClsService } from 'nestjs-cls';
 export declare class AuditInterceptor implements NestInterceptor {
     private readonly cls;
     constructor(cls: ClsService);
-    intercept(context: ExecutionContext, next: CallHandler): Observable<any>;
+    intercept(context: ExecutionContext, next: CallHandler): Observable<unknown>;
 }

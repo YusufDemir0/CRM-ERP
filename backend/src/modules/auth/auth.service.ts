@@ -7,7 +7,8 @@ import { User } from './entities/user.entity';
 import { UserRole } from './entities/user-role.entity';
 import { RolePermission } from './entities/role-permission.entity';
 import { UserPermission } from './entities/user-permission.entity';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, ForgotPasswordDto, ChangePasswordDto } from './dto/auth.dto';
+import { RecordState } from '../../common/enums/record-state.enum';
 
 @Injectable()
 export class AuthService {
@@ -21,7 +22,7 @@ export class AuthService {
     @InjectRepository(UserPermission)
     private userPermRepo: Repository<UserPermission>,
     private jwtService: JwtService,
-  ) {}
+  ) { }
 
   async login(dto: LoginDto) {
     const user = await this.userRepo.findOne({
@@ -31,7 +32,8 @@ export class AuthService {
 
     if (!user) {
       // SEC-07: Constant-time comparison simulation to prevent username enumeration
-      await bcrypt.compare(dto.password, '$2b$12$L7p8Y3W0m6vJ0.rXvC9.7OqE0G9qG9qG9qG9qG9qG9qG9qG9qG9qG');
+      // FE-Fix: Replaced CPU-heavy bcrypt with a simple non-blocking timeout to prevent DDoS
+      await new Promise(resolve => setTimeout(resolve, 50));
       throw new UnauthorizedException('Kullanıcı adı veya şifre hatalı');
     }
 
@@ -52,22 +54,26 @@ export class AuthService {
     if (!isMatch) {
       // Increment failed attempts
       const failedAttempts = (user.failedLoginAttempts || 0) + 1;
-      const updates: Partial<User> = { failedLoginAttempts: failedAttempts };
-      
+      const updates: Partial<User> = { id: user.id, failedLoginAttempts: failedAttempts };
+
       if (failedAttempts >= 5) {
-         // Lock for 15 minutes
-         const lockDuration = 15 * 60 * 1000;
-         updates.lockedUntil = new Date(Date.now() + lockDuration);
-         updates.failedLoginAttempts = 0; // Reset counter but lock is active
+        // Lock for 15 minutes
+        const lockDuration = 15 * 60 * 1000;
+        updates.lockedUntil = new Date(Date.now() + lockDuration);
+        updates.failedLoginAttempts = 0; // Reset counter but lock is active
       }
-      
+
       await this.userRepo.update(user.id, updates);
       throw new UnauthorizedException('Kullanıcı adı veya şifre hatalı');
     }
 
     // Reset failed attempts & lockout on success
     if (user.failedLoginAttempts > 0 || user.lockedUntil) {
-      await this.userRepo.update(user.id, { failedLoginAttempts: 0, lockedUntil: null });
+      await this.userRepo.update(user.id, {
+        id: user.id,
+        failedLoginAttempts: 0,
+        lockedUntil: null
+      });
     }
 
     const payload = {
@@ -137,7 +143,7 @@ export class AuthService {
     }
 
     // Role tabanlı yetkiler
-    const rolePermissions = user.roles?.flatMap(r => 
+    const rolePermissions = user.roles?.flatMap(r =>
       r.permissions?.map(p => p.key) || []
     ) || [];
 
@@ -145,7 +151,7 @@ export class AuthService {
     const userAllowKeys = user.userPermissions
       ?.filter(up => up.effect === 'allow')
       .map(up => up.permission?.key) || [];
-    
+
     const userDenyKeys = user.userPermissions
       ?.filter(up => up.effect === 'deny')
       .map(up => up.permission?.key) || [];
@@ -164,5 +170,32 @@ export class AuthService {
       roles: user.roles?.map((r) => ({ id: r.id, name: r.name })) || [],
       permissions: finalPermissions
     };
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const user = await this.userRepo.findOne({ where: { email: dto.email, state: RecordState.ACTIVE } });
+    if (!user) {
+      // SEC-07: Don't reveal if user exists
+      return { message: 'Şifre sıfırlama talimatları e-posta adresinize gönderildi (eğer hesap mevcutsa).' };
+    }
+
+    // In a real app, send email with token. For now, just logging.
+    console.log(`[AUTH] Forgot password requested for ${dto.email}`);
+    return { message: 'Şifre sıfırlama talimatları e-posta adresinize gönderildi (eğer hesap mevcutsa).' };
+  }
+
+  async changePassword(userId: number, dto: ChangePasswordDto) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('Kullanıcı bulunamadı');
+
+    const isMatch = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!isMatch) throw new UnauthorizedException('Mevcut şifre hatalı');
+
+    const salt = await bcrypt.genSalt(12);
+    user.passwordHash = await bcrypt.hash(dto.newPassword, salt);
+    user.tokenVersion += 1; // Invalidate current tokens
+
+    await this.userRepo.save(user);
+    return { message: 'Şifre başarıyla değiştirildi. Lütfen yeni şifrenizle giriş yapınız.' };
   }
 }

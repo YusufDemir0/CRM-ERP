@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { InternalEventBus } from '../../../common/services/event-bus.service';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, EntityManager } from 'typeorm';
 import { AccountingLedger } from '../../parties/entities/ledger.entity';
 import { Party } from '../../parties/entities/party.entity';
 import { Transaction } from '../../finance/transactions/entities/transaction.entity';
@@ -31,7 +31,7 @@ export class FinanceSaleListener implements OnModuleInit {
       deposit: Decimal, 
       commercialAccountId?: number,
       userId?: number,
-      manager?: any
+      manager?: EntityManager
     }) => {
       await this.handleFinanceLogic(payload);
     });
@@ -43,7 +43,7 @@ export class FinanceSaleListener implements OnModuleInit {
     deposit: Decimal, 
     commercialAccountId?: number,
     userId?: number,
-    manager?: any
+    manager?: EntityManager
   }) {
     const { sale, tlGrandTotal, deposit, commercialAccountId, userId, manager } = payload;
     const qr = manager || this.dataSource.manager;

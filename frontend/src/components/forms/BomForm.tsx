@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { bomsAPI, itemsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { FiX, FiCheck, FiPlus } from 'react-icons/fi';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
-import { Item, Bom, BomItem } from '../../types';
+import { Item, Bom } from '../../types';
 
 export interface BomItemData {
   itemId: number;
@@ -44,15 +44,15 @@ export const BomForm: React.FC<BomFormProps> = ({
   }, [formData, cacheKey, updateCache]);
 
   useEffect(() => {
-    const loadItems = async () => {
-      try {
-        const res = await itemsAPI.getAll({ limit: 1000, state: 1 });
-        setItemsList(res.data.data);
-      } catch (error) {
-        console.error("Failed to load items for BOM", error);
-      }
-    };
-    loadItems();
+    const controller = new AbortController();
+    itemsAPI.getAll({ limit: 1000, state: 1 }, { signal: controller.signal })
+      .then(res => setItemsList(res.data.data))
+      .catch(err => {
+        if (err instanceof Error && err.name !== 'CanceledError' && err.name !== 'AbortError') {
+          console.error("Failed to load items for BOM", err);
+        }
+      });
+    return () => controller.abort();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,15 +67,15 @@ export const BomForm: React.FC<BomFormProps> = ({
     };
     try {
       if (editingId) {
-        const res = await bomsAPI.update(editingId, payload as any);
+        const res = await bomsAPI.update(editingId, payload as Partial<Bom>);
         clearCache(cacheKey);
         onSuccess(res.data);
       } else {
-        const res = await bomsAPI.create(payload as any);
+        const res = await bomsAPI.create(payload as Partial<Bom>);
         clearCache(cacheKey);
         onSuccess(res.data);
       }
-    } catch (error: unknown) {
+    } catch {
       toast.error("İşlem başarısız");
     }
   };
@@ -102,7 +102,7 @@ export const BomForm: React.FC<BomFormProps> = ({
 
   return (
     <form onSubmit={handleSubmit} onBlur={saveDraft} className="login-form">
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr', gap: '15px' }}>
+      <div className="grid grid-cols-[2fr_1.5fr] gap-4">
         <div className="form-group">
           <label>Reçete Adı (Zorunlu)</label>
           <input required className="uppercase-input" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value.toLocaleUpperCase('tr-TR') })} placeholder="ÖR: ÖZEL ÜRETİM REÇETESİ" />
@@ -121,38 +121,38 @@ export const BomForm: React.FC<BomFormProps> = ({
         <input className="uppercase-input" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value.toLocaleUpperCase('tr-TR') })} placeholder="..." />
       </div>
 
-      <div style={{ marginTop: '20px', padding: '15px', background: 'var(--surface-container-low)', borderRadius: '12px', border: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-          <label style={{ color: 'var(--primary)', fontWeight: 800 }}>Kullanılacak Bileşenler</label>
+      <div className="mt-5 p-4 bg-[var(--surface-container-low)] rounded-xl border border-[var(--border)]">
+        <div className="flex justify-between items-center mb-4">
+          <label className="text-[var(--primary)] font-extrabold">Kullanılacak Bileşenler</label>
           <button type="button" className="btn btn-primary btn-sm" onClick={addBomItem}>
             <FiPlus /> Kalem Ekle
           </button>
         </div>
 
         {formData.items.map((item, idx: number) => (
-          <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr 1.5fr auto', gap: '10px', marginBottom: '10px', alignItems: 'center' }}>
-            <select required className="uppercase-input" style={{ height: '40px', fontSize: '12px' }} value={item.itemId} onChange={e => updateBomItem(idx, 'itemId', Number(e.target.value))}>
+          <div key={idx} className="grid grid-cols-[2.5fr_1fr_1.5fr_auto] gap-2.5 mb-2.5 items-center">
+            <select required className="uppercase-input h-10 text-xs" value={item.itemId} onChange={e => updateBomItem(idx, 'itemId', Number(e.target.value))}>
               <option value="">Ürün Seç</option>
               {itemsList.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}
             </select>
-            <input type="number" required step="0.0001" className="uppercase-input tabular-nums" style={{ height: '40px' }} value={item.quantity} onChange={e => updateBomItem(idx, 'quantity', Number(e.target.value))} placeholder="Mkt" />
-            <input type="text" className="uppercase-input" style={{ height: '40px', fontSize: '12px' }} value={item.description} onChange={e => updateBomItem(idx, 'description', e.target.value.toLocaleUpperCase('tr-TR'))} placeholder="Not..." />
-            <button type="button" className="btn-icon circle" style={{ color: 'var(--error)', background: 'var(--error-glow)' }} onClick={() => removeBomItem(idx)}>
+            <input type="number" required step="0.0001" className="uppercase-input tabular-nums h-10" value={item.quantity} onChange={e => updateBomItem(idx, 'quantity', Number(e.target.value))} placeholder="Mkt" />
+            <input type="text" className="uppercase-input h-10 text-xs" value={item.description} onChange={e => updateBomItem(idx, 'description', e.target.value.toLocaleUpperCase('tr-TR'))} placeholder="Not..." />
+            <button type="button" className="btn-icon circle text-[var(--error)] bg-[var(--error-glow)]" onClick={() => removeBomItem(idx)}>
               <FiX />
             </button>
           </div>
         ))}
 
         {formData.items.length === 0 && (
-          <div style={{ textAlign: 'center', color: 'gray', padding: '10px' }}>Henüz bileşen eklenmedi.</div>
+          <div className="text-center text-gray-500 py-2.5">Henüz bileşen eklenmedi.</div>
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: '15px', marginTop: '20px' }}>
-        <button type="submit" className="btn btn-primary" style={{ flex: 1, height: '50px' }}>
+      <div className="flex gap-4 mt-5">
+        <button type="submit" className="btn btn-primary flex-1 h-[50px]">
           <FiCheck /> {editingId ? 'GÜNCELLE' : 'REÇETEYİ KAYDET'}
         </button>
-        <button type="button" className="btn" style={{ flex: 0.4, background: '#e2e8f0', height: '50px' }} onClick={onCancel}>İPTAL</button>
+        <button type="button" className="btn bg-slate-200 flex-[0.4] h-[50px]" onClick={onCancel}>İPTAL</button>
       </div>
     </form>
   );

@@ -1,5 +1,5 @@
 export declare class WebhooksController {
-    handleWebhook(data: any): Promise<{
+    handleWebhook(data: Record<string, unknown>): Promise<{
         status: string;
     }>;
 }

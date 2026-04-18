@@ -1,11 +1,11 @@
-import React from 'react';
+
 import { FiPlus, FiUsers, FiActivity, FiArchive, FiFilter } from 'react-icons/fi';
 
 interface PartiesHeaderProps {
   filterTab: string;
-  setFilterTab: (tab: any) => void;
+  setFilterTab: (tab: 'active' | 'passive' | 'all') => void;
   setPage: (page: number) => void;
-  openCreate: any;
+  openCreate: (type: 'party', options: { onSuccess: () => void }) => void;
   handleFormSuccess: () => void;
 }
 
@@ -34,8 +34,8 @@ export const PartiesHeader: React.FC<PartiesHeaderProps> = ({
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => { setFilterTab(tab.id as any); setPage(1); }}
-              className={`h-9 px-4 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+              onClick={() => { setFilterTab(tab.id as 'active' | 'passive' | 'all'); setPage(1); }}
+              className={`h-9 px-4 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors ${
                 filterTab === tab.id 
                   ? 'bg-white text-primary shadow-sm ring-1 ring-slate-100' 
                   : 'text-slate-500 hover:text-slate-800'

@@ -7,7 +7,6 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
 
 @Controller('stocks')
-@UseGuards(AuthGuard('jwt'))
 export class StocksController {
   constructor(private readonly stocksService: StocksService) {}
 

@@ -1,68 +1,32 @@
-import React from 'react';
+
 import { Link } from 'react-router-dom';
 import { FiShield, FiArrowLeft } from 'react-icons/fi';
 
 const UnauthorizedPage = () => {
   return (
-    <div style={{
-      height: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'var(--on-surface)',
-      color: 'white',
-      textAlign: 'center',
-      padding: '40px'
-    }}>
-      <div className="animate-in" style={{ 
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px',
-        maxWidth: '500px'
-      }}>
-        <div style={{ 
-          width: '120px', height: '120px', borderRadius: '40px', 
-          background: 'var(--error-glow)', color: 'var(--error)', 
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '60px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
-        }}>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white text-center p-10">
+      <div className="animate-in flex flex-col items-center gap-8 max-w-[500px]">
+        <div className="w-[120px] h-[120px] rounded-[40px] bg-red-500/10 text-red-500 flex items-center justify-center text-6xl shadow-[0_20px_40px_rgba(0,0,0,0.3)]">
           <FiShield />
         </div>
         
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <h1 style={{ fontSize: '3rem', fontWeight: 950, letterSpacing: '-0.06em', margin: 0 }}>
-            Erişim <span style={{ color: 'var(--error)' }}>Engellendi!</span>
+        <div className="flex flex-col gap-4">
+          <h1 className="text-[3rem] font-black tracking-tighter m-0 leading-tight">
+            Erişim <span className="text-red-500">Engellendi!</span>
           </h1>
-          <p style={{ 
-            color: 'rgba(255,255,255,0.7)', fontSize: '1.2rem', fontWeight: 600, 
-            lineHeight: '1.6', letterSpacing: '-0.02em'
-          }}>
+          <p className="text-white/70 text-[1.2rem] font-semibold leading-relaxed tracking-tight">
             Bu protokolü veya departmanı görüntülemek için gerekli yetki seviyesine sahip değilsiniz.
           </p>
         </div>
 
-        <div style={{ 
-          background: 'rgba(255,255,255,0.05)', padding: '24px', borderRadius: '24px',
-          border: '1px solid rgba(255,255,255,0.1)', fontSize: '14px', fontWeight: 700,
-          color: 'rgba(255,255,255,0.5)'
-        }}>
+        <div className="bg-white/5 p-6 rounded-[24px] border border-white/10 text-sm font-bold text-white/50">
           Lütfen sistem yöneticinizden yetkilerinizin (Capability Matrix) revize edilmesini talep edin.
         </div>
 
-        <Link to="/" style={{
-          marginTop: '16px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          padding: '16px 32px',
-          background: 'var(--primary)',
-          color: 'white',
-          borderRadius: '16px',
-          textDecoration: 'none',
-          fontWeight: 800,
-          fontSize: '15px',
-          boxShadow: '0 10px 30px var(--primary-glow)',
-          transition: '0.2s'
-        }}>
+        <Link 
+          to="/" 
+          className="mt-4 flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-2xl no-underline font-extrabold text-[15px] shadow-[0_10px_30px_var(--primary-glow)] transition-all duration-200 hover:scale-105"
+        >
           <FiArrowLeft /> Dashboard'a Güvenli Dönüş Yap
         </Link>
       </div>

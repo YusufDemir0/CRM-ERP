@@ -21,19 +21,18 @@ let InternalEventBus = InternalEventBus_1 = class InternalEventBus {
         this.logger.debug(`Event emitted (Async): ${type}`);
         this.bus$.next({ type, payload, metadata });
     }
+    subscribeSync(type, handler) {
+        const handlers = this.handlers.get(type) || [];
+        handlers.push(handler);
+        this.handlers.set(type, handlers);
+    }
     async emitSync(type, payload, metadata) {
         this.logger.debug(`Event emitted (Sync): ${type}`);
+        const handlers = this.handlers.get(type) || [];
+        for (const handler of handlers) {
+            await handler(payload);
+        }
         this.bus$.next({ type, payload, metadata });
-        const typeHandlers = this.handlers.get(type);
-        if (typeHandlers && typeHandlers.length > 0) {
-            await Promise.all(typeHandlers.map(handler => handler(payload)));
-        }
-    }
-    subscribeSync(type, handler) {
-        if (!this.handlers.has(type)) {
-            this.handlers.set(type, []);
-        }
-        this.handlers.get(type).push(handler);
     }
     on(type) {
         return this.bus$.pipe((0, operators_1.filter)(event => event.type === type), (0, operators_1.map)(event => event.payload));

@@ -11,7 +11,8 @@ const throttler_1 = require("@nestjs/throttler");
 const common_1 = require("@nestjs/common");
 let ThrottlerProxyGuard = class ThrottlerProxyGuard extends throttler_1.ThrottlerGuard {
     async getTracker(req) {
-        return req.headers['x-forwarded-for'] || req.ip || req.connection.remoteAddress;
+        const headers = req.headers;
+        return headers['x-forwarded-for'] || req.ip || req.connection?.remoteAddress;
     }
 };
 exports.ThrottlerProxyGuard = ThrottlerProxyGuard;

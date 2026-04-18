@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { partiesAPI } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -6,13 +6,13 @@ import { confirmDialog } from '../../utils/confirmDialog';
 import { Party } from '../../types';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 import { DataTable } from '../../components/common/DataTable';
-import { PaginationControls } from '../../components/common/PaginationControls';
 import { Decimal } from 'decimal.js';
 import { useSort } from '../../hooks/useSort';
+import { useDeferredValue } from 'react';
+import { queryKeys } from '../../services/queryKeys';
 
 // Sub-components
 import { PartiesHeader } from './Parties/PartiesHeader';
-import { PartiesFilters } from './Parties/PartiesFilters';
 import { getPartiesColumns } from './Parties/PartiesColumns';
 
 export default function PartiesPage() {
@@ -20,20 +20,21 @@ export default function PartiesPage() {
   const { openCreate } = useQuickCreateStore();
 
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   const [filterTab, setFilterTab] = useState<'active' | 'passive' | 'all'>('active');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'name', order: 'ASC' });
-  const [filters] = useState<Record<string, any>>({});
+  const [filters] = useState<Record<string, unknown>>({});
 
   const { data: partiesData, isLoading: loading } = useQuery({
-    queryKey: ['parties', page, limit, searchTerm, filterTab, sort, filters],
-    queryFn: async () => {
+    queryKey: queryKeys.parties.all({ page, limit, deferredSearch, filterTab, sort, filters }),
+    queryFn: async ({ signal }) => {
       const res = await partiesAPI.getAll({
-        page, limit, search: searchTerm,
+        page, limit, search: deferredSearch,
         state: filterTab === 'all' ? undefined : (filterTab === 'active' ? 1 : 0),
         sortBy: sort.key, sortOrder: sort.order, ...filters
-      });
+      }, { signal });
       return res.data;
     },
   });
@@ -55,21 +56,52 @@ export default function PartiesPage() {
   const toggleMutation = useMutation({
     mutationFn: ({ id, currentState }: { id: number; currentState: number }) => 
       partiesAPI.toggleState(id, currentState),
+    onMutate: async ({ id }) => {
+      // FE-18: Optimistic Update Implementation
+      await queryClient.cancelQueries({ queryKey: queryKeys.parties.all({}) });
+
+      const previousParties = queryClient.getQueriesData({ queryKey: queryKeys.parties.all({}) });
+
+      queryClient.setQueriesData(
+        { queryKey: queryKeys.parties.all({}) },
+        (old: { data: Party[] } | undefined) => {
+          if (!old?.data) return old;
+          return {
+            ...old,
+            data: old.data.map((p: Party) => 
+              p.id === id ? { ...p, state: p.state === 1 ? 0 : 1 } : p
+            )
+          };
+        }
+      );
+
+      return { previousParties };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousParties) {
+        context.previousParties.forEach(([queryKey, oldData]) => {
+          queryClient.setQueryData(queryKey, oldData);
+        });
+      }
+      toast.error("İşlem başarısız");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.parties.all({}) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.parties.lookup });
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['parties'] });
       toast.success("Durum güncellendi");
     },
-    onError: () => toast.error("İşlem başarısız")
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!loading && parties.length === 0 && paginationMeta && paginationMeta.total > 0 && page > 1) {
       setPage(prev => Math.max(1, prev - 1));
     }
   }, [parties.length, loading, page, paginationMeta]);
 
   const handleFormSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: ['parties'] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.parties.all({}) });
     toast.success("Cari kart kaydedildi.");
   };
 
@@ -104,7 +136,7 @@ export default function PartiesPage() {
     });
   };
 
-  const columns = getPartiesColumns();
+  const columns = useMemo(() => getPartiesColumns(), []);
 
   return (
     <div className="animate-in flex flex-col gap-8">
@@ -113,23 +145,28 @@ export default function PartiesPage() {
         openCreate={openCreate} handleFormSuccess={handleFormSuccess} 
       />
 
-      <PartiesFilters 
-        searchTerm={searchTerm} setSearchTerm={setSearchTerm} 
-      />
-
       <div className="flex flex-col gap-4">
         <DataTable<Party>
-          data={sortedData} columns={columns} isLoading={loading} sortConfigs={sortConfigs} onSort={toggleSort}
-          getRowKey={(p) => p.id} hasState={(p) => p.state === 1} onEdit={handleEdit}
-          onArchive={toggleState} onRestore={toggleState}
+          data={sortedData} 
+          columns={columns} 
+          isLoading={loading} 
+          sortConfigs={sortConfigs} 
+          onSort={toggleSort}
+          getRowKey={(p) => p.id} 
+          hasState={(p) => p.state === 1} 
+          onEdit={handleEdit}
+          onArchive={toggleState} 
+          onRestore={toggleState}
+          
+          // Integrated Search & Pagination
+          search={searchTerm}
+          onSearchChange={(val) => { setSearchTerm(val); setPage(1); }}
+          total={paginationMeta?.total || 0}
+          page={page}
+          limit={limit}
+          onPageChange={setPage}
+          placeholder="Firmayı, yetkiliyi veya vergi numarasını ara..."
         />
-
-        <div className="flex justify-end">
-          <PaginationControls 
-            meta={paginationMeta || { total: 0, page: 1, limit: 20, totalPages: 0 }} 
-            onPageChange={setPage} onLimitChange={setLimit} loading={loading}
-          />
-        </div>
       </div>
     </div>
   );

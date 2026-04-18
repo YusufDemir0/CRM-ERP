@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var JwtStrategy_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.JwtStrategy = void 0;
 const common_1 = require("@nestjs/common");
@@ -21,7 +22,8 @@ const typeorm_1 = require("typeorm");
 const user_entity_1 = require("../entities/user.entity");
 const record_state_enum_1 = require("../../../common/enums/record-state.enum");
 const cache_manager_1 = require("@nestjs/cache-manager");
-let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
+const common_2 = require("@nestjs/common");
+let JwtStrategy = JwtStrategy_1 = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
     constructor(configService, dataSource, cacheManager) {
         super({
             jwtFromRequest: (req) => {
@@ -31,45 +33,42 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
                 return null;
             },
             ignoreExpiration: false,
-            secretOrKey: configService.get('jwt.secret') || 'erp-super-secret-key',
+            secretOrKey: configService.get('jwt.secret'),
         });
         this.dataSource = dataSource;
         this.cacheManager = cacheManager;
+        this.logger = new common_1.Logger(JwtStrategy_1.name);
     }
     async validate(payload) {
         const cacheKey = `user_state_${payload.sub}`;
-        let userState = await this.cacheManager.get(cacheKey);
-        if (!userState) {
+        let state = await this.cacheManager.get(cacheKey);
+        if (state === undefined || state === null) {
             const user = await this.dataSource.getRepository(user_entity_1.User).findOne({
                 where: { id: payload.sub },
-                select: ['id', 'state', 'tokenVersion']
+                select: ['id', 'state']
             });
             if (!user) {
-                throw new common_1.UnauthorizedException('Kullanıcı bulunamadı.');
+                throw new common_1.UnauthorizedException('Kullanıcı bulunamadı veya silinmiş');
             }
-            userState = { state: user.state, tokenVersion: user.tokenVersion };
-            await this.cacheManager.set(cacheKey, userState, 60000);
+            state = user.state;
+            await this.cacheManager.set(cacheKey, state, 300000);
         }
-        if (userState.state !== record_state_enum_1.RecordState.ACTIVE) {
-            await this.cacheManager.del(cacheKey);
-            throw new common_1.UnauthorizedException('Kullanıcı hesabı pasif.');
-        }
-        if (userState.tokenVersion !== payload.tokenVersion) {
-            await this.cacheManager.del(cacheKey);
-            throw new common_1.UnauthorizedException('Oturum sonlandırılmış veya geçersiz.');
+        if (state !== record_state_enum_1.RecordState.ACTIVE) {
+            throw new common_1.UnauthorizedException('Kullanıcı hesabı askıya alınmış veya pasif durumda');
         }
         return {
             id: payload.sub,
             sub: payload.sub,
             username: payload.username,
             departmentId: payload.departmentId,
+            tokenVersion: payload.tokenVersion,
         };
     }
 };
 exports.JwtStrategy = JwtStrategy;
-exports.JwtStrategy = JwtStrategy = __decorate([
+exports.JwtStrategy = JwtStrategy = JwtStrategy_1 = __decorate([
     (0, common_1.Injectable)(),
-    __param(2, (0, common_1.Inject)(cache_manager_1.CACHE_MANAGER)),
+    __param(2, (0, common_2.Inject)(cache_manager_1.CACHE_MANAGER)),
     __metadata("design:paramtypes", [config_1.ConfigService,
         typeorm_1.DataSource, Object])
 ], JwtStrategy);

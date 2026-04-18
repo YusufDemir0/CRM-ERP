@@ -24,15 +24,19 @@ const transaction_entity_1 = require("./entities/transaction.entity");
 const party_entity_1 = require("../../parties/entities/party.entity");
 const currency_entity_1 = require("../currencies/entities/currency.entity");
 const sequence_generator_service_1 = require("../../../common/services/sequence-generator.service");
+const finance_dto_1 = require("../dto/finance.dto");
 const ledger_entity_1 = require("../../parties/entities/ledger.entity");
 const date_utils_1 = require("../../../common/utils/date.utils");
 const finance_helper_1 = require("../../../common/utils/finance.helper");
 const dayjs_1 = __importDefault(require("dayjs"));
+const transactional_decorator_1 = require("../../../common/decorators/transactional.decorator");
+const transaction_context_service_1 = require("../../../common/services/transaction-context.service");
 let TransactionsService = class TransactionsService {
-    constructor(txRepo, dataSource, sequenceGenerator) {
+    constructor(txRepo, dataSource, sequenceGenerator, transactionContext) {
         this.txRepo = txRepo;
         this.dataSource = dataSource;
         this.sequenceGenerator = sequenceGenerator;
+        this.transactionContext = transactionContext;
     }
     async findAll(query) {
         const qb = this.txRepo.createQueryBuilder('tx')
@@ -72,125 +76,99 @@ let TransactionsService = class TransactionsService {
         return tx;
     }
     async create(dto, userId) {
-        const queryRunner = this.dataSource.createQueryRunner();
-        await queryRunner.connect();
-        await queryRunner.startTransaction();
-        try {
-            let party = null;
-            let exchangeRate = new decimal_js_1.Decimal(1);
-            if (dto.partyId) {
-                party = await queryRunner.manager.findOne(party_entity_1.Party, {
-                    where: { id: dto.partyId },
-                    lock: { mode: 'pessimistic_write' }
-                });
-                if (!party)
-                    throw new common_1.NotFoundException('Cari hesap bulunamadı');
-            }
-            const currency = await queryRunner.manager.findOne(currency_entity_1.Currency, { where: { id: dto.currencyId } });
-            exchangeRate = currency ? new decimal_js_1.Decimal(currency.exchangeRate) : new decimal_js_1.Decimal(1);
-            const tlAmount = finance_helper_1.FinanceHelper.mul(dto.amount, exchangeRate);
-            let newBalance = null;
-            if (party) {
-                const isSupplierRefund = dto.type === 'in' && party.type === 'provider';
-                const isDebit = dto.type === 'out' || isSupplierRefund;
-                newBalance = isDebit
-                    ? finance_helper_1.FinanceHelper.add(new decimal_js_1.Decimal(party.balance), tlAmount)
-                    : finance_helper_1.FinanceHelper.sub(new decimal_js_1.Decimal(party.balance), tlAmount);
-                if (dto.type === 'out' && party.creditLimit.gt(0) && newBalance.gt(party.creditLimit)) {
-                    throw new common_1.BadRequestException(`İşlem limit engeline takıldı. Yapılacak ödeme/harcama firmanın belirlediğiniz limitini aşıyor.`);
-                }
-            }
-            const prefix = dto.type === 'in' ? 'MKB' : 'TDY';
-            const code = await this.sequenceGenerator.generateTransactionCode(queryRunner, prefix);
-            const tx = queryRunner.manager.create(transaction_entity_1.Transaction, {
-                code, partyId: dto.partyId || undefined, commercialAccountId: dto.commercialAccountId,
-                amount: new decimal_js_1.Decimal(dto.amount), currencyId: dto.currencyId || undefined, exchangeRate,
-                type: dto.type, referenceType: dto.referenceType || undefined, referenceId: dto.referenceId || undefined,
-                date: dto.date, description: dto.description || undefined, status: 'completed', createdBy: userId,
+        const manager = this.transactionContext.manager;
+        let party = null;
+        let exchangeRate = new decimal_js_1.Decimal(1);
+        if (dto.partyId) {
+            party = await manager.findOne(party_entity_1.Party, {
+                where: { id: dto.partyId },
+                lock: { mode: 'pessimistic_write' }
             });
-            const savedTx = await queryRunner.manager.save(tx);
+            if (!party)
+                throw new common_1.NotFoundException('Cari hesap bulunamadı');
+        }
+        const currency = await manager.findOne(currency_entity_1.Currency, { where: { id: dto.currencyId } });
+        exchangeRate = currency ? new decimal_js_1.Decimal(currency.exchangeRate) : new decimal_js_1.Decimal(1);
+        const tlAmount = finance_helper_1.FinanceHelper.mul(dto.amount, exchangeRate);
+        if (party) {
+            const isSupplierRefund = dto.type === 'in' && party.type === 'provider';
+            const isDebit = dto.type === 'out' || isSupplierRefund;
+            const newBalance = isDebit
+                ? finance_helper_1.FinanceHelper.add(new decimal_js_1.Decimal(party.balance), tlAmount)
+                : finance_helper_1.FinanceHelper.sub(new decimal_js_1.Decimal(party.balance), tlAmount);
+            if (dto.type === 'out' && party.creditLimit.gt(0) && newBalance.gt(party.creditLimit)) {
+                throw new common_1.BadRequestException(`İşlem limit engeline takıldı. Yapılacak ödeme/harcama firmanın belirlediğiniz limitini aşıyor.`);
+            }
+        }
+        const prefix = dto.type === 'in' ? 'MKB' : 'TDY';
+        const code = await this.sequenceGenerator.generateTransactionCode(manager, prefix);
+        const tx = manager.create(transaction_entity_1.Transaction, {
+            code, partyId: dto.partyId || undefined, commercialAccountId: dto.commercialAccountId,
+            amount: new decimal_js_1.Decimal(dto.amount), currencyId: dto.currencyId || undefined, exchangeRate,
+            type: dto.type, referenceType: dto.referenceType || undefined, referenceId: dto.referenceId || undefined,
+            date: dto.date, description: dto.description || undefined, status: 'completed', createdBy: userId,
+        });
+        const savedTx = await manager.save(tx);
+        if (party) {
+            const isSupplierRefund = dto.type === 'in' && party.type === 'provider';
+            const isCredit = dto.type === 'in' && !isSupplierRefund;
+            const entryDebit = isCredit ? new decimal_js_1.Decimal(0) : tlAmount;
+            const entryCredit = isCredit ? tlAmount : new decimal_js_1.Decimal(0);
+            await manager.save(manager.create(ledger_entity_1.AccountingLedger, {
+                date: date_utils_1.DateUtils.getToday(),
+                partyId: party.id,
+                accountId: dto.commercialAccountId,
+                debit: entryDebit,
+                credit: entryCredit,
+                transactionId: savedTx.id,
+                source: dto.type === 'in' ? 'PAYMENT_IN' : 'PAYMENT_OUT',
+                description: dto.description || `Kasa Fişi: ${code}`
+            }));
+            const sign = (dto.type === 'in' && !isSupplierRefund) ? '-' : '+';
+            await manager.createQueryBuilder()
+                .update(party_entity_1.Party)
+                .set({ balance: () => `balance ${sign} ${tlAmount.toString()}` })
+                .where('id = :id', { id: party.id })
+                .execute();
+        }
+        return this.findOne(savedTx.id);
+    }
+    async cancel(id, userId) {
+        const manager = this.transactionContext.manager;
+        const tx = await manager.findOne(transaction_entity_1.Transaction, { where: { id } });
+        if (!tx || tx.status === 'cancelled')
+            throw new common_1.BadRequestException('Sadece tamamlanmış aktif işlemler iptal edilebilir.');
+        if (tx.partyId) {
+            const party = await manager.findOne(party_entity_1.Party, {
+                where: { id: tx.partyId },
+                lock: { mode: 'pessimistic_write' }
+            });
             if (party) {
-                const isSupplierRefund = dto.type === 'in' && party.type === 'provider';
-                const isCredit = dto.type === 'in' && !isSupplierRefund;
-                const entryDebit = isCredit ? new decimal_js_1.Decimal(0) : tlAmount;
-                const entryCredit = isCredit ? tlAmount : new decimal_js_1.Decimal(0);
-                await queryRunner.manager.save(queryRunner.manager.create(ledger_entity_1.AccountingLedger, {
+                const isSupplierRefund = tx.type === 'in' && party.type === 'provider';
+                const isReverseCredit = (tx.type === 'in' && !isSupplierRefund) ? false : true;
+                const tlAmount = finance_helper_1.FinanceHelper.mul(tx.amount, tx.exchangeRate);
+                const revDebit = isReverseCredit ? new decimal_js_1.Decimal(0) : tlAmount;
+                const revCredit = isReverseCredit ? tlAmount : new decimal_js_1.Decimal(0);
+                await manager.save(manager.create(ledger_entity_1.AccountingLedger, {
                     date: date_utils_1.DateUtils.getToday(),
                     partyId: party.id,
-                    accountId: dto.commercialAccountId,
-                    debit: entryDebit,
-                    credit: entryCredit,
-                    transactionId: savedTx.id,
-                    source: dto.type === 'in' ? 'PAYMENT_IN' : 'PAYMENT_OUT',
-                    description: dto.description || `Kasa Fişi: ${code}`
+                    accountId: tx.commercialAccountId,
+                    debit: revDebit,
+                    credit: revCredit,
+                    transactionId: tx.id,
+                    source: 'CANCEL',
+                    description: `İptal Fişi: ${tx.code}`
                 }));
-                const sign = (dto.type === 'in' && !isSupplierRefund) ? '-' : '+';
-                await queryRunner.manager.createQueryBuilder()
+                const sign = (tx.type === 'in' && !isSupplierRefund) ? '+' : '-';
+                await manager.createQueryBuilder()
                     .update(party_entity_1.Party)
                     .set({ balance: () => `balance ${sign} ${tlAmount.toString()}` })
                     .where('id = :id', { id: party.id })
                     .execute();
             }
-            await queryRunner.commitTransaction();
-            return this.findOne(savedTx.id);
         }
-        catch (error) {
-            await queryRunner.rollbackTransaction();
-            throw error;
-        }
-        finally {
-            await queryRunner.release();
-        }
-    }
-    async cancel(id, userId) {
-        const queryRunner = this.dataSource.createQueryRunner();
-        await queryRunner.connect();
-        await queryRunner.startTransaction();
-        try {
-            const tx = await queryRunner.manager.findOne(transaction_entity_1.Transaction, { where: { id } });
-            if (!tx || tx.status === 'cancelled')
-                throw new common_1.BadRequestException('Sadece tamamlanmış aktif işlemler iptal edilebilir.');
-            let newBalance = null;
-            if (tx.partyId) {
-                const party = await queryRunner.manager.findOne(party_entity_1.Party, {
-                    where: { id: tx.partyId },
-                    lock: { mode: 'pessimistic_write' }
-                });
-                if (party) {
-                    const isSupplierRefund = tx.type === 'in' && party.type === 'provider';
-                    const isReverseCredit = (tx.type === 'in' && !isSupplierRefund) ? false : true;
-                    const tlAmount = finance_helper_1.FinanceHelper.mul(tx.amount, tx.exchangeRate);
-                    const revDebit = isReverseCredit ? new decimal_js_1.Decimal(0) : tlAmount;
-                    const revCredit = isReverseCredit ? tlAmount : new decimal_js_1.Decimal(0);
-                    await queryRunner.manager.save(queryRunner.manager.create(ledger_entity_1.AccountingLedger, {
-                        date: date_utils_1.DateUtils.getToday(),
-                        partyId: party.id,
-                        accountId: tx.commercialAccountId,
-                        debit: revDebit,
-                        credit: revCredit,
-                        transactionId: tx.id,
-                        source: 'CANCEL',
-                        description: `İptal Fişi: ${tx.code}`
-                    }));
-                    const sign = (tx.type === 'in' && !isSupplierRefund) ? '+' : '-';
-                    await queryRunner.manager.createQueryBuilder()
-                        .update(party_entity_1.Party)
-                        .set({ balance: () => `balance ${sign} ${tlAmount.toString()}` })
-                        .where('id = :id', { id: party.id })
-                        .execute();
-                }
-            }
-            await queryRunner.manager.update(transaction_entity_1.Transaction, tx.id, { status: 'cancelled', updatedBy: userId });
-            await queryRunner.commitTransaction();
-            return { success: true, message: 'Muhasebe fişi ve cari hareketi geri alındı.' };
-        }
-        catch (e) {
-            await queryRunner.rollbackTransaction();
-            throw e;
-        }
-        finally {
-            await queryRunner.release();
-        }
+        await manager.update(transaction_entity_1.Transaction, tx.id, { status: 'cancelled', updatedBy: userId });
+        return { success: true, message: 'Muhasebe fişi ve cari hareketi geri alındı.' };
     }
     async getStatus() {
         const firstDayOfMonth = (0, dayjs_1.default)().startOf('month').toDate();
@@ -202,8 +180,8 @@ let TransactionsService = class TransactionsService {
             .andWhere("tx.status != 'cancelled'")
             .getRawOne();
         return {
-            monthlyIncome: stats.income?.toString() || '0',
-            monthlyExpense: stats.expense?.toString() || '0',
+            monthlyIncome: new decimal_js_1.Decimal(stats.income || 0).toString(),
+            monthlyExpense: new decimal_js_1.Decimal(stats.expense || 0).toString(),
             count: Number(stats.count || 0),
             totalVolume: new decimal_js_1.Decimal(stats.income || 0).plus(new decimal_js_1.Decimal(stats.expense || 0)).toString(),
         };
@@ -222,11 +200,24 @@ let TransactionsService = class TransactionsService {
     }
 };
 exports.TransactionsService = TransactionsService;
+__decorate([
+    (0, transactional_decorator_1.Transactional)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [finance_dto_1.CreateTransactionDto, Number]),
+    __metadata("design:returntype", Promise)
+], TransactionsService.prototype, "create", null);
+__decorate([
+    (0, transactional_decorator_1.Transactional)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, Number]),
+    __metadata("design:returntype", Promise)
+], TransactionsService.prototype, "cancel", null);
 exports.TransactionsService = TransactionsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(transaction_entity_1.Transaction)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.DataSource,
-        sequence_generator_service_1.SequenceGeneratorService])
+        sequence_generator_service_1.SequenceGeneratorService,
+        transaction_context_service_1.TransactionContextService])
 ], TransactionsService);
 //# sourceMappingURL=transactions.service.js.map

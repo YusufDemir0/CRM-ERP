@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { FiBriefcase } from 'react-icons/fi';
 import { Column } from '../../../components/common/DataTable';
 import { Party } from '../../../types';
@@ -9,7 +9,7 @@ export const getPartiesColumns = (): Column<Party>[] => [
     header: 'CARİ ADI', 
     accessor: (p) => (
       <div className="flex items-center gap-4 group/item">
-        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl transition-all shadow-sm ${
+        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl transition-colors shadow-sm ${
           p.type === 'customer' ? 'bg-primary/10 text-primary border border-primary/20 bg-gradient-to-br from-primary/10 to-transparent' : 
           p.type === 'provider' ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-slate-100 text-slate-600 border border-slate-200'
         }`}>

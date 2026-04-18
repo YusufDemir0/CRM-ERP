@@ -1,11 +1,12 @@
-import React from 'react';
+
 import { FiActivity, FiAlertTriangle, FiArchive, FiFilter, FiLayers, FiPlus } from 'react-icons/fi';
+import { QuickCreateType, QuickCreateOptions } from '../../../store/useQuickCreateStore';
 
 interface ItemHeaderProps {
   filterTab: string;
-  setFilterTab: (tab: any) => void;
+  setFilterTab: (tab: 'active' | 'passive' | 'all' | 'critical') => void;
   setPage: (page: number) => void;
-  openCreate: any;
+  openCreate: (type: QuickCreateType, options: QuickCreateOptions) => void;
   handleFormSuccess: () => void;
 }
 
@@ -35,8 +36,8 @@ export const ItemHeader: React.FC<ItemHeaderProps> = ({
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => { setFilterTab(tab.id as any); setPage(1); }}
-              className={`h-9 px-4 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+              onClick={() => { setFilterTab(tab.id as 'active' | 'passive' | 'all' | 'critical'); setPage(1); }}
+              className={`h-9 px-4 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors ${
                 filterTab === tab.id 
                   ? 'bg-white text-primary shadow-sm ring-1 ring-slate-100' 
                   : 'text-slate-500 hover:text-slate-800'

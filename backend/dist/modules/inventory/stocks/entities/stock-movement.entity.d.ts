@@ -7,7 +7,9 @@ export declare class StockMovement extends BaseEntity {
     quantityBefore: Decimal;
     quantityAfter: Decimal;
     type: 'in' | 'out';
-    referenceType: 'sale' | 'purchase' | 'production' | 'adjustment' | 'return' | 'manual';
+    unitCost: Decimal;
+    totalCost: Decimal;
+    referenceType: 'sale' | 'purchase' | 'production' | 'adjustment' | 'return' | 'manual' | 'revert' | 'shipment' | 'transfer';
     referenceId: number | null;
     description: string | null;
     notes: string | null;

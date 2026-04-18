@@ -1,4 +1,5 @@
 import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { Decimal } from 'decimal.js';
 export declare class CreateCurrencyDto {
     code: string;
     name: string;
@@ -19,7 +20,7 @@ export declare class CreateAccountDto {
     iban?: string;
     ibanName?: string;
     currencyId: number;
-    criticalLimit?: number;
+    criticalLimit?: Decimal;
     description?: string;
 }
 export declare class UpdateAccountDto {
@@ -27,7 +28,7 @@ export declare class UpdateAccountDto {
     bankName?: string;
     iban?: string;
     ibanName?: string;
-    criticalLimit?: number;
+    criticalLimit?: Decimal;
     currencyId?: number;
     description?: string;
     state?: number;

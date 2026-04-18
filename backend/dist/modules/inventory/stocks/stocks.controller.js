@@ -14,7 +14,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StocksController = void 0;
 const common_1 = require("@nestjs/common");
-const passport_1 = require("@nestjs/passport");
 const stocks_service_1 = require("./stocks.service");
 const inventory_dto_1 = require("../dto/inventory.dto");
 const pagination_dto_1 = require("../../../common/dto/pagination.dto");
@@ -91,7 +90,6 @@ __decorate([
 ], StocksController.prototype, "getStatus", null);
 exports.StocksController = StocksController = __decorate([
     (0, common_1.Controller)('stocks'),
-    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __metadata("design:paramtypes", [stocks_service_1.StocksService])
 ], StocksController);
 //# sourceMappingURL=stocks.controller.js.map

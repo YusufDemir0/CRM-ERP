@@ -6,7 +6,6 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
 
 @Controller('transactions')
-@UseGuards(AuthGuard('jwt'))
 export class TransactionsController {
   constructor(private readonly txService: TransactionsService) {}
 

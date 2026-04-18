@@ -53,11 +53,15 @@ const typeorm_2 = require("typeorm");
 const bcrypt = __importStar(require("bcrypt"));
 const user_entity_1 = require("../auth/entities/user.entity");
 const role_entity_1 = require("../auth/entities/role.entity");
+const user_dto_1 = require("./dto/user.dto");
+const transactional_decorator_1 = require("../../common/decorators/transactional.decorator");
+const transaction_context_service_1 = require("../../common/services/transaction-context.service");
 let UsersService = class UsersService {
-    constructor(userRepo, roleRepo, cacheManager) {
+    constructor(userRepo, roleRepo, cacheManager, transactionContext) {
         this.userRepo = userRepo;
         this.roleRepo = roleRepo;
         this.cacheManager = cacheManager;
+        this.transactionContext = transactionContext;
     }
     async findAll(query) {
         const qb = this.userRepo.createQueryBuilder('user')
@@ -100,14 +104,16 @@ let UsersService = class UsersService {
         return user;
     }
     async create(dto, currentUserId) {
-        const existing = await this.userRepo.findOne({
+        const manager = this.transactionContext.manager;
+        const existing = await manager.findOne(user_entity_1.User, {
             where: [{ username: dto.username }, { email: dto.email }],
+            lock: { mode: 'pessimistic_write' }
         });
         if (existing)
             throw new common_1.ConflictException('Kullanıcı adı veya email zaten mevcut');
         const salt = await bcrypt.genSalt(12);
         const passwordHash = await bcrypt.hash(dto.password, salt);
-        const user = this.userRepo.create({
+        const user = manager.create(user_entity_1.User, {
             username: dto.username,
             passwordHash,
             fullName: dto.fullName,
@@ -117,11 +123,11 @@ let UsersService = class UsersService {
             createdBy: currentUserId || null,
         });
         if (dto.roleIds && dto.roleIds.length > 0) {
-            user.roles = await this.roleRepo.find({
+            user.roles = await manager.find(role_entity_1.Role, {
                 where: { id: (0, typeorm_2.In)(dto.roleIds) }
             });
         }
-        return this.userRepo.save(user);
+        return manager.save(user);
     }
     async update(id, dto, currentUserId) {
         const user = await this.findOne(id);
@@ -150,8 +156,10 @@ let UsersService = class UsersService {
             user.email = dto.email;
         if (dto.phone !== undefined)
             user.phone = dto.phone;
-        if (dto.departmentId !== undefined)
-            user.departmentId = dto.departmentId;
+        if (dto.departmentId !== undefined) {
+            user.department = dto.departmentId ? { id: dto.departmentId } : null;
+            user.departmentId = dto.departmentId || null;
+        }
         if (dto.roleIds !== undefined) {
             if (dto.roleIds.length > 0) {
                 user.roles = await this.roleRepo.find({
@@ -174,9 +182,16 @@ let UsersService = class UsersService {
         return savedUser;
     }
     async softDelete(id, currentUserId) {
-        const user = await this.findOne(id);
-        user.updatedBy = currentUserId || null;
-        await this.userRepo.save(user);
+        const user = await this.userRepo.findOne({ where: { id } });
+        if (!user)
+            throw new common_1.NotFoundException('Kullanıcı bulunamadı');
+        const timestamp = Date.now();
+        await this.userRepo.update(id, {
+            username: `_DEL_${timestamp}_${user.username}`.substring(0, 100),
+            email: `_DEL_${timestamp}_${user.email}`.substring(0, 150),
+            state: 0,
+            updatedBy: currentUserId || null,
+        });
         await this.userRepo.softDelete(id);
     }
     async getStatus() {
@@ -193,12 +208,18 @@ let UsersService = class UsersService {
     }
 };
 exports.UsersService = UsersService;
+__decorate([
+    (0, transactional_decorator_1.Transactional)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [user_dto_1.CreateUserDto, Number]),
+    __metadata("design:returntype", Promise)
+], UsersService.prototype, "create", null);
 exports.UsersService = UsersService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
     __param(1, (0, typeorm_1.InjectRepository)(role_entity_1.Role)),
     __param(2, (0, common_1.Inject)(cache_manager_1.CACHE_MANAGER)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
-        typeorm_2.Repository, Object])
+        typeorm_2.Repository, Object, transaction_context_service_1.TransactionContextService])
 ], UsersService);
 //# sourceMappingURL=users.service.js.map

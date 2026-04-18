@@ -14,7 +14,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DepartmentsController = void 0;
 const common_1 = require("@nestjs/common");
-const passport_1 = require("@nestjs/passport");
 const departments_service_1 = require("./departments.service");
 const department_dto_1 = require("./dto/department.dto");
 const pagination_dto_1 = require("../../common/dto/pagination.dto");
@@ -119,7 +118,6 @@ __decorate([
 ], DepartmentsController.prototype, "remove", null);
 exports.DepartmentsController = DepartmentsController = __decorate([
     (0, common_1.Controller)('departments'),
-    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __metadata("design:paramtypes", [departments_service_1.DepartmentsService])
 ], DepartmentsController);
 //# sourceMappingURL=departments.controller.js.map

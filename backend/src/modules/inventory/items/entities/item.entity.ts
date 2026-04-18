@@ -41,6 +41,10 @@ export class Item extends BaseEntity {
   purchasePrice: Decimal | null;
 
   @Transform(({ value }) => value ? String(value) : value)
+  @Column({ name: 'moving_average_cost', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
+  movingAverageCost: Decimal;
+
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'sale_price', type: 'decimal', precision: 15, scale: 2, nullable: true, transformer: new DecimalTransformer() })
   salePrice: Decimal | null;
 

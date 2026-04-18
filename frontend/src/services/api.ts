@@ -19,6 +19,7 @@ import {
   CreateSaleDto
 } from '../types';
 import { useAuthStore } from '../store/useAuthStore';
+import { useLoaderStore } from '../store/useLoaderStore';
 
 // ────── AXIOS INSTANCE ──────
 
@@ -26,7 +27,8 @@ const api = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
-  // xsrfCookieName disabled because httpOnly: true
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
 });
 
 // ────── INTERCEPTORS ──────
@@ -38,83 +40,89 @@ const MUTATION_METHODS = ['post', 'put', 'delete', 'patch'];
 const isMutationMethod = (method?: string): boolean =>
   MUTATION_METHODS.includes(method?.toLowerCase() || '');
 
-// FE-03: Request Tracking for Cancellation
-const pendingRequests = new Map<string, AbortController>();
+// [FIX-TASK-02]: Centralized loader management via request counting
+let requestCount = 0;
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  // SEC-03: Manual CSRF attachment
-  if (csrfToken && isMutationMethod(config.method)) {
-    config.headers['X-XSRF-TOKEN'] = csrfToken;
+  // P0-2: Only show global loader for mutation methods (POST/PUT/DELETE)
+  // GET requests use inline loading states (DataTable skeleton, etc.)
+  if (isMutationMethod(config.method)) {
+    requestCount++;
+    if (requestCount === 1) {
+      useLoaderStore.getState().show();
+    }
   }
 
-  // FE-03: Abort previous pending request for the same URL if it's a GET search/filter
-  if (config.method?.toLowerCase() === 'get' && config.url) {
-    if (pendingRequests.has(config.url)) {
-      pendingRequests.get(config.url)!.abort();
-    }
-    const controller = new AbortController();
-    config.signal = controller.signal;
-    pendingRequests.set(config.url, controller);
+  if (csrfToken && isMutationMethod(config.method)) {
+    config.headers['X-XSRF-TOKEN'] = csrfToken;
   }
 
   return config;
 });
 
+interface ApiErrorData {
+  message?: string | string[];
+  error?: string;
+  [key: string]: string | string[] | undefined;
+}
+
 api.interceptors.response.use(
   (response) => {
-    const config = response.config;
+    if (isMutationMethod(response.config.method)) {
+      requestCount = Math.max(0, requestCount - 1);
+      if (requestCount === 0) {
+        useLoaderStore.getState().hide();
+      }
+    }
     
-    // SEC-03: Capture CSRF token from header
     const extractedToken = response.headers['x-csrf-token'];
     if (extractedToken) {
       csrfToken = extractedToken;
-    }
-
-    if (config.url) {
-      pendingRequests.delete(config.url);
     }
     
     return response;
   },
   (error: unknown) => {
+    if (axios.isAxiosError(error) && isMutationMethod(error.config?.method)) {
+      requestCount = Math.max(0, requestCount - 1);
+      if (requestCount === 0) {
+        useLoaderStore.getState().hide();
+      }
+    }
+
     if (axios.isAxiosError(error)) {
       const config = error.config;
-
-      if (config?.url) {
-        pendingRequests.delete(config.url);
+      const extractedToken = error.response?.headers['x-csrf-token'];
+      if (extractedToken) {
+        csrfToken = extractedToken;
       }
 
       if (axios.isCancel(error)) {
         return Promise.reject(error);
       }
 
+      if (error.response?.status === 401) {
+        if (config?.url && !config.url.includes('/auth/login') && window.location.pathname !== '/login') {
+          useAuthStore.getState().logout();
+          return Promise.reject(error);
+        }
+      }
+
       if (error.response && error.response.status !== 401) {
         let outputMessage = 'Sistemsel bir hata oluştu.';
-        const data = error.response.data as Record<string, unknown> | string | null;
+        const data = error.response.data as ApiErrorData;
         
         if (data) {
           if (typeof data === 'string') {
             outputMessage = data;
-          } else if (typeof data === 'object' && data !== null) {
-            if ('message' in data) {
-              outputMessage = Array.isArray(data.message)
-                ? (data.message as string[]).join(', ')
-                : String(data.message);
-            } else if ('error' in data) {
-              outputMessage = String(data.error);
-            }
+          } else if (data.message) {
+            outputMessage = Array.isArray(data.message) ? data.message.join(', ') : data.message;
+          } else if (data.error) {
+            outputMessage = data.error;
           }
         }
         
-        const finalMsg = typeof outputMessage === 'string' ? outputMessage : JSON.stringify(outputMessage);
-        toast.error(finalMsg.substring(0, 255)); 
-      }
-
-      if (error.response?.status === 401) {
-        if (config?.url && !config.url.includes('/auth/login') && window.location.pathname !== '/login') {
-          // FE-07: SPA-Friendly Logout & Redirect
-          useAuthStore.getState().logout();
-        }
+        toast.error(String(outputMessage).substring(0, 255), { id: 'api-error' }); 
       }
     }
     return Promise.reject(error);
@@ -126,9 +134,20 @@ export default api;
 // ────── AUTH API ──────
 
 export const authAPI = {
-  login: (data: { username: string; password: string }) => api.post('/auth/login', data),
-  logout: () => api.post('/auth/logout'),
-  profile: () => api.get('/auth/profile'),
+  csrf: (config?: AxiosRequestConfig) => api.get('/auth/csrf', config),
+  login: (data: { username: string; password: string }, config?: AxiosRequestConfig) => api.post('/auth/login', data, config),
+  logout: (config?: AxiosRequestConfig) => api.post('/auth/logout', {}, config),
+  profile: (config?: AxiosRequestConfig) => api.get('/auth/profile', config),
+};
+
+export const initCsrf = async () => {
+  try {
+    if (!csrfToken) {
+      await authAPI.csrf();
+    }
+  } catch (err) {
+    console.error('Failed to initialize CSRF:', err);
+  }
 };
 
 // ────── USERS API ──────
@@ -137,10 +156,10 @@ export const usersAPI = {
   getAll: (params?: PaginationParams, config?: AxiosRequestConfig) => api.get<PaginatedResult<User>>('/users', { params, ...config }),
   getOne: (id: number, config?: AxiosRequestConfig) => api.get<User>(`/users/${id}`, config),
   getStatus: (config?: AxiosRequestConfig) => api.get('/users/status', config),
-  create: (data: CreateUserDto) => api.post('/users', data),
-  update: (id: number, data: UpdateUserDto) => api.put(`/users/${id}`, data),
-  toggleState: (id: number, currentState: number) => api.put(`/users/${id}`, { state: currentState === 1 ? 0 : 1 }),
-  delete: (id: number) => api.delete(`/users/${id}`),
+  create: (data: CreateUserDto, config?: AxiosRequestConfig) => api.post('/users', data, config),
+  update: (id: number, data: UpdateUserDto, config?: AxiosRequestConfig) => api.put(`/users/${id}`, data, config),
+  toggleState: (id: number, currentState: number, config?: AxiosRequestConfig) => api.put(`/users/${id}`, { state: currentState === 1 ? 0 : 1 }, config),
+  delete: (id: number, config?: AxiosRequestConfig) => api.delete(`/users/${id}`, config),
 };
 
 // ────── ROLES API ──────
@@ -306,23 +325,23 @@ export const productionOrdersAPI = {
 // ────── SETTINGS API ──────
 
 export const settingsAPI = {
-  getAll: () => api.get('/settings'),
-  getByKey: (key: string) => api.get(`/settings/${key}`),
-  updateByKey: (key: string, value: string) => api.put(`/settings/${key}`, { settingKey: key, settingValue: value }),
-  bulkUpdate: (settings: { settingKey: string; settingValue: string }[]) => api.put('/settings', { settings }),
+  getAll: (config?: AxiosRequestConfig) => api.get('/settings', config),
+  getByKey: (key: string, config?: AxiosRequestConfig) => api.get(`/settings/${key}`, config),
+  updateByKey: (key: string, value: string, config?: AxiosRequestConfig) => api.put(`/settings/${key}`, { settingKey: key, settingValue: value }, config),
+  bulkUpdate: (settings: { settingKey: string; settingValue: string }[], config?: AxiosRequestConfig) => api.put('/settings', { settings }, config),
 };
 
 // ────── LOGS API ──────
 
 export const logsAPI = {
-  getAll: (params?: PaginationParams) => api.get('/logs', { params }),
+  getAll: (params?: PaginationParams, config?: AxiosRequestConfig) => api.get('/logs', { params, ...config }),
 };
 
 // ────── NOTES API ──────
 
 export const notesAPI = {
-  getAll: () => api.get('/notes'),
-  create: (data: CreateNoteDto) => api.post('/notes', data),
-  update: (id: number, data: UpdateNoteDto) => api.put(`/notes/${id}`, data),
-  delete: (id: number) => api.delete(`/notes/${id}`),
+  getAll: (config?: AxiosRequestConfig) => api.get('/notes', config),
+  create: (data: CreateNoteDto, config?: AxiosRequestConfig) => api.post('/notes', data, config),
+  update: (id: number, data: UpdateNoteDto, config?: AxiosRequestConfig) => api.put(`/notes/${id}`, data, config),
+  delete: (id: number, config?: AxiosRequestConfig) => api.delete(`/notes/${id}`, config),
 };

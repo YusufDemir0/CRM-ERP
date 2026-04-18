@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersAPI, departmentsAPI, rolesAPI } from '../../services/api';
@@ -6,10 +6,11 @@ import toast from 'react-hot-toast';
 import { confirmDialog } from '../../utils/confirmDialog';
 import { User, Department, Role, Permission } from '../../types';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
-import { PaginationControls } from '../../components/common/PaginationControls';
 import { DataTable, Column } from '../../components/common/DataTable';
 import { useSort } from '../../hooks/useSort';
+import { useDeferredValue } from 'react';
 import { FiShield, FiSearch, FiUsers, FiPlus, FiFilter, FiActivity, FiArchive, FiMail } from 'react-icons/fi';
+import { queryKeys } from '../../services/queryKeys';
 
 // Sub-components
 import { UserPermissionsModal } from './users/components/UserPermissionsModal';
@@ -18,14 +19,14 @@ export default function UsersPage() {
   const queryClient = useQueryClient();
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [selectedUserForPerms, setSelectedUserForPerms] = useState<User | null>(null);
-  const [userSpecificPerms, setUserSpecificPerms] = useState<Permission[]>([]);
+  const [userSpecificPerms, setUserSpecificPerms] = useState<{ permissionId: number; effect: 'allow' | 'deny'; scopeType: 'global' | 'department' }[]>([]);
 
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const initialFilter = queryParams.get('filter') === 'passive' ? 'passive' : 'active';
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   const [filterTab, setFilterTab] = useState<'active' | 'passive'>(initialFilter);
 
   const [page, setPage] = useState(1);
@@ -35,22 +36,29 @@ export default function UsersPage() {
   // ────── QUERIES ──────
 
   const { data: usersData, isLoading: loading } = useQuery({
-    queryKey: ['users', page, limit, debouncedSearch, filterTab, sort],
-    queryFn: async () => {
+    queryKey: queryKeys.users.all({
+      page,
+      limit,
+      search: deferredSearch,
+      state: filterTab === 'active' ? 1 : 0,
+      sortBy: sort.key,
+      sortOrder: sort.order
+    }),
+    queryFn: async ({ signal }) => {
       const res = await usersAPI.getAll({
         page,
         limit,
-        search: debouncedSearch,
+        search: deferredSearch,
         state: filterTab === 'active' ? 1 : 0,
         sortBy: sort.key,
         sortOrder: sort.order
-      });
+      }, { signal });
       return res.data;
     }
   });
 
   const { data: availablePermissions = [] } = useQuery({
-    queryKey: ['permissions'],
+    queryKey: queryKeys.permissions.all,
     queryFn: async () => {
       const res = await rolesAPI.getPermissions({ limit: 500 });
       return res.data.data;
@@ -82,13 +90,6 @@ export default function UsersPage() {
     }
   }, [location.search]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchTerm);
-      setPage(1); 
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
 
   // FE-08: Empty Page Trap Fix
   useEffect(() => {
@@ -100,7 +101,7 @@ export default function UsersPage() {
   const { openCreate } = useQuickCreateStore();
 
   const handleFormSubmit = () => {
-    queryClient.invalidateQueries({ queryKey: ['users'] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.users.all({}) });
     toast.success("İşlem başarılı.");
   };
 
@@ -113,7 +114,7 @@ export default function UsersPage() {
         password: '',
         email: u.email || '',
         phone: u.phone || '',
-        departmentId: u.department?.id?.toString() || '',
+        departmentId: u.departmentId?.toString() || u.department?.id?.toString() || '',
         selectedRoles: u.roles?.map((r: Role) => r.id) || [],
       },
       onSuccess: handleFormSubmit
@@ -123,7 +124,7 @@ export default function UsersPage() {
   const toggleMutation = useMutation({
     mutationFn: ({ id, state }: { id: number; state: number }) => usersAPI.toggleState(id, state),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all({}) });
       toast.success("Kullanıcı durumu güncellendi.");
     },
     onError: () => toast.error("İşlem başarısız")
@@ -172,19 +173,13 @@ export default function UsersPage() {
     { 
       header: 'PERSONEL BİLGİLERİ', 
       accessor: (u) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ 
-            width: '40px', height: '40px', borderRadius: '12px', 
-            background: 'var(--primary-glow)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--primary)',
-            fontSize: '18px', fontWeight: 800
-          }}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary text-lg font-black uppercase">
             {u.fullName?.charAt(0)}
           </div>
           <div>
-            <div style={{ fontWeight: 800, color: 'var(--on-surface)', fontSize: '14px' }}>{u.fullName}</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>@{u.username}</div>
+            <div className="font-black text-on-surface text-sm tracking-tighter uppercase">{u.fullName}</div>
+            <div className="text-[11px] text-slate-400 font-bold tracking-widest lowercase">@{u.username}</div>
           </div>
         </div>
       ),
@@ -192,32 +187,28 @@ export default function UsersPage() {
     },
     { 
       header: 'DEPARTMAN', 
-      accessor: (u) => <span style={{ fontWeight: 700, fontSize: '12px', color: 'var(--secondary)', background: 'var(--surface-container)', padding: '4px 10px', borderRadius: '8px' }}>{u.department?.name || 'BELİRTİLMEMİŞ'}</span>,
+      accessor: (u) => <span className="font-bold text-xs text-secondary bg-surface-container px-2.5 py-1 rounded-lg uppercase tracking-wider">{u.department?.name || 'BELİRTİLMEMİŞ'}</span>,
       sortKey: 'department.name'
     },
     { 
       header: 'YETKİ ROLLERİ', 
       accessor: (u) => (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+        <div className="flex flex-wrap gap-1">
           {(u.roles?.length ?? 0) > 0 ? u.roles?.map((r: Role) => (
-            <span key={r.id} style={{ 
-              fontSize: '10px', fontWeight: 700, background: 'var(--primary-glow)', 
-              color: 'var(--primary)', padding: '2px 8px', borderRadius: '6px',
-              textTransform: 'uppercase'
-            }}>{r.name}</span>
-          )) : <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>ROLSÜZ</span>}
+            <span key={r.id} className="text-[10px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded-md uppercase tracking-widest">{r.name}</span>
+          )) : <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">ROLSÜZ</span>}
         </div>
       )
     },
     { 
       header: 'İLETİŞİM', 
       accessor: (u) => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <FiMail size={12} color="var(--primary)" />
-            <span style={{ fontSize: '13px', color: 'var(--on-surface-variant)', textTransform: 'lowercase' }}>{u.email}</span>
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1">
+            <FiMail className="text-primary text-sm" />
+            <span className="text-xs text-on-surface-variant font-medium lowercase tracking-tight">{u.email}</span>
           </div>
-          <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>{u.phone || '—'}</span>
+          <span className="text-[10px] text-slate-400 font-bold tracking-widest">{u.phone || '—'}</span>
         </div>
       ),
       sortKey: 'email'
@@ -225,73 +216,45 @@ export default function UsersPage() {
   ];
 
   return (
-    <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+    <div className="animate-in flex flex-col gap-8">
       
       {/* 🔴 HEADER SECTION */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6">
         <div>
-          <div style={{ 
-            display: 'inline-flex', alignItems: 'center', gap: '8px', 
-            background: 'var(--primary-glow)', color: 'var(--primary)', 
-            padding: '6px 14px', borderRadius: '12px', fontSize: '12px', 
-            fontWeight: 800, marginBottom: '16px'
-          }}>
+          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
             <FiShield /> SİSTEM PERSONELİ & YETKİ
           </div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--on-surface)' }}>
-            Kullanıcı <span style={{ color: 'var(--primary)' }}>Yönetimi</span>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-on-surface">
+            Kullanıcı <span className="text-primary">Yönetimi</span>
           </h1>
         </div>
         
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <div style={{ display: 'flex', background: 'var(--surface-container-low)', padding: '4px', borderRadius: '14px', border: '1px solid var(--border)' }}>
+        <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex bg-surface-container-low p-1 rounded-2xl border border-surface-container">
             {[
               { id: 'active', label: 'Aktif', icon: <FiActivity /> },
               { id: 'passive', label: 'Erişime Kapalı', icon: <FiArchive /> }
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => { setFilterTab(tab.id as any); setPage(1); }}
-                style={{
-                  height: '36px', padding: '0 16px', borderRadius: '10px', fontSize: '12px', fontWeight: 700,
-                  display: 'flex', alignItems: 'center', gap: '8px', border: 'none', transition: '0.2s',
-                  background: filterTab === tab.id ? 'white' : 'transparent',
-                  color: filterTab === tab.id ? 'var(--primary)' : 'var(--text-muted)',
-                  boxShadow: filterTab === tab.id ? 'var(--shadow-md)' : 'none',
-                  cursor: 'pointer'
-                }}
+                onClick={() => { setFilterTab(tab.id as 'active' | 'passive'); setPage(1); }}
+                className={`h-9 px-4 rounded-xl text-xs font-black flex items-center gap-2 transition-colors ${
+                  filterTab === tab.id ? 'bg-white text-primary shadow-premium' : 'text-slate-400 hover:text-slate-600'
+                }`}
               >
                 {tab.icon} {tab.label.toUpperCase()}
               </button>
             ))}
           </div>
-          <button className="btn btn-primary" style={{ height: '44px', boxShadow: '0 10px 20px var(--primary-glow)' }} onClick={() => {
+          <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
             openCreate('user', { onSuccess: handleFormSubmit });
           }}>
-            <FiPlus size={18} /> Yeni Personel
+            <FiPlus size={20} /> Yeni Personel
           </button>
         </div>
       </div>
 
-      {/* 🟠 SEARCH & FILTERS */}
-      <div className="glass-panel" style={{ padding: '20px', borderRadius: '24px', display: 'flex', gap: '20px', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1 }}>
-          <FiSearch style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input 
-            type="text" 
-            placeholder="İsim, kullanıcı adı veya e-posta ile ara..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ paddingLeft: '48px', height: '52px', border: 'none', background: 'var(--surface-container-low)' }}
-          />
-        </div>
-        <button className="btn btn-secondary" style={{ height: '52px', background: 'white' }}>
-          <FiFilter /> Gelişmiş Filtrele
-        </button>
-      </div>
-
-      {/* 🟡 DATA TABLE SECTION */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div className="flex flex-col gap-4">
         <DataTable<User>
           data={sortedData}
           columns={columns}
@@ -309,16 +272,16 @@ export default function UsersPage() {
               <FiShield size={16} />
             </button>
           )}
+          
+          // Integrated Search & Pagination
+          search={searchTerm}
+          onSearchChange={(val) => { setSearchTerm(val); setPage(1); }}
+          total={paginationMeta.total}
+          page={page}
+          limit={limit}
+          onPageChange={setPage}
+          placeholder="İsim, kullanıcı adı veya e-posta ile ara..."
         />
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <PaginationControls 
-            meta={paginationMeta} 
-            onPageChange={setPage} 
-            onLimitChange={setLimit} 
-            loading={loading}
-          />
-        </div>
       </div>
 
       <UserPermissionsModal

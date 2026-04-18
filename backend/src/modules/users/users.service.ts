@@ -2,12 +2,15 @@ import { Injectable, Inject, NotFoundException, ConflictException } from '@nestj
 import { InjectRepository } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
-import { Repository, In } from 'typeorm';
+import { Repository, In, EntityManager } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '../auth/entities/user.entity';
 import { Role } from '../auth/entities/role.entity';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { Transactional } from '../../common/decorators/transactional.decorator';
+import { TransactionContextService } from '../../common/services/transaction-context.service';
+import { Department } from '../departments/entities/department.entity';
 
 @Injectable()
 export class UsersService {
@@ -18,6 +21,7 @@ export class UsersService {
     private roleRepo: Repository<Role>,
     @Inject(CACHE_MANAGER)
     private cacheManager: Cache,
+    private transactionContext: TransactionContextService,
   ) {}
 
   async findAll(query: PaginationDto): Promise<PaginatedResult<User>> {
@@ -65,16 +69,21 @@ export class UsersService {
     return user;
   }
 
+  @Transactional()
   async create(dto: CreateUserDto, currentUserId?: number): Promise<User> {
-    const existing = await this.userRepo.findOne({
+    const manager = this.transactionContext.manager;
+
+    // DB-02: Use explicit locking to prevent registration deadlocks/race conditions
+    const existing = await manager.findOne(User, {
       where: [{ username: dto.username }, { email: dto.email }],
+      lock: { mode: 'pessimistic_write' }
     });
     if (existing) throw new ConflictException('Kullanıcı adı veya email zaten mevcut');
 
     const salt = await bcrypt.genSalt(12);
     const passwordHash = await bcrypt.hash(dto.password, salt);
 
-    const user = this.userRepo.create({
+    const user = manager.create(User, {
       username: dto.username,
       passwordHash,
       fullName: dto.fullName,
@@ -85,12 +94,12 @@ export class UsersService {
     });
 
     if (dto.roleIds && dto.roleIds.length > 0) {
-      user.roles = await this.roleRepo.find({
+      user.roles = await manager.find(Role, {
         where: { id: In(dto.roleIds) }
       });
     }
 
-    return this.userRepo.save(user);
+    return manager.save(user);
   }
 
   async update(id: number, dto: UpdateUserDto, currentUserId?: number): Promise<User> {
@@ -120,7 +129,10 @@ export class UsersService {
     if (dto.fullName !== undefined) user.fullName = dto.fullName;
     if (dto.email !== undefined) user.email = dto.email;
     if (dto.phone !== undefined) user.phone = dto.phone;
-    if (dto.departmentId !== undefined) user.departmentId = dto.departmentId;
+    if (dto.departmentId !== undefined) {
+      user.department = dto.departmentId ? ({ id: dto.departmentId } as unknown as Department) : null as unknown as Department;
+      user.departmentId = dto.departmentId || null;
+    }
 
     if (dto.roleIds !== undefined) {
       if (dto.roleIds.length > 0) {
@@ -151,9 +163,17 @@ export class UsersService {
   }
 
   async softDelete(id: number, currentUserId?: number): Promise<void> {
-    const user = await this.findOne(id);
-    user.updatedBy = currentUserId || null;
-    await this.userRepo.save(user);
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('Kullanıcı bulunamadı');
+
+    const timestamp = Date.now();
+    // Unique alanları damgala ki aynı değerler tekrar kullanılabilsin
+    await this.userRepo.update(id, {
+      username: `_DEL_${timestamp}_${user.username}`.substring(0, 100),
+      email: `_DEL_${timestamp}_${user.email}`.substring(0, 150),
+      state: 0,
+      updatedBy: currentUserId || null,
+    });
     await this.userRepo.softDelete(id);
   }
 

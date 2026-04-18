@@ -10,3 +10,10 @@ export declare class RegisterDto {
     phone?: string;
     departmentId?: number;
 }
+export declare class ForgotPasswordDto {
+    email: string;
+}
+export declare class ChangePasswordDto {
+    currentPassword: string;
+    newPassword: string;
+}

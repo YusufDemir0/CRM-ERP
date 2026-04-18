@@ -7,6 +7,7 @@ import { CreateItemDto, UpdateItemDto, CreateItemTypeDto, CreateQuantityTypeDto,
 import { SequenceGeneratorService } from '../../../common/services/sequence-generator.service';
 import { PaginatedResult } from '../../../common/dto/pagination.dto';
 import { CurrenciesService } from '../../finance/currencies/currencies.service';
+import { TransactionContextService } from '../../../common/services/transaction-context.service';
 export declare class ItemsService {
     private itemRepo;
     private itemTypeRepo;
@@ -15,7 +16,8 @@ export declare class ItemsService {
     private dataSource;
     private sequenceGenerator;
     private currenciesService;
-    constructor(itemRepo: Repository<Item>, itemTypeRepo: Repository<ItemType>, qtyTypeRepo: Repository<QuantityType>, codeGroupRepo: Repository<ItemCodeGroup>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, currenciesService: CurrenciesService);
+    private transactionContext;
+    constructor(itemRepo: Repository<Item>, itemTypeRepo: Repository<ItemType>, qtyTypeRepo: Repository<QuantityType>, codeGroupRepo: Repository<ItemCodeGroup>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, currenciesService: CurrenciesService, transactionContext: TransactionContextService);
     findAll(query: ItemsQueryDto): Promise<PaginatedResult<Item>>;
     findOne(id: number): Promise<Item>;
     create(dto: CreateItemDto, userId?: number): Promise<Item>;

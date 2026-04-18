@@ -1,10 +1,11 @@
-import React from 'react';
-import { FiPlus, FiTool } from 'react-icons/fi';
+
+import { FiPlus, FiTool, FiList, FiPlayCircle, FiBox } from 'react-icons/fi';
 import { getLocalDateString } from '../../../utils/date.helper';
+import { ProductionOrderFormData } from '../../../types';
 
 interface ProductionHeaderProps {
   setEditingId: (id: number | null) => void;
-  setFormData: (data: any) => void;
+  setFormData: (data: ProductionOrderFormData) => void;
   setIsModalOpen: (isOpen: boolean) => void;
 }
 

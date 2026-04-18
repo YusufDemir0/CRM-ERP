@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useDeferredValue, useEffect } from 'react';
 import { 
   FiRefreshCw, FiInfo, FiAlertTriangle, FiXCircle, FiCheckCircle, 
   FiSearch, FiActivity, FiShield, FiCpu, FiClock, FiFilter
@@ -7,8 +7,9 @@ import { logsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DataTable, Column } from '../../components/common/DataTable';
-import { PaginationControls } from '../../components/common/PaginationControls';
 import { useSort } from '../../hooks/useSort';
+import { queryKeys } from '../../services/queryKeys';
+import { formatDisplayDateTime } from '../../utils/date.helper';
 
 interface SystemLog {
   id: number;
@@ -23,31 +24,39 @@ interface SystemLog {
   createdAt: string;
 }
 
+interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
 export default function LogsPage() {
   const queryClient = useQueryClient();
   const [filterModule, setFilterModule] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'createdAt', order: 'DESC' });
 
-  const { data: logsData = [], isLoading: loading } = useQuery({
-    queryKey: ['logs', page, limit, debouncedSearch, filterModule, sort],
-    queryFn: async () => {
+  const { data: logsData, isLoading: loading } = useQuery<PaginatedResponse<SystemLog>>({
+    queryKey: queryKeys.logs.all({ page, limit, deferredSearch, filterModule, sort }),
+    queryFn: async ({ signal }: { signal: AbortSignal }) => {
       const res = await logsAPI.getAll({ 
         page, 
         limit, 
-        search: debouncedSearch,
+        search: deferredSearch,
         module: filterModule || undefined,
         sortBy: sort.key,
         sortOrder: sort.order
-      });
+      }, { signal });
       return res.data;
     },
-    refetchInterval: 3000,
-    staleTime: 0,
-    refetchOnMount: 'always'
+    staleTime: 30000,
   });
 
   const logs = logsData?.data || [];
@@ -56,7 +65,7 @@ export default function LogsPage() {
   const { sortedData, sortConfigs, toggleSort } = useSort<SystemLog>(
     logs, 
     [{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }],
-    (configs) => {
+    (configs: { key: string; direction: string }[]) => {
       if (configs.length > 0) {
         setSort({ 
           key: configs[0].key, 
@@ -67,21 +76,14 @@ export default function LogsPage() {
     }
   );
 
-  React.useEffect(() => {
+  useEffect(() => {
     // FE-09: Force refresh on mount for real-time monitoring
-    queryClient.invalidateQueries({ queryKey: ['logs'] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.logs.all({}) });
   }, [queryClient]);
 
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchTerm);
-      setPage(1);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
 
   // FE-08: Empty Page Trap Fix
-  React.useEffect(() => {
+  useEffect(() => {
     if (!loading && logs.length === 0 && paginationMeta.total > 0 && page > 1) {
       setPage(prev => Math.max(1, prev - 1));
     }
@@ -115,13 +117,10 @@ export default function LogsPage() {
       header: 'ZAMAN DAMGASI', 
       className: 'tabular-nums',
       accessor: (log) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <FiClock size={14} color="var(--text-muted)" />
-          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--on-surface-variant)' }}>
-            {new Date(log.createdAt).toLocaleString('tr-TR', { 
-              day: '2-digit', month: '2-digit', year: 'numeric', 
-              hour: '2-digit', minute: '2-digit', second: '2-digit' 
-            })}
+        <div className="flex items-center gap-2">
+          <FiClock size={14} className="text-slate-400" />
+          <span className="text-xs font-bold text-slate-600 tabular-nums">
+            {formatDisplayDateTime(log.createdAt)}
           </span>
         </div>
       ),
@@ -130,12 +129,12 @@ export default function LogsPage() {
     { 
       header: 'ÖNCELİK', 
       accessor: (log) => (
-        <span style={{ 
-          ...getTagStyle(log.tag), 
-          display: 'inline-flex', alignItems: 'center', gap: '6px', 
-          fontWeight: 900, fontSize: '10px', padding: '4px 10px',
-          borderRadius: '8px', textTransform: 'uppercase', letterSpacing: '0.05em'
-        }}>
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+          log.tag === 'ERROR' || log.tag === 'CRITICAL' ? 'bg-red-100 text-red-600' :
+          log.tag === 'WARNING' ? 'bg-amber-100 text-amber-600' :
+          log.tag === 'SUCCESS' ? 'bg-emerald-100 text-emerald-600' :
+          'bg-slate-100 text-slate-600'
+        }`}>
           {getTagIcon(log.tag)} {log.tag}
         </span>
       ),
@@ -144,17 +143,13 @@ export default function LogsPage() {
     { 
       header: 'OPERATÖR', 
       accessor: (log) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ 
-            width: '32px', height: '32px', borderRadius: '50%', 
-            background: 'var(--surface-container)', display: 'flex', 
-            alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 800
-          }}>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-black text-slate-600">
             {(log.fullName || log.username || 'S')[0].toUpperCase()}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontWeight: 800, fontSize: '13px', color: 'var(--on-surface)' }}>{log.fullName || log.username || 'SİSTEM'}</span>
-            <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 700 }}>{log.ipAddress || 'INTERNAL'}</span>
+          <div className="flex flex-col">
+            <span className="text-sm font-black text-slate-900 leading-tight">{log.fullName || log.username || 'SİSTEM'}</span>
+            <span className="text-[10px] font-bold text-slate-400 tracking-tight">{log.ipAddress || 'INTERNAL'}</span>
           </div>
         </div>
       ),
@@ -164,8 +159,8 @@ export default function LogsPage() {
       header: 'AKTİVİTE / MODÜL', 
       accessor: (log) => (
         <div>
-          <div style={{ fontWeight: 800, color: 'var(--primary)', fontSize: '13px' }}>{log.action}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800 }}>
+          <div className="text-sm font-black text-primary mb-0.5">{log.action}</div>
+          <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
             <FiCpu size={10} /> {log.module?.toUpperCase() || 'SİSTEM ÇEKİRDEĞİ'}
           </div>
         </div>
@@ -175,10 +170,7 @@ export default function LogsPage() {
     { 
       header: 'İŞLEM DETAYLARI', 
       accessor: (log) => (
-        <div style={{ 
-          fontSize: '12px', color: 'var(--on-surface-variant)', fontWeight: 500, 
-          maxWidth: '300px', whiteSpace: 'normal', lineHeight: '1.4' 
-        }}>
+        <div className="text-xs font-bold text-slate-500 max-w-[300px] truncate-2-lines line-clamp-2">
           {log.details || 'EK VERİ YOK'}
         </div>
       )
@@ -186,70 +178,46 @@ export default function LogsPage() {
   ];
 
   return (
-    <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+    <div className="animate-in flex flex-col gap-8">
       
       {/* 🔴 HEADER SECTION */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div>
-          <div style={{ 
-            display: 'inline-flex', alignItems: 'center', gap: '8px', 
-            background: 'var(--error-glow)', color: 'var(--error)', 
-            padding: '6px 14px', borderRadius: '12px', fontSize: '12px', 
-            fontWeight: 800, marginBottom: '16px'
-          }}>
+          <div className="inline-flex items-center gap-2 bg-red-50 text-red-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
             <FiShield /> AUDIT TRAIL & DENETİM
           </div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--on-surface)' }}>
-            Sistem <span style={{ color: 'var(--primary)' }}>Aktivite Logları</span>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-on-surface">
+            Sistem <span className="text-primary">Aktivite Logları</span>
           </h1>
         </div>
         
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <div className="glass-panel" style={{ padding: '4px', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '8px', background: 'white' }}>
-            <FiFilter style={{ marginLeft: '12px', color: 'var(--text-muted)' }} />
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex-1 bg-white pl-4 pr-1 rounded-2xl border border-slate-100 shadow-premium flex items-center gap-2 min-w-[200px]">
+            <FiFilter className="text-slate-400 shrink-0" />
             <select 
               value={filterModule}
               onChange={e => { setFilterModule(e.target.value); setPage(1); }}
-              style={{ 
-                border: 'none', background: 'transparent', height: '36px', 
-                fontSize: '13px', fontWeight: 700, paddingRight: '20px', cursor: 'pointer'
-              }}
+              className="border-none bg-transparent h-12 w-full text-xs font-black text-slate-600 focus:ring-0 cursor-pointer uppercase tracking-tight"
             >
-              <option value="">TÜM MODÜLLERİ GÖSTER</option>
+              <option value="">TÜM MODÜLLER</option>
               {modules.map(m => (
                 <option key={m} value={m}>{m.toUpperCase()}</option>
               ))}
             </select>
           </div>
           <button 
-            className="btn btn-secondary circle" 
-            style={{ width: '44px', height: '44px', background: 'white' }}
+            className="w-12 h-12 flex items-center justify-center bg-white rounded-2xl border border-slate-100 text-slate-400 hover:text-primary transition-colors shadow-premium shrink-0"
             onClick={() => {
-              queryClient.invalidateQueries({ queryKey: ['logs'] });
+              queryClient.invalidateQueries({ queryKey: queryKeys.logs.all({}) });
               toast.success('Loglar güncellendi');
             }}
           >
-            <FiRefreshCw />
+            <FiRefreshCw className="hover:rotate-180 transition-transform duration-500" />
           </button>
         </div>
       </div>
       
-      {/* 🟠 SEARCH BAR */}
-      <div className="glass-panel" style={{ padding: '20px', borderRadius: '24px' }}>
-        <div style={{ position: 'relative' }}>
-          <FiSearch style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input 
-            type="text" 
-            placeholder="Kullanıcı adı, işlem veya detay içeriği ile ara..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ paddingLeft: '48px', height: '52px', border: 'none', background: 'var(--surface-container-low)' }}
-          />
-        </div>
-      </div>
-
-      {/* 🟡 DATA TABLE SECTION */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div className="flex flex-col gap-4">
         <DataTable<SystemLog>
           data={sortedData}
           columns={columns}
@@ -257,16 +225,16 @@ export default function LogsPage() {
           sortConfigs={sortConfigs}
           onSort={toggleSort}
           getRowKey={(log) => log.id}
+          
+          // Integrated Search & Pagination
+          search={searchTerm}
+          onSearchChange={(val) => { setSearchTerm(val); setPage(1); }}
+          total={paginationMeta.total}
+          page={page}
+          limit={limit}
+          onPageChange={setPage}
+          placeholder="Kullanıcı adı, işlem veya detay içeriği ile ara..."
         />
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
-          <PaginationControls 
-            meta={paginationMeta} 
-            onPageChange={setPage} 
-            onLimitChange={setLimit} 
-            loading={loading}
-          />
-        </div>
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import { Item } from '../inventory/items/entities/item.entity';
 import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
 import { CreateBomDto, UpdateBomDto, CreateProductionOrderDto, UpdateProductionOrderDto, BomQueryDto, ProductionOrderQueryDto } from './dto/production.dto';
 import { PaginatedResult } from '../../common/dto/pagination.dto';
+import { TransactionContextService } from '../../common/services/transaction-context.service';
 export declare class ProductionService {
     private bomRepo;
     private bomItemRepo;
@@ -19,8 +20,9 @@ export declare class ProductionService {
     private stocksService;
     private itemsService;
     private logsService;
+    private transactionContext;
     private readonly logger;
-    constructor(bomRepo: Repository<Bom>, bomItemRepo: Repository<BomItem>, poRepo: Repository<ProductionOrder>, itemRepo: Repository<Item>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, stocksService: StocksService, itemsService: ItemsService, logsService: LogsService);
+    constructor(bomRepo: Repository<Bom>, bomItemRepo: Repository<BomItem>, poRepo: Repository<ProductionOrder>, itemRepo: Repository<Item>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, stocksService: StocksService, itemsService: ItemsService, logsService: LogsService, transactionContext: TransactionContextService);
     findAllBoms(query: BomQueryDto): Promise<PaginatedResult<Bom>>;
     findOneBom(id: number): Promise<Bom>;
     createBom(dto: CreateBomDto, userId?: number): Promise<Bom>;

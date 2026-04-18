@@ -103,7 +103,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   hasPermission: (key: string): boolean => {
     const { user } = get();
     if (!user) return false;
-    if (user.roles.some(r => ['admin', 'superadmin'].includes(r.toLowerCase()))) return true;
     return user.permissions.includes(key);
   },
 }));

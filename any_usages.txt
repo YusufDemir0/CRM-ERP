@@ -1,0 +1,148 @@
+frontend/src/hooks/useSort.ts:48:        let val: any = item;
+frontend/src/hooks/useTurkiyeApi.ts:16:        .map((c: any) => ({ id: c.id, name: c.name }))
+frontend/src/hooks/useTurkiyeApi.ts:17:        .sort((a: any, b: any) => a.name.localeCompare(b.name, 'tr'));
+frontend/src/hooks/useTurkiyeApi.ts:39:        .map((d: any) => ({ id: d.id, name: d.name }))
+frontend/src/hooks/useTurkiyeApi.ts:40:        .sort((a: any, b: any) => a.name.localeCompare(b.name, 'tr'));
+frontend/src/hooks/usePersistentForm.ts:10:export function usePersistentForm<T extends Record<string, any>>(
+frontend/src/hooks/usePersistentForm.ts:47:          delete (safeData as any)[field];
+frontend/src/components/forms/BomForm.tsx:70:        const res = await bomsAPI.update(editingId, payload as any);
+frontend/src/components/forms/BomForm.tsx:74:        const res = await bomsAPI.create(payload as any);
+frontend/src/components/forms/DepartmentForm.tsx:81:    } as any;
+frontend/src/components/forms/UserForm.tsx:140:        const res = await usersAPI.create(payload as any);
+frontend/src/components/forms/UserForm.tsx:145:    } catch (error: any) {
+frontend/src/components/forms/AccountForm.tsx:71:      } catch (err: any) {
+frontend/src/components/forms/AccountForm.tsx:112:        const res = await accountsAPI.create(payload as any);
+frontend/src/components/forms/ItemForm.tsx:255:        } catch (err: any) {
+frontend/src/components/forms/PartyForm.tsx:297:            {cities.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+frontend/src/components/forms/PartyForm.tsx:308:            {districts.map((d: any) => <option key={d.id} value={d.name}>{d.name}</option>)}
+frontend/src/components/common/QuickCreateManager.tsx:87:      onSuccess: (data: any) => {
+frontend/src/components/common/DataTable.tsx:17:  sortConfigs?: any[];
+frontend/src/components/common/DataTable.tsx:282:                    {rowVirtualizer.getVirtualItems().map((virtualRow: any) => {
+frontend/src/components/sales/SalesTable.tsx:91:        const config: Record<string, any> = {
+frontend/src/components/sales/SalesHeader.tsx:42:                onClick={() => onFilterStatusChange(tab.id as any)}
+frontend/src/components/modals/StockMovementsModal.tsx:5:  stock: any;
+frontend/src/components/modals/StockMovementsModal.tsx:7:  movements: any[];
+frontend/src/components/modals/StockMovementsModal.tsx:65:                  movements.map((m: any) => (
+frontend/src/components/modals/StockAdjustmentModal.tsx:5:  items: any[];
+frontend/src/components/modals/StockAdjustmentModal.tsx:6:  departments: any[];
+frontend/src/components/modals/StockAdjustmentModal.tsx:14:  onFormDataChange: (data: any) => void;
+frontend/src/components/modals/StockTransferModal.tsx:5:  items: any[];
+frontend/src/components/modals/StockTransferModal.tsx:6:  departments: any[];
+frontend/src/components/modals/StockTransferModal.tsx:14:  onTransferDataChange: (data: any) => void;
+frontend/src/store/useSalesWizardStore.ts:17:  updateCartItem: (itemId: number, field: keyof CartItem, value: any) => void;
+frontend/src/store/useSalesWizardStore.ts:29:let persistTimeout: any = null;
+frontend/src/store/useSalesWizardStore.ts:109:          return (name: string, value: any) => {
+frontend/src/pages/CrudPageFactory.tsx:239:      } catch (e: any) { 
+frontend/src/pages/CrudPageFactory.tsx:266:                  } catch (err: any) {
+frontend/src/pages/CrudPageFactory.tsx:296:            columns={mappedColumns as any} 
+frontend/src/pages/CrudPageFactory.tsx:304:            getRowKey={(r: any) => r.id}
+frontend/src/pages/modules/StocksPage.tsx:33:  const [filters, setFilters] = useState<Record<string, any>>({});
+frontend/src/pages/modules/StocksPage.tsx:119:    mutationFn: (data: any) => stocksAPI.adjust(data),
+frontend/src/pages/modules/StocksPage.tsx:128:        (old: any) => {
+frontend/src/pages/modules/StocksPage.tsx:165:    mutationFn: (data: any) => stocksAPI.transfer(data),
+frontend/src/pages/modules/StocksPage.tsx:174:        (old: any) => {
+frontend/src/pages/modules/StocksPage.tsx:345:                onClick={() => { setFilterTab(tab.id as any); setPage(1); }}
+frontend/src/pages/modules/NotesPage.tsx:59:      return notesAPI.create(note as any);
+frontend/src/pages/modules/NotesPage.tsx:79:    mutationFn: (note: Note) => notesAPI.update(note.id, { isPinned: !note.isPinned } as any),
+frontend/src/pages/modules/Items/ItemHeader.tsx:6:  setFilterTab: (tab: any) => void;
+frontend/src/pages/modules/Items/ItemHeader.tsx:8:  openCreate: any;
+frontend/src/pages/modules/Items/ItemHeader.tsx:38:              onClick={() => { setFilterTab(tab.id as any); setPage(1); }}
+frontend/src/pages/modules/ProductionPage.tsx:77:    mutationFn: async ({ id, data }: { id: number | null; data: any }) => {
+frontend/src/pages/modules/AccountsPage.tsx:28:  const [filters, setFilters] = useState<Record<string, any>>({});
+frontend/src/pages/modules/AccountsPage.tsx:167:                onClick={() => { setFilterTab(tab.id as any); setPage(1); }}
+frontend/src/pages/modules/LoginPage.tsx:38:    } catch (err: any) {
+frontend/src/pages/modules/PartiesPage.tsx:28:  const [filters] = useState<Record<string, any>>({});
+frontend/src/pages/modules/PartiesPage.tsx:67:        (old: any) => {
+frontend/src/pages/modules/RolesPage.tsx:46:    mutationFn: async ({ id, data }: { id: number | null; data: any }) => {
+frontend/src/pages/modules/RolesPage.tsx:64:  const handleEdit = (role: any) => {
+frontend/src/pages/modules/RolesPage.tsx:68:      permissionIds: role.permissions?.map((p: any) => p.id) ||[]
+frontend/src/pages/modules/RolesPage.tsx:97:      setFormData(prev => ({ ...prev, permissionIds: allPermissions.map((p: any) => p.id) }));
+frontend/src/pages/modules/RolesPage.tsx:99:      setFormData(prev => ({ ...prev, permissionIds: allPermissions.filter((p: any) => p.key?.includes('goruntuleme') || p.key?.includes('view')).map((p: any) => p.id) }));
+frontend/src/pages/modules/RolesPage.tsx:120:  const groupedPermissions = allPermissions.reduce((acc: any, perm: any) => {
+frontend/src/pages/modules/RolesPage.tsx:194:                onClick={() => setFilterTab(tab.id as any)}
+frontend/src/pages/modules/RolesPage.tsx:291:                            checked={groupedPermissions[moduleName].every((p: any) => formData.permissionIds.includes(p.id))}
+frontend/src/pages/modules/RolesPage.tsx:293:                              const modulePermIds = groupedPermissions[moduleName].map((p: any) => p.id);
+frontend/src/pages/modules/RolesPage.tsx:302:                            groupedPermissions[moduleName].every((p: any) => formData.permissionIds.includes(p.id)) ? 'bg-primary border-primary text-white' : 'border-slate-200 bg-white group-hover:border-primary/50'
+frontend/src/pages/modules/RolesPage.tsx:304:                            {groupedPermissions[moduleName].every((p: any) => formData.permissionIds.includes(p.id)) && <FiCheckCircle size={10} />}
+frontend/src/pages/modules/RolesPage.tsx:310:                        {groupedPermissions[moduleName].map((perm: any) => (
+frontend/src/pages/modules/Settings/EnumSettings.tsx:8:  data: any[];
+frontend/src/pages/modules/Settings/EnumSettings.tsx:10:  setNewItem: (item: any) => void;
+frontend/src/pages/modules/Settings/EnumSettings.tsx:22:  const columns: Column<any>[] = [
+frontend/src/pages/modules/Settings/EnumSettings.tsx:46:      <DataTable<any>
+frontend/src/pages/modules/Settings/CurrencySettings.tsx:7:  currencies: any[];
+frontend/src/pages/modules/Settings/CurrencySettings.tsx:9:  setNewCurrency: (curr: any) => void;
+frontend/src/pages/modules/Settings/CurrencySettings.tsx:20:  const columns: Column<any>[] = [
+frontend/src/pages/modules/Settings/CurrencySettings.tsx:57:      <DataTable<any>
+frontend/src/pages/modules/Settings/CodeGroupSettings.tsx:7:  groups: any[];
+frontend/src/pages/modules/Settings/CodeGroupSettings.tsx:9:  setNewGroup: (group: any) => void;
+frontend/src/pages/modules/Settings/CodeGroupSettings.tsx:19:  const columns: Column<any>[] = [
+frontend/src/pages/modules/Settings/CodeGroupSettings.tsx:48:      <DataTable<any>
+frontend/src/pages/modules/ItemsPage.tsx:74:      setFilterTab(f as any);
+frontend/src/pages/modules/ItemsPage.tsx:97:      initialData: item as any,
+frontend/src/pages/modules/TransactionsPage.tsx:26:  const [filters, setFilters] = useState<Record<string, any>>({});
+frontend/src/pages/modules/TransactionsPage.tsx:101:    mutationFn: (data: any) => transactionsAPI.create(data),
+frontend/src/pages/modules/DepartmentsPage.tsx:166:                onClick={() => { setFilterTab(tab.id as any); setPage(1); }}
+frontend/src/pages/modules/SettingsPage.tsx:62:      return Array.from(new Map((res.data || []).map((q: any) => [q.name.toLowerCase().trim(), q])).values());
+frontend/src/pages/modules/SettingsPage.tsx:70:      return Array.from(new Map((res.data || []).map((i: any) => [`${i.name.toLowerCase().trim()}-${i.abbreviation.toLowerCase().trim()}`, i])).values());
+frontend/src/pages/modules/SettingsPage.tsx:78:      return Array.from(new Map((res.data || []).map((t: any) => [`${t.name.toLowerCase().trim()}-${t.abbreviation.toLowerCase().trim()}`, t])).values());
+frontend/src/pages/modules/SettingsPage.tsx:86:    mutationFn: (items: any[]) => settingsAPI.bulkUpdate(items),
+frontend/src/pages/modules/SettingsPage.tsx:95:    mutationFn: (curr: any) => currenciesAPI.create(curr),
+frontend/src/pages/modules/SettingsPage.tsx:120:    mutationFn: (group: any) => itemsAPI.createCodeGroup(group),
+frontend/src/pages/modules/SettingsPage.tsx:129:    mutationFn: ({ id, data }: { id: number, data: any }) => itemsAPI.updateCodeGroup(id, data),
+frontend/src/pages/modules/SettingsPage.tsx:138:    add: (type: TabType, data: any) => {
+frontend/src/pages/modules/SettingsPage.tsx:139:      const fns: any = {
+frontend/src/pages/modules/SettingsPage.tsx:146:    update: (type: TabType, id: number, data: any) => {
+frontend/src/pages/modules/SettingsPage.tsx:147:      const fns: any = {
+frontend/src/pages/modules/SettingsPage.tsx:155:      const fns: any = {
+frontend/src/pages/modules/SettingsPage.tsx:164:  const createEnumMutation = (type: TabType, action: 'add' | 'update' | 'delete', key: any) => {
+frontend/src/pages/modules/SettingsPage.tsx:180:    mutationFn: ({ type, data }: any) => enumMutations.add(type, data),
+frontend/src/pages/modules/SettingsPage.tsx:182:      const keyMap: any = { 'quantity-types': queryKeys.settings.quantityTypes, 'item-types': queryKeys.settings.itemTypes, 'dept-types': queryKeys.settings.deptTypes };
+frontend/src/pages/modules/SettingsPage.tsx:192:    mutationFn: ({ type, id, data }: any) => enumMutations.update(type, id, data),
+frontend/src/pages/modules/SettingsPage.tsx:194:      const keyMap: any = { 'quantity-types': queryKeys.settings.quantityTypes, 'item-types': queryKeys.settings.itemTypes, 'dept-types': queryKeys.settings.deptTypes };
+frontend/src/pages/modules/SettingsPage.tsx:201:    mutationFn: ({ type, id }: any) => enumMutations.delete(type, id),
+frontend/src/pages/modules/SettingsPage.tsx:203:      const keyMap: any = { 'quantity-types': queryKeys.settings.quantityTypes, 'item-types': queryKeys.settings.itemTypes, 'dept-types': queryKeys.settings.deptTypes };
+frontend/src/pages/modules/Production/ProductionHeader.tsx:7:  setFormData: (data: any) => void;
+frontend/src/pages/modules/Production/ProductionColumns.tsx:75:      const statusColors: any = {
+frontend/src/pages/modules/BomsPage.tsx:178:                onClick={() => setFilterTab(tab.id as any)}
+frontend/src/pages/modules/users/components/UserFormModal.tsx:8:  onSubmit: (formData: any) => void;
+frontend/src/pages/modules/users/components/UserFormModal.tsx:10:  initialData: any;
+frontend/src/pages/modules/users/components/UserPermissionsModal.tsx:10:  userSpecificPerms: any[];
+frontend/src/pages/modules/users/components/UserPermissionsModal.tsx:50:                const permOverride = userSpecificPerms.find((u: any) => u.permissionId === perm.id);
+frontend/src/pages/modules/UsersPage.tsx:240:                onClick={() => { setFilterTab(tab.id as any); setPage(1); }}
+frontend/src/pages/modules/SalesWizard/SalesWizard.tsx:110:    rawStocks.forEach((s: any) => {
+frontend/src/pages/modules/SalesWizard/SalesWizard.tsx:135:    cart.forEach((c: any) => {
+frontend/src/pages/modules/SalesWizard/SalesWizard.tsx:181:    onError: (err: any) => {
+frontend/src/pages/modules/SalesWizard/SalesWizard.tsx:196:    if (cart.find((c: any) => c.item.id === group.item.id)) {
+frontend/src/pages/modules/SalesWizard/SalesWizard.tsx:215:    const itemName = cart.find((c: any) => c.item.id === itemId)?.item?.name;
+frontend/src/pages/modules/SalesWizard/SalesWizard.tsx:230:      items: cart.map((c: any) => ({
+frontend/src/pages/modules/SalesWizard/Step3Cart.tsx:10:  groupedStocks: any;
+frontend/src/pages/modules/SalesWizard/Step3Cart.tsx:11:  handleAddToCart: (group: any) => void;
+frontend/src/pages/modules/SalesWizard/Step3Cart.tsx:12:  updateCartItem: (itemId: number, field: keyof CartItem, val: any) => void;
+frontend/src/pages/modules/SalesWizard/Step3Cart.tsx:30:  updateCartItem: (itemId: number, field: keyof CartItem, val: any) => void;
+frontend/src/pages/modules/SalesWizard/Step3Cart.tsx:99:            step="any" 
+frontend/src/pages/modules/SalesWizard/Step3Cart.tsx:216:                  {group.details.map((d: any, i: number) => (
+frontend/src/pages/modules/CurrenciesPage.tsx:34:    mutationFn: async ({ id, data }: { id: number | null; data: any }) => {
+frontend/src/pages/modules/Parties/PartiesHeader.tsx:6:  setFilterTab: (tab: any) => void;
+frontend/src/pages/modules/Parties/PartiesHeader.tsx:8:  openCreate: any;
+frontend/src/pages/modules/Parties/PartiesHeader.tsx:37:              onClick={() => { setFilterTab(tab.id as any); setPage(1); }}
+frontend/src/pages/SalesPage.tsx:29:  const [filters] = useState<Record<string, any>>({});
+frontend/src/pages/SalesPage.tsx:71:    mutationFn: ({ id, params }: { id: number; params: any }) => salesAPI.approve(id, params),
+frontend/src/pages/SalesPage.tsx:73:      queryClient.setQueriesData({ queryKey: queryKeys.sales.all({}) }, (old: any) => {
+frontend/src/pages/SalesPage.tsx:91:      queryClient.setQueriesData({ queryKey: queryKeys.sales.all({}) }, (old: any) => {
+frontend/src/pages/SalesPage.tsx:108:      queryClient.setQueriesData({ queryKey: queryKeys.sales.all({}) }, (old: any) => {
+frontend/src/services/queryKeys.ts:16:    all: (params: any) => ['parties', 'list', params] as const,
+frontend/src/services/queryKeys.ts:21:    all: (params: any) => ['items', 'list', params] as const,
+frontend/src/services/queryKeys.ts:26:    all: (params: any) => ['stocks', 'list', params] as const,
+frontend/src/services/queryKeys.ts:30:    all: (params: any) => ['sales', 'list', params] as const,
+frontend/src/services/queryKeys.ts:34:    all: (params: any) => ['accounts', 'list', params] as const,
+frontend/src/services/queryKeys.ts:38:    all: (params: any) => ['transactions', 'list', params] as const,
+frontend/src/services/queryKeys.ts:44:    all: (params: any) => ['boms', 'list', params] as const,
+frontend/src/services/queryKeys.ts:49:    all: (params: any) => ['production-orders', 'list', params] as const,
+frontend/src/services/queryKeys.ts:52:    all: (params: any) => ['departments', 'list', params] as const,
+frontend/src/services/queryKeys.ts:57:    all: (params: any) => ['logs', 'list', params] as const,
+frontend/src/services/queryKeys.ts:60:    all: (params: any) => ['notes', 'list', params] as const,
+frontend/src/services/queryKeys.ts:63:    all: (params: any) => ['roles', 'list', params] as const,
+frontend/src/services/queryKeys.ts:66:    all: (params: any) => ['users', 'list', params] as const,
+frontend/src/services/api.ts:66:  [key: string]: any;
+frontend/src/test/setup.ts:6:  (window as any).requestIdleCallback = (cb: any) => setTimeout(cb, 1);
+frontend/src/utils/navHub.ts:11:  formData: any;

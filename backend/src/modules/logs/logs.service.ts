@@ -19,10 +19,9 @@ export class LogsService implements OnModuleInit, OnModuleDestroy {
   onModuleInit() {
     this.logger.log('LogsService initialized (Batch Logger enabled).');
     
-    // Batch logs: Every 5 seconds or when buffer is full (buffered by RxJS implicit logic if combined, 
-    // but here we just use bufferTime for simplicity and safety)
+    // PERF-02: Batch logs with safety limit (1000 logs or 5 seconds)
     this.logSubscription = this.logSubject.pipe(
-      bufferTime(5000), // Buffer logs for 5 seconds
+      bufferTime(5000, undefined, 1000), // Buffer logs for 5 seconds OR 1000 items
       filter(logs => logs.length > 0) // Only proceed if there are logs
     ).subscribe(async (logs) => {
       try {
@@ -41,7 +40,7 @@ export class LogsService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async findAll(query: any): Promise<any> {
+  async findAll(query: { search?: string; module?: string; sortBy?: string; sortOrder?: 'ASC' | 'DESC'; skip?: number; limit?: number; page?: number }): Promise<{ data: SystemLog[], meta: { total: number, page: number, limit: number, totalPages: number } }> {
     const qb = this.logRepository.createQueryBuilder('log');
 
     if (query.search) {

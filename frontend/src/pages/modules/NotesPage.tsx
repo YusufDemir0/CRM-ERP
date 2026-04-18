@@ -1,13 +1,17 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { notesAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { confirmDialog } from '../../utils/confirmDialog';
 import { useSort } from '../../hooks/useSort';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../../services/queryKeys';
+import { formatDisplayDate } from '../../utils/date.helper';
 import { 
   FiPlus, FiTrash2, FiEdit2, FiStar, FiCheck, FiSearch, 
   FiHash, FiClipboard, FiClock, FiX, FiFilter
 } from 'react-icons/fi';
+
+import { CreateNoteDto, UpdateNoteDto } from '../../types';
 
 interface Note {
   id: number;
@@ -34,9 +38,9 @@ export default function NotesPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const { data: notesRaw = [], isLoading: loading } = useQuery<Note[]>({
-    queryKey: ['notes'],
-    queryFn: async () => {
-      const res = await notesAPI.getAll();
+    queryKey: queryKeys.notes.all({}),
+    queryFn: async ({ signal }) => {
+      const res = await notesAPI.getAll({ signal });
       return res.data;
     }
   });
@@ -54,10 +58,10 @@ export default function NotesPage() {
   const saveMutation = useMutation({
     mutationFn: async (note: Partial<Note>) => {
       if (note.id) return notesAPI.update(note.id, note);
-      return notesAPI.create(note as any);
+      return notesAPI.create(note as CreateNoteDto);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notes.all({}) });
       setIsModalOpen(false);
       toast.success(editingNote?.id ? 'Not güncellendi' : 'Yeni not eklendi');
     },
@@ -67,16 +71,16 @@ export default function NotesPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => notesAPI.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notes.all({}) });
       toast.success('Not silindi');
     },
     onError: () => toast.error('Silme hatası')
   });
 
   const pinMutation = useMutation({
-    mutationFn: (note: Note) => notesAPI.update(note.id, { isPinned: !note.isPinned } as any),
+    mutationFn: (note: Note) => notesAPI.update(note.id, { isPinned: !note.isPinned } as UpdateNoteDto),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notes.all({}) });
     },
     onError: () => toast.error('Pinleme hatası')
   });
@@ -101,129 +105,93 @@ export default function NotesPage() {
     setIsModalOpen(true);
   };
 
-  if (loading) return <div className="spinner" />;
+  if (loading) return <div className="page-container flex items-center justify-center"><div className="spinner" /></div>;
 
   return (
-    <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+    <div className="animate-in flex flex-col gap-8">
       
       {/* 🔴 HEADER SECTION */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
         <div>
-          <div style={{ 
-            display: 'inline-flex', alignItems: 'center', gap: '8px', 
-            background: 'var(--primary-glow)', color: 'var(--primary)', 
-            padding: '6px 14px', borderRadius: '12px', fontSize: '12px', 
-            fontWeight: 800, marginBottom: '16px'
-          }}>
+          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
             <FiClipboard /> AJANDA VE HATIRLATICI
           </div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--on-surface)' }}>
-            Kişisel <span style={{ color: 'var(--primary)' }}>Notlarım</span>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-on-surface">
+            Kişisel <span className="text-primary">Notlarım</span>
           </h1>
         </div>
         
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <div className="glass-panel" style={{ padding: '0 16px', borderRadius: '14px', display: 'flex', alignItems: 'center', gap: '8px', background: 'white', width: '300px' }}>
-            <FiSearch color="var(--text-muted)" />
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <div className="bg-white px-4 rounded-2xl border border-slate-100 shadow-premium flex items-center gap-3 w-full sm:w-[300px]">
+            <FiSearch className="text-slate-400 shrink-0" />
             <input 
               type="text" 
               placeholder="Notlarda ara..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ border: 'none', background: 'transparent', height: '44px', width: '100%', fontSize: '14px', fontWeight: 600 }}
+              className="border-none bg-transparent h-12 w-full text-sm font-bold text-slate-600 focus:ring-0 placeholder:text-slate-300"
             />
           </div>
-          <button className="btn btn-primary" style={{ height: '44px', boxShadow: '0 10px 20px var(--primary-glow)' }} onClick={openNewModal}>
+          <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-colors shadow-lg shadow-primary/25 flex items-center justify-center gap-3 shrink-0" onClick={openNewModal}>
             <FiPlus size={18} /> Yeni Not
           </button>
         </div>
       </div>
 
       {/* 🟡 NOTES GRID */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {notes.length === 0 && (
-          <div style={{ 
-            gridColumn: '1 / -1', textAlign: 'center', padding: '100px 40px',
-            background: 'var(--surface-container-low)', borderRadius: '32px',
-            border: '2px dashed var(--border)', color: 'var(--text-muted)'
-          }}>
-            <FiEdit2 size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
-            <h4 style={{ fontWeight: 800, marginBottom: '8px' }}>Görünüşe göre burası boş...</h4>
-            <p style={{ fontSize: '14px', fontWeight: 600 }}>Hızlı bir not alarak hafızanı taze tutabilirsin.</p>
+          <div className="col-span-full text-center py-24 px-10 bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200 text-slate-400">
+            <FiEdit2 size={48} className="mx-auto opacity-20 mb-4" />
+            <h4 className="text-lg font-black mb-2">Görünüşe göre burası boş...</h4>
+            <p className="text-sm font-bold">Hızlı bir not alarak hafızanı taze tutabilirsin.</p>
           </div>
         )}
         
         {notes.map(note => (
           <div 
             key={note.id} 
-            className="glass-panel animate-in"
-            style={{ 
-              background: note.color || '#ffffff', 
-              padding: '24px', 
-              borderRadius: '24px', 
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: '260px',
-              border: note.isPinned ? '2px solid var(--primary)' : '1px solid rgba(0,0,0,0.05)',
-              transition: '0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              position: 'relative',
-              overflow: 'hidden'
-            }}
+            className={`animate-in group relative min-h-[260px] p-7 rounded-[2rem] flex flex-col transition-colors duration-300 hover:shadow-premium hover:-translate-y-1 ${
+              note.isPinned ? 'ring-2 ring-primary ring-offset-2' : 'border border-slate-100 shadow-premium-sm'
+            }`}
+            style={{ backgroundColor: note.color || '#ffffff' }}
           >
             {/* PIN INDICATOR */}
             <button 
               onClick={() => togglePin(note)} 
-              style={{ 
-                position: 'absolute', top: '20px', right: '20px',
-                width: '36px', height: '36px', borderRadius: '12px',
-                background: note.isPinned ? 'var(--primary)' : 'rgba(255,255,255,0.6)',
-                color: note.isPinned ? 'white' : 'var(--text-muted)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                border: 'none', cursor: 'pointer', zIndex: 2, transition: '0.2s',
-                backdropFilter: 'blur(4px)', boxShadow: 'var(--shadow-sm)'
-              }}
+              className={`absolute top-5 right-5 w-10 h-10 rounded-2xl flex items-center justify-center transition-colors duration-200 z-10 backdrop-blur-md ${
+                note.isPinned ? 'bg-primary text-white shadow-lg' : 'bg-white/60 text-slate-400 opacity-0 group-hover:opacity-100 shadow-sm'
+              }`}
             >
               <FiStar fill={note.isPinned ? 'white' : 'none'} size={18} />
             </button>
 
-            <div style={{ flex: 1 }}>
-              <h3 style={{ 
-                margin: '0 40px 16px 0', fontSize: '1.1rem', fontWeight: 900, 
-                color: 'rgba(15, 23, 42, 0.9)', letterSpacing: '-0.02em',
-                lineHeight: '1.3'
-              }}>
+            <div className="flex-1">
+              <h3 className="pr-10 mb-4 text-base font-black text-slate-900 leading-tight tracking-tight">
                 {note.title || 'Başlıksız Not'}
               </h3>
-              <p style={{ 
-                whiteSpace: 'pre-wrap', fontSize: '15px', fontWeight: 500,
-                color: 'rgba(71, 85, 105, 0.9)', margin: 0, lineHeight: '1.6' 
-              }}>
+              <p className="whitespace-pre-wrap text-sm font-bold text-slate-600/90 leading-relaxed">
                 {note.content}
               </p>
             </div>
 
-            <div style={{ 
-              marginTop: '24px', display: 'flex', justifyContent: 'space-between', 
-              alignItems: 'center', borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '16px' 
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'rgba(0,0,0,0.4)', fontSize: '11px', fontWeight: 800 }}>
+            <div className="mt-8 pt-5 flex items-center justify-between border-t border-black/5">
+              <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 <FiClock size={12} />
-                {new Date(note.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                {formatDisplayDate(note.createdAt)}
               </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div className="flex gap-2">
                 <button 
-                  className="btn-icon circle" 
-                  style={{ background: 'rgba(255,255,255,0.6)', width: '36px', height: '36px' }}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/60 text-slate-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
                   onClick={() => { setEditingNote(note); setIsModalOpen(true); }}
                 >
                   <FiEdit2 size={14} />
                 </button>
                 <button 
-                  className="btn-icon circle" 
-                  style={{ background: 'rgba(255,255,255,0.6)', width: '36px', height: '36px' }}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/60 text-slate-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                   onClick={() => handleDelete(note.id)}
                 >
-                  <FiTrash2 size={14} color="var(--error)" />
+                  <FiTrash2 size={14} />
                 </button>
               </div>
             </div>
@@ -233,64 +201,63 @@ export default function NotesPage() {
 
       {/* 🟢 MODAL SECTION */}
       {isModalOpen && editingNote && (
-        <div className="loader-overlay" style={{ alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', background: 'rgba(15, 23, 42, 0.4)' }}>
-          <div className="glass-panel" style={{ maxWidth: '500px', width: '95%', padding: '40px', borderRadius: '32px', background: 'white' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--on-surface)' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white max-w-[550px] w-full p-10 rounded-[3rem] shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">
                 {editingNote.id ? 'Notu Güncelle' : 'Hızlı Bir Not Al'}
               </h2>
-              <button className="btn-icon circle" onClick={() => setIsModalOpen(false)}><FiX size={20} /></button>
+              <button className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:text-red-500 transition-colors" onClick={() => setIsModalOpen(false)}><FiX size={20} /></button>
             </div>
             
-            <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div className="form-group">
-                <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>BAŞLIK (OPSİYONEL)</label>
+            <form onSubmit={handleSave} className="flex flex-col gap-6">
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">BAŞLIK (OPSİYONEL)</label>
                 <input 
                   type="text" 
                   value={editingNote.title || ''} 
                   onChange={e => setEditingNote({...editingNote, title: e.target.value.toLocaleUpperCase('tr-TR')})} 
                   placeholder="Fikir veya hatıralarını isimlendir..."
-                  style={{ height: '52px' }}
+                  className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors uppercase placeholder:text-slate-300"
                 />
               </div>
 
-              <div className="form-group">
-                <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>İÇERİK</label>
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">İÇERİK</label>
                 <textarea 
                   required
                   rows={6}
                   value={editingNote.content || ''} 
                   onChange={e => setEditingNote({...editingNote, content: e.target.value})} 
                   placeholder="Aklındakileri buraya boşalt..."
-                  style={{ padding: '16px', resize: 'vertical' }}
+                  className="p-5 rounded-3xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors min-h-[150px] resize-none placeholder:text-slate-300"
                 />
               </div>
 
               <div>
-                <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '12px', display: 'block' }}>VİRGÜL RENGİ (KATEGORİ)</label>
-                <div style={{ display: 'flex', gap: '12px' }}>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-3 block">VİRGÜL RENGİ (KATEGORİ)</label>
+                <div className="flex flex-wrap gap-3">
                   {COLORS.map(c => (
-                    <div 
+                    <button 
                       key={c.hex}
+                      type="button"
                       onClick={() => setEditingNote({...editingNote, color: c.hex})}
-                      style={{
-                        width: '36px', height: '36px', borderRadius: '12px', background: c.hex, cursor: 'pointer',
-                        border: editingNote.color === c.hex ? '3px solid var(--primary)' : '1px solid var(--border)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        transition: '0.2s', boxShadow: editingNote.color === c.hex ? '0 4px 12px '+c.glow : 'none'
-                      }}
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors duration-200 ${
+                        editingNote.color === c.hex ? 'ring-4 ring-primary ring-opacity-20 scale-110' : 'hover:scale-105'
+                      }`}
+                      style={{ backgroundColor: c.hex, border: '1px solid rgba(0,0,0,0.05)' }}
                     >
-                      {editingNote.color === c.hex && <FiCheck color="var(--primary)" size={18} />}
-                    </div>
+                      {editingNote.color === c.hex && <FiCheck className="text-primary" size={18} />}
+                    </button>
                   ))}
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1, height: '56px', fontSize: '15px' }}>
+              <div className="flex flex-col sm:flex-row gap-4 mt-6">
+                <button type="submit" className="flex-1 h-14 bg-primary text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-colors shadow-lg shadow-primary/25">
                   {editingNote.id ? 'GÜNCELLEMELERİ KAYDET' : 'NOTU DEFTERE EKLE'}
                 </button>
-                <button type="button" className="btn btn-secondary" style={{ flex: 0.4, height: '56px', background: 'white' }} onClick={() => setIsModalOpen(false)}>VAZGEÇ</button>
+                <button type="button" className="flex-[0.4] h-14 bg-slate-50 text-slate-500 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-100 transition-colors" onClick={() => setIsModalOpen(false)}>VAZGEÇ</button>
               </div>
             </form>
           </div>

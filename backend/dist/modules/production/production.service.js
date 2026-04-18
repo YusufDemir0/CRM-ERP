@@ -25,11 +25,14 @@ const bom_item_entity_1 = require("./entities/bom-item.entity");
 const production_order_entity_1 = require("./entities/production-order.entity");
 const item_entity_1 = require("../inventory/items/entities/item.entity");
 const sequence_generator_service_1 = require("../../common/services/sequence-generator.service");
+const production_dto_1 = require("./dto/production.dto");
 const finance_helper_1 = require("../../common/utils/finance.helper");
 const date_utils_1 = require("../../common/utils/date.utils");
 const decimal_js_1 = require("decimal.js");
+const transactional_decorator_1 = require("../../common/decorators/transactional.decorator");
+const transaction_context_service_1 = require("../../common/services/transaction-context.service");
 let ProductionService = ProductionService_1 = class ProductionService {
-    constructor(bomRepo, bomItemRepo, poRepo, itemRepo, dataSource, sequenceGenerator, stocksService, itemsService, logsService) {
+    constructor(bomRepo, bomItemRepo, poRepo, itemRepo, dataSource, sequenceGenerator, stocksService, itemsService, logsService, transactionContext) {
         this.bomRepo = bomRepo;
         this.bomItemRepo = bomItemRepo;
         this.poRepo = poRepo;
@@ -39,6 +42,7 @@ let ProductionService = ProductionService_1 = class ProductionService {
         this.stocksService = stocksService;
         this.itemsService = itemsService;
         this.logsService = logsService;
+        this.transactionContext = transactionContext;
         this.logger = new common_1.Logger(ProductionService_1.name);
     }
     async findAllBoms(query) {
@@ -69,117 +73,91 @@ let ProductionService = ProductionService_1 = class ProductionService {
         return bom;
     }
     async createBom(dto, userId) {
-        const queryRunner = this.dataSource.createQueryRunner();
-        await queryRunner.connect();
-        await queryRunner.startTransaction();
-        try {
-            let version = 1;
-            if (dto.targetItemId) {
-                const lastBom = await queryRunner.manager.findOne(bom_entity_1.Bom, {
-                    where: { targetItemId: dto.targetItemId },
-                    order: { version: 'DESC' },
-                });
-                if (lastBom)
-                    version = lastBom.version + 1;
-                await queryRunner.manager.update(bom_entity_1.Bom, { targetItemId: dto.targetItemId, isActive: true }, { isActive: false });
+        const manager = this.transactionContext.manager;
+        let version = 1;
+        if (dto.targetItemId) {
+            const lastBom = await manager.findOne(bom_entity_1.Bom, {
+                where: { targetItemId: dto.targetItemId },
+                order: { version: 'DESC' },
+            });
+            if (lastBom)
+                version = lastBom.version + 1;
+            await manager.update(bom_entity_1.Bom, { targetItemId: dto.targetItemId, isActive: true }, { isActive: false });
+        }
+        const bom = manager.create(bom_entity_1.Bom, {
+            name: dto.name,
+            description: dto.description || null,
+            targetItemId: dto.targetItemId || null,
+            version: version,
+            isActive: true,
+            createdBy: userId,
+        });
+        const savedBom = await manager.save(bom);
+        const groupedItems = dto.items.reduce((acc, current) => {
+            const existing = acc.find(i => i.itemId === current.itemId);
+            if (existing) {
+                existing.quantity = finance_helper_1.FinanceHelper.add(existing.quantity, current.quantity);
             }
-            const bom = queryRunner.manager.create(bom_entity_1.Bom, {
-                name: dto.name,
-                description: dto.description || null,
-                targetItemId: dto.targetItemId || null,
-                version: version,
+            else {
+                acc.push({ itemId: current.itemId, quantity: new decimal_js_1.Decimal(current.quantity), description: current.description });
+            }
+            return acc;
+        }, []);
+        for (const itemDto of groupedItems) {
+            const item = await manager.findOne(item_entity_1.Item, { where: { id: itemDto.itemId } });
+            if (!item || item.state !== 1) {
+                throw new common_1.BadRequestException(`Ürün bulunamadı veya pasif durumda (ID: ${itemDto.itemId}). Reçeteye eklenemez.`);
+            }
+            const bomItem = manager.create(bom_item_entity_1.BomItem, {
+                bomId: savedBom.id,
+                itemId: itemDto.itemId,
+                quantity: itemDto.quantity,
+                description: itemDto.description || '',
+                createdBy: userId,
+            });
+            await manager.save(bomItem);
+        }
+        return this.findOneBom(savedBom.id);
+    }
+    async updateBom(id, dto, userId) {
+        const manager = this.transactionContext.manager;
+        const bom = await manager.findOne(bom_entity_1.Bom, { where: { id } });
+        if (!bom)
+            throw new common_1.NotFoundException('Reçete (BOM) bulunamadı');
+        if (dto.name !== undefined)
+            bom.name = dto.name;
+        if (dto.description !== undefined)
+            bom.description = dto.description;
+        if (dto.targetItemId !== undefined)
+            bom.targetItemId = dto.targetItemId;
+        if (dto.state !== undefined)
+            bom.state = dto.state;
+        bom.updatedBy = userId || null;
+        await manager.save(bom);
+        if (dto.items && dto.items.length > 0) {
+            await manager.update(bom_entity_1.Bom, id, { isActive: false, updatedBy: userId });
+            const lastVersion = bom.version;
+            const newBom = manager.create(bom_entity_1.Bom, {
+                name: dto.name ?? bom.name,
+                description: dto.description ?? bom.description,
+                targetItemId: dto.targetItemId ?? bom.targetItemId,
+                version: lastVersion + 1,
                 isActive: true,
                 createdBy: userId,
             });
-            const savedBom = await queryRunner.manager.save(bom);
-            const groupedItems = dto.items.reduce((acc, current) => {
-                const existing = acc.find(i => i.itemId === current.itemId);
-                if (existing) {
-                    existing.quantity = finance_helper_1.FinanceHelper.add(existing.quantity, current.quantity);
-                }
-                else {
-                    acc.push({ ...current });
-                }
-                return acc;
-            }, []);
-            for (const itemDto of groupedItems) {
-                const item = await queryRunner.manager.findOne(item_entity_1.Item, { where: { id: itemDto.itemId } });
-                if (!item || item.state !== 1) {
-                    throw new common_1.BadRequestException(`Ürün bulunamadı veya pasif durumda (ID: ${itemDto.itemId}). Reçeteye eklenemez.`);
-                }
-                const bomItem = queryRunner.manager.create(bom_item_entity_1.BomItem, {
-                    bomId: savedBom.id,
+            const savedNew = await manager.save(newBom);
+            for (const itemDto of dto.items) {
+                await manager.save(manager.create(bom_item_entity_1.BomItem, {
+                    bomId: savedNew.id,
                     itemId: itemDto.itemId,
                     quantity: itemDto.quantity,
-                    description: itemDto.description || '',
-                    createdBy: userId,
-                });
-                await queryRunner.manager.save(bomItem);
+                    createdBy: userId
+                }));
             }
-            await queryRunner.commitTransaction();
-            return this.findOneBom(savedBom.id);
+            return this.findOneBom(savedNew.id);
         }
-        catch (error) {
-            await queryRunner.rollbackTransaction();
-            throw error;
-        }
-        finally {
-            await queryRunner.release();
-        }
-    }
-    async updateBom(id, dto, userId) {
-        const queryRunner = this.dataSource.createQueryRunner();
-        await queryRunner.connect();
-        await queryRunner.startTransaction();
-        try {
-            const bom = await queryRunner.manager.findOne(bom_entity_1.Bom, { where: { id } });
-            if (!bom)
-                throw new common_1.NotFoundException('Reçete (BOM) bulunamadı');
-            if (dto.name !== undefined)
-                bom.name = dto.name;
-            if (dto.description !== undefined)
-                bom.description = dto.description;
-            if (dto.targetItemId !== undefined)
-                bom.targetItemId = dto.targetItemId;
-            if (dto.state !== undefined)
-                bom.state = dto.state;
-            bom.updatedBy = userId || null;
-            const saved = await queryRunner.manager.save(bom);
-            if (dto.items && dto.items.length > 0) {
-                await queryRunner.manager.update(bom_entity_1.Bom, id, { isActive: false, updatedBy: userId });
-                const lastVersion = bom.version;
-                const newBom = queryRunner.manager.create(bom_entity_1.Bom, {
-                    name: dto.name ?? bom.name,
-                    description: dto.description ?? bom.description,
-                    targetItemId: dto.targetItemId ?? bom.targetItemId,
-                    version: lastVersion + 1,
-                    isActive: true,
-                    createdBy: userId,
-                });
-                const savedNew = await queryRunner.manager.save(newBom);
-                for (const itemDto of dto.items) {
-                    await queryRunner.manager.save(queryRunner.manager.create(bom_item_entity_1.BomItem, {
-                        bomId: savedNew.id,
-                        itemId: itemDto.itemId,
-                        quantity: itemDto.quantity,
-                        createdBy: userId
-                    }));
-                }
-                await queryRunner.commitTransaction();
-                return this.findOneBom(savedNew.id);
-            }
-            const finalSaved = await queryRunner.manager.save(bom);
-            await queryRunner.commitTransaction();
-            return this.findOneBom(finalSaved.id);
-        }
-        catch (error) {
-            await queryRunner.rollbackTransaction();
-            this.logger.error(`BOM güncellenirken hata oluştu: ${error.message}`);
-            throw error;
-        }
-        finally {
-            await queryRunner.release();
-        }
+        const finalSaved = await manager.save(bom);
+        return this.findOneBom(finalSaved.id);
     }
     async deleteBom(id) {
         const bom = await this.findOneBom(id);
@@ -218,42 +196,31 @@ let ProductionService = ProductionService_1 = class ProductionService {
         return po;
     }
     async createOrder(dto, userId) {
-        const queryRunner = this.dataSource.createQueryRunner();
-        await queryRunner.connect();
-        await queryRunner.startTransaction();
-        try {
-            const bom = await this.findOneBom(dto.bomId);
-            if (!bom.isActive) {
-                throw new common_1.BadRequestException('Sadece aktif (aktif versiyon) reçeteler ile üretim emri oluşturulabilir.');
-            }
-            const code = await this.sequenceGenerator.generateProductionCode(queryRunner);
-            const po = queryRunner.manager.create(production_order_entity_1.ProductionOrder, {
-                code,
-                bomId: dto.bomId,
-                plannedQuantity: new decimal_js_1.Decimal(dto.plannedQuantity || 0),
-                producedQuantity: 0,
-                wastageQuantity: 0,
-                sourceDepartmentId: dto.sourceDepartmentId || null,
-                targetDepartmentId: dto.targetDepartmentId || null,
-                startDate: dto.startDate,
-                endDate: dto.endDate,
-                notes: dto.notes,
-                status: 'draft',
-                createdBy: userId,
-            });
-            const saved = await queryRunner.manager.save(po);
-            await queryRunner.commitTransaction();
-            return this.findOneOrder(saved.id);
+        const manager = this.transactionContext.manager;
+        const bom = await this.findOneBom(dto.bomId);
+        if (!bom.isActive) {
+            throw new common_1.BadRequestException('Sadece aktif (aktif versiyon) reçeteler ile üretim emri oluşturulabilir.');
         }
-        catch (error) {
-            await queryRunner.rollbackTransaction();
-            throw error;
-        }
-        finally {
-            await queryRunner.release();
-        }
+        const code = await this.sequenceGenerator.generateProductionCode(manager);
+        const po = manager.create(production_order_entity_1.ProductionOrder, {
+            code,
+            bomId: dto.bomId,
+            plannedQuantity: new decimal_js_1.Decimal(dto.plannedQuantity || 0),
+            producedQuantity: new decimal_js_1.Decimal(0),
+            wastageQuantity: new decimal_js_1.Decimal(0),
+            sourceDepartmentId: dto.sourceDepartmentId || null,
+            targetDepartmentId: dto.targetDepartmentId || null,
+            startDate: dto.startDate,
+            endDate: dto.endDate,
+            notes: dto.notes,
+            status: 'draft',
+            createdBy: userId,
+        });
+        const saved = await manager.save(po);
+        return this.findOneOrder(saved.id);
     }
     async updateOrder(id, dto, userId) {
+        const manager = this.transactionContext.manager;
         const po = await this.findOneOrder(id);
         if (po.status === 'completed' || po.status === 'cancelled') {
             throw new common_1.BadRequestException('Tamamlanmış veya iptal edilmiş üretim emirleri üzerinde değişiklik yapılamaz.');
@@ -268,67 +235,55 @@ let ProductionService = ProductionService_1 = class ProductionService {
                 throw new common_1.BadRequestException('Hammadde stok düşümü (sarf) için kaynak depo seçimi zorunludur.');
             if (!targetDeptId)
                 throw new common_1.BadRequestException('Üretilen ürünün stoğa girebilmesi için hedef depo seçimi zorunludur.');
-            const queryRunner = this.dataSource.createQueryRunner();
-            await queryRunner.connect();
-            await queryRunner.startTransaction();
-            try {
-                const lockedPo = await queryRunner.manager.findOne(production_order_entity_1.ProductionOrder, {
-                    where: { id },
-                    lock: { mode: 'pessimistic_write' },
-                    relations: ['bom', 'bom.items', 'bom.items.item']
-                });
-                if (!lockedPo)
-                    throw new common_1.NotFoundException('İş emri kilitlenemedi veya bulunamadı.');
-                if (lockedPo.status === 'completed')
-                    throw new common_1.BadRequestException('Bu iş emri bir başka işlem tarafından zaten tamamlanmış.');
-                const targetItem = lockedPo.bom.targetItem;
-                if (!targetItem)
-                    throw new common_1.BadRequestException('Bu reçetede (BOM) çıkacak ana ürün belirlenmediği için stoklara üretim girişi yapılamıyor!');
-                let totalMaterialCost = new decimal_js_1.Decimal(0);
-                const sortedBomItems = [...lockedPo.bom.items].sort((a, b) => a.itemId - b.itemId);
-                for (const bomItem of sortedBomItems) {
-                    const requiredQty = finance_helper_1.FinanceHelper.mul(bomItem.quantity, producedQty);
-                    const itemTotalCost = finance_helper_1.FinanceHelper.mul(requiredQty, bomItem.item?.purchasePrice || 0);
-                    totalMaterialCost = finance_helper_1.FinanceHelper.add(totalMaterialCost, itemTotalCost);
-                    await this.stocksService.decreaseStock(bomItem.itemId, sourceDeptId, requiredQty, queryRunner.manager, { type: 'production', id: lockedPo.id, description: `Üretim Sarfiyat Çıkışı: İş Emri ${lockedPo.code}` }, userId);
-                }
-                await this.stocksService.increaseStock(targetItem.id, targetDeptId, producedQty, queryRunner.manager, { type: 'production', id: lockedPo.id, description: `Üretim Mamül Girişi: İş Emri ${lockedPo.code}` }, userId);
-                const unitCost = finance_helper_1.FinanceHelper.div(totalMaterialCost, producedQty, 4);
-                await queryRunner.manager.update(item_entity_1.Item, targetItem.id, {
-                    purchasePrice: unitCost,
-                    updatedBy: userId
-                });
-                await queryRunner.manager.update(production_order_entity_1.ProductionOrder, lockedPo.id, {
-                    status: 'completed',
-                    producedQuantity: producedQty,
-                    wastageQuantity: dto.wastageQuantity ?? lockedPo.wastageQuantity,
-                    sourceDepartmentId: sourceDeptId,
-                    targetDepartmentId: targetDeptId,
-                    unitCost,
-                    totalCost: totalMaterialCost,
-                    endDate: dto.endDate ?? date_utils_1.DateUtils.getToday(),
-                    notes: dto.notes ?? lockedPo.notes,
-                    updatedBy: userId
-                });
-                await queryRunner.commitTransaction();
-                this.logsService.logActivity({
-                    userId,
-                    module: 'production',
-                    action: 'COMPLETE_PRODUCTION',
-                    tag: 'SUCCESS',
-                    details: `Üretim tamamlandı: ${lockedPo.code}, Ürün: ${targetItem.name}, Miktar: ${producedQty}`,
-                });
-                this.logger.log(`✅ İş Emri: ${lockedPo.code} başarıyla Tamamlandı.`);
-                return this.findOneOrder(lockedPo.id);
+            const lockedPo = await manager.findOne(production_order_entity_1.ProductionOrder, {
+                where: { id },
+                lock: { mode: 'pessimistic_write' },
+                relations: ['bom', 'bom.items', 'bom.items.item']
+            });
+            if (!lockedPo)
+                throw new common_1.NotFoundException('İş emri kilitlenemedi veya bulunamadı.');
+            if (lockedPo.status === 'completed')
+                throw new common_1.BadRequestException('Bu iş emri bir başka işlem tarafından zaten tamamlanmış.');
+            const targetItem = lockedPo.bom.targetItem;
+            if (!targetItem)
+                throw new common_1.BadRequestException('Bu reçetede (BOM) çıkacak ana ürün belirlenmediği için stoklara üretim girişi yapılamıyor!');
+            let totalMaterialCost = new decimal_js_1.Decimal(0);
+            const sortedBomItems = [...lockedPo.bom.items].sort((a, b) => a.itemId - b.itemId);
+            for (const bomItem of sortedBomItems) {
+                const requiredQty = finance_helper_1.FinanceHelper.mul(bomItem.quantity, producedQty);
+                const currentComponentMAC = new decimal_js_1.Decimal(bomItem.item?.movingAverageCost || bomItem.item?.purchasePrice || 0);
+                const itemTotalCost = finance_helper_1.FinanceHelper.mul(requiredQty, currentComponentMAC);
+                totalMaterialCost = finance_helper_1.FinanceHelper.add(totalMaterialCost, itemTotalCost);
+                await this.stocksService.decreaseStock(bomItem.itemId, sourceDeptId, requiredQty, manager, { type: 'production', id: lockedPo.id, description: `Üretim Sarfiyat Çıkışı: İş Emri ${lockedPo.code}` }, userId);
             }
-            catch (error) {
-                await queryRunner.rollbackTransaction();
-                this.logger.error(`❌ Üretim kapatılırken hata oluştu: ${error.message}`);
-                throw error;
-            }
-            finally {
-                await queryRunner.release();
-            }
+            const laborCost = new decimal_js_1.Decimal(dto.laborCost ?? lockedPo.laborCost ?? 0);
+            const overheadCost = new decimal_js_1.Decimal(dto.overheadCost ?? lockedPo.overheadCost ?? 0);
+            const totalProductionCost = finance_helper_1.FinanceHelper.add(finance_helper_1.FinanceHelper.add(totalMaterialCost, laborCost), overheadCost);
+            const unitCost = finance_helper_1.FinanceHelper.div(totalProductionCost, producedQty, 4);
+            await this.stocksService.increaseStock(targetItem.id, targetDeptId, producedQty, unitCost, manager, { type: 'production', id: lockedPo.id, description: `Üretim Mamül Girişi: İş Emri ${lockedPo.code}` }, userId);
+            await manager.update(production_order_entity_1.ProductionOrder, lockedPo.id, {
+                status: 'completed',
+                producedQuantity: producedQty,
+                wastageQuantity: dto.wastageQuantity ?? lockedPo.wastageQuantity,
+                sourceDepartmentId: sourceDeptId,
+                targetDepartmentId: targetDeptId,
+                unitCost,
+                totalCost: totalProductionCost,
+                laborCost,
+                overheadCost,
+                endDate: dto.endDate ?? date_utils_1.DateUtils.getToday(),
+                notes: dto.notes ?? lockedPo.notes,
+                updatedBy: userId
+            });
+            this.logsService.logActivity({
+                userId,
+                module: 'production',
+                action: 'COMPLETE_PRODUCTION',
+                tag: 'SUCCESS',
+                details: `Üretim tamamlandı: ${lockedPo.code}, Ürün: ${targetItem.name}, Miktar: ${producedQty}`,
+            });
+            this.logger.log(`✅ İş Emri: ${lockedPo.code} başarıyla Tamamlandı.`);
+            return this.findOneOrder(lockedPo.id);
         }
         if (dto.plannedQuantity !== undefined)
             po.plannedQuantity = new decimal_js_1.Decimal(dto.plannedQuantity);
@@ -346,6 +301,10 @@ let ProductionService = ProductionService_1 = class ProductionService {
             po.endDate = dto.endDate;
         if (dto.status !== undefined)
             po.status = dto.status;
+        if (dto.laborCost !== undefined)
+            po.laborCost = new decimal_js_1.Decimal(dto.laborCost);
+        if (dto.overheadCost !== undefined)
+            po.overheadCost = new decimal_js_1.Decimal(dto.overheadCost);
         if (dto.notes !== undefined)
             po.notes = dto.notes;
         po.updatedBy = userId || null;
@@ -369,6 +328,30 @@ let ProductionService = ProductionService_1 = class ProductionService {
     }
 };
 exports.ProductionService = ProductionService;
+__decorate([
+    (0, transactional_decorator_1.Transactional)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [production_dto_1.CreateBomDto, Number]),
+    __metadata("design:returntype", Promise)
+], ProductionService.prototype, "createBom", null);
+__decorate([
+    (0, transactional_decorator_1.Transactional)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, production_dto_1.UpdateBomDto, Number]),
+    __metadata("design:returntype", Promise)
+], ProductionService.prototype, "updateBom", null);
+__decorate([
+    (0, transactional_decorator_1.Transactional)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [production_dto_1.CreateProductionOrderDto, Number]),
+    __metadata("design:returntype", Promise)
+], ProductionService.prototype, "createOrder", null);
+__decorate([
+    (0, transactional_decorator_1.Transactional)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, production_dto_1.UpdateProductionOrderDto, Number]),
+    __metadata("design:returntype", Promise)
+], ProductionService.prototype, "updateOrder", null);
 exports.ProductionService = ProductionService = ProductionService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(bom_entity_1.Bom)),
@@ -383,6 +366,7 @@ exports.ProductionService = ProductionService = ProductionService_1 = __decorate
         sequence_generator_service_1.SequenceGeneratorService,
         stocks_service_1.StocksService,
         items_service_1.ItemsService,
-        logs_service_1.LogsService])
+        logs_service_1.LogsService,
+        transaction_context_service_1.TransactionContextService])
 ], ProductionService);
 //# sourceMappingURL=production.service.js.map

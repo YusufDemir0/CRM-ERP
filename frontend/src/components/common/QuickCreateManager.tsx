@@ -1,39 +1,61 @@
-import React from 'react';
-import { useQuickCreateStore } from '../../store/useQuickCreateStore';
-import { DepartmentForm } from '../forms/DepartmentForm';
-import { AccountForm } from '../forms/AccountForm';
-import { UserForm } from '../forms/UserForm';
-import { PartyForm } from '../forms/PartyForm';
-import { ItemForm } from '../forms/ItemForm';
-import { BomForm } from '../forms/BomForm';
+import { lazy, Suspense, useEffect } from 'react';
+import { useQuickCreateStore, QuickCreateStackItem } from '../../store/useQuickCreateStore';
 import { FiX } from 'react-icons/fi';
+import GlobalLoader from '../GlobalLoader';
+
+// Lazy Loaded Forms
+const DepartmentForm = lazy(() => import('../forms/DepartmentForm').then(m => ({ default: m.DepartmentForm })));
+const AccountForm = lazy(() => import('../forms/AccountForm').then(m => ({ default: m.AccountForm })));
+const UserForm = lazy(() => import('../forms/UserForm').then(m => ({ default: m.UserForm })));
+const PartyForm = lazy(() => import('../forms/PartyForm').then(m => ({ default: m.PartyForm })));
+const ItemForm = lazy(() => import('../forms/ItemForm').then(m => ({ default: m.ItemForm })));
+const BomForm = lazy(() => import('../forms/BomForm').then(m => ({ default: m.BomForm })));
 
 export const QuickCreateManager: React.FC = () => {
   const { stack, closeCurrent, clearCache } = useQuickCreateStore();
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && stack.length > 0) {
+        const topItem = stack[stack.length - 1];
+        clearCache(topItem.type);
+        topItem.onCancel();
+        closeCurrent();
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [stack, closeCurrent, clearCache]);
 
   if (stack.length === 0) return null;
 
   return (
     <>
-      {stack.map((item: any, index: number) => {
+      {stack.map((item: QuickCreateStackItem, index: number) => {
         const isTop = index === stack.length - 1;
         
         return (
           <div 
             key={item.id} 
-            className="loader-overlay" 
+            className={`loader-overlay items-start overflow-y-auto transition-opacity duration-200 ${
+              isTop ? 'flex opacity-100 pointer-events-auto' : 'hidden opacity-0 pointer-events-none'
+            }`}
             style={{ 
-              alignItems: 'flex-start', 
               paddingTop: `${5 + index * 2}%`, 
               zIndex: 9000 + index, 
-              display: isTop ? 'flex' : 'none',
-              overflowY: 'auto'
+              background: 'rgba(15, 23, 42, 0.4)'
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                clearCache(item.type);
+                item.onCancel();
+                closeCurrent();
+              }
             }}
           >
-            <div className="login-box" style={{ maxWidth: '800px', width: '100%', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+            <div className="bg-white max-w-3xl w-full relative p-8 sm:p-12 rounded-[2.5rem] shadow-premium border border-slate-100 animate-in fade-in zoom-in duration-300">
               <button 
-                className="btn-icon circle" 
-                style={{ position: 'absolute', top: '15px', right: '15px' }} 
+                className="btn-icon circle absolute top-6 right-6" 
                 onClick={() => {
                   clearCache(item.type);
                   item.onCancel();
@@ -43,11 +65,14 @@ export const QuickCreateManager: React.FC = () => {
                 <FiX size={20} />
               </button>
 
-              <h3 style={{ marginBottom: '20px', color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
+              <h3 className="text-xl font-black text-primary border-b border-slate-100 pb-4 mb-8 flex items-center gap-3">
+                <span className="w-2 h-8 bg-primary rounded-full hidden sm:block" />
                 {getTitle(item.type, !!item.editingId)}
               </h3>
 
-              {renderFormInternal(item, () => closeCurrent())}
+              <Suspense fallback={<GlobalLoader />}>
+                {renderFormInternal(item, () => closeCurrent())}
+              </Suspense>
             </div>
           </div>
         );
@@ -55,12 +80,12 @@ export const QuickCreateManager: React.FC = () => {
     </>
   );
 
-  function renderFormInternal(item: any, close: () => void) {
+  function renderFormInternal(item: QuickCreateStackItem, close: () => void) {
     const props = {
       initialData: item.initialData,
       editingId: item.editingId,
-      onSuccess: (data: any) => {
-        item.onSuccess(data);
+      onSuccess: (data: unknown) => {
+        item.onSuccess(data as { data: { id: number; name?: string; code?: string; title?: string } });
         close();
       },
       onCancel: () => {
@@ -82,14 +107,14 @@ export const QuickCreateManager: React.FC = () => {
   }
 };
 
-function getTitle(type: string, isEditing: boolean) {
-  const titles: any = {
+function getTitle(type: string, isEditing: boolean): string {
+  const titles: Record<string, string> = {
     user: isEditing ? 'Kullanıcı Güncelle' : 'Hızlı Kullanıcı Ekle',
     department: isEditing ? 'Departman Güncelle' : 'Hızlı Departman Ekle',
     account: isEditing ? 'Hesap Güncelle' : 'Hızlı Finansal Hesap Ekle',
     party: isEditing ? 'Cari Güncelle' : 'Hızlı Cari Kart Ekle',
     item: isEditing ? 'Ürün Güncelle' : 'Hızlı Ürün Kaydı',
+    bom: isEditing ? 'Reçete Güncelle' : 'Hızlı Reçete Tanımı',
   };
   return titles[type] || 'Hızlı Oluştur';
 }
-

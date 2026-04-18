@@ -73,7 +73,7 @@ export class DashboardService {
       })
     ]);
 
-    const sumTL = (txs: any[]) => txs.reduce((sum, tx) => 
+    const sumTL = (txs: { amount: Decimal; exchangeRate: Decimal }[]) => txs.reduce((sum, tx) => 
       sum.plus(new Decimal(tx.amount || 0).mul(new Decimal(tx.exchangeRate || 1))), 
       new Decimal(0)
     );

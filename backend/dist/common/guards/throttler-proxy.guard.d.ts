@@ -1,4 +1,4 @@
 import { ThrottlerGuard } from '@nestjs/throttler';
 export declare class ThrottlerProxyGuard extends ThrottlerGuard {
-    protected getTracker(req: Record<string, any>): Promise<string>;
+    protected getTracker(req: Record<string, unknown>): Promise<string>;
 }

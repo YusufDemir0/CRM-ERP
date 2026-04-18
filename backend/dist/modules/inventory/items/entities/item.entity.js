@@ -63,6 +63,11 @@ __decorate([
 ], Item.prototype, "purchasePrice", void 0);
 __decorate([
     (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'moving_average_cost', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
+], Item.prototype, "movingAverageCost", void 0);
+__decorate([
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
     (0, typeorm_1.Column)({ name: 'sale_price', type: 'decimal', precision: 15, scale: 2, nullable: true, transformer: new decimal_transformer_1.DecimalTransformer() }),
     __metadata("design:type", Object)
 ], Item.prototype, "salePrice", void 0);

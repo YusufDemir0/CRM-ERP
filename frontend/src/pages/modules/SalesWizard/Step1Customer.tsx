@@ -1,4 +1,4 @@
-import React from 'react';
+import { memo } from 'react';
 import { Party } from '../../../types';
 
 interface Props {
@@ -13,7 +13,7 @@ interface Props {
   onNext: () => void;
 }
 
-const Step1Customer: React.FC<Props> = ({
+const Step1Customer: React.FC<Props> = memo(({
   partyId, setPartyId, customerSearch, setCustomerSearch, 
   isCustomerDropdownOpen, setIsCustomerDropdownOpen, 
   filteredCustomers, selectedCustomer, onNext
@@ -40,7 +40,7 @@ const Step1Customer: React.FC<Props> = ({
         <div className="relative group">
           <input 
             type="text" 
-            className="uppercase-input pl-10 h-13 bg-white border-2 border-slate-100 group-focus-within:border-primary/30 transition-all rounded-2xl" 
+            className="uppercase-input pl-10 h-13 bg-white border-2 border-slate-100 group-focus-within:border-primary/30 transition-colors rounded-2xl" 
             placeholder="🔍 İSİM VEYA VERGİ NO İLE ARA..." 
             value={partyId ? selectedCustomer?.name : customerSearch}
             onChange={(e) => {
@@ -90,7 +90,7 @@ const Step1Customer: React.FC<Props> = ({
       </div>
 
       <button 
-        className="btn btn-primary w-full h-15 rounded-2xl shadow-lg shadow-primary/25 text-base font-black mt-4 disabled:opacity-50 disabled:shadow-none transition-all active:scale-[0.98]" 
+        className="btn btn-primary w-full h-15 rounded-2xl shadow-lg shadow-primary/25 text-base font-black mt-4 disabled:opacity-50 disabled:shadow-none transition-colors active:scale-[0.98]" 
         disabled={!partyId} 
         onClick={onNext}
       >
@@ -98,6 +98,8 @@ const Step1Customer: React.FC<Props> = ({
       </button>
     </div>
   );
-};
+});
+
+Step1Customer.displayName = 'Step1Customer';
 
 export default Step1Customer;

@@ -11,7 +11,6 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 
 @Controller('production')
-@UseGuards(AuthGuard('jwt'))
 export class ProductionController {
   constructor(private readonly prodService: ProductionService) {}
 

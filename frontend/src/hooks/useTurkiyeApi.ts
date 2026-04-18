@@ -1,53 +1,48 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
+/**
+ * useTurkiyeCities
+ * Fetches and caches province data from turkiyeapi.dev
+ * [FIX-TASK-08]: Migrated to React Query for global caching.
+ */
 export function useTurkiyeCities() {
-  const [cities, setCities] = useState<{ id: number; name: string }[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    setLoading(true);
-    fetch('https://turkiyeapi.dev/api/v1/provinces')
-      .then(res => res.json())
-      .then(data => {
-        if (data.data) {
-          const sorted = data.data.map((c: any) => ({
-            id: c.id,
-            name: c.name
-          })).sort((a: any, b: any) => a.name.localeCompare(b.name, 'tr'));
-          setCities(sorted);
-        }
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: cities = [], isLoading: loading } = useQuery({
+    queryKey: ['turkiye-provinces'],
+    queryFn: async ({ signal }) => {
+      const res = await fetch('https://turkiyeapi.dev/api/v1/provinces', { signal });
+      const data = await res.json();
+      if (!data.data) return [];
+      return data.data
+        .map((c: { id: number; name: string }) => ({ id: c.id, name: c.name }))
+        .sort((a: { id: number; name: string }, b: { id: number; name: string }) => a.name.localeCompare(b.name, 'tr'));
+    },
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
 
   return { cities, loading };
 }
 
+/**
+ * useTurkiyeDistricts
+ * Fetches and caches district data for a specific province.
+ */
 export function useTurkiyeDistricts(provinceId: number | null) {
-  const [districts, setDistricts] = useState<{ id: number; name: string }[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!provinceId) {
-      setDistricts([]);
-      return;
-    }
-    setLoading(true);
-    fetch(`https://turkiyeapi.dev/api/v1/provinces/${provinceId}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.data && data.data.districts) {
-          const sorted = data.data.districts.map((d: any) => ({
-            id: d.id,
-            name: d.name
-          })).sort((a: any, b: any) => a.name.localeCompare(b.name, 'tr'));
-          setDistricts(sorted);
-        }
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [provinceId]);
+  const { data: districts = [], isLoading: loading } = useQuery({
+    queryKey: ['turkiye-districts', provinceId],
+    queryFn: async ({ signal }) => {
+      if (!provinceId) return [];
+      const res = await fetch(`https://turkiyeapi.dev/api/v1/provinces/${provinceId}`, { signal });
+      const data = await res.json();
+      if (!data.data || !data.data.districts) return [];
+      return data.data.districts
+        .map((d: { id: number; name: string }) => ({ id: d.id, name: d.name }))
+        .sort((a: { id: number; name: string }, b: { id: number; name: string }) => a.name.localeCompare(b.name, 'tr'));
+    },
+    enabled: !!provinceId,
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
 
   return { districts, loading };
 }

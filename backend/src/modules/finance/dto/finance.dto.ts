@@ -1,6 +1,7 @@
 import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, IsDateString, Min, Matches } from 'class-validator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { Type, Transform } from 'class-transformer';
+import { Decimal } from 'decimal.js';
 
 export class CreateCurrencyDto {
   @IsString() @IsNotEmpty() code: string;
@@ -24,7 +25,7 @@ export class CreateAccountDto {
   @IsOptional() @IsString() iban?: string;
   @IsOptional() @IsString() ibanName?: string;
   @IsNumber() @Type(() => Number) currencyId: number;
-  @IsOptional() @IsNumber() @Type(() => Number) criticalLimit?: number; 
+  @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : undefined) criticalLimit?: Decimal; 
   @IsOptional() @IsString() description?: string;
 }
 
@@ -33,7 +34,7 @@ export class UpdateAccountDto {
   @IsOptional() @IsString() bankName?: string;
   @IsOptional() @IsString() iban?: string;
   @IsOptional() @IsString() ibanName?: string;
-  @IsOptional() @IsNumber() @Type(() => Number) criticalLimit?: number;
+  @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : undefined) criticalLimit?: Decimal;
   @IsOptional() @IsNumber() @Type(() => Number) currencyId?: number;
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsNumber() @Type(() => Number) state?: number;

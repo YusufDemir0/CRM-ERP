@@ -21,10 +21,16 @@ export class StockMovement extends BaseEntity {
 
   @Column({ type: 'enum', enum: ['in', 'out'] })
   type: 'in' | 'out';
+  
+  @Column({ name: 'unit_cost', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
+  unitCost: Decimal;
+
+  @Column({ name: 'total_cost', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
+  totalCost: Decimal;
 
   @Index()
-  @Column({ name: 'reference_type', type: 'enum', enum: ['sale', 'purchase', 'production', 'adjustment', 'return', 'manual'] })
-  referenceType: 'sale' | 'purchase' | 'production' | 'adjustment' | 'return' | 'manual';
+  @Column({ name: 'reference_type', type: 'enum', enum: ['sale', 'purchase', 'production', 'adjustment', 'return', 'manual', 'revert', 'shipment', 'transfer'] })
+  referenceType: 'sale' | 'purchase' | 'production' | 'adjustment' | 'return' | 'manual' | 'revert' | 'shipment' | 'transfer';
 
   @Index()
   @Column({ name: 'reference_id', type: 'bigint', nullable: true })

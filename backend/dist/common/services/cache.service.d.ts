@@ -3,7 +3,7 @@ export declare class CacheService {
     private cacheManager;
     constructor(cacheManager: Cache);
     get<T>(key: string): Promise<T | null>;
-    set(key: string, value: any, ttl?: number): Promise<void>;
+    set(key: string, value: unknown, ttl?: number): Promise<void>;
     del(key: string): Promise<void>;
     reset(): Promise<void>;
 }

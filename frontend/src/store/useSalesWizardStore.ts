@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
 import { CartItem, SalesWizardState } from '../types';
 
 interface SalesWizardActions {
@@ -14,7 +14,7 @@ interface SalesWizardActions {
   setInvoiceType: (type: 'billed' | 'unbilled' | null) => void;
   setCart: (cart: CartItem[]) => void;
   addToCart: (item: CartItem) => void;
-  updateCartItem: (itemId: number, field: keyof CartItem, value: any) => void;
+  updateCartItem: (itemId: number, field: keyof CartItem, value: CartItem[keyof CartItem]) => void;
   removeCartItem: (itemId: number) => void;
   setSearchTerm: (term: string) => void;
   setGenDiscountType: (type: 'amount' | 'percent') => void;
@@ -23,6 +23,10 @@ interface SalesWizardActions {
   setSaleNotes: (notes: string) => void;
   resetWizard: () => void;
 }
+
+
+
+let persistTimeout: ReturnType<typeof setTimeout> | null = null;
 
 export const useSalesWizardStore = create<SalesWizardState & SalesWizardActions>()(
   persist(
@@ -90,7 +94,33 @@ export const useSalesWizardStore = create<SalesWizardState & SalesWizardActions>
     }),
     {
       name: 'sales-wizard-storage',
-      storage: createJSONStorage(() => sessionStorage),
+      storage: {
+        getItem: (name) => {
+          const str = sessionStorage.getItem(name);
+          if (!str) return null;
+          try {
+            return JSON.parse(str);
+          } catch {
+            return null;
+          }
+        },
+        setItem: (() => {
+          let timeoutId: ReturnType<typeof setTimeout>;
+          return (name: string, value: unknown) => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+              try {
+                sessionStorage.setItem(name, JSON.stringify(value));
+              } catch (e) {
+                console.error('Wizard persistence failed', e);
+              }
+            }, 500);
+          };
+        })(),
+        removeItem: (name) => {
+          sessionStorage.removeItem(name);
+        },
+      },
     }
   )
 );

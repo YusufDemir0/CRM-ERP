@@ -1,8 +1,12 @@
-import { QueryRunner } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
+import { TransactionContextService } from './transaction-context.service';
 export declare class SequenceGeneratorService {
+    private readonly transactionContext;
+    private readonly dataSource;
     private readonly logger;
-    generateItemCode(queryRunner: QueryRunner, itemCodeGroupId: number): Promise<string>;
-    generateSaleCode(queryRunner: QueryRunner, saleTypeId: number): Promise<string>;
-    generateProductionCode(queryRunner: QueryRunner, prefix?: string): Promise<string>;
-    generateTransactionCode(queryRunner: QueryRunner, prefix: string): Promise<string>;
+    constructor(transactionContext: TransactionContextService, dataSource: DataSource);
+    generateItemCode(manager: EntityManager | undefined, itemCodeGroupId: number): Promise<string>;
+    generateSaleCode(manager: EntityManager | undefined, saleTypeId: number): Promise<string>;
+    generateProductionCode(manager?: EntityManager, prefix?: string): Promise<string>;
+    generateTransactionCode(manager: EntityManager | undefined, prefix: string): Promise<string>;
 }

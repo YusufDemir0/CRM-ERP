@@ -14,7 +14,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProductionController = void 0;
 const common_1 = require("@nestjs/common");
-const passport_1 = require("@nestjs/passport");
 const production_service_1 = require("./production.service");
 const production_dto_1 = require("./dto/production.dto");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
@@ -139,7 +138,6 @@ __decorate([
 ], ProductionController.prototype, "getStatus", null);
 exports.ProductionController = ProductionController = __decorate([
     (0, common_1.Controller)('production'),
-    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __metadata("design:paramtypes", [production_service_1.ProductionService])
 ], ProductionController);
 //# sourceMappingURL=production.controller.js.map

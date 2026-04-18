@@ -13,7 +13,7 @@ export class WebhooksController {
   @UseGuards(WebhookGuard)
   @Post('receive')
   @HttpCode(HttpStatus.OK)
-  async handleWebhook(@Body() data: any) {
+  async handleWebhook(@Body() data: Record<string, unknown>) {
     // Process external system updates (e.g., payment status, order tracking)
     console.log('✅ Secure Webhook Received:', data);
     return { status: 'acknowledged' };

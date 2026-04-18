@@ -25,7 +25,7 @@ const logs_interceptor_1 = require("./common/interceptors/logs.interceptor");
 const jwt_auth_guard_1 = require("./common/guards/jwt-auth.guard");
 const permissions_guard_1 = require("./common/guards/permissions.guard");
 const csrf_guard_1 = require("./common/guards/csrf.guard");
-const csrf_interceptor_1 = require("./common/interceptors/csrf.interceptor");
+const csrf_middleware_1 = require("./common/middleware/csrf.middleware");
 const audit_subscriber_1 = require("./common/subscribers/audit.subscriber");
 const common_module_1 = require("./common/common.module");
 const auth_module_1 = require("./modules/auth/auth.module");
@@ -43,6 +43,11 @@ const logs_module_1 = require("./modules/logs/logs.module");
 const notes_module_1 = require("./modules/notes/notes.module");
 const webhooks_module_1 = require("./modules/webhooks/webhooks.module");
 let AppModule = class AppModule {
+    configure(consumer) {
+        consumer
+            .apply(csrf_middleware_1.CsrfMiddleware)
+            .forRoutes('*');
+    }
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
@@ -89,10 +94,6 @@ exports.AppModule = AppModule = __decorate([
             {
                 provide: core_1.APP_INTERCEPTOR,
                 useClass: audit_interceptor_1.AuditInterceptor,
-            },
-            {
-                provide: core_1.APP_INTERCEPTOR,
-                useClass: csrf_interceptor_1.CsrfInterceptor,
             },
             {
                 provide: core_1.APP_INTERCEPTOR,

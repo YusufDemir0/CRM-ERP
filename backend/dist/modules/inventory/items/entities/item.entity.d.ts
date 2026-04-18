@@ -15,6 +15,7 @@ export declare class Item extends BaseEntity {
     criticalLimit: Decimal;
     image: string | null;
     purchasePrice: Decimal | null;
+    movingAverageCost: Decimal;
     salePrice: Decimal | null;
     netPrice: Decimal | null;
     currencyId: number | null;

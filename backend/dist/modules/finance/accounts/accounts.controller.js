@@ -14,7 +14,6 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AccountsController = void 0;
 const common_1 = require("@nestjs/common");
-const passport_1 = require("@nestjs/passport");
 const accounts_service_1 = require("./accounts.service");
 const finance_dto_1 = require("../dto/finance.dto");
 const pagination_dto_1 = require("../../../common/dto/pagination.dto");
@@ -79,7 +78,6 @@ __decorate([
 ], AccountsController.prototype, "remove", null);
 exports.AccountsController = AccountsController = __decorate([
     (0, common_1.Controller)('accounts'),
-    (0, common_1.UseGuards)((0, passport_1.AuthGuard)('jwt')),
     __metadata("design:paramtypes", [accounts_service_1.AccountsService])
 ], AccountsController);
 //# sourceMappingURL=accounts.controller.js.map

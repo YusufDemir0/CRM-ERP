@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { currenciesAPI } from '../../services/api';
 import { 
@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { Decimal } from 'decimal.js';
 import { DataTable, Column } from '../../components/common/DataTable';
 import { useSort } from '../../hooks/useSort';
+import { queryKeys } from '../../services/queryKeys';
 
 export function CurrenciesPage() {
   const queryClient = useQueryClient();
@@ -18,7 +19,7 @@ export function CurrenciesPage() {
   const [formData, setFormData] = useState({ code: '', name: '', symbol: '', exchangeRate: 1, isDefault: 0 });
 
   const { data: currenciesData, isLoading: loading } = useQuery({
-    queryKey: ['currencies'],
+    queryKey: queryKeys.currencies.all,
     queryFn: async () => {
       const res = await currenciesAPI.getAll();
       return res.data || [];
@@ -30,12 +31,12 @@ export function CurrenciesPage() {
   const { sortedData, sortConfigs, toggleSort } = useSort(currencies);
 
   const mutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number | null; data: any }) => {
+    mutationFn: async ({ id, data }: { id: number | null; data: Partial<Currency> }) => {
       if (id) return currenciesAPI.update(id, data);
       return currenciesAPI.create(data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['currencies'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.currencies.all });
       setIsModalOpen(false);
       toast.success(editingId ? "Güncellendi" : "Kaydedildi");
     },
@@ -62,25 +63,16 @@ export function CurrenciesPage() {
     { 
       header: 'PARA BİRİMİ', 
       accessor: (c) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ 
-            width: '40px', height: '40px', borderRadius: '12px', 
-            background: 'var(--primary-glow)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--primary)',
-            fontSize: '18px'
-          }}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[var(--primary-glow)] flex items-center justify-center text-[var(--primary)] text-lg">
             <FiDollarSign />
           </div>
           <div>
-            <div style={{ fontWeight: 800, color: 'var(--on-surface)', fontSize: '14px' }}>{c.name}</div>
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <span style={{ fontSize: '10px', fontWeight: 900, color: 'var(--text-muted)' }}>{c.code}</span>
+            <div className="font-extrabold text-[var(--on-surface)] text-sm">{c.name}</div>
+            <div className="flex gap-1.5 items-center">
+              <span className="text-[10px] font-black text-[var(--text-muted)]">{c.code}</span>
               {c.isDefault === 1 && (
-                <span style={{ 
-                  fontSize: '9px', fontWeight: 900, color: 'var(--success)', 
-                  display: 'inline-flex', alignItems: 'center', gap: '2px' 
-                }}>
+                <span className="text-[9px] font-black text-[var(--success)] inline-flex items-center gap-0.5">
                   • <FiStar size={8} /> ANA BİRİM
                 </span>
               )}
@@ -93,11 +85,7 @@ export function CurrenciesPage() {
     { 
       header: 'SEMBOL', 
       accessor: (c) => (
-        <div style={{ 
-          padding: '4px 12px', borderRadius: '8px', 
-          background: 'var(--surface-container)', color: 'var(--on-surface)',
-          fontSize: '13px', fontWeight: 900
-        }}>
+        <div className="py-1 px-3 rounded-lg bg-[var(--surface-container)] text-[var(--on-surface)] text-[13px] font-black">
           {c.symbol}
         </div>
       ),
@@ -107,16 +95,11 @@ export function CurrenciesPage() {
       header: 'GÜNCEL KUR (1 Birim)', 
       className: 'text-right',
       accessor: (c) => (
-        <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-          <span className="tabular-nums" style={{ 
-            fontWeight: 900, 
-            fontSize: '15px',
-            color: 'var(--primary)',
-            letterSpacing: '-0.5px'
-          }}>
+        <div className="text-right flex flex-col items-end">
+          <span className="tabular-nums font-black text-[15px] text-[var(--primary)] tracking-tight">
             {new Decimal(c.exchangeRate || 0).toNumber().toLocaleString('tr-TR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })} ₺
           </span>
-          <span style={{ fontSize: '9px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+          <span className="text-[9px] font-extrabold text-[var(--text-muted)] uppercase">
             MB KUR KARŞILIĞI
           </span>
         </div>
@@ -126,25 +109,20 @@ export function CurrenciesPage() {
   ];
 
   return (
-    <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+    <div className="animate-in flex flex-col gap-8">
       
       {/* 🔴 HEADER SECTION */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div className="flex justify-between items-end">
         <div>
-          <div style={{ 
-            display: 'inline-flex', alignItems: 'center', gap: '8px', 
-            background: 'var(--primary-glow)', color: 'var(--primary)', 
-            padding: '6px 14px', borderRadius: '12px', fontSize: '12px', 
-            fontWeight: 800, marginBottom: '16px'
-          }}>
+          <div className="inline-flex items-center gap-2 bg-[var(--primary-glow)] text-[var(--primary)] px-3.5 py-1.5 rounded-xl text-xs font-extrabold mb-4">
             <FiTrendingUp /> EKONOMİK TANIMLAMALAR
           </div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--on-surface)' }}>
-            Para Birimleri <span style={{ color: 'var(--primary)' }}>& Kurlar</span>
+          <h1 className="text-[2rem] font-black tracking-tighter text-[var(--on-surface)]">
+            Para Birimleri <span className="text-[var(--primary)]">& Kurlar</span>
           </h1>
         </div>
         
-        <button className="btn btn-primary" style={{ height: '44px', boxShadow: '0 10px 20px var(--primary-glow)' }} onClick={() => {
+        <button className="btn btn-primary h-11 shadow-lg shadow-[var(--primary-glow)]" onClick={() => {
           setEditingId(null); 
           setFormData({ code: '', name: '', symbol: '', exchangeRate: 1, isDefault: 0 }); 
           setIsModalOpen(true);
@@ -154,7 +132,7 @@ export function CurrenciesPage() {
       </div>
 
       {/* 🟡 DATA TABLE SECTION */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div className="flex flex-col gap-4">
         <DataTable<Currency>
           data={sortedData}
           columns={columns}
@@ -168,58 +146,92 @@ export function CurrenciesPage() {
 
       {/* 🟢 MODAL SECTION */}
       {isModalOpen && (
-        <div className="loader-overlay" style={{ alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', background: 'rgba(15, 23, 42, 0.4)' }}>
-          <div className="glass-panel" style={{ maxWidth: '500px', width: '95%', padding: '40px', borderRadius: '32px', background: 'white' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--on-surface)' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white max-w-[500px] w-full p-10 rounded-[2.5rem] shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300 relative">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">
                 {editingId ? 'Birim Güncelle' : 'Yeni Para Birimi'}
               </h2>
-              <button className="btn-icon circle" onClick={() => setIsModalOpen(false)}><FiX size={20} /></button>
+              <button 
+                className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:text-red-500 transition-colors" 
+                onClick={() => setIsModalOpen(false)}
+              >
+                <FiX size={20} />
+              </button>
             </div>
             
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                <div className="form-group">
-                  <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>DÖVİZ KODU</label>
-                  <input required className="uppercase-input" value={formData.code} onChange={e => setFormData({...formData, code: e.target.value.toLocaleUpperCase('tr-TR')})} placeholder="USD" style={{ height: '48px' }} />
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">DÖVİZ KODU</label>
+                  <input 
+                    required 
+                    className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors uppercase" 
+                    value={formData.code} 
+                    onChange={e => setFormData({...formData, code: e.target.value.toLocaleUpperCase('tr-TR')})} 
+                    placeholder="USD" 
+                  />
                 </div>
-                <div className="form-group">
-                  <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>SEMBOL</label>
-                  <input required className="uppercase-input" value={formData.symbol} onChange={e => setFormData({...formData, symbol: e.target.value})} placeholder="$" style={{ height: '48px' }} />
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">SEMBOL</label>
+                  <input 
+                    required 
+                    className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors" 
+                    value={formData.symbol} 
+                    onChange={e => setFormData({...formData, symbol: e.target.value})} 
+                    placeholder="$" 
+                  />
                 </div>
               </div>
 
-              <div className="form-group">
-                <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>BİRİM ADI</label>
-                <input required className="uppercase-input" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value.toLocaleUpperCase('tr-TR')})} placeholder="AMERİKAN DOLARI" style={{ height: '48px' }} />
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">BİRİM ADI</label>
+                <input 
+                  required 
+                  className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors uppercase" 
+                  value={formData.name} 
+                  onChange={e => setFormData({...formData, name: e.target.value.toLocaleUpperCase('tr-TR')})} 
+                  placeholder="AMERİKAN DOLARI" 
+                />
               </div>
 
-              <div className="form-group">
-                <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>KUR DEĞERİ (1 Birim = X TL)</label>
-                <input type="number" step="0.0001" required value={formData.exchangeRate} onChange={e => setFormData({...formData, exchangeRate: Number(e.target.value)})} disabled={formData.isDefault === 1} style={{ height: '56px', fontSize: '20px', fontWeight: 900, color: 'var(--primary)' }} />
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">KUR DEĞERİ (1 Birim = X TL)</label>
+                <input 
+                  type="number" 
+                  step="0.0001" 
+                  required 
+                  value={formData.exchangeRate} 
+                  onChange={e => setFormData({...formData, exchangeRate: Number(e.target.value)})} 
+                  disabled={formData.isDefault === 1} 
+                  className="h-16 px-6 rounded-2xl border-2 border-primary/20 bg-primary/5 font-black text-2xl text-center text-primary tabular-nums transition-colors outline-none focus:border-primary/40 disabled:opacity-50 disabled:bg-slate-50 disabled:border-slate-100 disabled:text-slate-400" 
+                />
               </div>
               
-              <div style={{ 
-                background: 'var(--surface-container-low)', padding: '16px', borderRadius: '16px',
-                display: 'flex', alignItems: 'center', gap: '12px', border: '1px dashed var(--border)' 
+              <div className="p-5 rounded-3xl bg-slate-50 border border-slate-100 border-dashed flex items-center gap-4 group cursor-pointer" onClick={() => {
+                if(formData.isDefault !== 1) {
+                  setFormData({...formData, isDefault: 1, exchangeRate: 1});
+                } else {
+                  setFormData({...formData, isDefault: 0});
+                }
               }}>
-                <input 
-                  type="checkbox" 
-                  id="isDefault"
-                  checked={formData.isDefault === 1} 
-                  onChange={e => setFormData({...formData, isDefault: e.target.checked ? 1 : 0, exchangeRate: e.target.checked ? 1 : formData.exchangeRate})} 
-                  style={{ width: '20px', height: '20px', cursor: 'pointer' }}
-                />
-                <label htmlFor="isDefault" style={{ fontSize: '13px', fontWeight: 700, color: 'var(--on-surface-variant)', cursor: 'pointer' }}>
+                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors ${
+                  formData.isDefault === 1 ? 'bg-primary border-primary text-white' : 'border-slate-200 bg-white group-hover:border-primary/50'
+                }`}>
+                  {formData.isDefault === 1 && <FiCheckCircle size={14} />}
+                </div>
+                <label className="text-xs font-bold text-slate-600 cursor-pointer select-none">
                   Sistem Ana Para Birimi Olarak Ayarla
                 </label>
               </div>
 
-              <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1, height: '52px', fontSize: '15px' }}>
-                  {editingId ? 'GÜNCELLEMELERİ KAYDET' : 'PARA BİRİMİNİ EKLE'}
+              <div className="flex gap-4 mt-2">
+                <button type="submit" className="flex-1 h-16 rounded-2xl bg-primary text-white font-black text-base shadow-xl shadow-primary/20 hover:bg-primary/90 active:scale-[0.98] transition-colors">
+                  {editingId ? 'DEĞİŞİKLİKLERİ KAYDET' : 'PARA BİRİMİNİ EKLE'}
                 </button>
-                <button type="button" className="btn btn-secondary" style={{ flex: 0.6, height: '52px', background: 'white' }} onClick={() => setIsModalOpen(false)}>VAZGEÇ</button>
+                <button type="button" className="flex-[0.4] h-16 rounded-2xl bg-slate-50 text-slate-500 font-black uppercase text-xs tracking-widest hover:bg-slate-100 transition-colors" onClick={() => setIsModalOpen(false)}>
+                  VAZGEÇ
+                </button>
               </div>
             </form>
           </div>

@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { partiesAPI, salesAPI, currenciesAPI, usersAPI, stocksAPI } from '../../../services/api';
 import { Decimal } from 'decimal.js';
@@ -9,8 +9,10 @@ import Step1Customer from './Step1Customer';
 import Step2Details from './Step2Details';
 import Step3Cart from './Step3Cart';
 import Step4Final from './Step4Final';
-import { Party, Currency, User, SaleType, Item, Sale, CreateSaleDto } from '../../../types';
+import { Party, Currency, User, SaleType, Item, Sale, CreateSaleDto, CartItem } from '../../../types';
 import { useSalesWizardStore } from '../../../store/useSalesWizardStore';
+import { SalesWizardState, Stock } from '../../../types';
+import { queryKeys } from '../../../services/queryKeys';
 
 interface StockGroup {
   item: Item;
@@ -29,56 +31,67 @@ interface SalesWizardProps {
 
 const SalesWizard: React.FC<SalesWizardProps> = ({ onBack, onCompleted }) => {
   const queryClient = useQueryClient();
-  const {
-    step, setStep,
-    partyId, setPartyId,
-    customerSearch, setCustomerSearch,
-    isCustomerDropdownOpen, setIsCustomerDropdownOpen,
-    saleTypeId, setSaleTypeId,
-    currencyId, setCurrencyId,
-    deliveryDate, setDeliveryDate,
-    repId, setRepId,
-    invoiceType, setInvoiceType,
-    cart, setCart,
-    searchTerm, setSearchTerm,
-    genDiscountType, setGenDiscountType,
-    genDiscountValue, setGenDiscountValue,
-    deposit, setDeposit,
-    saleNotes, setSaleNotes,
-    resetWizard,
-    updateCartItem, removeCartItem, addToCart
-  } = useSalesWizardStore();
+
+  // [FIX-TASK-04]: Atomic selectors for values and stable references for actions
+  const step = useSalesWizardStore(s => s.step);
+  const partyId = useSalesWizardStore(s => s.partyId);
+  const customerSearch = useSalesWizardStore(s => s.customerSearch);
+  const isCustomerDropdownOpen = useSalesWizardStore(s => s.isCustomerDropdownOpen);
+  const saleTypeId = useSalesWizardStore(s => s.saleTypeId);
+  const currencyId = useSalesWizardStore(s => s.currencyId);
+  const deliveryDate = useSalesWizardStore(s => s.deliveryDate);
+  const repId = useSalesWizardStore(s => s.repId);
+  const invoiceType = useSalesWizardStore(s => s.invoiceType);
+  const cart = useSalesWizardStore(s => s.cart);
+  const searchTerm = useSalesWizardStore(s => s.searchTerm);
+  const genDiscountType = useSalesWizardStore(s => s.genDiscountType);
+  const genDiscountValue = useSalesWizardStore(s => s.genDiscountValue);
+  const deposit = useSalesWizardStore(s => s.deposit);
+  const saleNotes = useSalesWizardStore(s => s.saleNotes);
+
+  const setStep = useSalesWizardStore(s => s.setStep);
+  const setPartyId = useSalesWizardStore(s => s.setPartyId);
+  const setCustomerSearch = useSalesWizardStore(s => s.setCustomerSearch);
+  const setIsCustomerDropdownOpen = useSalesWizardStore(s => s.setIsCustomerDropdownOpen);
+  const setSaleTypeId = useSalesWizardStore(s => s.setSaleTypeId);
+  const setCurrencyId = useSalesWizardStore(s => s.setCurrencyId);
+  const setDeliveryDate = useSalesWizardStore(s => s.setDeliveryDate);
+  const setRepId = useSalesWizardStore(s => s.setRepId);
+  const setInvoiceType = useSalesWizardStore(s => s.setInvoiceType);
+  // Separate actions that don't need re-render tracking
+  const { setCart, updateCartItem, removeCartItem, addToCart, setSearchTerm, setGenDiscountType, setGenDiscountValue, setDeposit, setSaleNotes, resetWizard } = useSalesWizardStore.getState();
 
   const totalSteps = 4;
 
   // ────── QUERIES ──────
+  // [FIX-TASK-01]: Using signal for native request cancellation
   const { data: customersData } = useQuery({
-    queryKey: ['parties', 'customers', customerSearch],
-    queryFn: () => partiesAPI.getAll({ type: 'customer', search: customerSearch, limit: 10 }),
+    queryKey: queryKeys.parties.all({ type: 'customer', search: customerSearch, limit: 10 }),
+    queryFn: ({ signal }) => partiesAPI.getAll({ type: 'customer', search: customerSearch, limit: 10 }, { signal }),
     enabled: step === 1 && customerSearch.length >= 2,
   });
 
   const { data: currenciesData } = useQuery({
-    queryKey: ['currencies'],
-    queryFn: () => currenciesAPI.getAll(),
+    queryKey: queryKeys.currencies.all,
+    queryFn: ({ signal }) => currenciesAPI.getAll(undefined, { signal }),
     enabled: step >= 2,
   });
 
   const { data: saleTypesData } = useQuery({
-    queryKey: ['sale-types'],
-    queryFn: () => salesAPI.getTypes(),
+    queryKey: queryKeys.settings.saleTypes,
+    queryFn: ({ signal }) => salesAPI.getTypes({ signal }),
     enabled: step >= 2,
   });
 
   const { data: usersData } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => usersAPI.getAll({ limit: 100 }),
+    queryKey: queryKeys.users.all({ limit: 100 }),
+    queryFn: ({ signal }) => usersAPI.getAll({ limit: 100 }, { signal }),
     enabled: step >= 2,
   });
 
   const { data: stocksData } = useQuery({
-    queryKey: ['stocks', 'search', searchTerm],
-    queryFn: () => stocksAPI.getAll({ search: searchTerm, limit: 50 }),
+    queryKey: queryKeys.stocks.all({ search: searchTerm, limit: 50 }),
+    queryFn: ({ signal }) => stocksAPI.getAll({ search: searchTerm, limit: 50 }, { signal }),
     enabled: step === 3 && searchTerm.length >= 2,
   });
 
@@ -92,17 +105,18 @@ const SalesWizard: React.FC<SalesWizardProps> = ({ onBack, onCompleted }) => {
   // Group stocks by item name
   const groupedStocks = useMemo(() => {
     const rawStocks = stocksData?.data?.data || [];
-    const groups: Record<string, { item: any, details: any[] }> = {};
+    const groups: Record<string, StockGroup> = {};
     
-    rawStocks.forEach((s: any) => {
+    rawStocks.forEach((s: Stock) => {
       const itemName = s.item?.name || 'Bilinmeyen Ürün';
       if (!groups[itemName]) {
-        groups[itemName] = { item: s.item, details: [] };
+        groups[itemName] = { item: s.item as Item, details: [] };
       }
       groups[itemName].details.push({
-        department: s.department?.name || 'Merkez',
+        deptId: s.department?.id || 1,
+        deptName: s.department?.name || 'Merkez',
         qty: s.quantity,
-        reserved: s.reservedQuantity || 0
+        itemCode: s.item?.code || ''
       });
     });
     return groups;
@@ -111,14 +125,14 @@ const SalesWizard: React.FC<SalesWizardProps> = ({ onBack, onCompleted }) => {
   const searchResults = Object.keys(groupedStocks);
 
   const selectedCurrency = useMemo(() => 
-    currencies.find(c => c.id === Number(currencyId)) || currencies.find(c => c.isDefault),
+    currencies.find((c: Currency) => c.id === Number(currencyId)) || currencies.find((c: Currency) => c.isDefault),
     [currencies, currencyId]
   );
 
   // ────── CALCULATIONS (HIGH PRECISION) ──────
   const finances = useMemo(() => {
     let rawTotalAmount = new Decimal(0);
-    cart.forEach(c => {
+    cart.forEach((c: CartItem) => {
       const price = new Decimal(c.price || 0);
       const qty = new Decimal(c.qty || 1);
       const discountVal = new Decimal(c.discountValue || 0);
@@ -164,8 +178,11 @@ const SalesWizard: React.FC<SalesWizardProps> = ({ onBack, onCompleted }) => {
       toast.success("Sipariş başarıyla oluşturuldu.");
       onCompleted();
     },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.message || "Sipariş oluşturulamadı.");
+    onError: (err: unknown) => {
+      // FE-12: Improved error readability
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      const msg = axiosErr.response?.data?.message || "Sipariş oluşturulamadı.";
+      toast.error(typeof msg === 'string' ? msg : JSON.stringify(msg));
     }
   });
 
@@ -177,7 +194,7 @@ const SalesWizard: React.FC<SalesWizardProps> = ({ onBack, onCompleted }) => {
   };
 
   const handleAddToCart = (group: StockGroup) => {
-    if (cart.find(c => c.item.id === group.item.id)) {
+    if (cart.find((c: CartItem) => c.item.id === group.item.id)) {
       toast.error("Bu ürün zaten sepette.");
       return;
     }
@@ -196,7 +213,7 @@ const SalesWizard: React.FC<SalesWizardProps> = ({ onBack, onCompleted }) => {
   };
 
   const getStockAlert = (itemId: number, requestedQty: number) => {
-    const itemName = cart.find(c => c.item.id === itemId)?.item?.name;
+    const itemName = cart.find((c: CartItem) => c.item.id === itemId)?.item?.name;
     const itemInStock = (itemName ? groupedStocks[itemName] : null) as StockGroup | null;
     const totalAvailable = itemInStock?.details.reduce((acc: number, d) => acc + Number(d.qty), 0) || 0;
     return { isOver: requestedQty > totalAvailable, totalAvailable };
@@ -211,7 +228,7 @@ const SalesWizard: React.FC<SalesWizardProps> = ({ onBack, onCompleted }) => {
       deposit: finances.kaporaNum.toString(),
       discountAmount: finances.gDiscountNum.toString(),
       discountPercent: genDiscountType === 'percent' ? genDiscountValue : '0',
-      items: cart.map(c => ({
+      items: cart.map((c: CartItem) => ({
         itemId: c.item.id,
         quantity: c.qty.toString(),
         price: c.price.toString(),
@@ -243,7 +260,7 @@ const SalesWizard: React.FC<SalesWizardProps> = ({ onBack, onCompleted }) => {
            const isActive = step === i + 1;
            return (
              <div key={i} className="relative z-10 flex flex-col items-center gap-2 group cursor-pointer" onClick={() => step > i + 1 && setStep(i+1)}>
-                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm ${
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-colors duration-500 shadow-sm ${
                   isCompleted ? 'bg-success text-white' : isActive ? 'bg-primary text-white scale-110 shadow-lg shadow-primary/20' : 'bg-white text-slate-400 border border-slate-200'
                 }`}>
                   {isCompleted ? <FiCheck size={18} /> : s.icon}
@@ -257,7 +274,7 @@ const SalesWizard: React.FC<SalesWizardProps> = ({ onBack, onCompleted }) => {
       </div>
 
       {/* Main Wizard Area */}
-      <div className="bg-white rounded-[2.5rem] shadow-premium p-8 lg:p-12 relative overflow-hidden transition-all duration-500">
+      <div className="bg-white rounded-[2.5rem] shadow-premium p-8 lg:p-12 relative overflow-hidden transition-colors duration-500">
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl pointer-events-none" />
         
         {step === 1 && (

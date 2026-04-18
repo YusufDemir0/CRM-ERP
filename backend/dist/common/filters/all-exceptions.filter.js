@@ -13,39 +13,38 @@ const typeorm_1 = require("typeorm");
 let AllExceptionsFilter = AllExceptionsFilter_1 = class AllExceptionsFilter {
     constructor() {
         this.logger = new common_1.Logger(AllExceptionsFilter_1.name);
+        this.isProd = process.env.NODE_ENV === 'production';
     }
     catch(exception, host) {
         const ctx = host.switchToHttp();
         const response = ctx.getResponse();
         const request = ctx.getRequest();
         let status = common_1.HttpStatus.INTERNAL_SERVER_ERROR;
-        let message = 'Internal server error';
+        let clientMessage = 'Beklenmedik bir sistem hatası oluştu. Lütfen tekrar deneyiniz.';
         if (exception instanceof common_1.HttpException) {
             status = exception.getStatus();
-            const exResponse = exception.getResponse();
-            message = typeof exResponse === 'string' ? exResponse : exResponse.message || exResponse;
+            if (status < 500) {
+                const res = exception.getResponse();
+                clientMessage = typeof res === 'string' ? res : res.message || clientMessage;
+            }
         }
         else if (exception instanceof typeorm_1.QueryFailedError) {
-            status = common_1.HttpStatus.BAD_REQUEST;
-            message = 'Geçersiz işlem. Lütfen girdiğiniz bilgileri kontrol ediniz.';
-            this.logger.error(`[DATABASE ERROR] ${exception.message}`, exception.stack);
+            status = common_1.HttpStatus.UNPROCESSABLE_ENTITY;
+            clientMessage = 'Veri işleme hatası. Girdiğiniz bilgilerin benzersizliğini ve geçerliliğini kontrol ediniz.';
+            this.logger.error('[DB_ERROR_MASKED]', exception.message, exception.stack);
         }
         else {
-            status = common_1.HttpStatus.INTERNAL_SERVER_ERROR;
-            message = 'Sistem üzerinde beklenmedik bir hata oluştu. Teknik ekip bilgilendirildi.';
-            const errorMessage = exception instanceof Error ? exception.message : 'Unknown error';
-            const errorStack = exception instanceof Error ? exception.stack : '';
-            this.logger.error(`[UNEXPECTED ERROR] ${errorMessage}`, errorStack);
+            const msg = exception instanceof Error ? exception.message : 'Unknown';
+            this.logger.error('[CRITICAL_UNHANDLED]', msg, exception instanceof Error ? exception.stack : '');
         }
-        const responseBody = {
+        response.status(status).json({
             success: false,
             statusCode: status,
             timestamp: new Date().toISOString(),
             path: request.url,
-            method: request.method,
-            message,
-        };
-        response.status(status).json(responseBody);
+            message: clientMessage,
+            ...((!this.isProd) && { debug: exception instanceof Error ? exception.message : String(exception) }),
+        });
     }
 };
 exports.AllExceptionsFilter = AllExceptionsFilter;

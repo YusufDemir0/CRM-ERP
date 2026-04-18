@@ -17,15 +17,15 @@ export interface QuickCreateStackItem {
   id: string;
   type: QuickCreateType;
   editingId: number | null;
-  initialData: any;
-  onSuccess: (data: any) => void;
+  initialData: Record<string, unknown>;
+  onSuccess: (data: unknown) => void;
   onCancel: () => void;
 }
 
-interface QuickCreateOptions {
+export interface QuickCreateOptions {
   editingId?: number | null;
-  initialData?: any;
-  onSuccess: (data: any) => void;
+  initialData?: Record<string, unknown>;
+  onSuccess: (data: unknown) => void;
   onCancel?: () => void;
 }
 

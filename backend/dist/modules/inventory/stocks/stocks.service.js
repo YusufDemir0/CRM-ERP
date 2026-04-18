@@ -27,6 +27,7 @@ dayjs_1.default.extend(utc_1.default);
 dayjs_1.default.extend(timezone_1.default);
 const stock_entity_1 = require("./entities/stock.entity");
 const stock_movement_entity_1 = require("./entities/stock-movement.entity");
+const inventory_dto_1 = require("../dto/inventory.dto");
 const item_entity_1 = require("../items/entities/item.entity");
 const transaction_entity_1 = require("../../finance/transactions/entities/transaction.entity");
 const party_entity_1 = require("../../parties/entities/party.entity");
@@ -34,13 +35,16 @@ const sequence_generator_service_1 = require("../../../common/services/sequence-
 const date_utils_1 = require("../../../common/utils/date.utils");
 const finance_helper_1 = require("../../../common/utils/finance.helper");
 const logs_service_1 = require("../../logs/logs.service");
+const transactional_decorator_1 = require("../../../common/decorators/transactional.decorator");
+const transaction_context_service_1 = require("../../../common/services/transaction-context.service");
 let StocksService = class StocksService {
-    constructor(stockRepo, movementRepo, dataSource, sequenceGenerator, logsService) {
+    constructor(stockRepo, movementRepo, dataSource, sequenceGenerator, logsService, transactionContext) {
         this.stockRepo = stockRepo;
         this.movementRepo = movementRepo;
         this.dataSource = dataSource;
         this.sequenceGenerator = sequenceGenerator;
         this.logsService = logsService;
+        this.transactionContext = transactionContext;
     }
     async findAll(query) {
         const qb = this.stockRepo.createQueryBuilder('stock')
@@ -70,6 +74,42 @@ let StocksService = class StocksService {
             meta: { total, page: query.page || 1, limit: query.limit || 20, totalPages: Math.ceil(total / (query.limit || 20)) },
         };
     }
+    async updateMovingAverageCost(manager, itemId, inQty, inUnitCost, userId) {
+        const item = await manager.findOne(item_entity_1.Item, {
+            where: { id: itemId },
+            lock: { mode: 'pessimistic_write' }
+        });
+        if (!item)
+            return new decimal_js_1.Decimal(0);
+        const totalQtyResult = await manager.createQueryBuilder(stock_entity_1.Stock, 'stock')
+            .where('stock.itemId = :itemId', { itemId })
+            .select('SUM(stock.quantity)', 'total')
+            .getRawOne();
+        const currentTotalQty = new decimal_js_1.Decimal(totalQtyResult?.total || 0);
+        const currentMAC = new decimal_js_1.Decimal(item.movingAverageCost || 0);
+        const currentTotalValue = currentTotalQty.mul(currentMAC);
+        const inTotalValue = inQty.mul(inUnitCost);
+        const newTotalQty = currentTotalQty.add(inQty);
+        let newMAC = currentMAC;
+        if (newTotalQty.gt(0)) {
+            newMAC = currentTotalValue.add(inTotalValue).div(newTotalQty);
+        }
+        else if (inQty.gt(0)) {
+            newMAC = inUnitCost;
+        }
+        item.movingAverageCost = newMAC;
+        if (inUnitCost.gt(0)) {
+            item.purchasePrice = inUnitCost;
+        }
+        item.updatedBy = userId || null;
+        await manager.save(item_entity_1.Item, item);
+        return newMAC;
+    }
+    validateStock(itemId, deptId, currentQty, delta) {
+        if (currentQty.lt(delta)) {
+            throw new common_1.BadRequestException(`Stok negatife düşemez! (Ürün ID: ${itemId}, Depo ID: ${deptId}, Mevcut: ${currentQty.toString()}, Talep Edilen: ${delta.toString()})`);
+        }
+    }
     async getMovements(stockId, query) {
         const qb = this.movementRepo.createQueryBuilder('sm')
             .where('sm.stockId = :stockId', { stockId })
@@ -81,26 +121,31 @@ let StocksService = class StocksService {
             meta: { total, page: query.page || 1, limit: query.limit || 20, totalPages: Math.ceil(total / (query.limit || 20)) },
         };
     }
-    async decreaseStock(itemId, departmentId, quantity, manager, referenceInfo, userId) {
-        const qr = manager || this.dataSource.manager;
+    async decreaseStock(itemId, departmentId, quantity, manager = this.transactionContext.manager, referenceInfo, userId) {
         const qty = new decimal_js_1.Decimal(quantity);
-        let stock = await qr.findOne(stock_entity_1.Stock, {
+        let stock = await manager.findOne(stock_entity_1.Stock, {
             where: { itemId, departmentId },
+            relations: ['item'],
             lock: { mode: 'pessimistic_write' }
         });
-        if (!stock || new decimal_js_1.Decimal(stock.quantity).lt(qty)) {
-            throw new common_1.BadRequestException(`Yetersiz stok. (Ürün ID: ${itemId}, Depo ID: ${departmentId})`);
+        if (!stock) {
+            throw new common_1.BadRequestException(`Stok kaydı bulunamadı. (Ürün ID: ${itemId}, Depo ID: ${departmentId})`);
         }
+        this.validateStock(itemId, departmentId, new decimal_js_1.Decimal(stock.quantity), qty);
         const quantityBefore = new decimal_js_1.Decimal(stock.quantity);
         const quantityAfter = finance_helper_1.FinanceHelper.sub(quantityBefore, qty);
         stock.quantity = quantityAfter;
         stock.updatedBy = userId || null;
-        await qr.save(stock_entity_1.Stock, stock);
-        await qr.save(qr.create(stock_movement_entity_1.StockMovement, {
+        await manager.save(stock_entity_1.Stock, stock);
+        const unitCost = new decimal_js_1.Decimal(stock.item?.movingAverageCost || 0);
+        const totalCost = qty.mul(unitCost);
+        await manager.save(manager.create(stock_movement_entity_1.StockMovement, {
             stockId: stock.id,
             quantity: qty,
             quantityBefore,
             quantityAfter,
+            unitCost,
+            totalCost,
             type: 'out',
             referenceType: referenceInfo?.type || 'manual',
             referenceId: referenceInfo?.id || null,
@@ -108,19 +153,18 @@ let StocksService = class StocksService {
             createdBy: userId
         }));
     }
-    async decreaseStockBulk(items, departmentId, manager, referenceInfo, userId) {
-        const qr = manager || this.dataSource.manager;
+    async decreaseStockBulk(items, departmentId, manager = this.transactionContext.manager, referenceInfo, userId) {
         if (!items || items.length === 0)
             return;
-        const itemIds = items.map(i => i.itemId);
         const reducedItems = new Map();
         for (const item of items) {
             const q = new decimal_js_1.Decimal(item.quantity);
             reducedItems.set(item.itemId, (reducedItems.get(item.itemId) || new decimal_js_1.Decimal(0)).add(q));
         }
         const uniqueItemIds = Array.from(reducedItems.keys()).sort((a, b) => a - b);
-        const stocks = await qr.find(stock_entity_1.Stock, {
+        const stocks = await manager.find(stock_entity_1.Stock, {
             where: { itemId: (0, typeorm_2.In)(uniqueItemIds), departmentId },
+            relations: ['item'],
             lock: { mode: 'pessimistic_write' }
         });
         const movements = [];
@@ -129,18 +173,23 @@ let StocksService = class StocksService {
         for (const itemId of uniqueItemIds) {
             const qty = reducedItems.get(itemId);
             const stock = stockMap.get(itemId);
-            if (!stock || new decimal_js_1.Decimal(stock.quantity).lt(qty)) {
-                throw new common_1.BadRequestException(`Yetersiz stok. (Ürün ID: ${itemId}, Depo ID: ${departmentId})`);
+            if (!stock) {
+                throw new common_1.BadRequestException(`Stok kaydı bulunamadı. (Ürün ID: ${itemId}, Depo ID: ${departmentId})`);
             }
+            this.validateStock(itemId, departmentId, new decimal_js_1.Decimal(stock.quantity), qty);
             const quantityBefore = new decimal_js_1.Decimal(stock.quantity);
             const quantityAfter = finance_helper_1.FinanceHelper.sub(quantityBefore, qty);
             stock.quantity = quantityAfter;
             stock.updatedBy = userId || null;
-            movements.push(qr.create(stock_movement_entity_1.StockMovement, {
+            const unitCost = new decimal_js_1.Decimal(stock.item?.movingAverageCost || 0);
+            const totalCost = qty.mul(unitCost);
+            movements.push(manager.create(stock_movement_entity_1.StockMovement, {
                 stockId: stock.id,
                 quantity: qty,
                 quantityBefore,
                 quantityAfter,
+                unitCost,
+                totalCost,
                 type: 'out',
                 referenceType: referenceInfo?.type || 'manual',
                 referenceId: referenceInfo?.id || null,
@@ -148,11 +197,10 @@ let StocksService = class StocksService {
                 createdBy: userId
             }));
         }
-        await qr.save(stock_entity_1.Stock, stocks);
-        await qr.save(stock_movement_entity_1.StockMovement, movements);
+        await manager.save(stock_entity_1.Stock, stocks);
+        await manager.save(stock_movement_entity_1.StockMovement, movements);
     }
-    async reserveStockBulk(items, departmentId, manager, userId) {
-        const qr = manager || this.dataSource.manager;
+    async reserveStockBulk(items, departmentId, manager = this.transactionContext.manager, userId) {
         if (!items || items.length === 0)
             return;
         const reducedItems = new Map();
@@ -161,7 +209,7 @@ let StocksService = class StocksService {
             reducedItems.set(item.itemId, (reducedItems.get(item.itemId) || new decimal_js_1.Decimal(0)).add(q));
         }
         const uniqueItemIds = Array.from(reducedItems.keys()).sort((a, b) => a - b);
-        const stocks = await qr.find(stock_entity_1.Stock, {
+        const stocks = await manager.find(stock_entity_1.Stock, {
             where: { itemId: (0, typeorm_2.In)(uniqueItemIds), departmentId },
             lock: { mode: 'pessimistic_write' }
         });
@@ -171,23 +219,20 @@ let StocksService = class StocksService {
             const qty = reducedItems.get(itemId);
             let stock = stockMap.get(itemId);
             if (!stock) {
-                stock = qr.create(stock_entity_1.Stock, { itemId, departmentId, quantity: new decimal_js_1.Decimal(0), reservedQuantity: new decimal_js_1.Decimal(0) });
-                stock = await qr.save(stock_entity_1.Stock, stock);
+                stock = manager.create(stock_entity_1.Stock, { itemId, departmentId, quantity: new decimal_js_1.Decimal(0), reservedQuantity: new decimal_js_1.Decimal(0) });
+                stock = await manager.save(stock_entity_1.Stock, stock);
             }
             if (!stock)
                 continue;
-            if (new decimal_js_1.Decimal(stock.quantity).lt(new decimal_js_1.Decimal(stock.reservedQuantity || 0).add(qty))) {
-            }
             stock.reservedQuantity = new decimal_js_1.Decimal(stock.reservedQuantity || 0).add(qty);
             stock.updatedBy = userId || null;
             if (!stocks.find((s) => s.id === stock.id)) {
                 stocks.push(stock);
             }
         }
-        await qr.save(stock_entity_1.Stock, stocks);
+        await manager.save(stock_entity_1.Stock, stocks);
     }
-    async unreserveStockBulk(items, departmentId, manager, userId) {
-        const qr = manager || this.dataSource.manager;
+    async unreserveStockBulk(items, departmentId, manager = this.transactionContext.manager, userId) {
         if (!items || items.length === 0)
             return;
         const reducedItems = new Map();
@@ -196,7 +241,7 @@ let StocksService = class StocksService {
             reducedItems.set(item.itemId, (reducedItems.get(item.itemId) || new decimal_js_1.Decimal(0)).add(q));
         }
         const uniqueItemIds = Array.from(reducedItems.keys()).sort((a, b) => a - b);
-        const stocks = await qr.find(stock_entity_1.Stock, {
+        const stocks = await manager.find(stock_entity_1.Stock, {
             where: { itemId: (0, typeorm_2.In)(uniqueItemIds), departmentId },
             lock: { mode: 'pessimistic_write' }
         });
@@ -210,10 +255,9 @@ let StocksService = class StocksService {
                 stock.updatedBy = userId || null;
             }
         }
-        await qr.save(stock_entity_1.Stock, stocks);
+        await manager.save(stock_entity_1.Stock, stocks);
     }
-    async finalizeShipmentBulk(items, departmentId, manager, referenceInfo, userId) {
-        const qr = manager || this.dataSource.manager;
+    async finalizeShipmentBulk(items, departmentId, manager = this.transactionContext.manager, referenceInfo, userId) {
         if (!items || items.length === 0)
             return;
         const reducedItems = new Map();
@@ -222,8 +266,9 @@ let StocksService = class StocksService {
             reducedItems.set(item.itemId, (reducedItems.get(item.itemId) || new decimal_js_1.Decimal(0)).add(q));
         }
         const uniqueItemIds = Array.from(reducedItems.keys()).sort((a, b) => a - b);
-        const stocks = await qr.find(stock_entity_1.Stock, {
+        const stocks = await manager.find(stock_entity_1.Stock, {
             where: { itemId: (0, typeorm_2.In)(uniqueItemIds), departmentId },
+            relations: ['item'],
             lock: { mode: 'pessimistic_write' }
         });
         const stockMap = new Map();
@@ -240,11 +285,15 @@ let StocksService = class StocksService {
             stock.quantity = quantityAfter;
             stock.reservedQuantity = decimal_js_1.Decimal.max(0, new decimal_js_1.Decimal(stock.reservedQuantity || 0).sub(qty));
             stock.updatedBy = userId || null;
-            movements.push(qr.create(stock_movement_entity_1.StockMovement, {
+            const unitCost = new decimal_js_1.Decimal(stock.item?.movingAverageCost || 0);
+            const totalCost = qty.mul(unitCost);
+            movements.push(manager.create(stock_movement_entity_1.StockMovement, {
                 stockId: stock.id,
                 quantity: qty,
                 quantityBefore,
                 quantityAfter,
+                unitCost,
+                totalCost,
                 type: 'out',
                 referenceType: referenceInfo?.type || 'shipment',
                 referenceId: referenceInfo?.id || null,
@@ -252,33 +301,36 @@ let StocksService = class StocksService {
                 createdBy: userId
             }));
         }
-        await qr.save(stock_entity_1.Stock, stocks);
-        await qr.save(stock_movement_entity_1.StockMovement, movements);
+        await manager.save(stock_entity_1.Stock, stocks);
+        await manager.save(stock_movement_entity_1.StockMovement, movements);
     }
-    async increaseStock(itemId, departmentId, quantity, manager, referenceInfo, userId) {
-        const qr = manager || this.dataSource.manager;
+    async increaseStock(itemId, departmentId, quantity, inUnitCost = 0, manager = this.transactionContext.manager, referenceInfo, userId) {
         const qty = new decimal_js_1.Decimal(quantity);
-        let stock = await qr.findOne(stock_entity_1.Stock, {
+        const unitPrice = new decimal_js_1.Decimal(inUnitCost);
+        const newMAC = await this.updateMovingAverageCost(manager, itemId, qty, unitPrice, userId);
+        let stock = await manager.findOne(stock_entity_1.Stock, {
             where: { itemId, departmentId },
             lock: { mode: 'pessimistic_write' }
         });
         if (!stock) {
-            stock = qr.create(stock_entity_1.Stock, {
+            stock = manager.create(stock_entity_1.Stock, {
                 itemId, departmentId, quantity: new decimal_js_1.Decimal(0), createdBy: userId
             });
-            stock = await qr.save(stock);
-            stock = await qr.findOne(stock_entity_1.Stock, { where: { id: stock.id }, lock: { mode: 'pessimistic_write' } });
+            stock = await manager.save(stock);
+            stock = await manager.findOne(stock_entity_1.Stock, { where: { id: stock.id }, lock: { mode: 'pessimistic_write' } });
         }
         const quantityBefore = new decimal_js_1.Decimal(stock.quantity);
         const quantityAfter = finance_helper_1.FinanceHelper.add(quantityBefore, qty);
         stock.quantity = quantityAfter;
         stock.updatedBy = userId || null;
-        await qr.save(stock_entity_1.Stock, stock);
-        await qr.save(qr.create(stock_movement_entity_1.StockMovement, {
+        await manager.save(stock_entity_1.Stock, stock);
+        await manager.save(manager.create(stock_movement_entity_1.StockMovement, {
             stockId: stock.id,
             quantity: qty,
             quantityBefore,
             quantityAfter,
+            unitCost: unitPrice.gt(0) ? unitPrice : newMAC,
+            totalCost: qty.mul(unitPrice.gt(0) ? unitPrice : newMAC),
             type: 'in',
             referenceType: referenceInfo?.type || 'manual',
             referenceId: referenceInfo?.id || null,
@@ -287,164 +339,177 @@ let StocksService = class StocksService {
         }));
     }
     async adjustStock(dto, userId) {
-        const queryRunner = this.dataSource.createQueryRunner();
-        await queryRunner.connect();
-        await queryRunner.startTransaction();
-        try {
-            let stock = await queryRunner.manager.findOne(stock_entity_1.Stock, {
-                where: { itemId: dto.itemId, departmentId: dto.departmentId },
-                lock: { mode: 'pessimistic_write' }
+        const manager = this.transactionContext.manager;
+        const item = await manager.findOne(item_entity_1.Item, { where: { id: dto.itemId } });
+        if (!item)
+            throw new common_1.BadRequestException(`Ürün bulunamadı (ID: ${dto.itemId})`);
+        const qty = new decimal_js_1.Decimal(dto.quantity);
+        let unitCostToUse = new decimal_js_1.Decimal(dto.unitCost || 0);
+        if (dto.type === 'in') {
+            if (unitCostToUse.isZero()) {
+                unitCostToUse = new decimal_js_1.Decimal(item.movingAverageCost || item.purchasePrice || 0);
+            }
+            await this.updateMovingAverageCost(manager, dto.itemId, qty, unitCostToUse, userId);
+        }
+        else {
+            unitCostToUse = new decimal_js_1.Decimal(item.movingAverageCost || 0);
+        }
+        let stock = await manager.findOne(stock_entity_1.Stock, {
+            where: { itemId: dto.itemId, departmentId: dto.departmentId },
+            lock: { mode: 'pessimistic_write' }
+        });
+        if (!stock) {
+            stock = manager.create(stock_entity_1.Stock, {
+                itemId: dto.itemId, departmentId: dto.departmentId, quantity: new decimal_js_1.Decimal(0), createdBy: userId,
             });
-            if (!stock) {
-                stock = queryRunner.manager.create(stock_entity_1.Stock, {
-                    itemId: dto.itemId, departmentId: dto.departmentId, quantity: new decimal_js_1.Decimal(0), createdBy: userId,
+            stock = await manager.save(stock);
+        }
+        const quantityBefore = new decimal_js_1.Decimal(stock.quantity);
+        let quantityAfter;
+        if (dto.type === 'in') {
+            quantityAfter = finance_helper_1.FinanceHelper.add(quantityBefore, qty);
+        }
+        else {
+            if (quantityBefore.lt(qty)) {
+                throw new common_1.BadRequestException(`Yetersiz stok. Mevcut: ${quantityBefore.toString()}`);
+            }
+            quantityAfter = finance_helper_1.FinanceHelper.sub(quantityBefore, qty);
+        }
+        stock.quantity = quantityAfter;
+        stock.updatedBy = userId || null;
+        await manager.save(stock_entity_1.Stock, stock);
+        const movement = manager.create(stock_movement_entity_1.StockMovement, {
+            stockId: stock.id,
+            quantity: qty,
+            quantityBefore,
+            quantityAfter,
+            unitCost: unitCostToUse,
+            totalCost: qty.mul(unitCostToUse),
+            type: dto.type,
+            referenceType: 'manual',
+            description: dto.description,
+            notes: dto.notes,
+            createdBy: userId,
+        });
+        const savedMovement = await manager.save(movement);
+        const totalCostValue = savedMovement.totalCost;
+        if (!totalCostValue.isZero()) {
+            const txType = dto.type === 'in' ? 'in' : 'out';
+            const txPrefix = txType === 'in' ? 'SFG' : 'SFC';
+            const txCode = await this.sequenceGenerator.generateTransactionCode(manager, txPrefix);
+            let internalParty = await manager.findOne(party_entity_1.Party, { where: { taxNumber: 'INTERNAL' } });
+            if (!internalParty) {
+                internalParty = manager.create(party_entity_1.Party, {
+                    name: 'ERMAY İÇ TRANSFER / MERKEZ',
+                    taxNumber: 'INTERNAL',
+                    type: 'both',
+                    balance: new decimal_js_1.Decimal(0),
+                    createdBy: userId
                 });
-                stock = await queryRunner.manager.save(stock);
+                internalParty = await manager.save(internalParty);
             }
-            const quantityBefore = new decimal_js_1.Decimal(stock.quantity);
-            let quantityAfter;
-            if (dto.type === 'in') {
-                quantityAfter = finance_helper_1.FinanceHelper.add(quantityBefore, dto.quantity);
-            }
-            else {
-                if (quantityBefore.lt(dto.quantity)) {
-                    throw new common_1.BadRequestException(`Yetersiz stok. Mevcut: ${quantityBefore.toString()}, İstenen: ${dto.quantity}`);
-                }
-                quantityAfter = finance_helper_1.FinanceHelper.sub(quantityBefore, dto.quantity);
-            }
-            const sign = dto.type === 'in' ? '+' : '-';
-            stock.quantity = quantityAfter;
-            stock.updatedBy = userId || null;
-            await queryRunner.manager.save(stock_entity_1.Stock, stock);
-            const movement = queryRunner.manager.create(stock_movement_entity_1.StockMovement, {
-                stockId: stock.id, quantity: dto.quantity, quantityBefore, quantityAfter,
-                type: dto.type, referenceType: 'manual', description: dto.description, notes: dto.notes, createdBy: userId,
-            });
-            const savedMovement = await queryRunner.manager.save(movement);
-            const item = await queryRunner.manager.findOne(item_entity_1.Item, { where: { id: dto.itemId } });
-            if (item) {
-                const totalCostValue = finance_helper_1.FinanceHelper.mul(item.purchasePrice || 0, dto.quantity);
-                if (!new decimal_js_1.Decimal(totalCostValue).isZero()) {
-                    const txType = dto.type === 'in' ? 'in' : 'out';
-                    const txPrefix = txType === 'in' ? 'SFG' : 'SFC';
-                    const txCode = await this.sequenceGenerator.generateTransactionCode(queryRunner, txPrefix);
-                    let internalParty = await queryRunner.manager.findOne(party_entity_1.Party, { where: { taxNumber: 'INTERNAL' } });
-                    if (!internalParty) {
-                        internalParty = queryRunner.manager.create(party_entity_1.Party, {
-                            name: 'ERMAY İÇ TRANSFER / MERKEZ',
-                            taxNumber: 'INTERNAL',
-                            type: 'both',
-                            balance: new decimal_js_1.Decimal(0),
-                            createdBy: userId
-                        });
-                        internalParty = await queryRunner.manager.save(internalParty);
-                    }
-                    const partyId = internalParty.id;
-                    const transaction = queryRunner.manager.create(transaction_entity_1.Transaction, {
-                        code: txCode,
-                        amount: totalCostValue,
-                        type: txType,
-                        date: date_utils_1.DateUtils.getToday(),
-                        referenceType: 'manual_adjustment',
-                        referenceId: savedMovement.id,
-                        description: `Stok Ayarlaması Değer Kaydı: ${item.name} (${dto.type === 'in' ? '+' : '-'}${dto.quantity} Adet)`,
-                        partyId: partyId,
-                        status: 'completed',
-                        createdBy: userId,
-                    });
-                    await queryRunner.manager.save(transaction);
-                }
-            }
-            await queryRunner.commitTransaction();
-            this.logsService.logActivity({
-                userId,
-                module: 'inventory',
-                action: 'STOCK_ADJUSTMENT',
-                tag: dto.type === 'in' ? 'IN' : 'OUT',
-                details: `Stok ayarlandı: Ürün ID ${dto.itemId}, Miktar: ${dto.type === 'in' ? '+' : '-'}${dto.quantity}`,
-            });
-            return savedMovement;
+            await manager.save(manager.create(transaction_entity_1.Transaction, {
+                code: txCode,
+                amount: totalCostValue,
+                type: txType,
+                date: date_utils_1.DateUtils.getToday(),
+                referenceType: 'manual_adjustment',
+                referenceId: savedMovement.id,
+                description: `Stok Ayarlaması Değer Kaydı: ${item.name}`,
+                partyId: internalParty.id,
+                status: 'completed',
+                createdBy: userId,
+            }));
         }
-        catch (error) {
-            await queryRunner.rollbackTransaction();
-            throw error;
-        }
-        finally {
-            await queryRunner.release();
-        }
+        this.logsService.logActivity({
+            userId,
+            module: 'inventory',
+            action: 'STOCK_ADJUSTMENT',
+            tag: dto.type === 'in' ? 'IN' : 'OUT',
+            details: `Stok ayarlandı: Ürün ID ${dto.itemId}, Miktar: ${qty.toString()}, Birim Maliyet: ${unitCostToUse.toString()}`,
+        });
+        return savedMovement;
     }
     async transferStock(dto, userId) {
         if (dto.fromDepartmentId === dto.toDepartmentId) {
             throw new common_1.BadRequestException('Kaynak depo ile Hedef depo aynı olamaz.');
         }
-        const queryRunner = this.dataSource.createQueryRunner();
-        await queryRunner.connect();
-        await queryRunner.startTransaction();
-        try {
-            const sortedDeptIds = [dto.fromDepartmentId, dto.toDepartmentId].sort((a, b) => a - b);
-            const stocks = {};
-            for (const deptId of sortedDeptIds) {
-                let s = await queryRunner.manager.findOne(stock_entity_1.Stock, {
-                    where: { itemId: dto.itemId, departmentId: deptId },
+        const manager = this.transactionContext.manager;
+        const sortedDeptIds = [dto.fromDepartmentId, dto.toDepartmentId].sort((a, b) => a - b);
+        const stocks = {};
+        for (const deptId of sortedDeptIds) {
+            let s = await manager.findOne(stock_entity_1.Stock, {
+                where: { itemId: dto.itemId, departmentId: deptId },
+                relations: ['item'],
+                lock: { mode: 'pessimistic_write' }
+            });
+            if (!s) {
+                s = manager.create(stock_entity_1.Stock, {
+                    itemId: dto.itemId, departmentId: deptId, quantity: new decimal_js_1.Decimal(0), createdBy: userId
+                });
+                s = await manager.save(s);
+                s = await manager.findOne(stock_entity_1.Stock, {
+                    where: { id: s.id },
+                    relations: ['item'],
                     lock: { mode: 'pessimistic_write' }
                 });
-                if (!s) {
-                    s = queryRunner.manager.create(stock_entity_1.Stock, {
-                        itemId: dto.itemId, departmentId: deptId, quantity: new decimal_js_1.Decimal(0), createdBy: userId
-                    });
-                    s = await queryRunner.manager.save(s);
-                    s = await queryRunner.manager.findOne(stock_entity_1.Stock, {
-                        where: { id: s.id },
-                        lock: { mode: 'pessimistic_write' }
-                    });
-                }
-                stocks[deptId] = s;
             }
-            const sourceStock = stocks[dto.fromDepartmentId];
-            const targetStock = stocks[dto.toDepartmentId];
-            if (new decimal_js_1.Decimal(sourceStock.quantity).lt(dto.quantity)) {
-                throw new common_1.BadRequestException(`Kaynak depoda yeterli stok bulunmuyor. Mevcut: ${sourceStock.quantity.toString()}`);
-            }
-            const sourceQtyBefore = new decimal_js_1.Decimal(sourceStock.quantity);
-            const sourceQtyAfter = finance_helper_1.FinanceHelper.sub(sourceQtyBefore, dto.quantity);
-            const targetQtyBefore = new decimal_js_1.Decimal(targetStock.quantity);
-            const targetQtyAfter = finance_helper_1.FinanceHelper.add(targetQtyBefore, dto.quantity);
-            sourceStock.quantity = sourceQtyAfter;
-            sourceStock.updatedBy = userId || null;
-            await queryRunner.manager.save(stock_entity_1.Stock, sourceStock);
-            await queryRunner.manager.save(queryRunner.manager.create(stock_movement_entity_1.StockMovement, {
-                stockId: sourceStock.id, quantity: dto.quantity, quantityBefore: sourceQtyBefore, quantityAfter: sourceQtyAfter,
-                type: 'out', referenceType: 'adjustment', description: `Transfer Çıkışı -> HEDEF DEPO ID: ${dto.toDepartmentId} | Not: ${dto.description || ''}`, createdBy: userId
-            }));
-            targetStock.quantity = targetQtyAfter;
-            targetStock.updatedBy = userId || null;
-            await queryRunner.manager.save(stock_entity_1.Stock, targetStock);
-            await queryRunner.manager.save(queryRunner.manager.create(stock_movement_entity_1.StockMovement, {
-                stockId: targetStock.id, quantity: dto.quantity, quantityBefore: targetQtyBefore, quantityAfter: targetQtyAfter,
-                type: 'in', referenceType: 'adjustment', description: `Transfer Girişi <- KAYNAK DEPO ID: ${dto.fromDepartmentId} | Not: ${dto.description || ''}`, createdBy: userId
-            }));
-            await queryRunner.commitTransaction();
-            this.logsService.logActivity({
-                userId,
-                module: 'inventory',
-                action: 'STOCK_TRANSFER',
-                tag: 'TRANSFER',
-                details: `Stok transfer edildi: Ürün ID ${dto.itemId}, Kaynak: ${dto.fromDepartmentId}, Hedef: ${dto.toDepartmentId}, Miktar: ${dto.quantity}`,
-            });
-            return { success: true, message: 'Transfer başarıyla gerçekleşti.' };
+            stocks[deptId] = s;
         }
-        catch (e) {
-            await queryRunner.rollbackTransaction();
-            throw e;
+        const sourceStock = stocks[dto.fromDepartmentId];
+        const targetStock = stocks[dto.toDepartmentId];
+        if (new decimal_js_1.Decimal(sourceStock.quantity).lt(dto.quantity)) {
+            throw new common_1.BadRequestException(`Kaynak depoda yeterli stok bulunmuyor.`);
         }
-        finally {
-            await queryRunner.release();
-        }
+        const qty = new decimal_js_1.Decimal(dto.quantity);
+        const sourceQtyBefore = new decimal_js_1.Decimal(sourceStock.quantity);
+        const sourceQtyAfter = finance_helper_1.FinanceHelper.sub(sourceQtyBefore, qty);
+        const targetQtyBefore = new decimal_js_1.Decimal(targetStock.quantity);
+        const targetQtyAfter = finance_helper_1.FinanceHelper.add(targetQtyBefore, qty);
+        const unitCost = new decimal_js_1.Decimal(sourceStock.item?.movingAverageCost || 0);
+        const totalCost = qty.mul(unitCost);
+        sourceStock.quantity = sourceQtyAfter;
+        sourceStock.updatedBy = userId || null;
+        await manager.save(stock_entity_1.Stock, sourceStock);
+        await manager.save(manager.create(stock_movement_entity_1.StockMovement, {
+            stockId: sourceStock.id,
+            quantity: qty,
+            quantityBefore: sourceQtyBefore,
+            quantityAfter: sourceQtyAfter,
+            unitCost,
+            totalCost,
+            type: 'out',
+            referenceType: 'transfer',
+            description: `Transfer Çıkışı -> HEDEF DEPO ID: ${dto.toDepartmentId}`,
+            createdBy: userId
+        }));
+        targetStock.quantity = targetQtyAfter;
+        targetStock.updatedBy = userId || null;
+        await manager.save(stock_entity_1.Stock, targetStock);
+        await manager.save(manager.create(stock_movement_entity_1.StockMovement, {
+            stockId: targetStock.id,
+            quantity: qty,
+            quantityBefore: targetQtyBefore,
+            quantityAfter: targetQtyAfter,
+            unitCost,
+            totalCost,
+            type: 'in',
+            referenceType: 'transfer',
+            description: `Transfer Girişi <- KAYNAK DEPO ID: ${dto.fromDepartmentId}`,
+            createdBy: userId
+        }));
+        this.logsService.logActivity({
+            userId,
+            module: 'inventory',
+            action: 'STOCK_TRANSFER',
+            tag: 'TRANSFER',
+            details: `Stok transfer edildi: Ürün ID ${dto.itemId}, Miktar: ${qty.toString()}, Değer: ${totalCost.toString()}`,
+        });
+        return { success: true, message: 'Transfer başarıyla gerçekleşti.' };
     }
-    async revertStockMovementsByReference(referenceType, referenceId, manager, userId) {
-        const qr = manager;
-        const movements = await qr.find(stock_movement_entity_1.StockMovement, {
-            where: { referenceType, referenceId },
+    async revertStockMovementsByReference(referenceType, referenceId, manager = this.transactionContext.manager, userId) {
+        const movements = await manager.find(stock_movement_entity_1.StockMovement, {
+            where: { referenceType: referenceType, referenceId: referenceId },
             relations: ['stock']
         });
         if (movements.length === 0)
@@ -466,7 +531,7 @@ let StocksService = class StocksService {
             }
         }
         const sortedStockIds = Array.from(stockChanges.keys()).sort((a, b) => a - b);
-        const lockedStocks = await qr.find(stock_entity_1.Stock, {
+        const lockedStocks = await manager.find(stock_entity_1.Stock, {
             where: { id: (0, typeorm_2.In)(sortedStockIds) },
             lock: { mode: 'pessimistic_write' }
         });
@@ -482,12 +547,12 @@ let StocksService = class StocksService {
             const quantityBefore = new decimal_js_1.Decimal(stock.quantity);
             const quantityAfter = quantityBefore.add(change.totalDelta);
             if (quantityAfter.lt(0)) {
-                throw new common_1.BadRequestException(`İşlem geri alınırken stok yetersiz kalıyor. (Stok ID: ${stockId})`);
+                throw new common_1.BadRequestException(`İşlem geri alınırken stok yetersiz kalıyor.`);
             }
             stock.quantity = quantityAfter;
             stock.updatedBy = userId || null;
             stocksToUpload.push(stock);
-            newMovements.push(qr.create(stock_movement_entity_1.StockMovement, {
+            newMovements.push(manager.create(stock_movement_entity_1.StockMovement, {
                 stockId: stock.id,
                 quantity: change.totalDelta.abs(),
                 quantityBefore,
@@ -499,8 +564,8 @@ let StocksService = class StocksService {
                 createdBy: userId
             }));
         }
-        await qr.save(stock_entity_1.Stock, stocksToUpload);
-        await qr.save(stock_movement_entity_1.StockMovement, newMovements);
+        await manager.save(stock_entity_1.Stock, stocksToUpload);
+        await manager.save(stock_movement_entity_1.StockMovement, newMovements);
     }
     async getCriticalStocks() {
         return this.stockRepo.createQueryBuilder('stock')
@@ -525,12 +590,24 @@ let StocksService = class StocksService {
         ]);
         return {
             totalItems: Number(total.items || 0),
-            totalQuantity: Number(total.quantity || 0),
+            totalQuantity: new decimal_js_1.Decimal(total.quantity || 0).toNumber(),
             criticalCount: Number(critical.count || 0),
         };
     }
 };
 exports.StocksService = StocksService;
+__decorate([
+    (0, transactional_decorator_1.Transactional)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [inventory_dto_1.StockAdjustmentDto, Number]),
+    __metadata("design:returntype", Promise)
+], StocksService.prototype, "adjustStock", null);
+__decorate([
+    (0, transactional_decorator_1.Transactional)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [inventory_dto_1.TransferStockDto, Number]),
+    __metadata("design:returntype", Promise)
+], StocksService.prototype, "transferStock", null);
 exports.StocksService = StocksService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(stock_entity_1.Stock)),
@@ -539,6 +616,7 @@ exports.StocksService = StocksService = __decorate([
         typeorm_2.Repository,
         typeorm_2.DataSource,
         sequence_generator_service_1.SequenceGeneratorService,
-        logs_service_1.LogsService])
+        logs_service_1.LogsService,
+        transaction_context_service_1.TransactionContextService])
 ], StocksService);
 //# sourceMappingURL=stocks.service.js.map

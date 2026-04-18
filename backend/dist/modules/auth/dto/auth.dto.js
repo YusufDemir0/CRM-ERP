@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RegisterDto = exports.LoginDto = void 0;
+exports.ChangePasswordDto = exports.ForgotPasswordDto = exports.RegisterDto = exports.LoginDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 class LoginDto {
@@ -66,4 +66,29 @@ __decorate([
     (0, class_transformer_1.Type)(() => Number),
     __metadata("design:type", Number)
 ], RegisterDto.prototype, "departmentId", void 0);
+class ForgotPasswordDto {
+}
+exports.ForgotPasswordDto = ForgotPasswordDto;
+__decorate([
+    (0, class_validator_1.IsEmail)({}, { message: 'Geçersiz email adresi' }),
+    (0, class_validator_1.IsNotEmpty)({ message: 'Email zorunludur' }),
+    __metadata("design:type", String)
+], ForgotPasswordDto.prototype, "email", void 0);
+class ChangePasswordDto {
+}
+exports.ChangePasswordDto = ChangePasswordDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)({ message: 'Mevcut şifre zorunludur' }),
+    __metadata("design:type", String)
+], ChangePasswordDto.prototype, "currentPassword", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)({ message: 'Yeni şifre zorunludur' }),
+    (0, class_validator_1.MinLength)(8, { message: 'Yeni şifre en az 8 karakter olmalıdır' }),
+    (0, class_validator_1.Matches)(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/, {
+        message: 'Yeni şifre en az bir büyük harf, bir küçük harf ve bir rakam içermelidir',
+    }),
+    __metadata("design:type", String)
+], ChangePasswordDto.prototype, "newPassword", void 0);
 //# sourceMappingURL=auth.dto.js.map

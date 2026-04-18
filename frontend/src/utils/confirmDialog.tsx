@@ -1,25 +1,23 @@
 import toast from 'react-hot-toast';
-import React from 'react';
+
 
 export const confirmDialog = (message: string, isDestructive: boolean = false): Promise<boolean> => {
   return new Promise((resolve) => {
     toast((t) => (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', padding: '5px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '24px' }}>{isDestructive ? '⚠️' : '❓'}</span>
-          <span style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1f2937', lineHeight: '1.4' }}>{message}</span>
+      <div className="flex flex-col gap-4 p-1">
+        <div className="flex items-center gap-2.5">
+          <span className="text-2xl">{isDestructive ? '⚠️' : '❓'}</span>
+          <span className="text-[0.95rem] font-semibold text-gray-800 leading-snug">{message}</span>
         </div>
-        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+        <div className="flex gap-2.5 justify-end mt-2.5">
           <button 
-            className="btn" 
-            style={{ padding: '8px 16px', background: '#f3f4f6', color: '#374151', fontSize: '0.85rem' }} 
+            className="btn py-2 px-4 bg-gray-100 text-gray-700 text-[0.85rem] rounded-lg hover:bg-gray-200 transition-colors" 
             onClick={() => { toast.dismiss(t.id); resolve(false); }}
           >
             Vazgeç
           </button>
           <button 
-            className="btn btn-primary" 
-            style={{ padding: '8px 16px', background: isDestructive ? '#ef4444' : 'var(--primary)', color: 'white', fontSize: '0.85rem' }} 
+            className={`btn btn-primary py-2 px-4 text-white text-[0.85rem] rounded-lg transition-colors ${isDestructive ? 'bg-red-500 hover:bg-red-600' : 'bg-[var(--primary)] hover:opacity-90'}`}
             onClick={() => { toast.dismiss(t.id); resolve(true); }}
           >
             Onayla ve Devam Et

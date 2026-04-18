@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { bomsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -9,14 +9,15 @@ import {
 } from 'react-icons/fi';
 import { Bom, BomItem } from '../../types';
 import { DataTable, Column } from '../../components/common/DataTable';
-import { PaginationControls } from '../../components/common/PaginationControls';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 import { useSort } from '../../hooks/useSort';
+import { useDebounce } from '../../hooks/useDebounce';
+import { queryKeys } from '../../services/queryKeys';
 
 export function BomsPage() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debouncedSearch = useDebounce(searchTerm, 500);
   const [filterTab, setFilterTab] = useState<'active' | 'passive' | 'all'>('active');
 
   const [page, setPage] = useState(1);
@@ -24,16 +25,13 @@ export function BomsPage() {
   const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'name', order: 'ASC' });
 
   const { data: bomsData, isLoading: loading } = useQuery({
-    queryKey: ['boms', page, limit, debouncedSearch, filterTab, sort],
-    queryFn: async () => {
+    queryKey: queryKeys.boms.all({ page, limit, search: debouncedSearch, filterTab, sort }),
+    queryFn: async ({ signal }) => {
       const res = await bomsAPI.getAll({
-        page,
-        limit,
-        search: debouncedSearch,
+        page, limit, search: debouncedSearch,
         state: filterTab === 'all' ? undefined : (filterTab === 'active' ? 1 : 0),
-        sortBy: sort.key,
-        sortOrder: sort.order
-      });
+        sortBy: sort.key, sortOrder: sort.order
+      }, { signal });
       return res.data;
     }
   });
@@ -56,26 +54,18 @@ export function BomsPage() {
   );
   const { openCreate } = useQuickCreateStore();
 
-  // Search Debounce
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchTerm);
-      setPage(1);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
 
   const mutation = useMutation({
     mutationFn: ({ id, state }: { id: number; state: number }) => bomsAPI.update(id, { state }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['boms'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.boms.all({}) });
       toast.success("Durum güncellendi");
     },
     onError: () => toast.error("Hata oluştu")
   });
 
   const handleFormSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: ['boms'] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.boms.all({}) });
     toast.success("Reçete başarıyla kaydedildi.");
   };
 
@@ -116,21 +106,15 @@ export function BomsPage() {
     { 
       header: 'REÇETE KİMLİĞİ', 
       accessor: (b) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ 
-            width: '40px', height: '40px', borderRadius: '12px', 
-            background: 'var(--primary-glow)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--primary)',
-            fontSize: '18px'
-          }}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary text-lg">
             <FiLayers />
           </div>
           <div>
-            <div style={{ fontWeight: 800, color: 'var(--on-surface)', fontSize: '14px' }}>{b.name}</div>
-            <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
-              <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)' }}>V{b.version}</span>
-              {b.isActive && <span style={{ fontSize: '9px', fontWeight: 900, color: 'var(--success)', textTransform: 'uppercase' }}>• AKTİF</span>}
+            <div className="font-black text-on-surface text-sm uppercase tracking-tighter">{b.name}</div>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[10px] font-black text-slate-400">V{b.version}</span>
+              {b.isActive && <span className="text-[9px] font-black text-success uppercase tracking-widest">• AKTİF</span>}
             </div>
           </div>
         </div>
@@ -140,11 +124,11 @@ export function BomsPage() {
     { 
       header: 'HEDEF ÜRÜN', 
       accessor: (b) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <FiPackage size={14} color="var(--primary)" />
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--on-surface-variant)' }}>{b.targetItem?.name || '-'}</span>
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>{b.targetItem?.code}</span>
+        <div className="flex items-center gap-2">
+          <FiPackage className="text-primary text-sm" />
+          <div className="flex flex-col">
+            <span className="font-bold text-xs sm:text-sm text-on-surface-variant uppercase tracking-tighter">{b.targetItem?.name || '-'}</span>
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{b.targetItem?.code}</span>
           </div>
         </div>
       ),
@@ -153,46 +137,37 @@ export function BomsPage() {
     { 
       header: 'BİLEŞEN SAYISI', 
       accessor: (b) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ 
-            padding: '4px 12px', borderRadius: '8px', 
-            background: 'var(--surface-container)', color: 'var(--on-surface)',
-            fontSize: '13px', fontWeight: 800
-          }}>
+        <div className="flex items-center gap-2">
+          <div className="px-3 py-1 rounded-lg bg-surface-container text-on-surface text-xs font-black">
             {b.items?.length || 0}
           </div>
-          <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)' }}>KALEM</span>
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">KALEM</span>
         </div>
       ),
       sortKey: 'items'
     },
     { 
       header: 'AÇIKLAMA', 
-      accessor: (b) => <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 500 }}>{b.description || 'NOT BELİRTİLMEMİŞ'}</span>
+      accessor: (b) => <span className="text-xs text-slate-400 font-medium italic">{b.description || 'NOT BELİRTİLMEMİŞ'}</span>
     }
   ];
 
   return (
-    <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+    <div className="animate-in flex flex-col gap-8">
       
       {/* 🔴 HEADER SECTION */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6">
         <div>
-          <div style={{ 
-            display: 'inline-flex', alignItems: 'center', gap: '8px', 
-            background: 'var(--primary-glow)', color: 'var(--primary)', 
-            padding: '6px 14px', borderRadius: '12px', fontSize: '12px', 
-            fontWeight: 800, marginBottom: '16px'
-          }}>
+          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
             <FiTag /> ÜRETİM MİMARİSİ
           </div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--on-surface)' }}>
-            Üretim <span style={{ color: 'var(--primary)' }}>Reçeteleri (BOM)</span>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-on-surface">
+            Üretim <span className="text-primary">Reçeteleri (BOM)</span>
           </h1>
         </div>
         
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <div style={{ display: 'flex', background: 'var(--surface-container-low)', padding: '4px', borderRadius: '14px', border: '1px solid var(--border)' }}>
+        <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex bg-surface-container-low p-1 rounded-2xl border border-surface-container">
             {[
               { id: 'active', label: 'Aktif', icon: <FiActivity /> },
               { id: 'passive', label: 'Arşiv', icon: <FiArchive /> },
@@ -200,71 +175,46 @@ export function BomsPage() {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setFilterTab(tab.id as any)}
-                style={{
-                  height: '36px', padding: '0 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 700,
-                  display: 'flex', alignItems: 'center', gap: '8px', border: 'none', transition: '0.2s',
-                  background: filterTab === tab.id ? 'white' : 'transparent',
-                  color: filterTab === tab.id ? 'var(--primary)' : 'var(--text-muted)',
-                  boxShadow: filterTab === tab.id ? 'var(--shadow-md)' : 'none',
-                  cursor: 'pointer'
-                }}
+                onClick={() => setFilterTab(tab.id as 'active' | 'passive' | 'all')}
+                className={`h-9 px-4 rounded-xl text-xs font-black flex items-center gap-2 transition-colors ${
+                  filterTab === tab.id ? 'bg-white text-primary shadow-premium' : 'text-slate-400 hover:text-slate-600'
+                }`}
               >
                 {tab.icon} {tab.label}
               </button>
             ))}
           </div>
-          <button className="btn btn-primary" style={{ height: '44px', boxShadow: '0 10px 20px var(--primary-glow)' }} onClick={() => {
+          <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
             openCreate('bom', { onSuccess: handleFormSuccess });
           }}>
-            <FiPlus size={18} /> Yeni Reçete
+            <FiPlus size={20} /> Yeni Reçete
           </button>
         </div>
       </div>
 
-      {/* 🟠 SEARCH & FILTERS */}
-      <div className="glass-panel" style={{ padding: '20px', borderRadius: '24px', display: 'flex', gap: '20px', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1 }}>
-          <FiSearch style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input 
-            type="text" 
-            placeholder="Reçete adı, hedef ürün veya açıklama ile ara..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ paddingLeft: '48px', height: '52px', border: 'none', background: 'var(--surface-container-low)' }}
-          />
-        </div>
-        <button className="btn btn-secondary" style={{ height: '52px', background: 'white' }}>
-          <FiFilter /> Gelişmiş Filtrele
-        </button>
-      </div>
-
-      {/* 🟡 DATA TABLE SECTION */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <DataTable<Bom>
-          data={sortedData}
-          columns={columns}
-          isLoading={loading}
-          sortConfigs={sortConfigs}
-          onSort={toggleSort}
-          getRowKey={(b) => b.id}
-          hasState={(b) => b.state === 1}
-          onEdit={handleEdit}
-          onClone={handleClone}
-          onArchive={(b) => toggleState(b.id, 1)}
-          onRestore={(b) => toggleState(b.id, 0)}
-          getRowOpacity={(b) => b.state === 0 ? 0.5 : 1}
-        />
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <PaginationControls 
-            meta={paginationMeta} 
-            onPageChange={setPage} 
-            onLimitChange={setLimit} 
-            loading={loading}
-          />
-        </div>
-      </div>
+      {/* 🟠 DATA TABLE */}
+      <DataTable<Bom>
+        data={sortedData}
+        columns={columns}
+        isLoading={loading}
+        sortConfigs={sortConfigs}
+        onSort={toggleSort}
+        getRowKey={(b) => b.id}
+        hasState={(b) => b.state === 1}
+        onEdit={handleEdit}
+        onClone={handleClone}
+        onArchive={(b) => toggleState(b.id, 1)}
+        onRestore={(b) => toggleState(b.id, 0)}
+        getRowOpacity={(b) => b.state === 0 ? 0.5 : 1}
+        
+        // Integrated Search & Pagination
+        search={searchTerm}
+        onSearchChange={(val) => { setSearchTerm(val); setPage(1); }}
+        total={paginationMeta.total}
+        page={page}
+        limit={limit}
+        onPageChange={setPage}
+      />
     </div>
   );
 }

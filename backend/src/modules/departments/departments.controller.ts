@@ -6,7 +6,6 @@ import { PaginationDto } from '../../common/dto/pagination.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @Controller('departments')
-@UseGuards(AuthGuard('jwt'))
 export class DepartmentsController {
   constructor(private readonly deptService: DepartmentsService) {}
 

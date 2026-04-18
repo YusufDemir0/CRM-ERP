@@ -40,8 +40,16 @@ __decorate([
     __metadata("design:type", String)
 ], StockMovement.prototype, "type", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'unit_cost', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
+], StockMovement.prototype, "unitCost", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'total_cost', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
+], StockMovement.prototype, "totalCost", void 0);
+__decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.Column)({ name: 'reference_type', type: 'enum', enum: ['sale', 'purchase', 'production', 'adjustment', 'return', 'manual'] }),
+    (0, typeorm_1.Column)({ name: 'reference_type', type: 'enum', enum: ['sale', 'purchase', 'production', 'adjustment', 'return', 'manual', 'revert', 'shipment', 'transfer'] }),
     __metadata("design:type", String)
 ], StockMovement.prototype, "referenceType", void 0);
 __decorate([

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, MoreThan } from 'typeorm';
+import { Repository, DataSource, MoreThan, EntityManager } from 'typeorm';
 import { Item } from './entities/item.entity';
 import { ItemType } from './entities/item-type.entity';
 import { QuantityType } from './entities/quantity-type.entity';
@@ -20,6 +20,8 @@ import { SequenceGeneratorService } from '../../../common/services/sequence-gene
 import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
 import { CurrenciesService } from '../../finance/currencies/currencies.service';
 import { Decimal } from 'decimal.js';
+import { Transactional } from '../../../common/decorators/transactional.decorator';
+import { TransactionContextService } from '../../../common/services/transaction-context.service';
 
 @Injectable()
 export class ItemsService {
@@ -31,6 +33,7 @@ export class ItemsService {
     private dataSource: DataSource,
     private sequenceGenerator: SequenceGeneratorService,
     private currenciesService: CurrenciesService,
+    private transactionContext: TransactionContextService,
   ) { }
 
   // ────── ITEMS ──────
@@ -56,16 +59,24 @@ export class ItemsService {
       qb.andWhere('item.criticalLimit > 0');
     }
 
-    // Dynamic Advanced Filters (Sidebar filters)
+    const itemFilterMap: Record<string, string> = {
+      name: 'item.name',
+      code: 'item.code',
+      code1: 'item.code1',
+      code2: 'item.code2',
+      description: 'item.description',
+      notes: 'item.notes',
+      barcode: 'item.barcode',
+      taxRate: 'item.taxRate',
+    };
+
     Object.keys(query).forEach(key => {
-      const skipKeys = ['page', 'limit', 'search', 'sortBy', 'sortOrder', 'skip', 'itemTypeId', 'providerId', 'currencyId', 'state', 'critical'];
-      const allowedItemKeys = ['name', 'code', 'code1', 'code2', 'description', 'notes', 'barcode', 'taxRate'];
-      if (!skipKeys.includes(key) && allowedItemKeys.includes(key) && query[key as keyof typeof query] !== undefined) {
-        qb.andWhere(`item.${key} LIKE :${key}`, { [key]: `%${query[key as keyof typeof query]}%` });
+      const dbCol = itemFilterMap[key];
+      if (dbCol && query[key as keyof typeof query] !== undefined) {
+        qb.andWhere(`${dbCol} LIKE :${key}`, { [key]: `%${query[key as keyof typeof query]}%` });
       }
     });
 
-    // FE-01: Correct prefixed sorting for joined tables
     const sortFieldMap: Record<string, string> = {
       'name': 'item.name',
       'code': 'item.code',
@@ -98,43 +109,33 @@ export class ItemsService {
     return item;
   }
 
+  @Transactional()
   async create(dto: CreateItemDto, userId?: number): Promise<Item> {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+    const manager = this.transactionContext.manager;
 
-    try {
-      if (!dto.currencyId) {
-        try {
-          const defaultCurrency = await this.currenciesService.getDefault();
-          dto.currencyId = Number(defaultCurrency.id);
-        } catch (error) {
-          console.warn('Default currency not found in ItemsService, setting to null');
-        }
+    if (!dto.currencyId) {
+      try {
+        const defaultCurrency = await this.currenciesService.getDefault();
+        dto.currencyId = Number(defaultCurrency.id);
+      } catch (error) {
+        console.warn('Default currency not found in ItemsService, setting to null');
       }
-
-      const code = await this.sequenceGenerator.generateItemCode(queryRunner, dto.itemCodeGroupId);
-      
-      const existing = await queryRunner.manager.findOne(Item, { where: { code } });
-      if (existing) {
-        throw new BadRequestException(`'${code}' kodlu bir ürün zaten mevcut.`);
-      }
-
-      const item = queryRunner.manager.create(Item, {
-        ...dto,
-        code,
-        createdBy: userId,
-      });
-
-      const savedItem = await queryRunner.manager.save(item);
-      await queryRunner.commitTransaction();
-      return savedItem;
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
     }
+
+    const code = await this.sequenceGenerator.generateItemCode(manager, dto.itemCodeGroupId);
+    
+    const existing = await manager.findOne(Item, { where: { code } });
+    if (existing) {
+      throw new BadRequestException(`'${code}' kodlu bir ürün zaten mevcut.`);
+    }
+
+    const item = manager.create(Item, {
+      ...dto,
+      code,
+      createdBy: userId,
+    });
+
+    return manager.save(item);
   }
 
   async update(id: number, dto: UpdateItemDto, userId?: number): Promise<Item> {
@@ -147,7 +148,6 @@ export class ItemsService {
       }
     }
 
-    // Modernize mapping with strict field control and no 'any'
     if (dto.name !== undefined) item.name = dto.name;
     if (dto.itemTypeId !== undefined) item.itemTypeId = dto.itemTypeId;
     if (dto.itemCodeGroupId !== undefined) item.itemCodeGroupId = dto.itemCodeGroupId;
@@ -166,7 +166,6 @@ export class ItemsService {
       item.state = dto.state;
     }
 
-    // Decimal fields (Already transformed by DTO)
     if (dto.criticalLimit !== undefined) item.criticalLimit = dto.criticalLimit;
     if (dto.purchasePrice !== undefined) item.purchasePrice = dto.purchasePrice;
     if (dto.salePrice !== undefined) item.salePrice = dto.salePrice;
@@ -320,7 +319,7 @@ export class ItemsService {
     const [active, passive, lowStock] = await Promise.all([
       this.itemRepo.count({ where: { state: 1 } }),
       this.itemRepo.count({ where: { state: 0 } }),
-      this.itemRepo.count({ where: { state: 1, criticalLimit: MoreThan(0) } }),
+      this.itemRepo.count({ where: { state: 1, criticalLimit: MoreThan(0 as unknown as Decimal) } }),
     ]);
     return { active, passive, total: active + passive, lowStock };
   }

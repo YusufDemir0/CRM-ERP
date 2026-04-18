@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const commercial_account_entity_1 = require("./entities/commercial-account.entity");
+const decimal_js_1 = require("decimal.js");
 const currencies_service_1 = require("../currencies/currencies.service");
 const ledger_entity_1 = require("../../parties/entities/ledger.entity");
 let AccountsService = class AccountsService {
@@ -59,7 +60,11 @@ let AccountsService = class AccountsService {
                 console.warn('Default currency not found in AccountsService, setting to null');
             }
         }
-        const acc = this.accRepo.create({ ...dto, createdBy: userId });
+        const acc = this.accRepo.create({
+            ...dto,
+            criticalLimit: dto.criticalLimit !== undefined ? new decimal_js_1.Decimal(dto.criticalLimit) : undefined,
+            createdBy: userId
+        });
         return this.accRepo.save(acc);
     }
     async update(id, dto, userId) {
@@ -75,7 +80,7 @@ let AccountsService = class AccountsService {
         if (dto.currencyId !== undefined)
             acc.currencyId = dto.currencyId;
         if (dto.criticalLimit !== undefined)
-            acc.criticalLimit = dto.criticalLimit;
+            acc.criticalLimit = new decimal_js_1.Decimal(dto.criticalLimit);
         if (dto.description !== undefined)
             acc.description = dto.description;
         if (dto.state !== undefined)
@@ -103,7 +108,7 @@ let AccountsService = class AccountsService {
             active: Number(counts.active || 0),
             passive: Number(counts.passive || 0),
             total: Number(counts.total || 0),
-            totalBalance: Number(balances.balance || 0),
+            totalBalance: new decimal_js_1.Decimal(balances.balance || 0).toNumber(),
         };
     }
 };

@@ -105,6 +105,7 @@ export class StockAdjustmentDto {
   @IsNumber() @IsInt() @Type(() => Number) departmentId: number;
   @IsNumber() @Min(0.0001) @Type(() => Number) quantity: number;
   @IsString() @IsIn(['in', 'out']) type: 'in' | 'out';
+  @IsOptional() @IsNumber() @Min(0) @Type(() => Number) unitCost?: number;
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsString() notes?: string;
 }

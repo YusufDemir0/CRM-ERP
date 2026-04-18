@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Department } from '../../types';
 
 interface ApproveSaleModalProps {
@@ -17,23 +17,23 @@ export const ApproveSaleModal: React.FC<ApproveSaleModalProps> = ({
   onClose,
 }) => {
   return (
-    <div className="loader-overlay" style={{ alignItems: 'flex-start', paddingTop: '10%' }}>
-      <div className="login-box" style={{ maxWidth: '500px', width: '100%' }}>
-        <h3 style={{ marginBottom: '20px', color: 'var(--success)', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>Satışı Onayla ve Stok Düş</h3>
-        <p style={{ fontSize: '13px', color: 'gray', marginBottom: '20px' }}>
+    <div className="loader-overlay items-start pt-[10%]">
+      <div className="login-box max-w-[500px] w-full">
+        <h3 className="mb-5 text-[var(--success)] border-b border-[var(--border)] pb-2.5">Satışı Onayla ve Stok Düş</h3>
+        <p className="text-[13px] text-gray-500 mb-5">
           Bu siparişi onayladığınızda, siparişteki kalemlerin stokları belirteceğiniz depodan otomatik düşülecektir. İşlem geri alınamaz.
         </p>
         <form onSubmit={onSubmit} className="login-form">
           <div className="form-group">
             <label>Stokların Düşüleceği Depo</label>
-            <select required className="uppercase-input" style={{ appearance: 'none' }} value={selectedDeptId} onChange={e => onSelectedDeptIdChange(e.target.value)}>
+            <select required className="uppercase-input appearance-none" value={selectedDeptId} onChange={e => onSelectedDeptIdChange(e.target.value)}>
               <option value="">-- DEPO SEÇİNİZ --</option>
               {departments.filter(d => d.state === 1).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
-          <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
-            <button type="submit" className="btn" style={{ flex: 1, background: 'var(--success)', color: 'white', height: '50px' }}>ONAYLA VE STOK DÜŞ</button>
-            <button type="button" className="btn" style={{ flex: 1, background: '#e2e8f0', height: '50px' }} onClick={onClose}>İPTAL</button>
+          <div className="flex gap-4 mt-2.5">
+            <button type="submit" className="btn flex-1 bg-[var(--success)] text-white h-[50px]">ONAYLA VE STOK DÜŞ</button>
+            <button type="button" className="btn flex-1 bg-slate-200 h-[50px]" onClick={onClose}>İPTAL</button>
           </div>
         </form>
       </div>

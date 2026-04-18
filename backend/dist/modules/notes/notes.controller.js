@@ -15,7 +15,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.NotesController = void 0;
 const common_1 = require("@nestjs/common");
 const notes_service_1 = require("./notes.service");
-const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
 let NotesController = class NotesController {
     constructor(notesService) {
         this.notesService = notesService;
@@ -68,7 +67,6 @@ __decorate([
 ], NotesController.prototype, "remove", null);
 exports.NotesController = NotesController = __decorate([
     (0, common_1.Controller)('notes'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __metadata("design:paramtypes", [notes_service_1.NotesService])
 ], NotesController);
 //# sourceMappingURL=notes.controller.js.map

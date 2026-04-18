@@ -62,7 +62,7 @@ let LogsInterceptor = LogsInterceptor_1 = class LogsInterceptor {
     async saveLog(request, status, responseData) {
         try {
             const { method, url, user, ip, body } = request;
-            const userId = user?.id || user?.sub || null;
+            const userId = user?.id || user?.sub || undefined;
             const username = user?.username || 'SYSTEM';
             const fullName = user?.fullName || user?.full_name || '';
             const parts = url.replace(/^\/api\//, '').split('/');
@@ -71,9 +71,10 @@ let LogsInterceptor = LogsInterceptor_1 = class LogsInterceptor {
             const cleanBody = this.sanitizeBody(body);
             let responseSummary = 'OK';
             if (status === 'ERROR') {
+                const errorData = responseData;
                 responseSummary =
-                    responseData?.message ||
-                        responseData?.response?.message ||
+                    errorData?.message ||
+                        errorData?.response?.message ||
                         String(responseData) ||
                         'REQUEST_FAILED';
             }

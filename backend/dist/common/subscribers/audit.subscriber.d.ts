@@ -1,9 +1,13 @@
-import { EntitySubscriberInterface, InsertEvent, UpdateEvent, DataSource } from 'typeorm';
+import { EntitySubscriberInterface, InsertEvent, UpdateEvent, RemoveEvent, DataSource } from 'typeorm';
 import { ClsService } from 'nestjs-cls';
 export declare class AuditSubscriber implements EntitySubscriberInterface {
     private readonly dataSource;
     private readonly cls;
     constructor(dataSource: DataSource, cls: ClsService);
-    beforeInsert(event: InsertEvent<any>): void;
-    beforeUpdate(event: UpdateEvent<any>): void;
+    beforeInsert(event: InsertEvent<unknown>): void;
+    beforeUpdate(event: UpdateEvent<unknown>): void;
+    afterInsert(event: InsertEvent<unknown>): Promise<void>;
+    afterUpdate(event: UpdateEvent<unknown>): Promise<void>;
+    afterRemove(event: RemoveEvent<unknown>): Promise<void>;
+    private logAction;
 }

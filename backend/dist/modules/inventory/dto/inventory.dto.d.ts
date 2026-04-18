@@ -68,6 +68,7 @@ export declare class StockAdjustmentDto {
     departmentId: number;
     quantity: number;
     type: 'in' | 'out';
+    unitCost?: number;
     description?: string;
     notes?: string;
 }

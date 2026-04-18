@@ -1,9 +1,12 @@
 import { Response } from 'express';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, ForgotPasswordDto, ChangePasswordDto } from './dto/auth.dto';
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
+    getCsrf(): Promise<{
+        success: boolean;
+    }>;
     login(dto: LoginDto, res: Response): Promise<{
         message: string;
         user: {
@@ -34,5 +37,11 @@ export declare class AuthController {
             name: string;
         }[];
         permissions: string[];
+    }>;
+    forgotPassword(dto: ForgotPasswordDto): Promise<{
+        message: string;
+    }>;
+    changePassword(userId: number, dto: ChangePasswordDto): Promise<{
+        message: string;
     }>;
 }

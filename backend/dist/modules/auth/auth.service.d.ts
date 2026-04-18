@@ -4,7 +4,7 @@ import { User } from './entities/user.entity';
 import { UserRole } from './entities/user-role.entity';
 import { RolePermission } from './entities/role-permission.entity';
 import { UserPermission } from './entities/user-permission.entity';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, ForgotPasswordDto, ChangePasswordDto } from './dto/auth.dto';
 export declare class AuthService {
     private userRepo;
     private userRoleRepo;
@@ -42,5 +42,11 @@ export declare class AuthService {
             name: string;
         }[];
         permissions: string[];
+    }>;
+    forgotPassword(dto: ForgotPasswordDto): Promise<{
+        message: string;
+    }>;
+    changePassword(userId: number, dto: ChangePasswordDto): Promise<{
+        message: string;
     }>;
 }

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { CommercialAccount } from './entities/commercial-account.entity';
+import { Decimal } from 'decimal.js';
 import { CreateAccountDto, UpdateAccountDto } from '../dto/finance.dto';
 import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
 import { CurrenciesService } from '../currencies/currencies.service';
@@ -52,7 +53,11 @@ export class AccountsService {
         console.warn('Default currency not found in AccountsService, setting to null');
       }
     }
-    const acc = this.accRepo.create({ ...dto, createdBy: userId });
+    const acc = this.accRepo.create({ 
+      ...dto, 
+      criticalLimit: dto.criticalLimit !== undefined ? new Decimal(dto.criticalLimit) : undefined,
+      createdBy: userId 
+    });
     return this.accRepo.save(acc);
   }
 
@@ -63,7 +68,7 @@ export class AccountsService {
     if (dto.iban !== undefined) acc.iban = dto.iban;
     if (dto.ibanName !== undefined) acc.ibanName = dto.ibanName;
     if (dto.currencyId !== undefined) acc.currencyId = dto.currencyId;
-    if (dto.criticalLimit !== undefined) acc.criticalLimit = dto.criticalLimit;
+    if (dto.criticalLimit !== undefined) acc.criticalLimit = new Decimal(dto.criticalLimit);
     if (dto.description !== undefined) acc.description = dto.description;
     if (dto.state !== undefined) acc.state = dto.state;
 
@@ -93,7 +98,7 @@ export class AccountsService {
       active: Number(counts.active || 0),
       passive: Number(counts.passive || 0),
       total: Number(counts.total || 0),
-      totalBalance: Number(balances.balance || 0),
+      totalBalance: new Decimal(balances.balance || 0).toNumber(),
     };
   }
 }

@@ -1,9 +1,26 @@
 import { NotesService } from './notes.service';
+import { UserNote } from './entities/note.entity';
 export declare class NotesController {
     private readonly notesService;
     constructor(notesService: NotesService);
-    findAll(req: any): Promise<import("./entities/note.entity").UserNote[]>;
-    create(req: any, data: any): Promise<import("./entities/note.entity").UserNote>;
-    update(req: any, id: string, data: any): Promise<import("./entities/note.entity").UserNote>;
-    remove(req: any, id: string): Promise<void>;
+    findAll(req: {
+        user: {
+            id: number;
+        };
+    }): Promise<UserNote[]>;
+    create(req: {
+        user: {
+            id: number;
+        };
+    }, data: Partial<UserNote>): Promise<UserNote>;
+    update(req: {
+        user: {
+            id: number;
+        };
+    }, id: string, data: Partial<UserNote>): Promise<UserNote>;
+    remove(req: {
+        user: {
+            id: number;
+        };
+    }, id: string): Promise<void>;
 }

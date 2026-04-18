@@ -11,8 +11,11 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CommercialAccount = void 0;
 const typeorm_1 = require("typeorm");
+const class_transformer_1 = require("class-transformer");
+const decimal_js_1 = require("decimal.js");
 const base_entity_1 = require("../../../../common/entities/base.entity");
 const currency_entity_1 = require("../../currencies/entities/currency.entity");
+const decimal_transformer_1 = require("../../../../common/transformers/decimal.transformer");
 let CommercialAccount = class CommercialAccount extends base_entity_1.BaseEntity {
 };
 exports.CommercialAccount = CommercialAccount;
@@ -37,8 +40,9 @@ __decorate([
     __metadata("design:type", Number)
 ], CommercialAccount.prototype, "currencyId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'critical_limit', type: 'decimal', precision: 15, scale: 2, default: 0 }),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'critical_limit', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], CommercialAccount.prototype, "criticalLimit", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),

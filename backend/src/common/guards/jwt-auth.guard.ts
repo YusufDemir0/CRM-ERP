@@ -16,15 +16,11 @@ import { Cache } from 'cache-manager';
  */
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
-  constructor(
-    private reflector: Reflector,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
-    @InjectRepository(User) private userRepo: Repository<User>,
-  ) {
+  constructor(private reflector: Reflector) {
     super();
   }
 
-  async canActivate(context: ExecutionContext) {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     // @Public() ile işaretlenmiş endpoint'ler için JWT doğrulaması atlat
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
@@ -35,34 +31,12 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       return true;
     }
 
-    const activated = await super.canActivate(context);
-    if (!activated) {
-      return false;
-    }
-
-    const request = context.switchToHttp().getRequest();
-    const user = request.user;
-
-    if (user && user.sub) {
-      // SEC-01: Session Revocation Check (tokenVersion)
-      const cacheKey = `user_version_${user.sub}`;
-      let dbVersion = await this.cacheManager.get<number>(cacheKey);
-
-      if (dbVersion === undefined || dbVersion === null) {
-        const dbUser = await this.userRepo.findOne({ where: { id: user.sub }, select: ['tokenVersion'] });
-        dbVersion = dbUser?.tokenVersion || 0;
-        await this.cacheManager.set(cacheKey, dbVersion, 300000); // 5 dk cache
-      }
-
-      if (user.tokenVersion !== dbVersion) {
-         throw new UnauthorizedException('Oturumunuz sonlandırılmış. Lütfen tekrar giriş yapın.');
-      }
-    }
-
-    return true;
+    // super.canActivate() returns boolean | Promise<boolean> | Observable<boolean>
+    const result = await super.canActivate(context);
+    return result as boolean;
   }
 
-  handleRequest(err: any, user: any, info: any) {
+  handleRequest<TUser = unknown>(err: unknown, user: TUser, info: unknown): TUser {
     if (err || !user) {
       throw err || new UnauthorizedException('Geçersiz veya eksik token');
     }

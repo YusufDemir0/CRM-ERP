@@ -57,6 +57,8 @@ export class UpdateProductionOrderDto {
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) sourceDepartmentId?: number;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) targetDepartmentId?: number;
   @IsOptional() @IsEnum(['draft', 'planned', 'in_progress', 'completed', 'cancelled']) status?: string;
+  @IsOptional() laborCost?: string | number;
+  @IsOptional() overheadCost?: string | number;
   @IsOptional() @IsDateString() startDate?: string;
   @IsOptional() @IsDateString() endDate?: string;
   @IsOptional() @IsString() notes?: string;

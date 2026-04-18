@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useDeferredValue } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { transactionsAPI, partiesAPI, accountsAPI, currenciesAPI } from '../../services/api';
 import { 
@@ -8,60 +8,60 @@ import {
 import toast from 'react-hot-toast';
 import { confirmDialog } from '../../utils/confirmDialog';
 import { getTodayString, formatDisplayDate } from '../../utils/date.helper';
-import { Transaction, Party, Account, Currency } from '../../types';
+import { queryKeys } from '../../services/queryKeys';
+import { Transaction, Party, Account, Currency, CreateTransactionDto } from '../../types';
 import { DataTable, Column } from '../../components/common/DataTable';
-import { PaginationControls } from '../../components/common/PaginationControls';
 import { Decimal } from 'decimal.js';
 import { useSort } from '../../hooks/useSort';
 
 export default function TransactionsPage() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'date', order: 'DESC' });
-  const [filters, setFilters] = useState<Record<string, any>>({});
+  const [filters, setFilters] = useState<Record<string, string | number | undefined>>({});
 
   // ────── QUERIES ──────
 
   const { data: txData, isLoading: txLoading } = useQuery({
-    queryKey: ['transactions', page, limit, debouncedSearch, sort, filters],
-    queryFn: async () => {
+    queryKey: queryKeys.transactions.all({ page, limit, deferredSearch, sort, filters }),
+    queryFn: async ({ signal }) => {
       const res = await transactionsAPI.getAll({
         page,
         limit,
-        search: debouncedSearch,
+        search: deferredSearch,
         sortBy: sort.key,
         sortOrder: sort.order,
         ...filters
-      });
+      }, { signal });
       return res.data;
     }
   });
 
   const { data: parties = [] } = useQuery({
-    queryKey: ['parties', 'active-lookup'],
-    queryFn: async () => {
-      const res = await partiesAPI.getAll({ state: 1, limit: 1000 });
+    queryKey: queryKeys.parties.lookup,
+    queryFn: async ({ signal }) => {
+      const res = await partiesAPI.getAll({ state: 1, limit: 1000 }, { signal });
       return res.data.data;
     }
   });
 
   const { data: accounts = [] } = useQuery({
-    queryKey: ['accounts', 'active-lookup'],
-    queryFn: async () => {
-      const res = await accountsAPI.getAll({ state: 1, limit: 100 });
+    queryKey: queryKeys.accounts.lookup,
+    queryFn: async ({ signal }) => {
+      const res = await accountsAPI.getAll({ state: 1, limit: 100 }, { signal });
       return res.data.data;
     }
   });
 
   const { data: currencies = [] } = useQuery({
-    queryKey: ['currencies'],
-    queryFn: async () => {
-      const res = await currenciesAPI.getAll();
+    queryKey: queryKeys.currencies.all,
+    queryFn: async ({ signal }) => {
+      const res = await currenciesAPI.getAll(undefined, { signal });
       return res.data || [];
     }
   });
@@ -84,13 +84,6 @@ export default function TransactionsPage() {
     }
   );
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchTerm);
-      setPage(1);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
 
   const [formData, setFormData] = useState({
     type: 'in' as 'in' | 'out', 
@@ -105,10 +98,10 @@ export default function TransactionsPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => transactionsAPI.create(data),
+    mutationFn: (data: CreateTransactionDto) => transactionsAPI.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['parties'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all({}) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.parties.all({}) });
       setIsModalOpen(false);
       toast.success("İşlem başarıyla kaydedildi.");
     },
@@ -118,8 +111,8 @@ export default function TransactionsPage() {
   const cancelMutation = useMutation({
     mutationFn: (id: number) => transactionsAPI.cancel(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['parties'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all({}) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.parties.all({}) });
       toast.success("İşlem iptal edildi.");
     },
     onError: () => toast.error("İşlem iptal edilirken bir hata oluştu.")
@@ -153,19 +146,15 @@ export default function TransactionsPage() {
     { 
       header: 'İŞLEM / CARİ', 
       accessor: (tx) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ 
-            width: '40px', height: '40px', borderRadius: '12px', 
-            background: tx.type === 'in' ? 'var(--success-glow)' : 'var(--error-glow)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: tx.type === 'in' ? 'var(--success)' : 'var(--error)',
-            fontSize: '18px'
-          }}>
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${
+            tx.type === 'in' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
+          }`}>
             {tx.type === 'in' ? <FiArrowDownLeft /> : <FiArrowUpRight />}
           </div>
           <div>
-            <div style={{ fontWeight: 800, color: 'var(--on-surface)', fontSize: '14px' }}>{tx.party?.name || 'BELİRSİZ CARİ'}</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>{tx.code} • {formatDisplayDate(tx.date)}</div>
+            <div className="font-black text-on-surface text-sm">{tx.party?.name || 'BELİRSİZ CARİ'}</div>
+            <div className="text-[11px] text-slate-400 font-bold uppercase tracking-tight">{tx.code} • {formatDisplayDate(tx.date)}</div>
           </div>
         </div>
       ),
@@ -174,9 +163,9 @@ export default function TransactionsPage() {
     { 
       header: 'KASA / BANKA', 
       accessor: (tx) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <FiCreditCard size={14} color="var(--primary)" />
-          <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--on-surface-variant)' }}>{tx.commercialAccount?.name}</span>
+        <div className="flex items-center gap-2">
+          <FiCreditCard className="text-primary text-sm" />
+          <span className="font-bold text-xs sm:text-sm text-on-surface-variant">{tx.commercialAccount?.name}</span>
         </div>
       ),
       sortKey: 'commercialAccount.name'
@@ -186,16 +175,15 @@ export default function TransactionsPage() {
       accessor: (tx) => {
         const amount = new Decimal(tx.amount || 0);
         return (
-          <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-            <span className="tabular-nums" style={{ 
-              fontWeight: 900, 
-              fontSize: '15px',
-              color: tx.type === 'in' ? 'var(--success)' : 'var(--error)',
-              letterSpacing: '-0.5px'
-            }}>
+          <div className="text-right flex flex-col items-end">
+            <span className={`tabular-nums font-black text-base tracking-tighter ${
+              tx.type === 'in' ? 'text-success' : 'text-danger'
+            }`}>
               {tx.type === 'in' ? '+' : '-'}{amount.toNumber().toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {tx.currency?.symbol || '₺'}
             </span>
-            <span style={{ fontSize: '10px', fontWeight: 800, opacity: 0.6, color: tx.type === 'in' ? 'var(--success)' : 'var(--error)' }}>
+            <span className={`text-[10px] font-black uppercase tracking-widest opacity-60 ${
+              tx.type === 'in' ? 'text-success' : 'text-danger'
+            }`}>
               {tx.type === 'in' ? 'TAHSİLAT' : 'ÖDEME'}
             </span>
           </div>
@@ -207,13 +195,9 @@ export default function TransactionsPage() {
     { 
       header: 'DURUM', 
       accessor: (tx) => (
-        <span style={{ 
-          fontSize: '10px', fontWeight: 800, 
-          padding: '4px 10px', borderRadius: '8px',
-          background: tx.status === 'completed' ? 'var(--surface-container)' : 'var(--error-glow)',
-          color: tx.status === 'completed' ? 'var(--text-muted)' : 'var(--error)',
-          textTransform: 'uppercase'
-        }}>
+        <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest ${
+          tx.status === 'completed' ? 'bg-surface-container text-slate-400' : 'bg-danger/10 text-danger'
+        }`}>
           {tx.status === 'completed' ? 'TAMAMLANDI' : 'İPTAL EDİLDİ'}
         </span>
       ),
@@ -222,51 +206,28 @@ export default function TransactionsPage() {
   ];
 
   return (
-    <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+    <div className="animate-in flex flex-col gap-8">
       
       {/* 🔴 HEADER SECTION */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
         <div>
-          <div style={{ 
-            display: 'inline-flex', alignItems: 'center', gap: '8px', 
-            background: 'var(--primary-glow)', color: 'var(--primary)', 
-            padding: '6px 14px', borderRadius: '12px', fontSize: '12px', 
-            fontWeight: 800, marginBottom: '16px'
-          }}>
+          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
             <FiDollarSign /> NAKİT AKIŞI & FİNANS
           </div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--on-surface)' }}>
-            Kasa & <span style={{ color: 'var(--primary)' }}>Banka Hareketleri</span>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-on-surface">
+            Kasa & <span className="text-primary">Banka Hareketleri</span>
           </h1>
         </div>
         
-        <button className="btn btn-primary" style={{ height: '44px', boxShadow: '0 10px 20px var(--primary-glow)' }} onClick={() => {
+        <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
           setFormData({ type: 'in', partyId: '', commercialAccountId: '', amount: 0, date: getTodayString(), description: '', referenceType: '', referenceId: '', currencyId: String(currencies.find((c: Currency) => c.isDefault === 1)?.id || '') });
           setIsModalOpen(true);
         }}>
-          <FiPlus size={18} /> Yeni İşlem Ekle
+          <FiPlus size={20} /> Yeni İşlem Ekle
         </button>
       </div>
 
-      {/* 🟠 SEARCH & FILTERS */}
-      <div className="glass-panel" style={{ padding: '20px', borderRadius: '24px', display: 'flex', gap: '20px', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1 }}>
-          <FiSearch style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input 
-            type="text" 
-            placeholder="İşlem no, cari adı veya açıklama ile ara..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ paddingLeft: '48px', height: '52px', border: 'none', background: 'var(--surface-container-low)' }}
-          />
-        </div>
-        <button className="btn btn-secondary" style={{ height: '52px', background: 'white' }}>
-          <FiFilter /> Gelişmiş Filtrele
-        </button>
-      </div>
-
-      {/* 🟡 DATA TABLE SECTION */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div className="flex flex-col gap-4">
         <DataTable<Transaction>
           data={sortedData}
           columns={columns}
@@ -275,82 +236,123 @@ export default function TransactionsPage() {
           onSort={toggleSort}
           getRowKey={(tx) => tx.id}
           onDelete={tx => tx.status !== 'cancelled' ? handleCancelTransaction(tx.id) : undefined}
+          
+          // Integrated Search & Pagination
+          search={searchTerm}
+          onSearchChange={(val) => { setSearchTerm(val); setPage(1); }}
+          total={paginationMeta?.total || 0}
+          page={page}
+          limit={limit}
+          onPageChange={setPage}
+          placeholder="İşlem no, cari adı veya açıklama ile ara..."
         />
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <PaginationControls 
-            meta={paginationMeta || { total: 0, page: 1, limit: 20, totalPages: 0 }} 
-            onPageChange={setPage} 
-            onLimitChange={setLimit} 
-            loading={loading}
-          />
-        </div>
       </div>
 
       {/* 🟢 TRANSACTION MODAL */}
       {isModalOpen && (
-        <div className="loader-overlay" style={{ alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', background: 'rgba(15, 23, 42, 0.4)' }}>
-          <div className="glass-panel" style={{ maxWidth: '600px', width: '95%', padding: '40px', borderRadius: '32px', background: 'white' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--on-surface)' }}>Finansal Hareket Ekle</h2>
-              <button className="btn-icon circle" onClick={() => setIsModalOpen(false)}><FiX size={20} /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 animate-in fade-in duration-200">
+          <div className="bg-white max-w-[600px] w-full p-10 rounded-[2.5rem] shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">Finansal Hareket Ekle</h2>
+              <button className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:text-red-500 transition-colors" onClick={() => setIsModalOpen(false)}>
+                <FiX size={20} />
+              </button>
             </div>
             
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                <div className="form-group">
-                  <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>İŞLEM TİPİ</label>
-                  <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value as 'in'|'out'})} style={{ height: '48px' }}>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">İŞLEM TİPİ</label>
+                  <select 
+                    value={formData.type} 
+                    onChange={e => setFormData({...formData, type: e.target.value as 'in'|'out'})}
+                    className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors cursor-pointer"
+                  >
                     <option value="in">Tahsilat (Para Girişi)</option>
                     <option value="out">Ödeme (Para Çıkışı)</option>
                   </select>
                 </div>
-                <div className="form-group">
-                  <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>İŞLEM TARİHİ</label>
-                  <input type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} style={{ height: '48px' }} />
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">İŞLEM TARİHİ</label>
+                  <input 
+                    type="date" 
+                    value={formData.date} 
+                    onChange={e => setFormData({...formData, date: e.target.value})}
+                    className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors"
+                  />
                 </div>
               </div>
 
-              <div className="form-group">
-                <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>CARİ HESAP</label>
-                <select required value={formData.partyId} onChange={e => setFormData({...formData, partyId: e.target.value})} style={{ height: '48px' }}>
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">CARİ HESAP</label>
+                <select 
+                  required 
+                  value={formData.partyId} 
+                  onChange={e => setFormData({...formData, partyId: e.target.value})}
+                  className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors cursor-pointer"
+                >
                   <option value="">Seçiniz...</option>
                   {parties.map((p: Party) => {
                     const balance = new Decimal(p.balance || 0);
-                    return <option key={p.id} value={p.id}>{p.name} [{balance.toNumber().toLocaleString()} {p.currency?.symbol}]</option>;
+                    return <option key={p.id} value={p.id}>{p.name} [{balance.toNumber().toLocaleString('tr-TR')} {p.currency?.symbol}]</option>;
                   })}
                 </select>
               </div>
 
-              <div className="form-group">
-                <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>KASA / BANKA HESABI</label>
-                <select required value={formData.commercialAccountId} onChange={e => setFormData({...formData, commercialAccountId: e.target.value})} style={{ height: '48px' }}>
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">KASA / BANKA HESABI</label>
+                <select 
+                  required 
+                  value={formData.commercialAccountId} 
+                  onChange={e => setFormData({...formData, commercialAccountId: e.target.value})}
+                  className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors cursor-pointer"
+                >
                   <option value="">Seçiniz...</option>
                   {accounts.map((a: Account) => <option key={a.id} value={a.id}>{a.name} [{a.bankName || 'Kasa'}]</option>)}
                 </select>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
-                <div className="form-group">
-                  <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>TUTAR</label>
-                  <input type="number" step="0.01" value={formData.amount} onChange={e => setFormData({...formData, amount: Number(e.target.value)})} style={{ height: '48px', fontSize: '18px', fontWeight: 800 }} />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div className="flex flex-col gap-2 sm:col-span-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">TUTAR</label>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    value={formData.amount} 
+                    onChange={e => setFormData({...formData, amount: Number(e.target.value)})}
+                    className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-black text-xl text-primary focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors"
+                  />
                 </div>
-                <div className="form-group">
-                  <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>DÖVİZ</label>
-                  <select value={formData.currencyId} onChange={e => setFormData({...formData, currencyId: e.target.value})} style={{ height: '48px' }}>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">DÖVİZ</label>
+                  <select 
+                    value={formData.currencyId} 
+                    onChange={e => setFormData({...formData, currencyId: e.target.value})}
+                    className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors cursor-pointer"
+                  >
                     {currencies.map((c: Currency) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
               </div>
 
-              <div className="form-group">
-                <label style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>AÇIKLAMA</label>
-                <textarea rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} style={{ padding: '12px' }} />
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">AÇIKLAMA</label>
+                <textarea 
+                  rows={3} 
+                  value={formData.description} 
+                  onChange={e => setFormData({...formData, description: e.target.value})}
+                  className="p-5 rounded-3xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors resize-none placeholder:text-slate-300"
+                  placeholder="İşlem ile ilgili notlar..."
+                />
               </div>
 
-              <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1, height: '52px', fontSize: '15px' }}>İŞLEMİ KAYDET</button>
-                <button type="button" className="btn btn-secondary" style={{ flex: 1, height: '52px', fontSize: '15px' }} onClick={() => setIsModalOpen(false)}>VAZGEÇ</button>
+              <div className="flex gap-4 mt-4">
+                <button type="submit" className="flex-1 h-14 bg-primary text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-colors shadow-lg shadow-primary/25">
+                  İŞLEMİ KAYDET
+                </button>
+                <button type="button" className="flex-[0.4] h-14 bg-slate-50 text-slate-500 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-100 transition-colors" onClick={() => setIsModalOpen(false)}>
+                  VAZGEÇ
+                </button>
               </div>
             </form>
           </div>

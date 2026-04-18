@@ -30,6 +30,7 @@ async function bootstrap() {
         ],
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
         credentials: true,
+        exposedHeaders: ['X-CSRF-TOKEN'],
     });
     app.useGlobalPipes(new common_1.ValidationPipe({
         whitelist: true,

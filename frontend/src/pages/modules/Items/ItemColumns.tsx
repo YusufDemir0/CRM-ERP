@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { FiAlertTriangle, FiPackage } from 'react-icons/fi';
 import { Column } from '../../../components/common/DataTable';
 import { Item } from '../../../types';

@@ -5,8 +5,8 @@ export declare class TransactionsController {
     constructor(txService: TransactionsService);
     findAll(query: TransactionsQueryDto): Promise<import("../../../common/dto/pagination.dto").PaginatedResult<import("./entities/transaction.entity").Transaction>>;
     getStatus(): Promise<{
-        monthlyIncome: any;
-        monthlyExpense: any;
+        monthlyIncome: string;
+        monthlyExpense: string;
         count: number;
         totalVolume: string;
     }>;

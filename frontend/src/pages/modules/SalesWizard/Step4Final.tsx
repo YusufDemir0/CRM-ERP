@@ -1,4 +1,4 @@
-import React from 'react';
+import { memo } from 'react';
 import { Decimal } from 'decimal.js';
 import { FiAlertCircle, FiCheckCircle, FiChevronLeft, FiDollarSign } from 'react-icons/fi';
 
@@ -26,7 +26,7 @@ interface Props {
   onSubmit: () => void;
 }
 
-const Step4Final: React.FC<Props> = ({
+const Step4Final: React.FC<Props> = memo(({
   selectedCurrencySymbol, genDiscountType, setGenDiscountType, 
   genDiscountValue, setGenDiscountValue, deposit, setDeposit, 
   saleNotes, setSaleNotes, finances, isSubmitting, onBack, onSubmit
@@ -46,14 +46,14 @@ const Step4Final: React.FC<Props> = ({
         <div className="flex flex-col gap-6">
           
           {/* GENEL İSKONTO */}
-          <div className="bg-slate-50/50 p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm transition-all hover:bg-white hover:border-primary/20">
+          <div className="bg-slate-50/50 p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm transition-colors hover:bg-white hover:border-primary/20">
              <label className="text-[11px] font-black text-primary uppercase tracking-widest mb-4 block opacity-70">
                GENEL İSKONTO (ALT TOPLAM)
              </label>
              <div className="flex gap-4">
                 <div className="relative">
                   <select 
-                    className="uppercase-input w-24 h-14 appearance-none bg-white border-2 border-slate-100/50 rounded-2xl font-black cursor-pointer hover:border-primary/20 transition-all outline-none" 
+                    className="uppercase-input w-24 h-14 appearance-none bg-white border-2 border-slate-100/50 rounded-2xl font-black cursor-pointer hover:border-primary/20 transition-colors outline-none" 
                     value={genDiscountType} 
                     onChange={e => setGenDiscountType(e.target.value as 'amount'|'percent')}
                   >
@@ -64,7 +64,7 @@ const Step4Final: React.FC<Props> = ({
                 </div>
                 <input 
                   type="text" 
-                  className="uppercase-input tabular-nums flex-1 h-14 bg-white border-2 border-slate-100/50 rounded-2xl px-5 font-black text-lg outline-none focus:border-primary/30 transition-all" 
+                  className="uppercase-input tabular-nums flex-1 h-14 bg-white border-2 border-slate-100/50 rounded-2xl px-5 font-black text-lg outline-none focus:border-primary/30 transition-colors" 
                   placeholder="0.00" 
                   value={genDiscountValue} 
                   onChange={e => setGenDiscountValue(e.target.value.replace(/[^0-9.]/g, ''))} 
@@ -86,7 +86,7 @@ const Step4Final: React.FC<Props> = ({
             <div className="relative z-10">
               <input 
                 type="text" 
-                className="uppercase-input tabular-nums text-3xl h-18 w-full text-center text-danger font-black bg-white border-2 border-rose-200/50 rounded-[1.5rem] shadow-premium outline-none focus:border-danger/30 transition-all" 
+                className="uppercase-input tabular-nums text-3xl h-18 w-full text-center text-danger font-black bg-white border-2 border-rose-200/50 rounded-[1.5rem] shadow-premium outline-none focus:border-danger/30 transition-colors" 
                 placeholder="0.00" 
                 value={deposit} 
                 onChange={(e) => setDeposit(e.target.value.replace(/[^0-9.]/g, ''))} 
@@ -99,7 +99,7 @@ const Step4Final: React.FC<Props> = ({
           <div className="form-group">
             <label className="text-slate-500 font-black text-[10px] uppercase tracking-[0.2em] pl-1 mb-2">Sipariş / Sevkiyat Notları</label>
             <textarea 
-              className="uppercase-input min-h-[120px] p-5 bg-white border-2 border-slate-100 rounded-3xl outline-none focus:border-primary/20 transition-all font-medium text-slate-700 shadow-sm" 
+              className="uppercase-input min-h-[120px] p-5 bg-white border-2 border-slate-100 rounded-3xl outline-none focus:border-primary/20 transition-colors font-medium text-slate-700 shadow-sm" 
               value={saleNotes} 
               onChange={e => setSaleNotes(e.target.value.toUpperCase())} 
               placeholder="Teslimat detayları, özel paketleme istekleri vb..." 
@@ -108,7 +108,7 @@ const Step4Final: React.FC<Props> = ({
         </div>
 
         {/* SAĞ TARAF: FİNANSAL TABLO */}
-        <div className={`p-10 rounded-[3rem] bg-slate-900 text-white shadow-premium flex flex-col border border-white/10 relative transition-all duration-500 ${deposit === '' ? 'opacity-40 grayscale blur-[1px]' : 'opacity-100'}`}>
+        <div className={`p-10 rounded-[3rem] bg-slate-900 text-white shadow-premium flex flex-col border border-white/10 relative transition-colors duration-500 ${deposit === '' ? 'opacity-40 grayscale blur-[1px]' : 'opacity-100'}`}>
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-success to-primary opacity-50" />
           
           <div className="flex items-center justify-between mb-10">
@@ -160,7 +160,7 @@ const Step4Final: React.FC<Props> = ({
           </div>
 
           <button
-            className="w-full h-18 bg-primary text-white rounded-[1.5rem] font-black text-lg mt-10 shadow-xl shadow-primary/30 transition-all hover:scale-[1.02] hover:shadow-primary/40 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 disabled:grayscale flex items-center justify-center gap-3"
+            className="w-full h-18 bg-primary text-white rounded-[1.5rem] font-black text-lg mt-10 shadow-xl shadow-primary/30 transition-colors hover:scale-[1.02] hover:shadow-primary/40 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 disabled:grayscale flex items-center justify-center gap-3"
             disabled={deposit === '' || isSubmitting}
             onClick={onSubmit}
           >
@@ -183,6 +183,8 @@ const Step4Final: React.FC<Props> = ({
       </div>
     </div>
   );
-};
+});
+
+Step4Final.displayName = 'Step4Final';
 
 export default Step4Final;

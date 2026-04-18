@@ -1,15 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { Department, Role } from '../../../../types';
+
+interface UserFormSubmitPayload {
+  fullName: string;
+  username: string;
+  password?: string;
+  departmentId: string;
+  phone: string;
+  email: string;
+  fullPhone: string;
+  selectedRoles: number[];
+}
+
+interface UserFormInitialData {
+  fullName?: string;
+  username?: string;
+  password?: string;
+  departmentId?: string;
+  phone?: string;
+  email?: string;
+  selectedRoles?: number[];
+}
 
 interface UserFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (formData: any) => void;
+  onSubmit: (formData: UserFormSubmitPayload) => void;
   editingId: number | null;
-  initialData: any;
+  initialData: UserFormInitialData;
   departments: Department[];
   availableRoles: Role[];
 }
+
+type UserFormData = {
+  fullName: string;
+  username: string;
+  password?: string;
+  departmentId: string;
+  phone: string;
+  email: string;
+};
 
 export const UserFormModal: React.FC<UserFormModalProps> = ({
   isOpen,
@@ -20,16 +51,36 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
   departments,
   availableRoles,
 }) => {
-  const [formData, setFormData] = useState(initialData);
   const [countryCode, setCountryCode] = useState('+90');
+  const [selectedRoles, setSelectedRoles] = useState<number[]>(initialData.selectedRoles || []);
+
+  const { register, handleSubmit, reset } = useForm<UserFormData>({
+    defaultValues: {
+      fullName: initialData.fullName || '',
+      username: initialData.username || '',
+      password: '',
+      departmentId: initialData.departmentId || '',
+      phone: initialData.phone ? (initialData.phone.startsWith('+90 ') ? initialData.phone.substring(4) : initialData.phone) : '',
+      email: initialData.email || '',
+    }
+  });
 
   useEffect(() => {
-    setFormData(initialData);
-    if (initialData.phone.startsWith('+90 ')) {
+    let newPhone = initialData.phone || '';
+    if (newPhone.startsWith('+90 ')) {
       setCountryCode('+90');
-      setFormData((prev: any) => ({ ...prev, phone: initialData.phone.substring(4) }));
+      newPhone = newPhone.substring(4);
     }
-  }, [initialData]);
+    reset({
+      fullName: initialData.fullName || '',
+      username: initialData.username || '',
+      password: '',
+      departmentId: initialData.departmentId || '',
+      phone: newPhone,
+      email: initialData.email || '',
+    });
+    setSelectedRoles(initialData.selectedRoles || []);
+  }, [initialData, reset]);
 
   const formatPhone = (val: string) => {
     let d = val.replace(/\D/g, '');
@@ -44,80 +95,75 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
   };
 
   const handleRoleToggle = (roleId: number) => {
-    setFormData((prev: any) => ({
-      ...prev,
-      selectedRoles: prev.selectedRoles.includes(roleId)
-        ? prev.selectedRoles.filter((id: number) => id !== roleId)
-        : [...prev.selectedRoles, roleId],
-    }));
+    setSelectedRoles(prev => 
+      prev.includes(roleId) ? prev.filter(id => id !== roleId) : [...prev, roleId]
+    );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const onFormSubmit: SubmitHandler<UserFormData> = (data) => {
     onSubmit({
-      ...formData,
-      fullPhone: `${countryCode} ${formData.phone}`,
+      ...data,
+      fullName: data.fullName.replace(/[0-9]/g, '').toLocaleUpperCase('tr-TR'),
+      username: data.username.toLowerCase().replace(/\s/g, ''),
+      email: data.email.toLowerCase(),
+      phone: formatPhone(data.phone),
+      fullPhone: `${countryCode} ${formatPhone(data.phone)}`,
+      selectedRoles
     });
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="loader-overlay" style={{ alignItems: 'flex-start', paddingTop: '3%', overflowY: 'auto' }}>
-      <div className="login-box" style={{ maxWidth: '800px', width: '100%', marginBottom: '5%' }}>
-        <h3 style={{ marginBottom: '20px', color: 'var(--primary)', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
+    <div className="loader-overlay items-start pt-[3%] overflow-y-auto">
+      <div className="login-box max-w-[800px] w-full mb-[5%]">
+        <h3 className="mb-5 text-primary border-b border-border pb-2.5">
           {editingId ? 'Personel Güncelle' : 'Sisteme Personel Ekle'}
         </h3>
-        <form onSubmit={handleSubmit} className="login-form">
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
+        <form onSubmit={handleSubmit(onFormSubmit)} className="login-form">
+          <div className="grid grid-cols-[2fr_1fr] gap-8">
             {/* SOL TARAF: KİŞİ BİLGİLERİ */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <div className="flex flex-col gap-4">
               <div className="form-group">
                 <label>Personel Ad Soyad</label>
                 <input
                   required
                   className="uppercase-input"
-                  value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value.replace(/[0-9]/g, '').toLocaleUpperCase('tr-TR') })}
+                  {...register('fullName')}
                   placeholder="ÖR: AHMET YILMAZ"
                 />
               </div>
-              <div style={{ display: 'flex', gap: '15px' }}>
-                <div className="form-group" style={{ flex: 1 }}>
+              <div className="flex gap-4">
+                <div className="form-group flex-1">
                   <label>Sistem Kullanıcı Adı</label>
                   <input
                     required
-                    className="uppercase-input"
-                    value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/\s/g, '') })}
+                    className="uppercase-input lowercase"
+                    {...register('username')}
                     placeholder="ahmety"
                     disabled={!!editingId}
-                    style={{ textTransform: 'lowercase' }}
                   />
                 </div>
-                <div className="form-group" style={{ flex: 1 }}>
+                <div className="form-group flex-1">
                   <label>
-                    Sistem Şifresi {editingId && <span style={{ fontSize: '9px', color: 'red' }}>(Boş=Aynı)</span>}
+                    Sistem Şifresi {editingId && <span className="text-[9px] text-red-500">(Boş=Aynı)</span>}
                   </label>
                   <input
                     type="password"
                     required={!editingId}
-                    className="uppercase-input"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="uppercase-input normal-case"
+                    {...register('password')}
                     placeholder="****"
-                    style={{ textTransform: 'none' }}
                   />
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '15px' }}>
-                <div className="form-group" style={{ flex: 1 }}>
+              <div className="flex gap-4">
+                <div className="form-group flex-1">
                   <label>Departman *</label>
                   <select
                     required
                     className="uppercase-input"
-                    value={formData.departmentId}
-                    onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
+                    {...register('departmentId')}
                   >
                     <option value="">Lütfen Seçiniz</option>
                     {departments.map((d) => (
@@ -125,15 +171,14 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                     ))}
                   </select>
                 </div>
-                <div className="form-group" style={{ flex: 1 }}>
+                <div className="form-group flex-1">
                   <label>Telefon *</label>
-                  <div style={{ display: 'flex', gap: '5px' }}>
+                  <div className="flex gap-1.5">
                     <select
                       required
                       value={countryCode}
                       onChange={(e) => setCountryCode(e.target.value)}
-                      style={{ width: '80px', padding: '0.75rem 0.5rem', appearance: 'none', textAlign: 'center' }}
-                      className="uppercase-input"
+                      className="uppercase-input w-20 px-2 py-3 appearance-none text-center"
                     >
                       <option value="+90">+90</option>
                       <option value="+1">+1</option>
@@ -142,10 +187,10 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                     </select>
                     <input
                       required
-                      style={{ flex: 1 }}
-                      className="uppercase-input tabular-nums"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: formatPhone(e.target.value) })}
+                      className="uppercase-input tabular-nums flex-1"
+                      {...register('phone', {
+                        onChange: (e) => { e.target.value = formatPhone(e.target.value) }
+                      })}
                       placeholder="5XX XXX XX XX"
                     />
                   </div>
@@ -155,22 +200,20 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                 <label>Kurumsal E-Posta (Opsiyonel)</label>
                 <input
                   type="email"
-                  className="uppercase-input"
-                  style={{ textTransform: 'lowercase' }}
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value.toLowerCase() })}
+                  className="uppercase-input lowercase"
+                  {...register('email')}
                   placeholder="personel@sirket.com"
                 />
               </div>
             </div>
 
             {/* SAĞ TARAF: ROL ATAMA */}
-            <div style={{ background: 'var(--surface-container-low)', padding: '15px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-              <label style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 800, marginBottom: '10px', display: 'block' }}>Rolsüz Kullanıcı Eklenemez.</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '250px', overflowY: 'auto' }}>
+            <div className="bg-surface-container-low p-4 rounded-xl border border-border">
+              <label className="text-[13px] text-primary font-extrabold mb-2.5 block">Rolsüz Kullanıcı Eklenemez.</label>
+              <div className="flex flex-col gap-2.5 max-h-[250px] overflow-y-auto">
                 {availableRoles.map((r) => (
-                  <label key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', cursor: 'pointer', background: 'white', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-                    <input type="checkbox" checked={formData.selectedRoles.includes(r.id)} onChange={() => handleRoleToggle(r.id)} />
+                  <label key={r.id} className="flex items-center gap-2.5 text-[13px] cursor-pointer bg-white p-2.5 rounded-lg border border-slate-300">
+                    <input type="checkbox" checked={selectedRoles.includes(r.id)} onChange={() => handleRoleToggle(r.id)} />
                     <strong>{r.name}</strong>
                   </label>
                 ))}
@@ -178,11 +221,11 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '15px', marginTop: '30px' }}>
-            <button type="submit" className="btn btn-primary" disabled={formData.selectedRoles.length === 0} style={{ flex: 1, height: '50px' }}>
+          <div className="flex gap-4 mt-8">
+            <button type="submit" className="btn btn-primary flex-1 h-[50px]" disabled={selectedRoles.length === 0}>
               {editingId ? 'BİLGİLERİ GÜNCELLE' : 'KULLANICI OLUŞTUR VE YETKİLERİ ATA'}
             </button>
-            <button type="button" className="btn" style={{ flex: 0.5, background: '#e2e8f0', height: '50px' }} onClick={onClose}>
+            <button type="button" className="btn bg-slate-200 flex-[0.5] h-[50px]" onClick={onClose}>
               İPTAL
             </button>
           </div>

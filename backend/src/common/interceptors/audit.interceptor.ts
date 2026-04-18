@@ -15,7 +15,7 @@ import { ClsService } from 'nestjs-cls';
 export class AuditInterceptor implements NestInterceptor {
   constructor(private readonly cls: ClsService) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest();
     const userId = request.user?.sub || request.user?.id || null;
 

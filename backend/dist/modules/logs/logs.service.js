@@ -28,7 +28,7 @@ let LogsService = LogsService_1 = class LogsService {
     }
     onModuleInit() {
         this.logger.log('LogsService initialized (Batch Logger enabled).');
-        this.logSubscription = this.logSubject.pipe((0, operators_1.bufferTime)(5000), (0, operators_1.filter)(logs => logs.length > 0)).subscribe(async (logs) => {
+        this.logSubscription = this.logSubject.pipe((0, operators_1.bufferTime)(5000, undefined, 1000), (0, operators_1.filter)(logs => logs.length > 0)).subscribe(async (logs) => {
             try {
                 const entities = this.logRepository.create(logs);
                 await this.logRepository.save(entities);

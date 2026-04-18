@@ -13,6 +13,7 @@ exports.AccountingLedger = void 0;
 const typeorm_1 = require("typeorm");
 const base_entity_1 = require("../../../common/entities/base.entity");
 const party_entity_1 = require("./party.entity");
+const commercial_account_entity_1 = require("../../finance/accounts/entities/commercial-account.entity");
 const decimal_transformer_1 = require("../../../common/transformers/decimal.transformer");
 const decimal_js_1 = require("decimal.js");
 let AccountingLedger = class AccountingLedger extends base_entity_1.BaseEntity {
@@ -27,9 +28,14 @@ __decorate([
     __metadata("design:type", Number)
 ], AccountingLedger.prototype, "partyId", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'account_id', nullable: true }),
-    __metadata("design:type", Number)
+    (0, typeorm_1.Column)({ name: 'account_id', type: 'bigint', nullable: true }),
+    __metadata("design:type", Object)
 ], AccountingLedger.prototype, "accountId", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => commercial_account_entity_1.CommercialAccount),
+    (0, typeorm_1.JoinColumn)({ name: 'account_id' }),
+    __metadata("design:type", commercial_account_entity_1.CommercialAccount)
+], AccountingLedger.prototype, "account", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'decimal', precision: 18, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
     __metadata("design:type", decimal_js_1.Decimal)

@@ -1,6 +1,7 @@
 import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { Party } from './party.entity';
+import { CommercialAccount } from '../../finance/accounts/entities/commercial-account.entity';
 import { DecimalTransformer } from '../../../common/transformers/decimal.transformer';
 import { Decimal } from 'decimal.js';
 
@@ -13,8 +14,12 @@ export class AccountingLedger extends BaseEntity {
   @Column({ name: 'party_id' })
   partyId: number;
 
-  @Column({ name: 'account_id', nullable: true })
-  accountId: number;
+  @Column({ name: 'account_id', type: 'bigint', nullable: true })
+  accountId: number | null;
+
+  @ManyToOne(() => CommercialAccount)
+  @JoinColumn({ name: 'account_id' })
+  account: CommercialAccount;
 
   @Column({ type: 'decimal', precision: 18, scale: 2, default: 0, transformer: new DecimalTransformer() })
   debit: Decimal;

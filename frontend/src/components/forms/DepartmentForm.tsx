@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { departmentsAPI, accountsAPI } from '../../services/api';
-import { FiX, FiCheck } from 'react-icons/fi';
+import { FiCheck } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
-import { Account } from '../../types';
+import { Account, Department } from '../../types';
 
 interface DepartmentFormProps {
   initialData?: Record<string, unknown>;
@@ -15,6 +16,14 @@ interface DepartmentFormProps {
 const onlyLetters = (val: string) => val.replace(/[0-9]/g, '');
 const onlyAbbrLetters = (val: string) => val.replace(/[^A-ZÇĞİÖŞÜa-zçğıöşü]/g, '').toLocaleUpperCase('tr-TR');
 
+type DepartmentFormData = {
+  name: string;
+  abbreviation: string;
+  departmentTypeId: string;
+  commercialAccountId: string;
+  description: string;
+};
+
 export const DepartmentForm: React.FC<DepartmentFormProps> = ({
   initialData,
   editingId,
@@ -24,52 +33,56 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
   const { openCreate, updateCache, getCache, clearCache } = useQuickCreateStore();
   const cacheKey = editingId ? `dept_edit_${editingId}` : 'dept_create';
 
-  const [formData, setFormData] = useState<Record<string, string | number>>(() => {
-    const cached = getCache(cacheKey) as Record<string, string | number> | null;
-    return cached || {
+  const { register, handleSubmit, getValues, setValue } = useForm<DepartmentFormData>({
+    defaultValues: (getCache(cacheKey) as DepartmentFormData) || {
       name: (initialData?.name as string) || '',
       description: (initialData?.description as string) || '',
       abbreviation: (initialData?.abbreviation as string) || '',
-      departmentTypeId: (initialData?.departmentTypeId as number) || '',
-      commercialAccountId: (initialData?.commercialAccountId as number) || ''
-    };
+      departmentTypeId: initialData?.departmentTypeId ? String(initialData.departmentTypeId) : '',
+      commercialAccountId: initialData?.commercialAccountId ? String(initialData.commercialAccountId) : ''
+    }
   });
 
-  // Caching strategy: Update only on blur or unmount to prevent re-render loops
   const saveDraft = useCallback(() => {
-    updateCache(cacheKey, formData);
-  }, [formData, cacheKey, updateCache]);
+    updateCache(cacheKey, getValues());
+  }, [getValues, cacheKey, updateCache]);
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [deptTypes, setDeptTypes] = useState<Record<string, unknown>[]>([]);
 
   useEffect(() => {
+    const controller = new AbortController();
     async function fetchData() {
       try {
         const [accRes, typesRes] = await Promise.all([
-          accountsAPI.getAll({ limit: 100 }),
-          departmentsAPI.getTypes()
+          accountsAPI.getAll({ limit: 100 }, { signal: controller.signal }),
+          departmentsAPI.getTypes({ signal: controller.signal })
         ]);
         setAccounts(accRes.data.data.filter((a: Account) => a.state === 1));
         setDeptTypes(typesRes.data as Record<string, unknown>[]);
-      } catch (err) {
-        console.error(err);
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name !== 'CanceledError' && err.name !== 'AbortError') {
+          console.error(err);
+        }
       }
     }
     fetchData();
+    return () => controller.abort();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.abbreviation && String(formData.abbreviation).length > 4) {
+  const onSubmit: SubmitHandler<DepartmentFormData> = async (data) => {
+    const formattedAbbr = onlyAbbrLetters(data.abbreviation).slice(0, 4);
+    if (formattedAbbr && formattedAbbr.length > 4) {
       toast.error('Kısa kod en fazla 4 karakter olmalıdır.');
       return;
     }
     const payload = {
-      ...formData,
-      departmentTypeId: formData.departmentTypeId ? Number(formData.departmentTypeId) : undefined,
-      commercialAccountId: formData.commercialAccountId ? Number(formData.commercialAccountId) : undefined
-    } as any;
+      name: onlyLetters(data.name).toLocaleUpperCase('tr-TR'),
+      description: data.description.toLocaleUpperCase('tr-TR'),
+      abbreviation: formattedAbbr,
+      departmentTypeId: data.departmentTypeId ? Number(data.departmentTypeId) : undefined,
+      commercialAccountId: data.commercialAccountId ? Number(data.commercialAccountId) : undefined
+    } as Partial<Department>;
 
     try {
       if (editingId) {
@@ -89,7 +102,7 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
   const handleAddAccount = () => {
     openCreate('account', {
       onSuccess: (newAcc: unknown) => {
-        setFormData((prev) => ({ ...prev, commercialAccountId: (newAcc as Account).id }));
+        setValue('commercialAccountId', String((newAcc as Account).id));
         // Refresh accounts list
         accountsAPI.getAll({ limit: 100 }).then((res: { data: { data: Account[] } }) => setAccounts(res.data.data.filter((a: Account) => a.state === 1)));
       }
@@ -97,46 +110,54 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} onBlur={saveDraft} className="login-form">
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '15px' }}>
+    <form onSubmit={handleSubmit(onSubmit)} onBlur={saveDraft} className="login-form">
+      <div className="grid grid-cols-[2fr_1fr] gap-4">
         <div className="form-group">
           <label>Departman Adı (Zorunlu)</label>
-          <input required className="uppercase-input" value={formData.name} onChange={e => setFormData({ ...formData, name: onlyLetters(e.target.value).toLocaleUpperCase('tr-TR') })} placeholder="ÖR: MERKEZ DEPO" />
+          <input 
+            required 
+            className="uppercase-input" 
+            {...register('name')} 
+            placeholder="ÖR: MERKEZ DEPO" 
+          />
         </div>
         <div className="form-group">
           <label>Kısa Kod (3-4 harf)</label>
           <input
             maxLength={4}
-            className="uppercase-input"
-            style={{ fontWeight: 800, letterSpacing: '3px', textAlign: 'center' }}
-            value={formData.abbreviation}
-            onChange={e => setFormData({ ...formData, abbreviation: onlyAbbrLetters(e.target.value).slice(0, 4) })}
+            className="uppercase-input font-extrabold tracking-[3px] text-center"
+            {...register('abbreviation')}
             placeholder="MKZ"
           />
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+      <div className="grid grid-cols-2 gap-4 mt-4">
         <div className="form-group">
           <label>Departman Tipi</label>
-          <select className="uppercase-input" style={{ appearance: 'none' }} value={formData.departmentTypeId} onChange={e => setFormData({ ...formData, departmentTypeId: Number(e.target.value) })}>
+          <select 
+            className="uppercase-input appearance-none" 
+            {...register('departmentTypeId')}
+          >
             <option value="">Lütfen Seçiniz</option>
             {deptTypes.map((dt) => <option key={String(dt.id)} value={String(dt.id)}>{String(dt.name)} ({String(dt.abbreviation)})</option>)}
           </select>
         </div>
         <div className="form-group">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="flex justify-between items-center mb-1">
             <label>Bağlı Finans/Kasa Hesabı</label>
             <button
               type="button"
-              className="btn-link"
-              style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary)', marginBottom: '5px' }}
+              className="text-[11px] font-semibold text-primary hover:underline"
               onClick={handleAddAccount}
             >
               + YENİ HESAP EKLE
             </button>
           </div>
-          <select className="uppercase-input" style={{ appearance: 'none' }} value={formData.commercialAccountId} onChange={e => setFormData({ ...formData, commercialAccountId: Number(e.target.value) })}>
+          <select 
+            className="uppercase-input appearance-none" 
+            {...register('commercialAccountId')}
+          >
             <option value="">Lütfen Seçiniz</option>
             {accounts.map((acc: Account) => (
               <option key={acc.id} value={acc.id}>{acc.name}</option>
@@ -145,16 +166,20 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
         </div>
       </div>
 
-      <div className="form-group">
+      <div className="form-group mt-4">
         <label>Departman Açıklaması</label>
-        <input className="uppercase-input" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value.toLocaleUpperCase('tr-TR') })} placeholder="..." />
+        <input 
+          className="uppercase-input" 
+          {...register('description')} 
+          placeholder="..." 
+        />
       </div>
 
-      <div style={{ display: 'flex', gap: '15px', marginTop: '20px' }}>
-        <button type="submit" className="btn btn-primary" style={{ flex: 1, height: '50px' }}>
+      <div className="flex gap-4 mt-5">
+        <button type="submit" className="btn btn-primary flex-1 h-[50px]">
           <FiCheck /> {editingId ? 'GÜNCELLE' : 'DEPARTMANI KAYDET'}
         </button>
-        <button type="button" className="btn" style={{ flex: 0.5, background: '#e2e8f0', height: '50px' }} onClick={onCancel}>İPTAL</button>
+        <button type="button" className="btn bg-slate-200 flex-[0.5] h-[50px]" onClick={onCancel}>İPTAL</button>
       </div>
     </form>
   );

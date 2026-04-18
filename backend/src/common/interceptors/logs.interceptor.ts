@@ -16,7 +16,7 @@ export class LogsInterceptor implements NestInterceptor {
 
   constructor(private readonly logsService: LogsService) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest();
     const { method, url } = request;
 
@@ -45,7 +45,7 @@ export class LogsInterceptor implements NestInterceptor {
     );
   }
 
-  private sanitizeBody(body: any, depth = 0): any {
+  private sanitizeBody(body: Record<string, unknown> | null | undefined, depth = 0): unknown {
     // ARCH-02: Tight depth limit (max 2) and flat logic for performance
     if (depth > 1) return '[NESTED_CONTENT_TRUNCATED]';
     if (!body || typeof body !== 'object') return body;
@@ -61,17 +61,17 @@ export class LogsInterceptor implements NestInterceptor {
       if (sensitiveFields.some((field) => key.toLowerCase().includes(field.toLowerCase()))) {
         sanitized[key] = '********';
       } else if (typeof sanitized[key] === 'object' && sanitized[key] !== null) {
-        sanitized[key] = this.sanitizeBody(sanitized[key], depth + 1);
+        sanitized[key] = this.sanitizeBody(sanitized[key] as Record<string, unknown>, depth + 1);
       }
     }
     return sanitized;
   }
 
-  private async saveLog(request: any, status: string, responseData: any) {
+  private async saveLog(request: { method: string, url: string, user?: { id?: number, sub?: number, username?: string, fullName?: string, full_name?: string }, ip?: string, body?: unknown }, status: string, responseData: unknown) {
     try {
       const { method, url, user, ip, body } = request;
 
-      const userId = user?.id || user?.sub || null;
+      const userId = user?.id || user?.sub || undefined;
       const username = user?.username || 'SYSTEM';
       const fullName = user?.fullName || user?.full_name || '';
 
@@ -79,13 +79,14 @@ export class LogsInterceptor implements NestInterceptor {
       const moduleName = (parts[0] || 'SYSTEM').toUpperCase();
       const action = `${method} ${url}`;
 
-      const cleanBody = this.sanitizeBody(body);
+      const cleanBody = this.sanitizeBody(body as Record<string, unknown>);
 
       let responseSummary = 'OK';
       if (status === 'ERROR') {
+        const errorData = responseData as { message?: string, response?: { message?: string } } | undefined;
         responseSummary =
-          responseData?.message ||
-          responseData?.response?.message ||
+          errorData?.message ||
+          errorData?.response?.message ||
           String(responseData) ||
           'REQUEST_FAILED';
       }

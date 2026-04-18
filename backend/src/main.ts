@@ -40,6 +40,7 @@ async function bootstrap() {
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
+    exposedHeaders: ['X-CSRF-TOKEN'], // SEC-03: Allow frontend to see the CSRF token
   });
 
   // Global validation pipe

@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { FiSearch, FiBell, FiHelpCircle, FiChevronRight, FiCommand, FiUser, FiZap } from 'react-icons/fi';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { FiSearch, FiBell, FiHelpCircle, FiChevronRight, FiCommand, FiZap, FiMenu } from 'react-icons/fi';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getAllNavItems } from '../config/navigation';
 
-export default function Navbar() {
+export default function Navbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -17,21 +17,18 @@ export default function Navbar() {
     ? pathSegments[0].charAt(0).toUpperCase() + pathSegments[0].slice(1) 
     : 'Dashboard';
 
-  const allItems = getAllNavItems();
-  const filteredItems = searchQuery.trim() === '' 
-    ? [] 
-    : allItems.filter(item => 
-        item.label.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        item.keywords?.some(k => k.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
+  const allItems = useMemo(() => getAllNavItems(), []);
+  const filteredItems = useMemo(() => {
+    if (searchQuery.trim() === '') return [];
+    const q = searchQuery.toLowerCase();
+    return allItems.filter(item => 
+      item.label.toLowerCase().includes(q) || 
+      item.keywords?.some(k => k.toLowerCase().includes(q))
+    );
+  }, [searchQuery, allItems]);
 
+  // P1-5: Global keyboard shortcuts (always active)
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setIsSearchOpen(false);
-      }
-    };
-
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
         e.preventDefault();
@@ -42,14 +39,21 @@ export default function Navbar() {
         setIsSearchOpen(false);
       }
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // P1-5: Click-outside only when search is open
+  useEffect(() => {
+    if (!isSearchOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isSearchOpen]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,49 +69,25 @@ export default function Navbar() {
     : 'U';
 
   return (
-    <header className="navbar glass-panel" style={{ 
-      height: 'var(--navbar-height)',
-      position: 'fixed',
-      top: 0,
-      right: 0,
-      left: 0,
-      marginLeft: 'var(--sidebar-width)',
-      zIndex: 90,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '0 40px',
-      borderBottom: '1px solid var(--border)',
-      background: 'rgba(255, 255, 255, 0.7)',
-      backdropFilter: 'blur(12px)',
-      boxShadow: 'none'
-    }}>
-      <div className="navbar-left" style={{ display: 'flex', alignItems: 'center', gap: '40px', flex: 1 }}>
-        <div className="nav-breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span className="breadcrumb-root" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)' }}>Sistem</span>
-          <FiChevronRight className="breadcrumb-separator" size={10} style={{ opacity: 0.3 }} />
-          <span className="breadcrumb-current" style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>{currentPath}</span>
+    <header className="navbar" style={{ marginLeft: 'var(--sidebar-w)' }}>
+      <div className="navbar-left">
+        <button className="nav-action-btn mr-4" onClick={onToggleSidebar} title="Menüyü Daralt/Genişlet">
+          <FiMenu size={20} />
+        </button>
+        <div className="nav-breadcrumb">
+          <span className="breadcrumb-root text-[13px] font-semibold text-[var(--text-muted)]">Sistem</span>
+          <FiChevronRight className="breadcrumb-separator opacity-30" size={10} />
+          <span className="breadcrumb-current text-sm font-bold text-[var(--text-primary)]">{currentPath}</span>
         </div>
 
-        <div className="navbar-search-container" ref={searchRef} style={{ 
-          position: 'relative', 
-          maxWidth: '480px', 
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center'
-        }}>
-          <div style={{
-            position: 'absolute',
-            left: '16px',
-            display: 'flex',
-            color: 'var(--text-muted)'
-          }}>
+        <div className="navbar-search-container relative max-w-[480px] w-full flex items-center" ref={searchRef}>
+          <div className="absolute left-4 flex text-[var(--text-muted)]">
             <FiSearch size={16} />
           </div>
-          <form onSubmit={handleSearchSubmit} style={{ flex: 1 }}>
+          <form onSubmit={handleSearchSubmit} className="flex-1">
             <input 
               type="text" 
-              className="navbar-search-input"
+              className="navbar-search-input w-full py-3 pl-11 pr-4 rounded-2xl border border-[var(--border)] bg-slate-100/50 text-sm font-semibold transition-colors"
               placeholder="Komutları ara... ( / )" 
               value={searchQuery}
               autoComplete="off"
@@ -116,74 +96,33 @@ export default function Navbar() {
                 setIsSearchOpen(true);
               }}
               onFocus={() => setIsSearchOpen(true)}
-              style={{
-                width: '100%',
-                padding: '12px 16px 12px 44px',
-                borderRadius: '16px',
-                border: '1px solid var(--border)',
-                background: 'rgba(241, 245, 249, 0.5)',
-                fontSize: '14px',
-                fontWeight: 600,
-                transition: 'var(--transition)'
-              }}
             />
           </form>
-          <div style={{
-            position: 'absolute',
-            right: '12px',
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            padding: '4px 8px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <FiCommand size={10} style={{ opacity: 0.4 }} />
-            <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)' }}>K</span>
+          <div className="absolute right-3 bg-[var(--surface)] border border-[var(--border)] py-1 px-2 rounded-lg flex items-center gap-1 shadow-sm">
+            <FiCommand size={10} className="opacity-40" />
+            <span className="text-[10px] font-extrabold text-[var(--text-muted)]">K</span>
           </div>
           
           {isSearchOpen && searchQuery.trim() !== '' && (
-            <div className="glass-panel animate-in" style={{ 
-              position: 'absolute', 
-              top: '56px', 
-              left: 0, 
-              width: '100%', 
-              zIndex: 1000, 
-              padding: '16px',
-              maxHeight: '440px',
-              overflowY: 'auto',
-              borderRadius: '24px',
-              boxShadow: 'var(--shadow-lg)'
-            }}>
+            <div className="glass-panel animate-in absolute top-14 left-0 w-full z-[1000] p-4 max-h-[440px] overflow-y-auto rounded-3xl shadow-lg">
               {/* NAVİGASYON SONUÇLARI */}
               {filteredItems.length > 0 && (
-                <div style={{ marginBottom: '20px' }}>
-                  <p style={{ fontSize: '11px', fontWeight: 800, color: 'var(--primary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="mb-5">
+                  <p className="text-[11px] font-extrabold text-[var(--primary)] mb-2.5 uppercase tracking-wide flex items-center gap-2">
                     <FiZap size={14} /> Modüller
                   </p>
                   {filteredItems.map(item => (
                     <div 
                       key={item.to} 
-                      className="nav-link" 
-                      style={{ 
-                        cursor: 'pointer', 
-                        borderRadius: '12px', 
-                        padding: '10px 14px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        transition: 'var(--transition)'
-                      }}
+                      className="nav-link cursor-pointer rounded-xl py-2.5 px-3.5 flex items-center gap-3 transition-colors hover:bg-slate-50"
                       onClick={() => {
                         navigate(item.to);
                         setSearchQuery('');
                         setIsSearchOpen(false);
                       }}
                     >
-                      <div style={{ color: 'var(--primary)', display: 'flex' }}>{item.icon}</div>
-                      <span style={{ fontSize: '13px', fontWeight: 700 }}>{item.label}</span>
+                      <div className="text-[var(--primary)] flex">{item.icon}</div>
+                      <span className="text-[13px] font-bold">{item.label}</span>
                     </div>
                   ))}
                 </div>
@@ -191,7 +130,7 @@ export default function Navbar() {
 
               {/* HIZLI AKSİYONLAR */}
               <div>
-                <p style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Global Arama</p>
+                <p className="text-[11px] font-extrabold text-[var(--text-muted)] mb-2.5 uppercase tracking-wide">Global Arama</p>
                 {[
                   { label: 'Ürünlerde ara', path: '/items' },
                   { label: 'Carilerde ara', path: '/parties' },
@@ -199,14 +138,13 @@ export default function Navbar() {
                 ].map(action => (
                   <div 
                      key={action.path}
-                     className="nav-link" 
-                     style={{ cursor: 'pointer', borderRadius: '12px', padding: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}
+                     className="nav-link cursor-pointer rounded-xl p-3 flex items-center gap-3 hover:bg-slate-50"
                      onClick={() => { navigate(`${action.path}?search=${searchQuery}`); setSearchQuery(''); setIsSearchOpen(false); }}
                   >
-                    <div style={{ width: '28px', height: '28px', background: 'var(--surface-container)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="w-7 h-7 bg-[var(--surface-container)] rounded-lg flex items-center justify-center">
                       <FiSearch size={12} />
                     </div>
-                    <span style={{ fontSize: '13px', fontWeight: 500 }}><strong>"{searchQuery}"</strong> {action.label}</span>
+                    <span className="text-[13px] font-medium"><strong>"{searchQuery}"</strong> {action.label}</span>
                   </div>
                 ))}
               </div>
@@ -215,29 +153,23 @@ export default function Navbar() {
         </div>
       </div>
 
-      <div className="navbar-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        <div className="nav-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingRight: '16px', borderRight: '1px solid var(--border)' }}>
-          <button className="nav-action-btn" title="Yardım" style={{ 
-            background: 'transparent', border: 'none', color: 'var(--text-muted)', padding: '10px', borderRadius: '12px', cursor: 'pointer', transition: '0.2s'
-          }}>
+      <div className="navbar-right flex items-center gap-4">
+        <div className="nav-actions flex items-center gap-2 pr-4 border-r border-[var(--border)]">
+          <button className="nav-action-btn bg-transparent border-none text-[var(--text-muted)] p-2.5 rounded-xl cursor-pointer transition-colors hover:text-[var(--primary)]" title="Yardım">
             <FiHelpCircle size={20} />
           </button>
-          <button className="nav-action-btn" title="Bildirimler" style={{ 
-            background: 'var(--surface)', border: '1.5px solid var(--border)', color: 'var(--text-primary)', padding: '10px', borderRadius: '14px', cursor: 'pointer', transition: '0.2s', position: 'relative'
-          }}>
+          <button className="nav-action-btn relative bg-[var(--surface)] border-[1.5px] border-[var(--border)] text-[var(--text-primary)] p-2.5 rounded-[14px] cursor-pointer transition-colors hover:border-[var(--primary)]" title="Bildirimler">
             <FiBell size={20} />
-            <div style={{ position: 'absolute', top: '10px', right: '11px', width: '8px', height: '8px', background: 'var(--error)', borderRadius: '50%', border: '2px solid white' }}></div>
+            <div className="absolute top-2.5 right-[11px] w-2 h-2 bg-[var(--error)] rounded-full border-2 border-white"></div>
           </button>
         </div>
         
-        <div className="nav-user-info" style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '8px' }}>
-          <div className="user-meta" style={{ textAlign: 'right' }}>
-            <p className="user-meta-name" style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.2 }}>{user?.fullName || 'Yönetici'}</p>
-            <p className="user-meta-role" style={{ fontSize: '10px', fontWeight: 800, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Aktif Oturum</p>
+        <div className="nav-user-info flex items-center gap-3 pl-2">
+          <div className="user-meta text-right">
+            <p className="user-meta-name text-[13px] font-extrabold text-[var(--text-primary)] leading-tight">{user?.fullName || 'Yönetici'}</p>
+            <p className="user-meta-role text-[10px] font-extrabold text-[var(--success)] uppercase tracking-wide">Aktif Oturum</p>
           </div>
-          <div className="nav-user-avatar" style={{ 
-            width: '42px', height: '42px', background: 'var(--primary-gradient)', color: 'white', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '15px', boxShadow: '0 4px 12px var(--primary-glow)'
-          }}>
+          <div className="nav-user-avatar w-[42px] h-[42px] bg-[var(--primary-gradient)] text-white rounded-[15px] flex items-center justify-center font-extrabold text-[15px] shadow-[0_4px_12px_var(--primary-glow)]">
             {initials}
           </div>
         </div>

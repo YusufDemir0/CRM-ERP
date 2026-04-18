@@ -13,6 +13,7 @@ exports.TransactionsQueryDto = exports.CreateTransactionDto = exports.UpdateAcco
 const class_validator_1 = require("class-validator");
 const pagination_dto_1 = require("../../../common/dto/pagination.dto");
 const class_transformer_1 = require("class-transformer");
+const decimal_js_1 = require("decimal.js");
 class CreateCurrencyDto {
 }
 exports.CreateCurrencyDto = CreateCurrencyDto;
@@ -101,9 +102,8 @@ __decorate([
 ], CreateAccountDto.prototype, "currencyId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? new decimal_js_1.Decimal(value) : undefined),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], CreateAccountDto.prototype, "criticalLimit", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -135,9 +135,8 @@ __decorate([
 ], UpdateAccountDto.prototype, "ibanName", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(({ value }) => value ? new decimal_js_1.Decimal(value) : undefined),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], UpdateAccountDto.prototype, "criticalLimit", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),

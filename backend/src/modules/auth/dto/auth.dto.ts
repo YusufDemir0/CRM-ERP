@@ -44,3 +44,23 @@ export class RegisterDto {
   @Type(() => Number)
   departmentId?: number;
 }
+
+export class ForgotPasswordDto {
+  @IsEmail({}, { message: 'Geçersiz email adresi' })
+  @IsNotEmpty({ message: 'Email zorunludur' })
+  email: string;
+}
+
+export class ChangePasswordDto {
+  @IsString()
+  @IsNotEmpty({ message: 'Mevcut şifre zorunludur' })
+  currentPassword: string;
+
+  @IsString()
+  @IsNotEmpty({ message: 'Yeni şifre zorunludur' })
+  @MinLength(8, { message: 'Yeni şifre en az 8 karakter olmalıdır' })
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/, {
+    message: 'Yeni şifre en az bir büyük harf, bir küçük harf ve bir rakam içermelidir',
+  })
+  newPassword: string;
+}

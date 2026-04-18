@@ -66,6 +66,16 @@ __decorate([
     __metadata("design:type", decimal_js_1.Decimal)
 ], ProductionOrder.prototype, "totalCost", void 0);
 __decorate([
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'labor_cost', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
+], ProductionOrder.prototype, "laborCost", void 0);
+__decorate([
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'overhead_cost', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
+], ProductionOrder.prototype, "overheadCost", void 0);
+__decorate([
     (0, typeorm_1.Column)({ name: 'start_date', type: 'date', nullable: true }),
     __metadata("design:type", Object)
 ], ProductionOrder.prototype, "startDate", void 0);

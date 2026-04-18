@@ -44,6 +44,14 @@ export class ProductionOrder extends BaseEntity {
   @Column({ name: 'total_cost', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
   totalCost: Decimal;
 
+  @Transform(({ value }) => value ? String(value) : value)
+  @Column({ name: 'labor_cost', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
+  laborCost: Decimal;
+
+  @Transform(({ value }) => value ? String(value) : value)
+  @Column({ name: 'overhead_cost', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
+  overheadCost: Decimal;
+
   @Column({ name: 'start_date', type: 'date', nullable: true })
   startDate: string | null;
 

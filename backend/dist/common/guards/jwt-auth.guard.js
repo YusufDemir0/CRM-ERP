@@ -8,25 +8,16 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.JwtAuthGuard = void 0;
 const common_1 = require("@nestjs/common");
 const passport_1 = require("@nestjs/passport");
 const core_1 = require("@nestjs/core");
-const typeorm_1 = require("@nestjs/typeorm");
-const typeorm_2 = require("typeorm");
-const user_entity_1 = require("../../modules/auth/entities/user.entity");
 const public_decorator_1 = require("../decorators/public.decorator");
-const cache_manager_1 = require("@nestjs/cache-manager");
 let JwtAuthGuard = class JwtAuthGuard extends (0, passport_1.AuthGuard)('jwt') {
-    constructor(reflector, cacheManager, userRepo) {
+    constructor(reflector) {
         super();
         this.reflector = reflector;
-        this.cacheManager = cacheManager;
-        this.userRepo = userRepo;
     }
     async canActivate(context) {
         const isPublic = this.reflector.getAllAndOverride(public_decorator_1.IS_PUBLIC_KEY, [
@@ -36,25 +27,8 @@ let JwtAuthGuard = class JwtAuthGuard extends (0, passport_1.AuthGuard)('jwt') {
         if (isPublic) {
             return true;
         }
-        const activated = await super.canActivate(context);
-        if (!activated) {
-            return false;
-        }
-        const request = context.switchToHttp().getRequest();
-        const user = request.user;
-        if (user && user.sub) {
-            const cacheKey = `user_version_${user.sub}`;
-            let dbVersion = await this.cacheManager.get(cacheKey);
-            if (dbVersion === undefined || dbVersion === null) {
-                const dbUser = await this.userRepo.findOne({ where: { id: user.sub }, select: ['tokenVersion'] });
-                dbVersion = dbUser?.tokenVersion || 0;
-                await this.cacheManager.set(cacheKey, dbVersion, 300000);
-            }
-            if (user.tokenVersion !== dbVersion) {
-                throw new common_1.UnauthorizedException('Oturumunuz sonlandırılmış. Lütfen tekrar giriş yapın.');
-            }
-        }
-        return true;
+        const result = await super.canActivate(context);
+        return result;
     }
     handleRequest(err, user, info) {
         if (err || !user) {
@@ -66,8 +40,6 @@ let JwtAuthGuard = class JwtAuthGuard extends (0, passport_1.AuthGuard)('jwt') {
 exports.JwtAuthGuard = JwtAuthGuard;
 exports.JwtAuthGuard = JwtAuthGuard = __decorate([
     (0, common_1.Injectable)(),
-    __param(1, (0, common_1.Inject)(cache_manager_1.CACHE_MANAGER)),
-    __param(2, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
-    __metadata("design:paramtypes", [core_1.Reflector, Object, typeorm_2.Repository])
+    __metadata("design:paramtypes", [core_1.Reflector])
 ], JwtAuthGuard);
 //# sourceMappingURL=jwt-auth.guard.js.map

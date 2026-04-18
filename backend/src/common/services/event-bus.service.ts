@@ -4,55 +4,50 @@ import { filter, map } from 'rxjs/operators';
 
 export interface InternalEvent {
   type: string;
-  payload: any;
-  metadata?: any;
+  payload: unknown;
+  metadata?: unknown;
 }
 
 @Injectable()
 export class InternalEventBus {
   private readonly logger = new Logger(InternalEventBus.name);
   private readonly bus$ = new Subject<InternalEvent>();
-  private readonly handlers = new Map<string, Array<(payload: any) => Promise<void>>>();
+  private readonly handlers = new Map<string, Array<(payload: unknown) => Promise<void>>>();
 
   /**
    * Emit an event to the bus. If it's a critical domain event, use emitSync.
    */
-  emit(type: string, payload: any, metadata?: any) {
+  emit(type: string, payload: unknown, metadata?: unknown) {
     this.logger.debug(`Event emitted (Async): ${type}`);
     this.bus$.next({ type, payload, metadata });
   }
 
-  /**
-   * Emit an event and AWAIT all registered handlers.
-   * Useful for transactional integrity across modules.
-   */
-  async emitSync(type: string, payload: any, metadata?: any): Promise<void> {
-    this.logger.debug(`Event emitted (Sync): ${type}`);
-    
-    // Still push to the async bus for logging or multi-casting trackers
-    this.bus$.next({ type, payload, metadata });
 
-    const typeHandlers = this.handlers.get(type);
-    if (typeHandlers && typeHandlers.length > 0) {
-      // Execute all handlers in parallel and wait for them
-      await Promise.all(typeHandlers.map(handler => handler(payload)));
-    }
+  /**
+   * Subscribe to a specific event type (Synchronous)
+   */
+  subscribeSync<T = unknown>(type: string, handler: (payload: T) => Promise<void>) {
+    const handlers = this.handlers.get(type) || [];
+    handlers.push(handler as (payload: unknown) => Promise<void>);
+    this.handlers.set(type, handlers);
   }
 
   /**
-   * Register a synchronous handler that will be awaited by emitSync
+   * Emit an event synchronously. Awaits all handlers.
    */
-  subscribeSync(type: string, handler: (payload: any) => Promise<void>) {
-    if (!this.handlers.has(type)) {
-      this.handlers.set(type, []);
+  async emitSync(type: string, payload: unknown, metadata?: unknown): Promise<void> {
+    this.logger.debug(`Event emitted (Sync): ${type}`);
+    const handlers = this.handlers.get(type) || [];
+    for (const handler of handlers) {
+      await handler(payload);
     }
-    this.handlers.get(type)!.push(handler);
+    this.bus$.next({ type, payload, metadata });
   }
 
   /**
    * Subscribe to a specific event type (Async RxJS)
    */
-  on<T = any>(type: string): Observable<T> {
+  on<T = unknown>(type: string): Observable<T> {
     return this.bus$.pipe(
       filter(event => event.type === type),
       map(event => event.payload as T)

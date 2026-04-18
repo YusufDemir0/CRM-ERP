@@ -1,15 +1,21 @@
-import React, { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { dashboardAPI } from '../../services/api';
 import { 
-  FiActivity, FiArrowUpRight, FiClock, FiCalendar, 
+  FiActivity, FiArrowUpRight, FiArrowDownRight,
   FiDollarSign, FiZap, FiTarget,
-  FiShoppingBag, FiInfo, FiTrendingUp, FiCheckCircle
+  FiShoppingBag, FiTrendingUp, FiCheckCircle,
+  FiUsers, FiBox, FiShoppingCart, FiCalendar
 } from 'react-icons/fi';
 import dayjs from 'dayjs';
+import 'dayjs/locale/tr';
 import { Decimal } from 'decimal.js';
+import { queryKeys } from '../../services/queryKeys';
+import { formatCurrency, calculateTrend } from '../../utils/formatters';
+
+dayjs.locale('tr');
 
 interface DashboardStats {
   revenue: number;
@@ -51,17 +57,18 @@ const motivationQuotes: Record<string, string[]> = {
 export default function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [hoveredKpi, setHoveredKpi] = useState<number | null>(null);
   
   const { data, isLoading: loading } = useQuery({
-    queryKey: ['dashboard-summary'],
-    queryFn: async () => {
-      const response = await dashboardAPI.getSummary();
+    queryKey: queryKeys.dashboard.summary,
+    queryFn: async ({ signal }) => {
+      const response = await dashboardAPI.getSummary({ signal });
       return response.data as DashboardData;
     }
   });
 
-  const { progress, quote, gradient } = useMemo(() => {
-    if (!data) return { progress: 0, quote: motivationQuotes['0-20'][0], gradient: 'var(--border)' };
+  const { progress, quote } = useMemo(() => {
+    if (!data) return { progress: 0, quote: motivationQuotes['0-20'][0] };
 
     let p = 0;
     const thisMonthRevenue = new Decimal(data.thisMonth?.revenue || 0);
@@ -74,17 +81,15 @@ export default function DashboardPage() {
     }
 
     let b = '0-20';
-    let g = 'var(--secondary)';
-
-    if (p < 20) { b = '0-20'; g = 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)'; }
-    else if (p < 50) { b = '20-40'; g = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'; }
-    else if (p < 100) { b = '60-80'; g = 'var(--primary-gradient)'; }
-    else { b = '110+'; g = 'linear-gradient(135deg, #10b981 0%, #059669 100%)'; }
+    if (p < 20) b = '0-20';
+    else if (p < 50) b = '20-40';
+    else if (p < 100) b = '60-80';
+    else b = '110+';
 
     const quotes = motivationQuotes[b] || motivationQuotes['110+'];
     const q = quotes[Math.floor(Math.random() * quotes.length)];
 
-    return { progress: p, quote: q, gradient: g };
+    return { progress: p, quote: q };
   }, [data]);
 
   if (loading || !data) {
@@ -95,218 +100,234 @@ export default function DashboardPage() {
     );
   }
 
-  const formatCurrency = (val: number | string | null | undefined) => {
-    const num = new Decimal(val || 0);
-    return new Intl.NumberFormat('tr-TR', { 
-      style: 'currency', 
-      currency: 'TRY',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(num.toNumber());
-  };
-
-  const calculateTrend = (current: number, previous: number) => {
-    if (!previous || previous === 0) return current > 0 ? 100 : 0;
-    return Math.round(((current - previous) / previous) * 100);
-  };
-
   return (
-    <div className="animate-in px-5 pb-16 max-w-[1600px] mx-auto">
+    <div className="animate-in px-8 pb-16 max-w-[1600px] mx-auto space-y-8 pt-4">
       
-      {/* 🟠 TOP BAR: QUICK ACTIONS */}
-      <div className="my-5 mb-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* 🔹 HEADER */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">Dashboard</h1>
+          <p className="text-slate-500 font-medium mt-1">Hoş geldiniz, {user?.fullName}. İşte bugünün özeti.</p>
+        </div>
+        <div className="text-sm font-bold text-slate-400 uppercase tracking-widest bg-white border border-slate-100 px-4 py-2 rounded-xl shadow-sm">
+          {dayjs().format('DD MMMM YYYY')}
+        </div>
+      </div>
+
+      {/* 🔹 ROW 1: QUICK ACTIONS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {[
-          { label: 'YENİ CARİ EKLE', icon: <FiActivity />, path: '/parties', color: 'primary', desc: 'Müşteri veya Tedarikçi' },
-          { label: 'YENİ ÜRÜN EKLE', icon: <FiZap />, path: '/items', color: '[#8b5cf6]', desc: 'Stok ve Hammadde' },
-          { label: 'SATIŞ YAP', icon: <FiArrowUpRight />, path: '/sales', color: 'success', desc: 'Hızlı Satış Ekranı' },
-          { label: 'HESAP HAREKETİ', icon: <FiDollarSign />, path: '/transactions', color: 'warning', desc: 'Ödeme veya Tahsilat' },
+          { label: 'YENİ CARİ EKLE', icon: <FiUsers />, path: '/parties', color: 'text-blue-500', bg: 'bg-blue-50', hover: 'hover:border-blue-200', desc: 'Müşteri veya Tedarikçi' },
+          { label: 'YENİ ÜRÜN EKLE', icon: <FiBox />, path: '/items', color: 'text-indigo-500', bg: 'bg-indigo-50', hover: 'hover:border-indigo-200', desc: 'Stok ve Hammadde' },
+          { label: 'SATIŞ YAP', icon: <FiShoppingCart />, path: '/sales', color: 'text-emerald-500', bg: 'bg-emerald-50', hover: 'hover:border-emerald-200', desc: 'Hızlı Satış Ekranı' },
+          { label: 'HESAP HAREKETİ', icon: <FiActivity />, path: '/transactions', color: 'text-amber-500', bg: 'bg-amber-50', hover: 'hover:border-amber-200', desc: 'Ödeme veya Tahsilat' },
         ].map((act, i) => (
           <div 
             key={i} 
-            className="group p-6 bg-white border border-surface-container rounded-3xl shadow-soft hover:shadow-premium hover:-translate-y-1 transition-all cursor-pointer flex items-center gap-4"
+            className={`group p-5 bg-white border border-slate-100 rounded-3xl shadow-sm ${act.hover} transition-colors cursor-pointer flex items-center gap-4`}
             onClick={() => navigate(act.path)}
           >
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl transition-colors ${
-              act.color === 'primary' ? 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white' : 
-              act.color === 'success' ? 'bg-success/10 text-success group-hover:bg-success group-hover:text-white' :
-              act.color === 'warning' ? 'bg-warning/10 text-warning group-hover:bg-warning group-hover:text-white' :
-              'bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white'
-            }`}>
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-colors ${act.bg} ${act.color}`}>
               {act.icon}
             </div>
             <div>
-              <div className="font-black text-sm text-on-surface tracking-tight leading-tight">{act.label}</div>
-              <div className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider mt-0.5">{act.desc}</div>
+              <div className="font-black text-sm text-slate-800 tracking-tight leading-tight">{act.label}</div>
+              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{act.desc}</div>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-10 mb-10">
+      {/* 🔹 ROW 2: MONTHLY COMPARISON CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         
-        {/* 🟡 PROGRESS & PERFORMANCE SECTION */}
-        <div className="xl:col-span-2 relative overflow-hidden p-8 sm:p-12 rounded-4xl text-white shadow-2xl flex flex-col justify-center min-h-[320px]" style={{ background: gradient }}>
-          <div className="absolute -top-12 -right-12 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+        {/* GEÇEN AY */}
+        <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-6">
+          <div className="flex items-center gap-3 mb-6 opacity-80">
+            <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100">
+              <FiCalendar />
+            </div>
+            <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">Geçen Ay</h2>
+          </div>
           
-          <div className="relative z-10 flex flex-col gap-8">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-              <div>
-                <div className="inline-block px-4 py-1.5 rounded-full bg-white/20 border border-white/30 text-[10px] font-black uppercase tracking-widest mb-4">
-                  AYLIK PERFORMANS SKORU
-                </div>
-                <h3 className="text-3xl sm:text-5xl font-black tracking-tighter leading-tight">
-                  Mükemmel Gidiyorsun, <br />İşte Bu Ayın Özeti!
-                </h3>
+          <div className="flex flex-col gap-3">
+            {[
+              { label: 'SATIŞ ADEDİ', value: data?.lastMonth?.count || 0, isMoney: false },
+              { label: 'AYLIK CİRO', value: data?.lastMonth?.revenue || 0, isMoney: true },
+              { label: 'TAHMİNİ KAR', value: data?.lastMonth?.profit || 0, isMoney: true },
+            ].map((kpi, i) => (
+              <div 
+                key={i} 
+                className={`flex justify-between items-center p-4 rounded-2xl bg-slate-50/50 border transition-all duration-300 ${hoveredKpi === i ? 'border-slate-300 bg-slate-100/50' : 'border-slate-100'}`}
+                onMouseEnter={() => setHoveredKpi(i)}
+                onMouseLeave={() => setHoveredKpi(null)}
+              >
+                <span className={`text-[10px] font-black uppercase tracking-widest transition-colors duration-300 ${hoveredKpi === i ? 'text-slate-600' : 'text-slate-400'}`}>{kpi.label}</span>
+                <span className={`text-lg font-black tabular-nums transition-all duration-300 origin-right ${hoveredKpi === i ? 'text-slate-800 scale-125' : 'text-slate-500'}`}>
+                  {kpi.isMoney ? formatCurrency(kpi.value) : kpi.value}
+                </span>
               </div>
-              <div className="text-left sm:text-right">
-                <div className="text-6xl sm:text-8xl font-black tracking-tighter leading-none pulse-slow flex items-baseline">
-                  <span className="text-3xl sm:text-4xl opacity-50 mr-1">%</span>{progress}
-                </div>
-                <div className="text-[10px] sm:text-xs font-black uppercase tracking-widest opacity-70 mt-2">HEDEF TAMAMLANMA</div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="h-4 bg-white/15 rounded-full overflow-hidden border border-white/10 p-0.5">
-                <div 
-                  className="h-full bg-white rounded-full shadow-[0_0_20px_rgba(255,255,255,0.5)] transition-all duration-[2000ms] ease-out-back relative"
-                  style={{ width: `${Math.min(progress, 100)}%` }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer"></div>
-                </div>
-              </div>
-              
-              <p className="text-lg sm:text-xl font-medium italic opacity-90 leading-relaxed max-w-2xl">
-                "{quote}"
-              </p>
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* 🟢 MINI KPI SECTION */}
-        <div className="flex flex-col gap-5">
+        {/* BU AY */}
+        <div className="bg-white border border-blue-100 rounded-3xl shadow-[0_8px_30px_rgb(59,130,246,0.08)] p-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-blue-50/50 rounded-full blur-3xl -z-10"></div>
+          
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500 border border-blue-100">
+                <FiActivity />
+              </div>
+              <h2 className="text-xs font-black uppercase tracking-widest text-blue-600">Bu Ay</h2>
+            </div>
+          </div>
+          
+          <div className="flex flex-col gap-3">
+            {[
+              { label: 'SATIŞ ADEDİ', current: data?.thisMonth?.count || 0, last: data?.lastMonth?.count || 0, isMoney: false },
+              { label: 'AYLIK CİRO', current: data?.thisMonth?.revenue || 0, last: data?.lastMonth?.revenue || 0, isMoney: true },
+              { label: 'TAHMİNİ KAR', current: data?.thisMonth?.profit || 0, last: data?.lastMonth?.profit || 0, isMoney: true },
+            ].map((kpi, i) => {
+              const trend = calculateTrend(kpi.current, kpi.last);
+              const isPositive = trend >= 0;
+              return (
+                <div 
+                  key={i} 
+                  className={`flex justify-between items-center p-4 rounded-2xl bg-white border shadow-sm transition-all duration-300 cursor-default ${hoveredKpi === i ? 'border-blue-300 shadow-md' : 'border-slate-100 hover:border-blue-200'}`}
+                  onMouseEnter={() => setHoveredKpi(i)}
+                  onMouseLeave={() => setHoveredKpi(null)}
+                >
+                  <span className={`text-[10px] font-black uppercase tracking-widest transition-colors duration-300 ${hoveredKpi === i ? 'text-blue-600' : 'text-slate-600'}`}>{kpi.label}</span>
+                  <div className="flex items-center gap-4">
+                    <span className={`text-xl font-black tabular-nums transition-all duration-300 origin-right ${hoveredKpi === i ? 'text-blue-600 scale-125' : 'text-slate-900'}`}>
+                      {kpi.isMoney ? formatCurrency(kpi.current) : kpi.current}
+                    </span>
+                    <div className="w-[4.5rem] flex justify-end">
+                      <div className={`px-2 py-1 rounded-lg text-[9px] font-black flex items-center gap-0.5 border transition-transform duration-300 ${
+                          isPositive ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'
+                        } ${hoveredKpi === i ? 'scale-110 origin-right' : ''}`}>
+                          {isPositive ? <FiArrowUpRight /> : <FiArrowDownRight />}
+                          %{Math.abs(trend)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+      </div>
+
+      {/* 🔹 ROW 3: BENTO SPLIT (PERFORMANCE & MINI KPIS) */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        
+        {/* Performance Widget (Left - 2/3) */}
+        <div className="xl:col-span-2 bg-white border border-slate-100 rounded-3xl p-8 shadow-sm flex flex-col justify-between min-h-[280px]">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8">
+            <div>
+              <div className="inline-block px-3 py-1 rounded-lg bg-slate-50 border border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">
+                AYLIK PERFORMANS SKORU
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-800 leading-tight">
+                Hedefinize ulaşıyor musunuz?
+              </h3>
+            </div>
+            <div className="text-left sm:text-right">
+              <div className="text-5xl sm:text-6xl font-black tracking-tighter text-slate-900 flex items-baseline">
+                <span className="text-2xl sm:text-3xl text-slate-300 mr-1">%</span>{progress}
+              </div>
+              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">HEDEF TAMAMLANMA</div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-slate-800 rounded-full transition-all duration-1000 ease-out relative"
+                style={{ width: `${Math.min(progress, 100)}%` }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"></div>
+              </div>
+            </div>
+            <p className="text-sm font-semibold text-slate-500 italic">
+              "{quote}"
+            </p>
+          </div>
+        </div>
+
+        {/* Mini KPIs (Right - 1/3) */}
+        <div className="flex flex-col gap-4">
            {[
-             { label: 'TOPLAM CARİ', value: data?.totalParties || 0, icon: <FiTarget />, color: 'primary' },
-             { label: 'AKTİF ÜRÜNLER', value: data?.totalItems || 0, icon: <FiCheckCircle />, color: 'success' },
-             { label: 'SİSTEM PERSONELİ', value: data?.totalUsers || 0, icon: <FiActivity />, color: '[#8b5cf6]' },
+             { label: 'TOPLAM CARİ HESAP', value: data?.totalParties || 0, icon: <FiTarget />, color: 'text-blue-500', bg: 'bg-blue-50' },
+             { label: 'AKTİF ÜRÜN ÇEŞİDİ', value: data?.totalItems || 0, icon: <FiCheckCircle />, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+             { label: 'SİSTEM PERSONELİ', value: data?.totalUsers || 0, icon: <FiActivity />, color: 'text-indigo-500', bg: 'bg-indigo-50' },
            ].map((stat, i) => (
-             <div key={i} className="p-6 bg-white border border-surface-container rounded-3xl shadow-soft flex items-center gap-5">
-               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl ${
-                 stat.color === 'primary' ? 'bg-primary/10 text-primary' : 
-                 stat.color === 'success' ? 'bg-success/10 text-success' : 
-                 'bg-blue-100 text-blue-600'
-               }`}>
-                 {stat.icon}
+             <div key={i} className="flex-1 bg-white border border-slate-100 rounded-3xl p-5 shadow-sm flex items-center justify-between">
+               <div className="flex items-center gap-4">
+                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${stat.bg} ${stat.color}`}>
+                   {stat.icon}
+                 </div>
+                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</div>
                </div>
-               <div>
-                 <div className="text-xs font-black text-slate-400 uppercase tracking-widest">{stat.label}</div>
-                 <div className="text-2xl font-black text-on-surface tabular-nums">{stat.value}</div>
-               </div>
+               <div className="text-xl font-black text-slate-800 tabular-nums">{stat.value}</div>
              </div>
            ))}
         </div>
       </div>
 
-      {/* 🟣 KPI CARDS: CIRO, SATIŞ ADEDİ, KAR */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
-        {[
-          { label: 'AYLIK CİRO', current: data?.thisMonth?.revenue || 0, last: data?.lastMonth?.revenue || 0, icon: <FiDollarSign />, isMoney: true, color: 'primary' },
-          { label: 'SATIŞ ADEDİ', current: data?.thisMonth?.count || 0, last: data?.lastMonth?.count || 0, icon: <FiShoppingBag />, isMoney: false, color: '[#8b5cf6]' },
-          { label: 'TAHMİNİ KAR', current: data?.thisMonth?.profit || 0, last: data?.lastMonth?.profit || 0, icon: <FiTrendingUp />, isMoney: true, color: 'success' },
-        ].map((kpi, idx) => {
-          const trend = calculateTrend(kpi.current, kpi.last);
-          return (
-            <div key={idx} className="bg-white p-8 rounded-[2.5rem] border border-surface-container shadow-soft hover:shadow-premium transition-all">
-              <div className="flex justify-between items-start mb-6">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl border ${
-                  kpi.color === 'primary' ? 'bg-primary/5 text-primary border-primary/10' :
-                  kpi.color === 'success' ? 'bg-success/5 text-success border-success/10' :
-                  'bg-blue-50 text-blue-600 border-blue-100'
-                }`}>
-                  {kpi.icon}
-                </div>
-                <div className={`px-3 py-1.5 rounded-xl text-[10px] font-black flex items-center gap-1 ${
-                  trend >= 0 ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
-                }`}>
-                  {trend >= 0 ? <FiArrowUpRight /> : <FiArrowUpRight className="rotate-90" />}
-                  %{Math.abs(trend)}
-                </div>
-              </div>
-              <div className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">{kpi.label}</div>
-              <div className="text-3xl sm:text-4xl font-black text-on-surface tracking-tighter tabular-nums truncate">
-                {kpi.isMoney ? formatCurrency(kpi.current) : kpi.current}
-              </div>
-              <div className="mt-6 pt-6 border-t border-slate-50 flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                <span className="text-slate-300">GEÇEN AY</span>
-                <span className="text-on-surface-variant font-black">
-                  {kpi.isMoney ? formatCurrency(kpi.last) : kpi.last}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* 🔴 RECENT ACTIONS SECTION */}
-      <div className="bg-white p-8 sm:p-10 rounded-4xl border border-surface-container shadow-soft">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-10">
+      {/* 🔹 ROW 4: RECENT ACTIONS */}
+      <div className="bg-white border border-slate-100 rounded-3xl shadow-sm p-8">
+        <div className="flex justify-between items-center mb-8">
           <div>
-            <h3 className="text-2xl font-black tracking-tighter text-on-surface flex items-center gap-3">
-              <FiActivity className="text-3xl text-primary" /> SON TİCARİ HAREKETLER
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-widest mt-1">Sistemdeki en güncel 5 finansal işlem</p>
+            <h3 className="text-lg font-black tracking-tight text-slate-900">Son Finansal Hareketler</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Sistemdeki en güncel 5 işlem</p>
           </div>
           <button 
-            className="h-14 px-8 bg-primary/10 text-primary hover:bg-primary hover:text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"
+            className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
             onClick={() => navigate('/transactions')}
           >
-            Tüm Kayıtları Gör
+            Tümünü Gör <FiArrowUpRight />
           </button>
         </div>
 
-        <div className="space-y-3">
+        <div className="flex flex-col divide-y divide-slate-50">
           {data?.recentActions?.map((t) => (
             <div 
               key={t.id} 
               onClick={() => navigate('/transactions')} 
-              className="group flex flex-col sm:flex-row items-start sm:items-center justify-between p-6 bg-surface-low/50 hover:bg-white rounded-3xl border border-transparent hover:border-surface-container hover:shadow-premium transition-all cursor-pointer"
+              className="group py-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors cursor-pointer -mx-4 px-4 rounded-2xl"
             >
-              <div className="flex items-center gap-6 w-full sm:w-auto">
-                <div className="hidden sm:block text-[10px] font-black text-slate-400 uppercase leading-none text-center">
-                  {dayjs(t.date).format('DD')}<br/>
-                  <span className="text-[8px] opacity-60">{dayjs(t.date).format('MMM')}</span>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 group-hover:text-primary transition-colors">
+                  {t.type === 'in' ? <FiArrowDownRight className="text-emerald-500" /> : <FiArrowUpRight className="text-rose-500" />}
                 </div>
                 <div>
-                  <div className="font-black text-on-surface group-hover:text-primary transition-colors">{t.partyName}</div>
-                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{t.code}</div>
+                  <div className="font-black text-sm text-slate-800">{t.partyName}</div>
+                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+                    {t.code} • {dayjs(t.date).format('DD MMM YYYY')}
+                  </div>
                 </div>
               </div>
               
-              <div className="flex items-center justify-between sm:justify-end gap-10 w-full sm:w-auto mt-4 sm:mt-0">
-                <div className={`px-3 py-1 rounded-lg text-[9px] font-black tracking-widest border ${
-                  t.type === 'in' ? 'bg-success/10 text-success border-success/20' : 'bg-danger/10 text-danger border-danger/20'
+              <div className="flex items-center gap-6">
+                <div className={`px-2 py-1 rounded-md text-[9px] font-black tracking-widest border ${
+                  t.type === 'in' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'
                 }`}>
                   {t.type === 'in' ? 'GİRİŞ' : 'ÇIKIŞ'}
                 </div>
-                <div className={`text-xl font-black tabular-nums tracking-tighter ${
-                  t.type === 'in' ? 'text-success' : 'text-danger'
+                <div className={`text-base font-black tabular-nums tracking-tight min-w-[100px] text-right ${
+                  t.type === 'in' ? 'text-emerald-600' : 'text-slate-900'
                 }`}>
                   {t.type === 'in' ? '+' : '-'}{formatCurrency(t.amount)}
-                </div>
-                <div className="hidden lg:flex items-center gap-2 text-[10px] font-black text-slate-300 uppercase tracking-widest">
-                  <FiCheckCircle className="text-success text-sm" /> TAMAMLANDI
                 </div>
               </div>
             </div>
           ))}
         </div>
       </div>
-      <style>{`
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-      `}</style>
     </div>
   );
 }

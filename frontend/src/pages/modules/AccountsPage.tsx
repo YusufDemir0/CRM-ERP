@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { accountsAPI } from '../../services/api';
 import { 
@@ -12,31 +12,29 @@ import { Account } from '../../types';
 import { DataTable, Column } from '../../components/common/DataTable';
 import { useSort } from '../../hooks/useSort';
 import { Decimal } from 'decimal.js';
-import { PaginationControls } from '../../components/common/PaginationControls';
+import { useDeferredValue } from 'react';
+import { queryKeys } from '../../services/queryKeys';
 
 export default function AccountsPage() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  const deferredSearch = useDeferredValue(searchTerm);
   const [filterTab, setFilterTab] = useState<'active' | 'passive' | 'all'>('active');
   const { openCreate } = useQuickCreateStore();
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'name', order: 'ASC' });
-  const [filters, setFilters] = useState<Record<string, any>>({});
+  const [filters, setFilters] = useState<Record<string, unknown>>({});
 
   const { data: accountsData, isLoading: loading } = useQuery({
-    queryKey: ['accounts', page, limit, searchTerm, filterTab, sort, filters],
-    queryFn: async () => {
+    queryKey: queryKeys.accounts.all({ page, limit, deferredSearch, filterTab, sort, filters }),
+    queryFn: async ({ signal }) => {
       const res = await accountsAPI.getAll({
-        search: searchTerm,
-        page,
-        limit,
+        search: deferredSearch, page, limit,
         state: filterTab === 'all' ? undefined : (filterTab === 'active' ? 1 : 0),
-        sortBy: sort.key,
-        sortOrder: sort.order,
-        ...filters
-      });
+        sortBy: sort.key, sortOrder: sort.order, ...filters
+      }, { signal });
       return res.data;
     }
   });
@@ -61,14 +59,14 @@ export default function AccountsPage() {
   const toggleMutation = useMutation({
     mutationFn: ({ id, state }: { id: number; state: number }) => accountsAPI.toggleState(id, state),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all({}) });
       toast.success("Durum güncellendi");
     },
     onError: () => toast.error("İşlem başarısız oldu.")
   });
 
   const handleFormSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: ['accounts'] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all({}) });
     toast.success("Hesap bilgileri kaydedildi.");
   };
 
@@ -99,19 +97,13 @@ export default function AccountsPage() {
     { 
       header: 'HESAP BİLGİSİ', 
       accessor: (acc) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ 
-            width: '40px', height: '40px', borderRadius: '12px', 
-            background: 'var(--primary-glow)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--primary)',
-            fontSize: '18px'
-          }}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary text-lg">
             <FiCreditCard />
           </div>
           <div>
-            <div style={{ fontWeight: 800, color: 'var(--on-surface)', fontSize: '14px' }}>{acc.name}</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>{acc.bankName || 'NAKİT KASA'}</div>
+            <div className="font-black text-on-surface text-sm">{acc.name}</div>
+            <div className="text-[11px] text-slate-400 font-bold uppercase tracking-tight">{acc.bankName || 'NAKİT KASA'}</div>
           </div>
         </div>
       ),
@@ -119,15 +111,15 @@ export default function AccountsPage() {
     },
     { 
       header: 'BANKA / ŞUBE', 
-      accessor: (acc) => <span style={{ fontWeight: 700, fontSize: '12px', color: 'var(--secondary)', background: 'var(--surface-container)', padding: '4px 10px', borderRadius: '8px' }}>{acc.bankName || 'NAKİT KASA'}</span>,
+      accessor: (acc) => <span className="font-bold text-xs text-secondary bg-surface-container px-3 py-1 rounded-lg uppercase tracking-widest">{acc.bankName || 'NAKİT KASA'}</span>,
       sortKey: 'bankName'
     },
     { 
       header: 'IBAN DETAYI', 
       accessor: (acc) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <FiHash size={12} color="var(--text-muted)" />
-          <span className="tabular-nums" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--on-surface-variant)' }}>{acc.iban || 'BELİRTİLMEMİŞ'}</span>
+        <div className="flex items-center gap-2">
+          <FiHash size={12} className="text-slate-400" />
+          <span className="tabular-nums text-xs font-bold text-on-surface-variant tracking-tighter">{acc.iban || 'BELİRTİLMEMİŞ'}</span>
         </div>
       ),
       sortKey: 'iban'
@@ -137,13 +129,8 @@ export default function AccountsPage() {
       accessor: (acc) => {
         const limit = new Decimal(acc.criticalLimit || 0);
         return (
-          <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-            <span className="tabular-nums" style={{ 
-              fontWeight: 900, 
-              fontSize: '15px',
-              color: limit.lt(0) ? 'var(--error)' : 'var(--on-surface)',
-              letterSpacing: '-0.5px'
-            }}>
+          <div className="text-right flex flex-col items-end">
+            <span className={`tabular-nums font-black text-base tracking-tighter ${limit.lt(0) ? 'text-danger' : 'text-on-surface'}`}>
               {limit.toNumber().toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {acc.currency?.symbol || '₺'}
             </span>
           </div>
@@ -155,26 +142,21 @@ export default function AccountsPage() {
   ];
 
   return (
-    <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+    <div className="animate-in flex flex-col gap-8">
       
       {/* 🔴 HEADER SECTION */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6">
         <div>
-          <div style={{ 
-            display: 'inline-flex', alignItems: 'center', gap: '8px', 
-            background: 'var(--primary-glow)', color: 'var(--primary)', 
-            padding: '6px 14px', borderRadius: '12px', fontSize: '12px', 
-            fontWeight: 800, marginBottom: '16px'
-          }}>
+          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
             <FiBriefcase /> FİNANSAL VARLIK YÖNETİMİ
           </div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '-0.04em', color: 'var(--on-surface)' }}>
-            Kasa & <span style={{ color: 'var(--primary)' }}>Banka Hesapları</span>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-on-surface">
+            Kasa & <span className="text-primary">Banka Hesapları</span>
           </h1>
         </div>
         
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <div style={{ display: 'flex', background: 'var(--surface-container-low)', padding: '4px', borderRadius: '14px', border: '1px solid var(--border)' }}>
+        <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex bg-surface-container-low p-1 rounded-2xl border border-surface-container">
             {[
               { id: 'active', label: 'Aktif', icon: <FiActivity /> },
               { id: 'passive', label: 'Arşiv', icon: <FiArchive /> },
@@ -182,47 +164,24 @@ export default function AccountsPage() {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => { setFilterTab(tab.id as any); setPage(1); }}
-                style={{
-                  height: '36px', padding: '0 16px', borderRadius: '10px', fontSize: '13px', fontWeight: 700,
-                  display: 'flex', alignItems: 'center', gap: '8px', border: 'none', transition: '0.2s',
-                  background: filterTab === tab.id ? 'white' : 'transparent',
-                  color: filterTab === tab.id ? 'var(--primary)' : 'var(--text-muted)',
-                  boxShadow: filterTab === tab.id ? 'var(--shadow-md)' : 'none',
-                  cursor: 'pointer'
-                }}
+                onClick={() => { setFilterTab(tab.id as 'active' | 'passive' | 'all'); setPage(1); }}
+                className={`h-9 px-4 rounded-xl text-xs font-black flex items-center gap-2 transition-colors ${
+                  filterTab === tab.id ? 'bg-white text-primary shadow-premium' : 'text-slate-400 hover:text-slate-600'
+                }`}
               >
                 {tab.icon} {tab.label}
               </button>
             ))}
           </div>
-          <button className="btn btn-primary" style={{ height: '44px', boxShadow: '0 10px 20px var(--primary-glow)' }} onClick={() => {
+          <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
             openCreate('account', { onSuccess: handleFormSuccess });
           }}>
-            <FiPlus size={18} /> Yeni Hesap
+            <FiPlus size={20} /> Yeni Hesap
           </button>
         </div>
       </div>
 
-      {/* 🟠 SEARCH & FILTERS */}
-      <div className="glass-panel" style={{ padding: '20px', borderRadius: '24px', display: 'flex', gap: '20px', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1 }}>
-          <FiSearch style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input 
-            type="text" 
-            placeholder="Hesap adı, banka veya IBAN ile hızlı ara..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ paddingLeft: '48px', height: '52px', border: 'none', background: 'var(--surface-container-low)' }}
-          />
-        </div>
-        <button className="btn btn-secondary" style={{ height: '52px', background: 'white' }}>
-          <FiFilter /> Gelişmiş Filtrele
-        </button>
-      </div>
-
-      {/* 🟡 DATA TABLE SECTION */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div className="flex flex-col gap-4">
         <DataTable<Account>
           data={sortedData}
           columns={columns}
@@ -235,16 +194,16 @@ export default function AccountsPage() {
           onArchive={(acc) => toggleState(acc.id, 1)}
           onRestore={(acc) => toggleState(acc.id, 0)}
           getRowOpacity={(acc) => acc.state === 0 ? 0.5 : 1}
+          
+          // Integrated Search & Pagination
+          search={searchTerm}
+          onSearchChange={(val) => { setSearchTerm(val); setPage(1); }}
+          total={paginationMeta.total}
+          page={page}
+          limit={limit}
+          onPageChange={setPage}
+          placeholder="Hesap adı, banka veya IBAN ile ara..."
         />
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <PaginationControls 
-            meta={paginationMeta} 
-            onPageChange={setPage} 
-            onLimitChange={setLimit} 
-            loading={loading}
-          />
-        </div>
       </div>
     </div>
   );

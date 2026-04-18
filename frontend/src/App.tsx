@@ -1,27 +1,32 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
-import { SettingsProvider } from './context/SettingsContext';
+import { lazy, Suspense } from 'react';
+
+// Layout & Core
 import Layout from './components/Layout';
-import LoginPage from './pages/modules/LoginPage';
-import DashboardPage from './pages/modules/DashboardPage';
-import UsersPage from './pages/modules/UsersPage';
-import SettingsPage from './pages/modules/SettingsPage';
-import { RolesPage } from './pages/modules/RolesPage';
-import DepartmentsPage from "./pages/modules/DepartmentsPage"
-import PartiesPage  from './pages/modules/PartiesPage';
-import ItemsPage from './pages/modules/ItemsPage';
-import {StocksPage} from './pages/modules/StocksPage';
-import SalesPage from './pages/SalesPage';
-import AccountsPage from './pages/modules/AccountsPage';
-import TransactionsPage from './pages/modules/TransactionsPage';
-import {BomsPage} from './pages/modules/BomsPage';
-import {ProductionPage} from './pages/modules/ProductionPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import GlobalLoader from './components/GlobalLoader';
-import NotesPage from './pages/modules/NotesPage';
-import LogsPage from './pages/modules/LogsPage';
-import UnauthorizedPage from './pages/modules/UnauthorizedPage';
+
+// Lazy Loaded Modules
+const LoginPage = lazy(() => import('./pages/modules/LoginPage'));
+const DashboardPage = lazy(() => import('./pages/modules/DashboardPage'));
+const UsersPage = lazy(() => import('./pages/modules/UsersPage'));
+const SettingsPage = lazy(() => import('./pages/modules/SettingsPage'));
+const RolesPage = lazy(() => import('./pages/modules/RolesPage').then(m => ({ default: m.RolesPage })));
+const DepartmentsPage = lazy(() => import('./pages/modules/DepartmentsPage'));
+const PartiesPage = lazy(() => import('./pages/modules/PartiesPage'));
+const ItemsPage = lazy(() => import('./pages/modules/ItemsPage'));
+const StocksPage = lazy(() => import('./pages/modules/StocksPage').then(m => ({ default: m.StocksPage })));
+const SalesPage = lazy(() => import('./pages/SalesPage'));
+const AccountsPage = lazy(() => import('./pages/modules/AccountsPage'));
+const TransactionsPage = lazy(() => import('./pages/modules/TransactionsPage'));
+const BomsPage = lazy(() => import('./pages/modules/BomsPage').then(m => ({ default: m.BomsPage })));
+const ProductionPage = lazy(() => import('./pages/modules/ProductionPage').then(m => ({ default: m.ProductionPage })));
+const NotesPage = lazy(() => import('./pages/modules/NotesPage'));
+const LogsPage = lazy(() => import('./pages/modules/LogsPage'));
+const UnauthorizedPage = lazy(() => import('./pages/modules/UnauthorizedPage'));
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient({
@@ -55,39 +60,46 @@ function AuthNavigationBridge() {
 
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { QuickCreateManager } from './components/common/QuickCreateManager';
+import { initCsrf } from './services/api';
 
 export default function App() {
+  useEffect(() => {
+    // SEC-03: Seed CSRF token on startup
+    initCsrf();
+  }, []);
+
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <SettingsProvider>
-          <AuthProvider>
+        <AuthProvider>
           <BrowserRouter>
             <AuthNavigationBridge />
             <GlobalLoader />
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/unauthorized" element={<UnauthorizedPage />} />
-              <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-                <Route index element={<DashboardPage />} />
-                <Route path="users" element={<UsersPage />} />
-                <Route path="roles" element={<ProtectedRoute allowedRoles={['Admin']}><RolesPage /></ProtectedRoute>} />
-                <Route path="departments" element={<DepartmentsPage />} />
-                <Route path="parties" element={<PartiesPage />} />
-                <Route path="items" element={<ItemsPage />} />
-                <Route path="stocks" element={<StocksPage />} />
-                <Route path="sales" element={<SalesPage />} />
+            <Suspense fallback={<GlobalLoader />}>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/unauthorized" element={<UnauthorizedPage />} />
+                <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+                  <Route index element={<ErrorBoundary><DashboardPage /></ErrorBoundary>} />
+                  <Route path="users" element={<ErrorBoundary><ProtectedRoute requiredPermission="kullanici_goruntuleme"><UsersPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="roles" element={<ErrorBoundary><ProtectedRoute requiredPermission="rol_goruntuleme"><RolesPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="departments" element={<ErrorBoundary><ProtectedRoute requiredPermission="system:manage"><DepartmentsPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="parties" element={<ErrorBoundary><ProtectedRoute requiredPermission="musteri_goruntuleme"><PartiesPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="items" element={<ErrorBoundary><ProtectedRoute requiredPermission="stok_goruntuleme"><ItemsPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="stocks" element={<ErrorBoundary><ProtectedRoute requiredPermission="stok_goruntuleme"><StocksPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="sales" element={<ErrorBoundary><ProtectedRoute requiredPermission="satis_goruntuleme"><SalesPage /></ProtectedRoute></ErrorBoundary>} />
 
-                <Route path="accounts" element={<AccountsPage />} />
-                <Route path="transactions" element={<TransactionsPage />} />
-                <Route path="boms" element={<BomsPage />} />
-                <Route path="production" element={<ProductionPage />} />
-                <Route path="settings" element={<SettingsPage />} />
-                <Route path="logs" element={<ProtectedRoute allowedRoles={['Admin']}><LogsPage /></ProtectedRoute>} />
-                <Route path="notes" element={<NotesPage />} />
-              </Route>
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+                  <Route path="accounts" element={<ErrorBoundary><ProtectedRoute requiredPermission="finans_goruntuleme"><AccountsPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="transactions" element={<ErrorBoundary><ProtectedRoute requiredPermission="finans_goruntuleme"><TransactionsPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="boms" element={<ErrorBoundary><ProtectedRoute requiredPermission="uretim_goruntuleme"><BomsPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="production" element={<ErrorBoundary><ProtectedRoute requiredPermission="uretim_goruntuleme"><ProductionPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="settings" element={<ErrorBoundary><ProtectedRoute requiredPermission="system:manage"><SettingsPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="logs" element={<ErrorBoundary><ProtectedRoute requiredPermission="system:manage"><LogsPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="notes" element={<ErrorBoundary><NotesPage /></ErrorBoundary>} />
+                </Route>
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
             <QuickCreateManager />
             <Toaster
               position="top-right"
@@ -113,8 +125,7 @@ export default function App() {
             />
           </BrowserRouter>
         </AuthProvider>
-      </SettingsProvider>
-    </QueryClientProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }

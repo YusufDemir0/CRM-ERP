@@ -1,6 +1,9 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Transform } from 'class-transformer';
+import { Decimal } from 'decimal.js';
 import { BaseEntity } from '../../../../common/entities/base.entity';
 import { Currency } from '../../currencies/entities/currency.entity';
+import { DecimalTransformer } from '../../../../common/transformers/decimal.transformer';
 
 @Entity('commercial_accounts')
 export class CommercialAccount extends BaseEntity {
@@ -19,8 +22,9 @@ export class CommercialAccount extends BaseEntity {
   @Column({ name: 'currency_id', type: 'bigint' })
   currencyId: number;
 
-  @Column({ name: 'critical_limit', type: 'decimal', precision: 15, scale: 2, default: 0 })
-  criticalLimit: number;
+  @Transform(({ value }) => value ? String(value) : value)
+  @Column({ name: 'critical_limit', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
+  criticalLimit: Decimal;
 
   @Column({ type: 'text', nullable: true })
   description: string | null;

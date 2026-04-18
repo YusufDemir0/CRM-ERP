@@ -6,9 +6,9 @@ export declare class SalesController {
     findAllSaleTypes(): Promise<import("./entities/sale-type.entity").SaleType[]>;
     createSaleType(dto: CreateSaleTypeDto, userId: number): Promise<import("./entities/sale-type.entity").SaleType>;
     getStatus(): Promise<{
-        monthlyRevenue: number;
-        monthlyOrders: number;
-        pendingOrders: number;
+        monthlyRevenue: import("decimal.js").Decimal;
+        monthlyOrders: import("decimal.js").Decimal;
+        pendingOrders: import("decimal.js").Decimal;
     }>;
     findAll(query: SalesQueryDto): Promise<import("../../common/dto/pagination.dto").PaginatedResult<import("./entities/sale.entity").Sale>>;
     findOne(id: number): Promise<import("./entities/sale.entity").Sale>;

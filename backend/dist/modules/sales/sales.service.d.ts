@@ -5,9 +5,10 @@ import { Sale } from './entities/sale.entity';
 import { SaleItem } from './entities/sale-item.entity';
 import { SaleType } from './entities/sale-type.entity';
 import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
+import { Decimal } from 'decimal.js';
 import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto, ShipSaleDto } from './dto/sale.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
-import { InternalEventBus } from '../../common/services/event-bus.service';
+import { TransactionContextService } from '../../common/services/transaction-context.service';
 export declare class SalesService {
     private saleRepo;
     private saleItemRepo;
@@ -16,9 +17,9 @@ export declare class SalesService {
     private sequenceGenerator;
     private stocksService;
     private logsService;
-    private eventBus;
+    private transactionContext;
     private readonly logger;
-    constructor(saleRepo: Repository<Sale>, saleItemRepo: Repository<SaleItem>, saleTypeRepo: Repository<SaleType>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, stocksService: StocksService, logsService: LogsService, eventBus: InternalEventBus);
+    constructor(saleRepo: Repository<Sale>, saleItemRepo: Repository<SaleItem>, saleTypeRepo: Repository<SaleType>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, stocksService: StocksService, logsService: LogsService, transactionContext: TransactionContextService);
     findAllSaleTypes(): Promise<SaleType[]>;
     createSaleType(dto: CreateSaleTypeDto, userId?: number): Promise<SaleType>;
     findAll(query: PaginationDto & {
@@ -32,9 +33,9 @@ export declare class SalesService {
     cancelSale(saleId: number, userId?: number): Promise<Sale>;
     softDelete(id: number): Promise<void>;
     getStatus(): Promise<{
-        monthlyRevenue: number;
-        monthlyOrders: number;
-        pendingOrders: number;
+        monthlyRevenue: Decimal;
+        monthlyOrders: Decimal;
+        pendingOrders: Decimal;
     }>;
     shipSale(saleId: number, dto: ShipSaleDto, userId?: number): Promise<Sale>;
 }

@@ -6,7 +6,6 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 
 @Controller('parties')
-@UseGuards(AuthGuard('jwt'))
 export class PartiesController {
   constructor(private readonly partiesService: PartiesService) {}
 

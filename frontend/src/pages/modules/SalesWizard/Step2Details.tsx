@@ -1,4 +1,4 @@
-import React from 'react';
+import { memo } from 'react';
 import { Party, User, Currency, SaleType } from '../../../types';
 
 interface Props {
@@ -22,7 +22,7 @@ interface Props {
   onNext: () => void;
 }
 
-const Step2Details: React.FC<Props> = ({
+const Step2Details: React.FC<Props> = memo(({
   partyId, customers, saleTypeId, setSaleTypeId, currencyId, setCurrencyId,
   deliveryDate, setDeliveryDate, repId, setRepId, invoiceType, setInvoiceType,
   saleTypes, currencies, representatives, today, onBack, onNext
@@ -45,7 +45,7 @@ const Step2Details: React.FC<Props> = ({
          <div className="form-group">
            <label>Satış Türü (Şartlar)</label>
            <div className="relative">
-             <select className="uppercase-input appearance-none bg-slate-50 border-slate-200 focus:bg-white transition-all shadow-sm" value={saleTypeId} onChange={(e) => setSaleTypeId(e.target.value)}>
+             <select className="uppercase-input appearance-none bg-slate-50 border-slate-200 focus:bg-white transition-colors shadow-sm" value={saleTypeId} onChange={(e) => setSaleTypeId(e.target.value)}>
                {saleTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.abbreviation})</option>)}
              </select>
              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">▼</div>
@@ -54,7 +54,7 @@ const Step2Details: React.FC<Props> = ({
          <div className="form-group">
            <label>İşlem Para Birimi</label>
            <div className="relative">
-             <select className="uppercase-input appearance-none bg-slate-50 border-slate-200 focus:bg-white transition-all shadow-sm" value={currencyId} onChange={(e) => setCurrencyId(e.target.value)}>
+             <select className="uppercase-input appearance-none bg-slate-50 border-slate-200 focus:bg-white transition-colors shadow-sm" value={currencyId} onChange={(e) => setCurrencyId(e.target.value)}>
                {currencies.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
              </select>
              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">▼</div>
@@ -65,12 +65,12 @@ const Step2Details: React.FC<Props> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-8">
         <div className="form-group">
           <label>Teslimat Tarihi</label>
-          <input type="date" className="uppercase-input bg-slate-50 border-slate-200 focus:bg-white transition-all shadow-sm" value={deliveryDate} min={today} onChange={(e) => setDeliveryDate(e.target.value)} />
+          <input type="date" className="uppercase-input bg-slate-50 border-slate-200 focus:bg-white transition-colors shadow-sm" value={deliveryDate} min={today} onChange={(e) => setDeliveryDate(e.target.value)} />
         </div>
         <div className="form-group">
           <label>Satış Temsilcisi (Sorumlu)</label>
           <div className="relative">
-            <select className="uppercase-input appearance-none bg-slate-50 border-slate-200 focus:bg-white transition-all shadow-sm" value={repId} onChange={(e) => setRepId(e.target.value)}>
+            <select className="uppercase-input appearance-none bg-slate-50 border-slate-200 focus:bg-white transition-colors shadow-sm" value={repId} onChange={(e) => setRepId(e.target.value)}>
               <option value="">-- TEMSİLCİ SEÇİNİZ --</option>
               {representatives.map(r => <option key={r.id} value={r.id}>{r.fullName}</option>)}
             </select>
@@ -84,14 +84,14 @@ const Step2Details: React.FC<Props> = ({
           Fatura Kesilecek mi? <span className="text-[10px] bg-danger/10 px-2 py-0.5 rounded-full uppercase tracking-tighter">Zorunlu Seçim</span>
         </label>
         <div className="flex flex-col sm:flex-row gap-4 mt-4">
-          <label className="flex-1 cursor-pointer flex items-center gap-4 bg-white p-4 rounded-2xl border-2 border-transparent hover:border-primary/30 transition-all group has-[:checked]:border-primary has-[:checked]:bg-primary/5 shadow-sm">
+          <label className="flex-1 cursor-pointer flex items-center gap-4 bg-white p-4 rounded-2xl border-2 border-transparent hover:border-primary/30 transition-colors group has-[:checked]:border-primary has-[:checked]:bg-primary/5 shadow-sm">
             <input type="radio" name="inv" checked={invoiceType === 'billed'} onChange={() => setInvoiceType('billed')} className="w-5 h-5 accent-primary cursor-pointer" /> 
             <div className="flex flex-col">
               <span className="font-black text-slate-800 text-sm group-hover:text-primary transition-colors">FATURALI İŞLEM</span>
               <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">RESMİ MUHASEBE KAYDI</span>
             </div>
           </label>
-          <label className="flex-1 cursor-pointer flex items-center gap-4 bg-white p-4 rounded-2xl border-2 border-transparent hover:border-primary/30 transition-all group has-[:checked]:border-primary has-[:checked]:bg-primary/5 shadow-sm">
+          <label className="flex-1 cursor-pointer flex items-center gap-4 bg-white p-4 rounded-2xl border-2 border-transparent hover:border-primary/30 transition-colors group has-[:checked]:border-primary has-[:checked]:bg-primary/5 shadow-sm">
             <input type="radio" name="inv" checked={invoiceType === 'unbilled'} onChange={() => setInvoiceType('unbilled')} className="w-5 h-5 accent-primary cursor-pointer" /> 
             <div className="flex flex-col">
               <span className="font-black text-slate-800 text-sm group-hover:text-primary transition-colors">FATURASIZ (SEVK)</span>
@@ -102,13 +102,15 @@ const Step2Details: React.FC<Props> = ({
       </div>
 
       <div className="flex gap-4 mt-auto pt-6 border-top border-slate-100">
-        <button className="flex-[0.3] h-14 bg-white border-2 border-slate-200 text-slate-500 font-black hover:bg-slate-50 transition-all rounded-2xl active:scale-95 transition-transform" onClick={onBack}>GERİ</button>
-        <button className="flex-1 h-14 bg-primary text-white text-base font-black shadow-lg shadow-primary/25 rounded-2xl disabled:opacity-30 disabled:shadow-none transition-all active:scale-[0.98] flex items-center justify-center gap-2" disabled={!invoiceType || !repId || !saleTypeId || !currencyId} onClick={onNext}>
+        <button className="flex-[0.3] h-14 bg-white border-2 border-slate-200 text-slate-500 font-black hover:bg-slate-50 transition-colors rounded-2xl active:scale-95 transition-transform" onClick={onBack}>GERİ</button>
+        <button className="flex-1 h-14 bg-primary text-white text-base font-black shadow-lg shadow-primary/25 rounded-2xl disabled:opacity-30 disabled:shadow-none transition-colors active:scale-[0.98] flex items-center justify-center gap-2" disabled={!invoiceType || !repId || !saleTypeId || !currencyId} onClick={onNext}>
           İLERLE: ÜRÜN SEPETİ ➔
         </button>
       </div>
     </div>
   );
-};
+});
+
+Step2Details.displayName = 'Step2Details';
 
 export default Step2Details;
