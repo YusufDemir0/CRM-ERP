@@ -20,6 +20,7 @@ const commercial_account_entity_1 = require("./entities/commercial-account.entit
 const decimal_js_1 = require("decimal.js");
 const currencies_service_1 = require("../currencies/currencies.service");
 const ledger_entity_1 = require("../../parties/entities/ledger.entity");
+const sql_helper_1 = require("../../../common/utils/sql.helper");
 let AccountsService = class AccountsService {
     constructor(accRepo, dataSource, currenciesService) {
         this.accRepo = accRepo;
@@ -30,8 +31,9 @@ let AccountsService = class AccountsService {
         const qb = this.accRepo.createQueryBuilder('acc')
             .leftJoinAndSelect('acc.currency', 'currency');
         if (query.search) {
-            const s = `%${query.search}%`;
-            const cleanS = `%${query.search.replace(/[\s-]/g, '').replace(/^TR/i, '')}%`;
+            const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            const cleanTerm = query.search.replace(/[\s-]/g, '').replace(/^TR/i, '');
+            const cleanS = (0, sql_helper_1.getSafeSearchPattern)(cleanTerm);
             qb.andWhere('(acc.name LIKE :s OR acc.bankName LIKE :s OR acc.description LIKE :s OR acc.iban LIKE :s OR REPLACE(REPLACE(acc.iban, " ", ""), "TR", "") LIKE :cleanS)', { s, cleanS });
         }
         const allowedSortCols = ['name', 'bankName', 'iban', 'criticalLimit', 'createdAt'];

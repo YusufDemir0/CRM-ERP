@@ -51,6 +51,7 @@ __decorate([
     __metadata("design:type", Number)
 ], TransactionSequence.prototype, "state", void 0);
 exports.TransactionSequence = TransactionSequence = __decorate([
-    (0, typeorm_1.Entity)('transaction_sequences')
+    (0, typeorm_1.Entity)('transaction_sequences'),
+    (0, typeorm_1.Unique)(['prefix'])
 ], TransactionSequence);
 //# sourceMappingURL=transaction-sequence.entity.js.map

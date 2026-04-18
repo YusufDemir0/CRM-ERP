@@ -16,7 +16,6 @@ import { SaleType } from './entities/sale-type.entity';
 import { Party } from '../parties/entities/party.entity';
 import { Currency } from '../finance/currencies/entities/currency.entity';
 import { Transaction } from '../finance/transactions/entities/transaction.entity';
-import { Department } from '../departments/entities/department.entity';
 import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
 import { Decimal } from 'decimal.js';
 import {
@@ -34,6 +33,7 @@ import { DateUtils } from '../../common/utils/date.utils';
 import { Transactional } from '../../common/decorators/transactional.decorator';
 import { TransactionContextService } from '../../common/services/transaction-context.service';
 import dayjs from 'dayjs';
+import { getSafeSearchPattern } from '../../common/utils/sql.helper';
 
 @Injectable()
 export class SalesService {
@@ -47,9 +47,8 @@ export class SalesService {
     private sequenceGenerator: SequenceGeneratorService,
     private stocksService: StocksService,
     private logsService: LogsService,
-
     private transactionContext: TransactionContextService,
-  ) {}
+  ) { }
 
   // ────── SALE TYPES ──────
 
@@ -74,7 +73,8 @@ export class SalesService {
       .leftJoinAndSelect('sale.currency', 'currency');
 
     if (query.search) {
-      qb.where('(sale.code LIKE :s OR party.name LIKE :s)', { s: `%${query.search}%` });
+      const s = getSafeSearchPattern(query.search);
+      qb.where('(sale.code LIKE :s OR party.name LIKE :s)', { s });
     }
     if (query.status) qb.andWhere('sale.status = :status', { status: query.status });
     if (query.partyId) qb.andWhere('sale.partyId = :partyId', { partyId: query.partyId });
@@ -126,7 +126,7 @@ export class SalesService {
       const unitPrice = new Decimal(dbItem.salePrice || 0);
       const discountAmount = new Decimal(itemDto.discountAmount || 0);
       const discountPercent = new Decimal(itemDto.discountPercent || 0);
-      
+
       const maxAllowedDiscount = unitPrice.mul(0.5);
       if (discountAmount.gt(maxAllowedDiscount)) {
         throw new BadRequestException(`Ürün ID ${itemDto.itemId} için maksimum iskonto sınırı (${maxAllowedDiscount}) aşıldı.`);
@@ -163,19 +163,50 @@ export class SalesService {
     if (headerDiscountPercent.gt(0)) {
       discountToSubtract = FH.mul(rawTotalAmount, headerDiscountPercent.div(100));
     }
-    
+
     const discountedMatrah = FH.sub(rawTotalAmount, discountToSubtract);
 
     let totalKdv = new Decimal(0);
-    saleItems.forEach(item => {
-      const lineRatio = rawTotalAmount.gt(0) ? FH.div(FH.mul(item.quantity!, item.netPrice!), rawTotalAmount, 6) : new Decimal(0);
-      const lineMatrah = FH.mul(discountedMatrah, lineRatio);
-      const lineKdv = FH.calculateKdv(lineMatrah, Number(item.kdvRate!));
+    let distributedMatrah = new Decimal(0);
+    let maxLineIndex = 0;
+    let maxLineAmount = new Decimal(0);
+
+    saleItems.forEach((item, index) => {
+      const isLast = index === saleItems.length - 1;
       
+      let lineMatrah: Decimal;
+      if (isLast && saleItems.length > 0) {
+        lineMatrah = discountedMatrah.minus(distributedMatrah);
+      } else {
+        const lineRatio = rawTotalAmount.gt(0) 
+          ? FH.div(FH.mul(item.quantity!, item.netPrice!), rawTotalAmount, 10) 
+          : new Decimal(0);
+        lineMatrah = FH.round(discountedMatrah.mul(lineRatio));
+        distributedMatrah = distributedMatrah.plus(lineMatrah);
+      }
+
+      if (lineMatrah.gt(maxLineAmount)) {
+        maxLineAmount = lineMatrah;
+        maxLineIndex = index;
+      }
+
+      const lineKdv = FH.calculateKdv(lineMatrah, Number(item.kdvRate!));
       item.kdvAmount = lineKdv;
       item.lineTotal = FH.add(lineMatrah, lineKdv);
       totalKdv = FH.add(totalKdv, lineKdv);
     });
+
+    // [TASK-004] Penny Rounding Logic
+    const avgKdvRate = saleItems.length > 0 ? Number(saleItems[0].kdvRate) : 20;
+    const expectedKdv = FH.calculateKdv(discountedMatrah, avgKdvRate);
+    const difference = expectedKdv.sub(totalKdv);
+
+    if (!difference.isZero() && saleItems.length > 0) {
+      const targetItem = saleItems[maxLineIndex];
+      targetItem.kdvAmount = FH.add(targetItem.kdvAmount!, difference);
+      targetItem.lineTotal = FH.add(targetItem.lineTotal!, difference);
+      totalKdv = expectedKdv;
+    }
 
     const grandTotal = FH.add(discountedMatrah, totalKdv);
 
@@ -246,18 +277,18 @@ export class SalesService {
           const discount = FH.mul(netPrice, discountPercent.div(100));
           netPrice = FH.sub(netPrice, discount);
         }
-        
+
         rawTotalAmount = FH.add(rawTotalAmount, FH.mul(itemDto.quantity, netPrice));
-        
+
         saleItems.push({
-          itemId: itemDto.itemId, 
-          quantity: new Decimal(itemDto.quantity), 
+          itemId: itemDto.itemId,
+          quantity: new Decimal(itemDto.quantity),
           price: unitPrice,
-          discountAmount, 
-          discountPercent, 
-          netPrice, 
+          discountAmount,
+          discountPercent,
+          netPrice,
           kdvRate: new Decimal(itemDto.kdvRate ?? 20),
-          description: itemDto.description, 
+          description: itemDto.description,
           createdBy: userId,
         });
       }
@@ -268,20 +299,50 @@ export class SalesService {
       if (headerDiscountPercent.gt(0)) {
         discountToSubtract = FH.mul(rawTotalAmount, headerDiscountPercent.div(100));
       }
-      
+
       const discountedMatrah = FH.sub(rawTotalAmount, discountToSubtract);
 
       let totalKdv = new Decimal(0);
-      saleItems.forEach(item => {
-        const lineRatio = rawTotalAmount.gt(0) 
-          ? FH.div(FH.mul(item.quantity!, item.netPrice!), rawTotalAmount, 6) 
-          : new Decimal(0);
-        const lineMatrah = FH.mul(discountedMatrah, lineRatio);
+      let distributedMatrah = new Decimal(0);
+      let maxLineIndex = 0;
+      let maxLineAmount = new Decimal(0);
+
+      saleItems.forEach((item, index) => {
+        const isLast = index === saleItems.length - 1;
+
+        let lineMatrah: Decimal;
+        if (isLast && saleItems.length > 0) {
+          lineMatrah = discountedMatrah.minus(distributedMatrah);
+        } else {
+          const lineRatio = rawTotalAmount.gt(0)
+            ? FH.div(FH.mul(item.quantity!, item.netPrice!), rawTotalAmount, 10)
+            : new Decimal(0);
+          lineMatrah = FH.round(discountedMatrah.mul(lineRatio));
+          distributedMatrah = distributedMatrah.plus(lineMatrah);
+        }
+
+        if (lineMatrah.gt(maxLineAmount)) {
+          maxLineAmount = lineMatrah;
+          maxLineIndex = index;
+        }
+
         const lineKdv = FH.calculateKdv(lineMatrah, Number(item.kdvRate!));
         item.kdvAmount = lineKdv;
         item.lineTotal = FH.add(lineMatrah, lineKdv);
         totalKdv = FH.add(totalKdv, lineKdv);
       });
+
+      // [TASK-004] Penny Rounding Logic
+      const avgKdvRate = saleItems.length > 0 ? Number(saleItems[0].kdvRate) : 20;
+      const expectedKdv = FH.calculateKdv(discountedMatrah, avgKdvRate);
+      const difference = expectedKdv.sub(totalKdv);
+
+      if (!difference.isZero() && saleItems.length > 0) {
+        const targetItem = saleItems[maxLineIndex];
+        targetItem.kdvAmount = FH.add(targetItem.kdvAmount!, difference);
+        targetItem.lineTotal = FH.add(targetItem.lineTotal!, difference);
+        totalKdv = expectedKdv;
+      }
 
       sale.totalAmount = rawTotalAmount;
       sale.discountAmount = headerDiscountAmount;
@@ -309,7 +370,7 @@ export class SalesService {
     if (!sale) throw new NotFoundException('Satış bulunamadı');
     if (sale.status !== 'draft') throw new BadRequestException('Sadece taslak durumundaki siparişler onaylanabilir.');
 
-    const party = await manager.findOne(Party, { 
+    const party = await manager.findOne(Party, {
       where: { id: sale.partyId },
       lock: { mode: 'pessimistic_write' }
     });
@@ -318,7 +379,7 @@ export class SalesService {
     const tlGrandTotal = FH.mul(sale.grandTotal, sale.exchangeRate);
 
     if (party.creditLimit.gt(0) && (FH.add(party.balance, tlGrandTotal)).gt(party.creditLimit)) {
-        throw new BadRequestException(`Cari limit aşıldı! Sipariş sonrası bakiye: ${FH.add(party.balance, tlGrandTotal)} olmaktadır.`);
+      throw new BadRequestException(`Cari limit aşıldı! Sipariş sonrası bakiye: ${FH.add(party.balance, tlGrandTotal)} olmaktadır.`);
     }
 
     sale.status = 'approved';
@@ -326,9 +387,6 @@ export class SalesService {
     sale.updatedBy = userId || null;
     await manager.save(Sale, sale);
 
-    // SAGA ORCHESTRATION: Inventory and Finance logic merged synchronously
-    
-    // 1. Reserve Stock
     await this.stocksService.reserveStockBulk(
       sale.items.map(i => ({ itemId: i.itemId, quantity: i.quantity })),
       dto.departmentId,
@@ -336,7 +394,6 @@ export class SalesService {
       userId
     );
 
-    // 2. Debit Party Ledger
     await manager.save(manager.create(AccountingLedger, {
       date: DateUtils.getToday(),
       partyId: sale.partyId,
@@ -349,24 +406,23 @@ export class SalesService {
 
     party.balance = FH.add(party.balance, tlGrandTotal);
 
-    // 3. Handle Deposit
     const depositToTL = FH.mul(sale.deposit, sale.exchangeRate);
     if (depositToTL.gt(0) && dto.commercialAccountId) {
       const txCode = await this.sequenceGenerator.generateTransactionCode(manager, 'MKB');
-      
+
       await manager.save(manager.create(Transaction, {
-        code: txCode, 
-        partyId: party.id, 
+        code: txCode,
+        partyId: party.id,
         commercialAccountId: dto.commercialAccountId,
-        amount: sale.deposit, 
-        currencyId: sale.currencyId, 
+        amount: sale.deposit,
+        currencyId: sale.currencyId,
         exchangeRate: sale.exchangeRate,
-        type: 'in', 
-        referenceType: 'sale', 
-        referenceId: sale.id, 
+        type: 'in',
+        referenceType: 'sale',
+        referenceId: sale.id,
         date: DateUtils.getToday(),
-        description: `${sale.code} Nolu Sipariş Peşinat / Kaporası`, 
-        status: 'completed', 
+        description: `${sale.code} Nolu Sipariş Peşinat / Kaporası`,
+        status: 'completed',
         createdBy: userId
       }));
 
@@ -402,7 +458,7 @@ export class SalesService {
   async cancelSale(saleId: number, userId?: number): Promise<Sale> {
     const manager = this.transactionContext.manager;
 
-    const sale = await manager.findOne(Sale, { 
+    const sale = await manager.findOne(Sale, {
       where: { id: saleId },
       relations: ['items', 'items.item']
     });
@@ -410,12 +466,12 @@ export class SalesService {
     if (sale.status === 'cancelled') throw new BadRequestException('Sipariş zaten iptal edilmiş.');
 
     if (sale.status === 'approved' || sale.status === 'shipped') {
-      const party = await manager.findOne(Party, { 
+      const party = await manager.findOne(Party, {
         where: { id: sale.partyId },
         lock: { mode: 'pessimistic_write' }
       });
       if (!party) throw new NotFoundException('Cari hesap bulunamadı');
-      
+
       await this.stocksService.revertStockMovementsByReference('sale', sale.id, manager, userId);
 
       const itemsToUnreserve = sale.items.map(si => ({
@@ -429,7 +485,7 @@ export class SalesService {
 
       const tlGrandTotal = FH.mul(sale.grandTotal, sale.exchangeRate);
       const tlDeposit = FH.mul(sale.deposit, sale.exchangeRate);
-      
+
       const targetBalance = FH.add(FH.sub(party.balance, tlGrandTotal), tlDeposit);
       await manager.update(Party, party.id, { balance: targetBalance, updatedBy: userId });
 
@@ -444,10 +500,10 @@ export class SalesService {
       }));
 
       if (tlDeposit.gt(0)) {
-        const depositTx = await manager.findOne(Transaction, { 
-          where: { referenceType: 'sale', referenceId: sale.id, type: 'in' } 
+        const depositTx = await manager.findOne(Transaction, {
+          where: { referenceType: 'sale', referenceId: sale.id, type: 'in' }
         });
-        
+
         await manager.save(manager.create(AccountingLedger, {
           date: DateUtils.getToday(),
           partyId: party.id,
@@ -532,11 +588,11 @@ export class SalesService {
     );
 
     for (const item of shipItems) {
-       const saleItem = sale.items.find(si => Number(si.itemId) === Number(item.itemId));
-       if (saleItem) {
-          saleItem.shippedQuantity = new Decimal(saleItem.shippedQuantity || 0).add(item.quantity);
-          await manager.save(SaleItem, saleItem);
-       }
+      const saleItem = sale.items.find(si => Number(si.itemId) === Number(item.itemId));
+      if (saleItem) {
+        saleItem.shippedQuantity = new Decimal(saleItem.shippedQuantity || 0).add(item.quantity);
+        await manager.save(SaleItem, saleItem);
+      }
     }
 
     sale.status = 'shipped';

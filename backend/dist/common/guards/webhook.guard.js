@@ -63,11 +63,20 @@ let WebhookGuard = class WebhookGuard {
         }
         const body = rawBody || JSON.stringify(request.body);
         const hmac = crypto.createHmac('sha256', secret);
-        const digest = 'sha256=' + hmac.update(body).digest('hex');
-        if (signature !== digest && signature !== hmac.update(body).digest('hex')) {
+        const digest = hmac.update(body).digest('hex');
+        const digestWithPrefix = 'sha256=' + digest;
+        const signatureStr = signature.toString();
+        const isSha256Match = this.safeCompare(signatureStr, digestWithPrefix) || this.safeCompare(signatureStr, digest);
+        if (!isSha256Match) {
             throw new common_1.UnauthorizedException('WEBHOOK_SIGNATURE_INVALID');
         }
         return true;
+    }
+    safeCompare(a, b) {
+        if (a.length !== b.length) {
+            return false;
+        }
+        return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
     }
 };
 exports.WebhookGuard = WebhookGuard;

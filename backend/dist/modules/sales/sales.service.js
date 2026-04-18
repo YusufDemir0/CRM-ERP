@@ -38,6 +38,7 @@ const date_utils_1 = require("../../common/utils/date.utils");
 const transactional_decorator_1 = require("../../common/decorators/transactional.decorator");
 const transaction_context_service_1 = require("../../common/services/transaction-context.service");
 const dayjs_1 = __importDefault(require("dayjs"));
+const sql_helper_1 = require("../../common/utils/sql.helper");
 let SalesService = SalesService_1 = class SalesService {
     constructor(saleRepo, saleItemRepo, saleTypeRepo, dataSource, sequenceGenerator, stocksService, logsService, transactionContext) {
         this.saleRepo = saleRepo;
@@ -66,7 +67,8 @@ let SalesService = SalesService_1 = class SalesService {
             .leftJoinAndSelect('sale.saleType', 'saleType')
             .leftJoinAndSelect('sale.currency', 'currency');
         if (query.search) {
-            qb.where('(sale.code LIKE :s OR party.name LIKE :s)', { s: `%${query.search}%` });
+            const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            qb.where('(sale.code LIKE :s OR party.name LIKE :s)', { s });
         }
         if (query.status)
             qb.andWhere('sale.status = :status', { status: query.status });
@@ -145,14 +147,40 @@ let SalesService = SalesService_1 = class SalesService {
         }
         const discountedMatrah = finance_helper_1.FinanceHelper.sub(rawTotalAmount, discountToSubtract);
         let totalKdv = new decimal_js_1.Decimal(0);
-        saleItems.forEach(item => {
-            const lineRatio = rawTotalAmount.gt(0) ? finance_helper_1.FinanceHelper.div(finance_helper_1.FinanceHelper.mul(item.quantity, item.netPrice), rawTotalAmount, 6) : new decimal_js_1.Decimal(0);
-            const lineMatrah = finance_helper_1.FinanceHelper.mul(discountedMatrah, lineRatio);
+        let distributedMatrah = new decimal_js_1.Decimal(0);
+        let maxLineIndex = 0;
+        let maxLineAmount = new decimal_js_1.Decimal(0);
+        saleItems.forEach((item, index) => {
+            const isLast = index === saleItems.length - 1;
+            let lineMatrah;
+            if (isLast && saleItems.length > 0) {
+                lineMatrah = discountedMatrah.minus(distributedMatrah);
+            }
+            else {
+                const lineRatio = rawTotalAmount.gt(0)
+                    ? finance_helper_1.FinanceHelper.div(finance_helper_1.FinanceHelper.mul(item.quantity, item.netPrice), rawTotalAmount, 10)
+                    : new decimal_js_1.Decimal(0);
+                lineMatrah = finance_helper_1.FinanceHelper.round(discountedMatrah.mul(lineRatio));
+                distributedMatrah = distributedMatrah.plus(lineMatrah);
+            }
+            if (lineMatrah.gt(maxLineAmount)) {
+                maxLineAmount = lineMatrah;
+                maxLineIndex = index;
+            }
             const lineKdv = finance_helper_1.FinanceHelper.calculateKdv(lineMatrah, Number(item.kdvRate));
             item.kdvAmount = lineKdv;
             item.lineTotal = finance_helper_1.FinanceHelper.add(lineMatrah, lineKdv);
             totalKdv = finance_helper_1.FinanceHelper.add(totalKdv, lineKdv);
         });
+        const avgKdvRate = saleItems.length > 0 ? Number(saleItems[0].kdvRate) : 20;
+        const expectedKdv = finance_helper_1.FinanceHelper.calculateKdv(discountedMatrah, avgKdvRate);
+        const difference = expectedKdv.sub(totalKdv);
+        if (!difference.isZero() && saleItems.length > 0) {
+            const targetItem = saleItems[maxLineIndex];
+            targetItem.kdvAmount = finance_helper_1.FinanceHelper.add(targetItem.kdvAmount, difference);
+            targetItem.lineTotal = finance_helper_1.FinanceHelper.add(targetItem.lineTotal, difference);
+            totalKdv = expectedKdv;
+        }
         const grandTotal = finance_helper_1.FinanceHelper.add(discountedMatrah, totalKdv);
         const sale = manager.create(sale_entity_1.Sale, {
             code,
@@ -233,16 +261,40 @@ let SalesService = SalesService_1 = class SalesService {
             }
             const discountedMatrah = finance_helper_1.FinanceHelper.sub(rawTotalAmount, discountToSubtract);
             let totalKdv = new decimal_js_1.Decimal(0);
-            saleItems.forEach(item => {
-                const lineRatio = rawTotalAmount.gt(0)
-                    ? finance_helper_1.FinanceHelper.div(finance_helper_1.FinanceHelper.mul(item.quantity, item.netPrice), rawTotalAmount, 6)
-                    : new decimal_js_1.Decimal(0);
-                const lineMatrah = finance_helper_1.FinanceHelper.mul(discountedMatrah, lineRatio);
+            let distributedMatrah = new decimal_js_1.Decimal(0);
+            let maxLineIndex = 0;
+            let maxLineAmount = new decimal_js_1.Decimal(0);
+            saleItems.forEach((item, index) => {
+                const isLast = index === saleItems.length - 1;
+                let lineMatrah;
+                if (isLast && saleItems.length > 0) {
+                    lineMatrah = discountedMatrah.minus(distributedMatrah);
+                }
+                else {
+                    const lineRatio = rawTotalAmount.gt(0)
+                        ? finance_helper_1.FinanceHelper.div(finance_helper_1.FinanceHelper.mul(item.quantity, item.netPrice), rawTotalAmount, 10)
+                        : new decimal_js_1.Decimal(0);
+                    lineMatrah = finance_helper_1.FinanceHelper.round(discountedMatrah.mul(lineRatio));
+                    distributedMatrah = distributedMatrah.plus(lineMatrah);
+                }
+                if (lineMatrah.gt(maxLineAmount)) {
+                    maxLineAmount = lineMatrah;
+                    maxLineIndex = index;
+                }
                 const lineKdv = finance_helper_1.FinanceHelper.calculateKdv(lineMatrah, Number(item.kdvRate));
                 item.kdvAmount = lineKdv;
                 item.lineTotal = finance_helper_1.FinanceHelper.add(lineMatrah, lineKdv);
                 totalKdv = finance_helper_1.FinanceHelper.add(totalKdv, lineKdv);
             });
+            const avgKdvRate = saleItems.length > 0 ? Number(saleItems[0].kdvRate) : 20;
+            const expectedKdv = finance_helper_1.FinanceHelper.calculateKdv(discountedMatrah, avgKdvRate);
+            const difference = expectedKdv.sub(totalKdv);
+            if (!difference.isZero() && saleItems.length > 0) {
+                const targetItem = saleItems[maxLineIndex];
+                targetItem.kdvAmount = finance_helper_1.FinanceHelper.add(targetItem.kdvAmount, difference);
+                targetItem.lineTotal = finance_helper_1.FinanceHelper.add(targetItem.lineTotal, difference);
+                totalKdv = expectedKdv;
+            }
             sale.totalAmount = rawTotalAmount;
             sale.discountAmount = headerDiscountAmount;
             sale.discountPercent = headerDiscountPercent;

@@ -37,7 +37,15 @@ export default {
       boxShadow: {
         'premium': '0 4px 12px rgba(0, 52, 94, 0.03), 0 1px 3px rgba(0, 52, 94, 0.02)',
         'soft': '0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.02)',
-      }
+      },
+      zIndex: {
+        'dropdown': '30',
+        'header':   '40',
+        'modal':    '50',
+        'toast':    '60',
+        'tooltip':  '70',
+        'loader':   '9999',
+      },
     },
   },
   plugins: [],

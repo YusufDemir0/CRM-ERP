@@ -8,4 +8,5 @@ export declare class FinanceHelper {
     static sub(a: Decimal | number | string, b: Decimal | number | string): Decimal;
     static mul(a: Decimal | number | string, b: Decimal | number | string): Decimal;
     static div(a: Decimal | number | string, b: Decimal | number | string, decimals?: number): Decimal;
+    static parseTurkishDecimal(input: string): string | null;
 }

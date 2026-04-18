@@ -20,6 +20,7 @@ const department_entity_1 = require("./entities/department.entity");
 const department_type_entity_1 = require("./entities/department-type.entity");
 const user_entity_1 = require("../auth/entities/user.entity");
 const stock_entity_1 = require("../inventory/stocks/entities/stock.entity");
+const sql_helper_1 = require("../../common/utils/sql.helper");
 let DepartmentsService = class DepartmentsService {
     constructor(deptRepo, typeRepo, userRepo, stockRepo) {
         this.deptRepo = deptRepo;
@@ -32,7 +33,8 @@ let DepartmentsService = class DepartmentsService {
             .leftJoinAndSelect('dept.departmentType', 'type')
             .leftJoinAndSelect('dept.commercialAccount', 'account');
         if (query.search) {
-            qb.andWhere('(dept.name LIKE :s OR dept.abbreviation LIKE :s OR dept.description LIKE :s OR type.name LIKE :s OR account.name LIKE :s)', { s: `%${query.search}%` });
+            const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            qb.andWhere('(dept.name LIKE :s OR dept.abbreviation LIKE :s OR dept.description LIKE :s OR type.name LIKE :s OR account.name LIKE :s)', { s });
         }
         if (query.departmentTypeId) {
             qb.andWhere('dept.departmentTypeId = :typeId', { typeId: query.departmentTypeId });

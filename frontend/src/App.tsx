@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 
 // Layout & Core
 import Layout from './components/Layout';
@@ -38,26 +38,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from './store/useAuthStore';
-
-/**
- * Injects the router-aware redirect function into the Zustand auth store.
- * This allows useAuthStore.logout() to navigate to /login without
- * relying on window.dispatchEvent hacks.
- */
-function AuthNavigationBridge() {
-  const navigate = useNavigate();
-  const setRedirectToLogin = useAuthStore((s) => s.setRedirectToLogin);
-
-  useEffect(() => {
-    setRedirectToLogin(() => navigate('/login'));
-  }, [navigate, setRedirectToLogin]);
-
-  return null;
-}
-
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { QuickCreateManager } from './components/common/QuickCreateManager';
 import { initCsrf } from './services/api';
@@ -73,7 +53,6 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <BrowserRouter>
-            <AuthNavigationBridge />
             <GlobalLoader />
             <Suspense fallback={<GlobalLoader />}>
               <Routes>
@@ -129,3 +108,4 @@ export default function App() {
     </ErrorBoundary>
   );
 }
+

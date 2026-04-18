@@ -7,6 +7,7 @@ import { CreateAccountDto, UpdateAccountDto } from '../dto/finance.dto';
 import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
 import { CurrenciesService } from '../currencies/currencies.service';
 import { AccountingLedger } from '../../parties/entities/ledger.entity';
+import { getSafeSearchPattern } from '../../../common/utils/sql.helper';
 
 @Injectable()
 export class AccountsService {
@@ -21,8 +22,9 @@ export class AccountsService {
       .leftJoinAndSelect('acc.currency', 'currency');
 
     if (query.search) {
-      const s = `%${query.search}%`;
-      const cleanS = `%${query.search.replace(/[\s-]/g, '').replace(/^TR/i, '')}%`;
+      const s = getSafeSearchPattern(query.search);
+      const cleanTerm = query.search.replace(/[\s-]/g, '').replace(/^TR/i, '');
+      const cleanS = getSafeSearchPattern(cleanTerm);
       qb.andWhere('(acc.name LIKE :s OR acc.bankName LIKE :s OR acc.description LIKE :s OR acc.iban LIKE :s OR REPLACE(REPLACE(acc.iban, " ", ""), "TR", "") LIKE :cleanS)', { s, cleanS });
     }
 

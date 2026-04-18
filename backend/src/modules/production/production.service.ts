@@ -18,9 +18,9 @@ import { PaginatedResult } from '../../common/dto/pagination.dto';
 import { FinanceHelper as FH } from '../../common/utils/finance.helper';
 import { DateUtils } from '../../common/utils/date.utils';
 import { Decimal } from 'decimal.js';
-import dayjs from 'dayjs';
 import { Transactional } from '../../common/decorators/transactional.decorator';
 import { TransactionContextService } from '../../common/services/transaction-context.service';
+import { getSafeSearchPattern } from '../../common/utils/sql.helper';
 
 @Injectable()
 export class ProductionService {
@@ -48,7 +48,8 @@ export class ProductionService {
       .leftJoinAndSelect('bom.targetItem', 'targetItem');
 
     if (query.search) {
-      qb.andWhere('(bom.name LIKE :s OR targetItem.name LIKE :s OR targetItem.code LIKE :s)', { s: `%${query.search}%` });
+      const s = getSafeSearchPattern(query.search);
+      qb.andWhere('(bom.name LIKE :s OR targetItem.name LIKE :s OR targetItem.code LIKE :s)', { s });
     }
     
     if (query.state !== undefined) {
@@ -196,7 +197,10 @@ export class ProductionService {
       .leftJoinAndSelect('po.sourceDepartment', 'sourceDept')
       .leftJoinAndSelect('po.targetDepartment', 'targetDept');
 
-    if (query.search) qb.where('(po.code LIKE :s OR bom.name LIKE :s)', { s: `%${query.search}%` });
+    if (query.search) {
+      const s = getSafeSearchPattern(query.search);
+      qb.where('(po.code LIKE :s OR bom.name LIKE :s)', { s });
+    }
     if (query.status) qb.andWhere('po.status = :status', { status: query.status });
 
     qb.orderBy('po.createdAt', 'DESC').skip(query.skip).take(query.limit);
@@ -280,7 +284,6 @@ export class ProductionService {
 
       for (const bomItem of sortedBomItems) {
         const requiredQty = FH.mul(bomItem.quantity, producedQty);
-        // Use Moving Average Cost for valuation during consumption
         const currentComponentMAC = new Decimal(bomItem.item?.movingAverageCost || bomItem.item?.purchasePrice || 0);
         const itemTotalCost = FH.mul(requiredQty, currentComponentMAC);
         totalMaterialCost = FH.add(totalMaterialCost, itemTotalCost);
@@ -304,7 +307,7 @@ export class ProductionService {
         targetItem.id,
         targetDeptId,
         producedQty,
-        unitCost, // Record the actual production cost which updates the item's MAC
+        unitCost,
         manager,
         { type: 'production', id: lockedPo.id, description: `Üretim Mamül Girişi: İş Emri ${lockedPo.code}` },
         userId
@@ -344,7 +347,7 @@ export class ProductionService {
     if (dto.targetDepartmentId !== undefined) po.targetDepartmentId = dto.targetDepartmentId;
     if (dto.startDate !== undefined) po.startDate = dto.startDate;
     if (dto.endDate !== undefined) po.endDate = dto.endDate;
-    if (dto.status !== undefined) po.status = dto.status as 'draft' | 'planned' | 'in_progress' | 'completed' | 'cancelled';
+    if (dto.status !== undefined) po.status = dto.status as any;
     if (dto.laborCost !== undefined) po.laborCost = new Decimal(dto.laborCost);
     if (dto.overheadCost !== undefined) po.overheadCost = new Decimal(dto.overheadCost);
     if (dto.notes !== undefined) po.notes = dto.notes;

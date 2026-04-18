@@ -70,7 +70,8 @@ let AuthService = class AuthService {
             relations: ['roles'],
         });
         if (!user) {
-            await new Promise(resolve => setTimeout(resolve, 50));
+            const DUMMY_HASH = '$2b$12$d7R1A.L8P.Gv9D/7yU7kE7P.r7Y.e7r7r7r7r7r7r7r7r7r7r7r7r7';
+            await bcrypt.compare(dto.password, DUMMY_HASH);
             throw new common_1.UnauthorizedException('Kullanıcı adı veya şifre hatalı');
         }
         if (user.state === 2) {

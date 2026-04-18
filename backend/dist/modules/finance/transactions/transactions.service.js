@@ -31,6 +31,7 @@ const finance_helper_1 = require("../../../common/utils/finance.helper");
 const dayjs_1 = __importDefault(require("dayjs"));
 const transactional_decorator_1 = require("../../../common/decorators/transactional.decorator");
 const transaction_context_service_1 = require("../../../common/services/transaction-context.service");
+const sql_helper_1 = require("../../../common/utils/sql.helper");
 let TransactionsService = class TransactionsService {
     constructor(txRepo, dataSource, sequenceGenerator, transactionContext) {
         this.txRepo = txRepo;
@@ -44,7 +45,8 @@ let TransactionsService = class TransactionsService {
             .leftJoinAndSelect('tx.commercialAccount', 'account')
             .leftJoinAndSelect('tx.currency', 'currency');
         if (query.search) {
-            qb.andWhere('(tx.code LIKE :s OR party.name LIKE :s OR tx.description LIKE :s OR account.name LIKE :s OR account.bankName LIKE :s)', { s: `%${query.search}%` });
+            const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            qb.andWhere('(tx.code LIKE :s OR party.name LIKE :s OR tx.description LIKE :s OR account.name LIKE :s OR account.bankName LIKE :s)', { s });
         }
         if (query.partyId)
             qb.andWhere('tx.partyId = :partyId', { partyId: query.partyId });
@@ -105,7 +107,7 @@ let TransactionsService = class TransactionsService {
         const tx = manager.create(transaction_entity_1.Transaction, {
             code, partyId: dto.partyId || undefined, commercialAccountId: dto.commercialAccountId,
             amount: new decimal_js_1.Decimal(dto.amount), currencyId: dto.currencyId || undefined, exchangeRate,
-            type: dto.type, referenceType: dto.referenceType || undefined, referenceId: dto.referenceId || undefined,
+            type: dto.type, referenceType: dto.referenceType, referenceId: dto.referenceId || undefined,
             date: dto.date, description: dto.description || undefined, status: 'completed', createdBy: userId,
         });
         const savedTx = await manager.save(tx);

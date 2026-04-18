@@ -11,6 +11,7 @@ import {
   AssignRoleDto, SetUserPermissionDto,
 } from './dto/role.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { getSafeSearchPattern } from '../../common/utils/sql.helper';
 
 @Injectable()
 export class RolesService {
@@ -25,22 +26,40 @@ export class RolesService {
   // ────── ROLES ──────
 
   async findAllRoles(query: PaginationDto): Promise<PaginatedResult<Role>> {
-    const qb = this.roleRepo.createQueryBuilder('role')
-      .leftJoinAndSelect('role.permissions', 'permissions');
+    const qb = this.roleRepo.createQueryBuilder('role');
 
     if (query.search) {
-      qb.where('(role.name LIKE :search OR permissions.name LIKE :search)', { search: `%${query.search}%` });
+      const s = getSafeSearchPattern(query.search);
+      qb.leftJoin('role.permissions', 'permissions');
+      qb.where('(role.name LIKE :s OR permissions.name LIKE :s)', { s });
     }
 
     qb.orderBy('role.createdAt', query.sortOrder || 'DESC');
     qb.skip(query.skip).take(query.limit);
 
-    const [data, total] = await qb.getManyAndCount();
+    const [idRows, total] = await qb.select('role.id').getManyAndCount();
+    const ids = idRows.map(r => r.id);
+
+    let data: Role[] = [];
+    if (ids.length > 0) {
+      data = await this.roleRepo.find({
+        where: { id: In(ids) },
+        relations: ['permissions'],
+        order: { createdAt: query.sortOrder || 'DESC' },
+      });
+    }
+
     return {
       data,
-      meta: { total, page: query.page || 1, limit: query.limit || 20, totalPages: Math.ceil(total / (query.limit || 20)) },
+      meta: {
+        total,
+        page: query.page || 1,
+        limit: query.limit || 20,
+        totalPages: Math.ceil(total / (query.limit || 20)),
+      },
     };
   }
+
 
   async findOneRole(id: number): Promise<Role> {
     const role = await this.roleRepo.findOne({ where: { id }, relations: ['permissions'] });
@@ -65,7 +84,6 @@ export class RolesService {
     const role = await this.findOneRole(id);
     if (dto.name) role.name = dto.name;
     
-    // Deactivation validation: block if users are attached
     if (dto.state === 0 && role.state !== 0) {
       const usersWithRole = await this.userRoleRepo.count({ where: { roleId: id } });
       if (usersWithRole > 0) {
@@ -88,7 +106,7 @@ export class RolesService {
   }
 
   async deleteRole(id: number): Promise<void> {
-    const role = await this.findOneRole(id);
+    await this.findOneRole(id);
     await this.roleRepo.softDelete(id);
   }
 
@@ -98,7 +116,8 @@ export class RolesService {
     const qb = this.permRepo.createQueryBuilder('perm');
 
     if (query.search) {
-      qb.where('(perm.name LIKE :s OR perm.key LIKE :s OR perm.module LIKE :s)', { s: `%${query.search}%` });
+      const s = getSafeSearchPattern(query.search);
+      qb.where('(perm.name LIKE :s OR perm.key LIKE :s OR perm.module LIKE :s)', { s });
     }
 
     qb.orderBy('perm.module', 'ASC').addOrderBy('perm.name', 'ASC');
@@ -178,7 +197,6 @@ export class RolesService {
   }
 
   async getMatrixPresets() {
-    // This provides the default templates for the V2 Capability Matrix
     return {
       viewOnly: ['dashboard.view', 'items.view', 'parties.view'],
       manager: ['dashboard.view', 'items.all', 'parties.all', 'reports.view'],

@@ -11,6 +11,8 @@ import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto'
 import { Transactional } from '../../common/decorators/transactional.decorator';
 import { TransactionContextService } from '../../common/services/transaction-context.service';
 import { Department } from '../departments/entities/department.entity';
+import { getSafeSearchPattern } from '../../common/utils/sql.helper';
+
 
 @Injectable()
 export class UsersService {
@@ -25,20 +27,18 @@ export class UsersService {
   ) {}
 
   async findAll(query: PaginationDto): Promise<PaginatedResult<User>> {
-    const qb = this.userRepo.createQueryBuilder('user')
-      .leftJoinAndSelect('user.department', 'department')
-      .leftJoinAndSelect('user.roles', 'roles')
-      .select([
-        'user.id', 'user.username', 'user.fullName', 'user.email',
-        'user.phone', 'user.departmentId', 'user.state', 'user.createdAt',
-        'department.id', 'department.name',
-        'roles.id', 'roles.name',
-      ]);
+    const qb = this.userRepo.createQueryBuilder('user');
 
     if (query.search) {
-      qb.where('(user.fullName LIKE :search OR user.username LIKE :search OR user.email LIKE :search OR department.name LIKE :search OR roles.name LIKE :search)', {
-        search: `%${query.search}%`,
-      });
+      const searchPattern = getSafeSearchPattern(query.search);
+      if (searchPattern) {
+        qb.leftJoin('user.department', 'dept_filter');
+        qb.leftJoin('user.roles', 'role_filter');
+        qb.where(
+          '(user.fullName LIKE :search OR user.username LIKE :search OR user.email LIKE :search OR dept_filter.name LIKE :search OR role_filter.name LIKE :search)',
+          { search: searchPattern },
+        );
+      }
     }
 
     if (query.state !== undefined) {
@@ -48,7 +48,27 @@ export class UsersService {
     qb.orderBy(`user.${query.sortBy || 'createdAt'}`, query.sortOrder || 'DESC');
     qb.skip(query.skip).take(query.limit);
 
-    const [data, total] = await qb.getManyAndCount();
+    // 1. Stage 1: Get only IDs (avoids Cartesian product OOM)
+    const [idRows, total] = await qb.select('user.id').getManyAndCount();
+    const ids = idRows.map((r) => r.id);
+
+    let data: User[] = [];
+    if (ids.length > 0) {
+      // 2. Stage 2: Fetch full entities for these IDs with all relations
+      data = await this.userRepo.createQueryBuilder('user')
+        .leftJoinAndSelect('user.department', 'department')
+        .leftJoinAndSelect('user.roles', 'roles')
+        .select([
+          'user.id', 'user.username', 'user.fullName', 'user.email',
+          'user.phone', 'user.departmentId', 'user.state', 'user.createdAt',
+          'department.id', 'department.name',
+          'roles.id', 'roles.name',
+        ])
+        .where('user.id IN (:...ids)', { ids })
+        .orderBy(`user.${query.sortBy || 'createdAt'}`, query.sortOrder || 'DESC')
+        .getMany();
+    }
+
     return {
       data,
       meta: {
@@ -59,6 +79,7 @@ export class UsersService {
       },
     };
   }
+
 
   async findOne(id: number): Promise<User> {
     const user = await this.userRepo.findOne({

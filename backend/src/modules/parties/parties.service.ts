@@ -1,11 +1,13 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Party } from './entities/party.entity';
 import { CreatePartyDto, UpdatePartyDto } from './dto/party.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
 import { CurrenciesService } from '../finance/currencies/currencies.service';
 import { Decimal } from 'decimal.js';
+
+import { getSafeSearchPattern } from '../../common/utils/sql.helper';
 
 @Injectable()
 export class PartiesService {
@@ -13,14 +15,17 @@ export class PartiesService {
     @InjectRepository(Party)
     private partyRepo: Repository<Party>,
     private currenciesService: CurrenciesService,
-  ) {}
+  ) { }
 
   async findAll(query: PaginationDto & { type?: string }): Promise<PaginatedResult<Party>> {
     const qb = this.partyRepo.createQueryBuilder('party')
       .leftJoinAndSelect('party.currency', 'currency');
 
     if (query.search) {
-      qb.andWhere('(party.name LIKE :s OR party.phone1 LIKE :s OR party.email LIKE :s OR party.taxNumber LIKE :s OR party.taxOffice LIKE :s OR party.districtName LIKE :s OR party.address LIKE :s OR party.notes LIKE :s OR currency.name LIKE :s)', { s: `%${query.search}%` });
+      const searchPattern = getSafeSearchPattern(query.search);
+      if (searchPattern) {
+        qb.andWhere('(party.name LIKE :s OR party.phone1 LIKE :s OR party.email LIKE :s OR party.taxNumber LIKE :s OR party.taxOffice LIKE :s OR party.districtName LIKE :s OR party.address LIKE :s OR party.notes LIKE :s OR currency.name LIKE :s)', { s: searchPattern });
+      }
     }
 
     // DB-04: Dynamic Advanced Filters (Sidebar filters) with Map-based whitelist
@@ -37,8 +42,12 @@ export class PartiesService {
 
     Object.keys(query).forEach(key => {
       const dbCol = partyFilterMap[key];
-      if (dbCol && query[key as keyof typeof query] !== undefined) {
-        qb.andWhere(`${dbCol} LIKE :${key}`, { [key]: `%${query[key as keyof typeof query]}%` });
+      const val = query[key as keyof typeof query];
+      if (dbCol && val !== undefined) {
+        const searchPattern = getSafeSearchPattern(val.toString());
+        if (searchPattern) {
+          qb.andWhere(`${dbCol} LIKE :${key}`, { [key]: searchPattern });
+        }
       }
     });
 
@@ -54,7 +63,7 @@ export class PartiesService {
     const allowedSortCols = ['name', 'balance', 'creditLimit', 'createdAt'];
     const sortCol = allowedSortCols.includes(query.sortBy || '') ? query.sortBy! : 'name';
     qb.orderBy(`party.${sortCol}`, query.sortOrder || 'ASC');
-    
+
     qb.skip(query.skip).take(query.limit);
 
     const [data, total] = await qb.getManyAndCount();
@@ -64,6 +73,7 @@ export class PartiesService {
     };
   }
 
+
   async findOne(id: number): Promise<Party> {
     const party = await this.partyRepo.findOne({ where: { id }, relations: ['currency'] });
     if (!party) throw new NotFoundException('Cari hesap bulunamadı');
@@ -72,9 +82,9 @@ export class PartiesService {
 
   async create(dto: CreatePartyDto, userId?: number): Promise<Party> {
     if (dto.taxNumber) {
-      const existing = await this.partyRepo.findOne({ 
+      const existing = await this.partyRepo.findOne({
         where: { taxNumber: dto.taxNumber },
-        withDeleted: true 
+        withDeleted: true
       });
       if (existing) {
         throw new BadRequestException(`'${dto.taxNumber}' vergi numarası ile başka bir cari mevcut (ID: ${existing.id}, İsim: ${existing.name}).`);
@@ -95,7 +105,7 @@ export class PartiesService {
 
   async update(id: number, dto: UpdatePartyDto, userId?: number): Promise<Party> {
     const party = await this.findOne(id);
-    
+
     // DB-05: Uniqueness Check
     if (dto.taxNumber && dto.taxNumber !== party.taxNumber) {
       const existing = await this.partyRepo.findOne({ where: { taxNumber: dto.taxNumber } });
@@ -106,7 +116,7 @@ export class PartiesService {
 
     // Modernize mapping with strict field control
     const fields: (keyof Party)[] = [
-      'name', 'type', 'phone1', 'phone2', 'taxOffice', 'taxNumber', 'email', 
+      'name', 'type', 'phone1', 'phone2', 'taxOffice', 'taxNumber', 'email',
       'address', 'cityId', 'districtName', 'paymentTerms', 'currencyId', 'notes', 'state'
     ];
 
@@ -136,12 +146,26 @@ export class PartiesService {
 
   async softDelete(id: number): Promise<void> {
     const party = await this.findOne(id);
-    
+
     // DB-04: Bakiye varsa silmeyi engelle
     if (!new Decimal(party.balance).isZero()) {
       throw new BadRequestException(
         `Bakiyesi olan cari hesaplar silinemez. Mevcut Bakiye: ${party.balance.toString()}. ` +
         `Lütfen önce finansal hesabı sıfırlayınız (Tahsilat/Ödeme).`
+      );
+    }
+
+    // SEC-05: Aktif Sipariş Kontrolü
+    const dataSource = this.partyRepo.manager.connection;
+    const { Sale } = await import('../sales/entities/sale.entity');
+    const activeSales = await dataSource.getRepository(Sale).count({
+      where: { partyId: id, status: In(['draft', 'approved', 'shipped']) }
+    });
+
+    if (activeSales > 0) {
+      throw new BadRequestException(
+        `Bu cari hesaba ait ${activeSales} adet aktif satış/sipariş bulunmaktadır. ` +
+        `Önce bunları iptal etmeli veya tamamlamalısınız.`
       );
     }
 
@@ -152,6 +176,7 @@ export class PartiesService {
     });
     await this.partyRepo.softDelete(id);
   }
+
 
   async getBalance(id: number) {
     const party = await this.findOne(id);
@@ -188,9 +213,9 @@ export class PartiesService {
       const tlLimit = new Decimal(p.creditLimit || 0).mul(exchangeRate);
       return p.state === 1 && tlLimit.gt(0) && tlBalance.abs().gte(tlLimit.mul(0.9));
     });
-    
-    return { 
-      active, 
+
+    return {
+      active,
       passive,
       totalReceivable: totalReceivable.toNumber(),
       exposurePercentage: totalCreditLimit.gt(0) ? totalReceivable.div(totalCreditLimit).mul(100).toDecimalPlaces(0).toNumber() : 0,
@@ -209,7 +234,7 @@ export class PartiesService {
       const exchangeRate = p.currency?.exchangeRate || new Decimal(1);
       return sum.plus(new Decimal(p.creditLimit || 0).mul(exchangeRate));
     }, new Decimal(0));
-    
+
     return {
       totalReceivable: totalReceivable.toNumber(),
       totalCreditLimit: totalCreditLimit.toNumber(),
@@ -225,7 +250,7 @@ export class PartiesService {
       const tlLimit = new Decimal(p.creditLimit || 0).mul(exchangeRate);
       return tlLimit.gt(0) && tlBalance.gte(tlLimit.mul(0.9));
     });
-    
+
     return {
       healthyCount: all.length - atRisk.length,
       atRiskCount: atRisk.length,

@@ -6,7 +6,8 @@ import { DepartmentType } from './entities/department-type.entity';
 import { User } from '../auth/entities/user.entity';
 import { Stock } from '../inventory/stocks/entities/stock.entity';
 import { CreateDepartmentDto, UpdateDepartmentDto, CreateDepartmentTypeDto, UpdateDepartmentTypeDto, DepartmentsQueryDto } from './dto/department.dto';
-import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { PaginatedResult } from '../../common/dto/pagination.dto';
+import { getSafeSearchPattern } from '../../common/utils/sql.helper';
 
 @Injectable()
 export class DepartmentsService {
@@ -27,7 +28,8 @@ export class DepartmentsService {
       .leftJoinAndSelect('dept.commercialAccount', 'account');
  
     if (query.search) {
-      qb.andWhere('(dept.name LIKE :s OR dept.abbreviation LIKE :s OR dept.description LIKE :s OR type.name LIKE :s OR account.name LIKE :s)', { s: `%${query.search}%` });
+      const s = getSafeSearchPattern(query.search);
+      qb.andWhere('(dept.name LIKE :s OR dept.abbreviation LIKE :s OR dept.description LIKE :s OR type.name LIKE :s OR account.name LIKE :s)', { s });
     }
  
     if (query.departmentTypeId) {
@@ -42,7 +44,6 @@ export class DepartmentsService {
       qb.andWhere('dept.state = :state', { state: query.state });
     }
  
-    // Security & Stability: Whitelist and mapping for sort columns
     const allowedSortMap: Record<string, string> = {
       'name': 'dept.name',
       'abbreviation': 'dept.abbreviation',
@@ -101,13 +102,11 @@ export class DepartmentsService {
   async softDelete(id: number): Promise<void> {
     await this.findOne(id);
 
-    // ORPHAN-CHECK: Kullanıcı atanmış mi?
     const hasUsers = await this.userRepo.count({ where: { departmentId: id } });
     if (hasUsers > 0) {
       throw new BadRequestException(`Bu departmana kayıtlı ${hasUsers} adet personel bulunduğu için silinemez.`);
     }
 
-    // ORPHAN-CHECK: Stok var mi?
     const hasStock = await this.stockRepo.count({ where: { departmentId: id } });
     if (hasStock > 0) {
       throw new BadRequestException(`Bu departmanda/depoda kayıtlı stok verisi bulunduğu için silinemez.`);
@@ -116,7 +115,6 @@ export class DepartmentsService {
     await this.deptRepo.softDelete(id);
   }
 
-  // ─── DEPARTMENT TYPES ───
   async findAllTypes(): Promise<DepartmentType[]> {
     return this.typeRepo.find();
   }
@@ -141,7 +139,6 @@ export class DepartmentsService {
     const type = await this.typeRepo.findOne({ where: { id } });
     if (!type) throw new NotFoundException('Departman türü bulunamadı');
 
-    // Check if any departments use this type
     const usedCount = await this.deptRepo.count({ where: { departmentTypeId: id } });
     if (usedCount > 0) {
       throw new BadRequestException(`Bu türü kullanan ${usedCount} adet departman bulunduğu için silinemez.`);

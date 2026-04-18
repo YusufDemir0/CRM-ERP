@@ -14,11 +14,7 @@ exports.SequenceGeneratorService = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("typeorm");
 const item_code_group_entity_1 = require("../../modules/inventory/items/entities/item-code-group.entity");
-const item_code_sequence_entity_1 = require("../../modules/inventory/items/entities/item-code-sequence.entity");
 const sale_type_entity_1 = require("../../modules/sales/entities/sale-type.entity");
-const sale_sequence_entity_1 = require("../../modules/sales/entities/sale-sequence.entity");
-const production_sequence_entity_1 = require("../../modules/production/entities/production-sequence.entity");
-const transaction_sequence_entity_1 = require("../../modules/finance/transactions/entities/transaction-sequence.entity");
 const transaction_context_service_1 = require("./transaction-context.service");
 let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGeneratorService {
     constructor(transactionContext, dataSource) {
@@ -32,30 +28,14 @@ let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGenera
             throw new common_1.NotFoundException(`Item code group bulunamadı: ${itemCodeGroupId}`);
         }
         const prefix = codeGroup.prefix;
-        return await this.dataSource.transaction(async (autonomousManager) => {
-            let sequence = await autonomousManager.findOne(item_code_sequence_entity_1.ItemCodeSequence, { where: { itemCodeGroupId } });
-            if (!sequence) {
-                try {
-                    const newSeq = autonomousManager.create(item_code_sequence_entity_1.ItemCodeSequence, { itemCodeGroupId, currentNumber: 2 });
-                    await autonomousManager.save(newSeq);
-                    return `${prefix}-001`;
-                }
-                catch (e) {
-                }
-            }
-            sequence = await autonomousManager
-                .createQueryBuilder(item_code_sequence_entity_1.ItemCodeSequence, 'seq')
-                .setLock('pessimistic_write')
-                .where('seq.itemCodeGroupId = :id', { id: itemCodeGroupId })
-                .getOne();
-            const currentNumber = sequence.currentNumber;
-            await autonomousManager.update(item_code_sequence_entity_1.ItemCodeSequence, sequence.id, {
-                currentNumber: currentNumber + 1
-            });
-            const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
-            this.logger.debug(`Generated item code: ${code}`);
-            return code;
-        });
+        await manager.query(`INSERT INTO item_code_sequences (item_code_group_id, current_number)
+       VALUES (?, 1)
+       ON DUPLICATE KEY UPDATE current_number = current_number + 1`, [itemCodeGroupId]);
+        const [row] = await manager.query(`SELECT current_number FROM item_code_sequences WHERE item_code_group_id = ?`, [itemCodeGroupId]);
+        const currentNumber = row.current_number;
+        const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
+        this.logger.debug(`Generated item code: ${code}`);
+        return code;
     }
     async generateSaleCode(manager = this.transactionContext.manager, saleTypeId) {
         const saleType = await manager.findOne(sale_type_entity_1.SaleType, { where: { id: saleTypeId } });
@@ -63,82 +43,34 @@ let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGenera
             throw new common_1.NotFoundException(`Sale type bulunamadı: ${saleTypeId}`);
         }
         const prefix = saleType.abbreviation;
-        return await this.dataSource.transaction(async (autonomousManager) => {
-            let sequence = await autonomousManager.findOne(sale_sequence_entity_1.SaleSequence, { where: { saleTypeId } });
-            if (!sequence) {
-                try {
-                    const newSeq = autonomousManager.create(sale_sequence_entity_1.SaleSequence, { saleTypeId, currentNumber: 2 });
-                    await autonomousManager.save(newSeq);
-                    return `${prefix}-001`;
-                }
-                catch (e) {
-                }
-            }
-            sequence = await autonomousManager
-                .createQueryBuilder(sale_sequence_entity_1.SaleSequence, 'seq')
-                .setLock('pessimistic_write')
-                .where('seq.saleTypeId = :id', { id: saleTypeId })
-                .getOne();
-            const currentNumber = sequence.currentNumber;
-            await autonomousManager.update(sale_sequence_entity_1.SaleSequence, sequence.id, {
-                currentNumber: currentNumber + 1
-            });
-            const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
-            this.logger.debug(`Generated sale code: ${code}`);
-            return code;
-        });
+        await manager.query(`INSERT INTO sale_sequences (sale_type_id, current_number)
+       VALUES (?, 1)
+       ON DUPLICATE KEY UPDATE current_number = current_number + 1`, [saleTypeId]);
+        const [row] = await manager.query(`SELECT current_number FROM sale_sequences WHERE sale_type_id = ?`, [saleTypeId]);
+        const currentNumber = row.current_number;
+        const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
+        this.logger.debug(`Generated sale code: ${code}`);
+        return code;
     }
     async generateProductionCode(manager = this.transactionContext.manager, prefix = 'URT') {
-        return await this.dataSource.transaction(async (autonomousManager) => {
-            let sequence = await autonomousManager.findOne(production_sequence_entity_1.ProductionSequence, { where: { prefix } });
-            if (!sequence) {
-                try {
-                    const newSeq = autonomousManager.create(production_sequence_entity_1.ProductionSequence, { prefix, currentNumber: 2 });
-                    await autonomousManager.save(newSeq);
-                    return `${prefix}-001`;
-                }
-                catch (e) {
-                }
-            }
-            sequence = await autonomousManager
-                .createQueryBuilder(production_sequence_entity_1.ProductionSequence, 'seq')
-                .setLock('pessimistic_write')
-                .where('seq.prefix = :prefix', { prefix })
-                .getOne();
-            const currentNumber = sequence.currentNumber;
-            await autonomousManager.update(production_sequence_entity_1.ProductionSequence, sequence.id, {
-                currentNumber: currentNumber + 1
-            });
-            const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
-            this.logger.debug(`Generated production code: ${code}`);
-            return code;
-        });
+        await manager.query(`INSERT INTO production_sequences (prefix, current_number)
+       VALUES (?, 1)
+       ON DUPLICATE KEY UPDATE current_number = current_number + 1`, [prefix]);
+        const [row] = await manager.query(`SELECT current_number FROM production_sequences WHERE prefix = ?`, [prefix]);
+        const currentNumber = row.current_number;
+        const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
+        this.logger.debug(`Generated production code: ${code}`);
+        return code;
     }
     async generateTransactionCode(manager = this.transactionContext.manager, prefix) {
-        return await this.dataSource.transaction(async (autonomousManager) => {
-            let sequence = await autonomousManager.findOne(transaction_sequence_entity_1.TransactionSequence, { where: { prefix } });
-            if (!sequence) {
-                try {
-                    const newSeq = autonomousManager.create(transaction_sequence_entity_1.TransactionSequence, { prefix, currentNumber: 2 });
-                    await autonomousManager.save(newSeq);
-                    return `${prefix}-001`;
-                }
-                catch (e) {
-                }
-            }
-            sequence = await autonomousManager
-                .createQueryBuilder(transaction_sequence_entity_1.TransactionSequence, 'seq')
-                .setLock('pessimistic_write')
-                .where('seq.prefix = :prefix', { prefix })
-                .getOne();
-            const currentNumber = sequence.currentNumber;
-            await autonomousManager.update(transaction_sequence_entity_1.TransactionSequence, sequence.id, {
-                currentNumber: currentNumber + 1
-            });
-            const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
-            this.logger.debug(`Generated transaction code: ${code}`);
-            return code;
-        });
+        await manager.query(`INSERT INTO transaction_sequences (prefix, current_number)
+       VALUES (?, 1)
+       ON DUPLICATE KEY UPDATE current_number = current_number + 1`, [prefix]);
+        const [row] = await manager.query(`SELECT current_number FROM transaction_sequences WHERE prefix = ?`, [prefix]);
+        const currentNumber = row.current_number;
+        const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
+        this.logger.debug(`Generated transaction code: ${code}`);
+        return code;
     }
 };
 exports.SequenceGeneratorService = SequenceGeneratorService;

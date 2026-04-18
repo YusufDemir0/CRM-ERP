@@ -12,7 +12,7 @@ dayjs.extend(timezone);
 import { Stock } from './entities/stock.entity';
 import { StockMovement } from './entities/stock-movement.entity';
 import { StockAdjustmentDto, StocksQueryDto, TransferStockDto } from '../dto/inventory.dto';
-import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
+import { PaginatedResult } from '../../../common/dto/pagination.dto';
 import { Item } from '../items/entities/item.entity';
 import { Transaction } from '../../finance/transactions/entities/transaction.entity';
 import { Party } from '../../parties/entities/party.entity';
@@ -22,6 +22,7 @@ import { FinanceHelper } from '../../../common/utils/finance.helper';
 import { LogsService } from '../../logs/logs.service';
 import { Transactional } from '../../../common/decorators/transactional.decorator';
 import { TransactionContextService } from '../../../common/services/transaction-context.service';
+import { getSafeSearchPattern } from '../../../common/utils/sql.helper';
 
 @Injectable()
 export class StocksService {
@@ -44,7 +45,8 @@ export class StocksService {
     if (query.departmentId) qb.andWhere('stock.departmentId = :deptId', { deptId: query.departmentId });
     if (query.itemId) qb.andWhere('stock.itemId = :itemId', { itemId: query.itemId });
     if (query.search) {
-      qb.andWhere('(item.name LIKE :s OR item.code LIKE :s)', { s: `%${query.search}%` });
+      const s = getSafeSearchPattern(query.search);
+      qb.andWhere('(item.name LIKE :s OR item.code LIKE :s)', { s });
     }
 
     if (query.isCritical === 'true') {
@@ -73,7 +75,6 @@ export class StocksService {
     inUnitCost: Decimal,
     userId?: number
   ): Promise<Decimal> {
-    // Lock the item to ensure atomic MAC calculation
     const item = await manager.findOne(Item, {
       where: { id: itemId },
       lock: { mode: 'pessimistic_write' }
@@ -81,7 +82,6 @@ export class StocksService {
 
     if (!item) return new Decimal(0);
 
-    // Get current total quantity across all warehouses
     const totalQtyResult = await manager.createQueryBuilder(Stock, 'stock')
       .where('stock.itemId = :itemId', { itemId })
       .select('SUM(stock.quantity)', 'total')
@@ -90,7 +90,6 @@ export class StocksService {
     const currentTotalQty = new Decimal(totalQtyResult?.total || 0);
     const currentMAC = new Decimal(item.movingAverageCost || 0);
 
-    // Formula: (CurrentTotalValue + NewValue) / (CurrentTotalQty + NewQty)
     const currentTotalValue = currentTotalQty.mul(currentMAC);
     const inTotalValue = inQty.mul(inUnitCost);
     const newTotalQty = currentTotalQty.add(inQty);
@@ -103,7 +102,6 @@ export class StocksService {
     }
 
     item.movingAverageCost = newMAC;
-    // Also update purchase price if this is an actual purchase (inUnitCost > 0)
     if (inUnitCost.gt(0)) {
       item.purchasePrice = inUnitCost;
     }
@@ -121,7 +119,7 @@ export class StocksService {
     }
   }
 
-  async getMovements(stockId: number, query: PaginationDto): Promise<PaginatedResult<StockMovement>> {
+  async getMovements(stockId: number, query: any): Promise<PaginatedResult<StockMovement>> {
     const qb = this.movementRepo.createQueryBuilder('sm')
       .where('sm.stockId = :stockId', { stockId })
       .orderBy('sm.createdAt', 'DESC')
@@ -133,8 +131,6 @@ export class StocksService {
       meta: { total, page: query.page || 1, limit: query.limit || 20, totalPages: Math.ceil(total / (query.limit || 20)) },
     };
   }
-
-  // ────── ARCH-01: MODULAR STOCK UPDATES ──────
 
   async decreaseStock(
     itemId: number, 
@@ -165,7 +161,6 @@ export class StocksService {
     stock.updatedBy = userId || null;
     await manager.save(Stock, stock);
 
-    // Record valuation at departure (COGS)
     const unitCost = new Decimal(stock.item?.movingAverageCost || 0);
     const totalCost = qty.mul(unitCost);
 
@@ -279,8 +274,6 @@ export class StocksService {
         stock = manager.create(Stock, { itemId, departmentId, quantity: new Decimal(0), reservedQuantity: new Decimal(0) });
         stock = await manager.save(Stock, stock);
       }
-
-      if (!stock) continue;
 
       stock.reservedQuantity = new Decimal(stock.reservedQuantity || 0).add(qty);
       stock.updatedBy = userId || null;
@@ -405,7 +398,6 @@ export class StocksService {
     const qty = new Decimal(quantity);
     const unitPrice = new Decimal(inUnitCost);
 
-    // Update global MAC first (locks the Item record)
     const newMAC = await this.updateMovingAverageCost(manager, itemId, qty, unitPrice, userId);
 
     let stock = await manager.findOne(Stock, {
@@ -457,10 +449,8 @@ export class StocksService {
       if (unitCostToUse.isZero()) {
         unitCostToUse = new Decimal(item.movingAverageCost || item.purchasePrice || 0);
       }
-      // Recalculate MAC for inward movement
       await this.updateMovingAverageCost(manager, dto.itemId, qty, unitCostToUse, userId);
     } else {
-      // Use current MAC for outward movement
       unitCostToUse = new Decimal(item.movingAverageCost || 0);
     }
 
@@ -508,7 +498,6 @@ export class StocksService {
 
     const savedMovement = await manager.save(movement);
 
-    // Dynamic Financial Entry based on actual cost
     const totalCostValue = savedMovement.totalCost;
 
     if (!totalCostValue.isZero()) {
@@ -653,7 +642,7 @@ export class StocksService {
     userId?: number
   ): Promise<void> {
     const movements = await manager.find(StockMovement, {
-      where: { referenceType: referenceType as unknown as 'production', referenceId: referenceId as unknown as number },
+      where: { referenceType: referenceType as any, referenceId: referenceId as any },
       relations: ['stock']
     });
 
@@ -713,11 +702,11 @@ export class StocksService {
         quantityBefore,
         quantityAfter,
         type: change.totalDelta.gt(0) ? 'in' : 'out',
-        referenceType: 'revert' as const,
+        referenceType: 'revert',
         referenceId: referenceId,
         description: `İşlem İptali Revert: ${referenceType} ID ${referenceId}`,
         createdBy: userId
-      }) as StockMovement);
+      }));
     }
 
     await manager.save(Stock, stocksToUpload);

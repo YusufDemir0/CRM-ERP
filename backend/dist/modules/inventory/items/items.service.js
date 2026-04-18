@@ -53,18 +53,21 @@ const item_entity_1 = require("./entities/item.entity");
 const item_type_entity_1 = require("./entities/item-type.entity");
 const quantity_type_entity_1 = require("./entities/quantity-type.entity");
 const item_code_group_entity_1 = require("./entities/item-code-group.entity");
+const stock_entity_1 = require("../stocks/entities/stock.entity");
 const inventory_dto_1 = require("../dto/inventory.dto");
 const sequence_generator_service_1 = require("../../../common/services/sequence-generator.service");
 const currencies_service_1 = require("../../finance/currencies/currencies.service");
 const decimal_js_1 = require("decimal.js");
 const transactional_decorator_1 = require("../../../common/decorators/transactional.decorator");
 const transaction_context_service_1 = require("../../../common/services/transaction-context.service");
+const sql_helper_1 = require("../../../common/utils/sql.helper");
 let ItemsService = class ItemsService {
-    constructor(itemRepo, itemTypeRepo, qtyTypeRepo, codeGroupRepo, dataSource, sequenceGenerator, currenciesService, transactionContext) {
+    constructor(itemRepo, itemTypeRepo, qtyTypeRepo, codeGroupRepo, stockRepo, dataSource, sequenceGenerator, currenciesService, transactionContext) {
         this.itemRepo = itemRepo;
         this.itemTypeRepo = itemTypeRepo;
         this.qtyTypeRepo = qtyTypeRepo;
         this.codeGroupRepo = codeGroupRepo;
+        this.stockRepo = stockRepo;
         this.dataSource = dataSource;
         this.sequenceGenerator = sequenceGenerator;
         this.currenciesService = currenciesService;
@@ -78,7 +81,8 @@ let ItemsService = class ItemsService {
             .leftJoinAndSelect('item.provider', 'provider')
             .leftJoinAndSelect('item.currency', 'currency');
         if (query.search) {
-            qb.andWhere('(item.name LIKE :s OR item.code LIKE :s OR item.code1 LIKE :s OR item.code2 LIKE :s OR item.description LIKE :s OR item.notes LIKE :s OR itemType.name LIKE :s OR provider.name LIKE :s)', { s: `%${query.search}%` });
+            const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            qb.andWhere('(item.name LIKE :s OR item.code LIKE :s OR item.code1 LIKE :s OR item.code2 LIKE :s OR item.description LIKE :s OR item.notes LIKE :s OR itemType.name LIKE :s OR provider.name LIKE :s)', { s });
         }
         if (query.itemTypeId)
             qb.andWhere('item.itemTypeId = :typeId', { typeId: query.itemTypeId });
@@ -104,8 +108,10 @@ let ItemsService = class ItemsService {
         };
         Object.keys(query).forEach(key => {
             const dbCol = itemFilterMap[key];
-            if (dbCol && query[key] !== undefined) {
-                qb.andWhere(`${dbCol} LIKE :${key}`, { [key]: `%${query[key]}%` });
+            const val = query[key];
+            if (dbCol && val !== undefined) {
+                const s = (0, sql_helper_1.getSafeSearchPattern)(val.toString());
+                qb.andWhere(`${dbCol} LIKE :${key}`, { [key]: s });
             }
         });
         const sortFieldMap = {
@@ -193,8 +199,6 @@ let ItemsService = class ItemsService {
         if (dto.providerId !== undefined)
             item.providerId = dto.providerId;
         if (dto.state !== undefined) {
-            if (dto.state === 0)
-                await this.checkUsage(id);
             item.state = dto.state;
         }
         if (dto.criticalLimit !== undefined)
@@ -210,25 +214,26 @@ let ItemsService = class ItemsService {
         item.updatedBy = userId || null;
         return this.itemRepo.save(item);
     }
-    async softDelete(id) {
-        await this.checkUsage(id);
-        await this.itemRepo.softDelete(id);
-    }
-    async checkUsage(id) {
-        const Stock = (await Promise.resolve().then(() => __importStar(require('../stocks/entities/stock.entity')))).Stock;
-        const totalStock = await this.dataSource.getRepository(Stock).createQueryBuilder('stock')
+    async softDelete(id, currentUserId) {
+        const item = await this.findOne(id);
+        const totalQtyResult = await this.stockRepo.createQueryBuilder('stock')
             .where('stock.itemId = :id', { id })
-            .select('SUM(stock.quantity)', 'sum')
+            .select('SUM(stock.quantity)', 'total')
             .getRawOne();
-        if (totalStock && totalStock.sum && new decimal_js_1.Decimal(totalStock.sum).gt(0)) {
-            throw new common_1.BadRequestException(`Stokta ${totalStock.sum} adet bulunan ürün pasife alınamaz/silinemez. Lütfen önce stokları sıfırlayınız.`);
+        const totalQty = new decimal_js_1.Decimal(totalQtyResult?.total || 0);
+        if (!totalQty.isZero()) {
+            throw new common_1.BadRequestException(`Stokta ${totalQty.toString()} adet ürün bulunduğu için silinemez. Lütfen önce stokları sıfırlayınız.`);
         }
-        let usageCount = 0;
-        const BomItem = (await Promise.resolve().then(() => __importStar(require('../../production/entities/bom-item.entity')))).BomItem;
-        usageCount = await this.dataSource.getRepository(BomItem).count({ where: { itemId: id } });
-        if (usageCount > 0) {
-            throw new common_1.BadRequestException(`Bu ürün ${usageCount} farklı reçetede (BOM) kullanılmaktadır. Önce reçetelerden çıkarılmalıdır.`);
+        const { BomItem } = await Promise.resolve().then(() => __importStar(require('../../production/entities/bom-item.entity')));
+        const bomUsage = await this.dataSource.getRepository(BomItem).count({ where: { itemId: id } });
+        if (bomUsage > 0) {
+            throw new common_1.BadRequestException(`Bu ürün ${bomUsage} adet üretim reçetesinde (BOM) kullanılmaktadır ve silinemez.`);
         }
+        await this.itemRepo.update(id, {
+            state: 0,
+            updatedBy: currentUserId || null,
+        });
+        await this.itemRepo.softDelete(id);
     }
     async findAllItemTypes() {
         return this.itemTypeRepo.find();
@@ -351,7 +356,9 @@ exports.ItemsService = ItemsService = __decorate([
     __param(1, (0, typeorm_1.InjectRepository)(item_type_entity_1.ItemType)),
     __param(2, (0, typeorm_1.InjectRepository)(quantity_type_entity_1.QuantityType)),
     __param(3, (0, typeorm_1.InjectRepository)(item_code_group_entity_1.ItemCodeGroup)),
+    __param(4, (0, typeorm_1.InjectRepository)(stock_entity_1.Stock)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

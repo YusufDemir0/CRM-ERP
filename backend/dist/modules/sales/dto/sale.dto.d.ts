@@ -1,11 +1,11 @@
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 export declare class CreateSaleItemDto {
     itemId: number;
-    quantity: number;
-    price: number;
-    discountAmount?: number;
-    discountPercent?: number;
-    kdvRate?: number;
+    quantity: string;
+    price: string;
+    discountAmount?: string;
+    discountPercent?: string;
+    kdvRate?: string;
     description?: string;
 }
 export declare class CreateSaleDto {
@@ -13,9 +13,9 @@ export declare class CreateSaleDto {
     saleTypeId: number;
     currencyId?: number;
     deliveryDate?: string;
-    deposit?: number;
-    discountAmount?: number;
-    discountPercent?: number;
+    deposit?: string;
+    discountAmount?: string;
+    discountPercent?: string;
     notes?: string;
     items: CreateSaleItemDto[];
 }
@@ -23,9 +23,9 @@ export declare class UpdateSaleDto {
     partyId?: number;
     currencyId?: number;
     deliveryDate?: string;
-    deposit?: number;
-    discountAmount?: number;
-    discountPercent?: number;
+    deposit?: string;
+    discountAmount?: string;
+    discountPercent?: string;
     notes?: string;
     items?: CreateSaleItemDto[];
 }

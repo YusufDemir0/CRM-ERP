@@ -1,6 +1,7 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, Unique } from 'typeorm';
 
 @Entity('transaction_sequences')
+@Unique(['prefix'])
 export class TransactionSequence {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;

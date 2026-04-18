@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { SystemLog } from './entities/log.entity';
 import { Subject, Subscription } from 'rxjs';
 import { bufferTime, filter } from 'rxjs/operators';
+import { getSafeSearchPattern } from '../../common/utils/sql.helper';
 
 @Injectable()
 export class LogsService implements OnModuleInit, OnModuleDestroy {
@@ -27,7 +28,6 @@ export class LogsService implements OnModuleInit, OnModuleDestroy {
       try {
         const entities = this.logRepository.create(logs);
         await this.logRepository.save(entities);
-        // Optional: this.logger.debug(`Batched ${logs.length} logs to DB.`);
       } catch (err) {
         this.logger.error(`Failed to save batched logs: ${err.message}`);
       }
@@ -44,7 +44,8 @@ export class LogsService implements OnModuleInit, OnModuleDestroy {
     const qb = this.logRepository.createQueryBuilder('log');
 
     if (query.search) {
-      qb.where('(log.username LIKE :s OR log.fullName LIKE :s OR log.action LIKE :s OR log.module LIKE :s OR log.details LIKE :s)', { s: `%${query.search}%` });
+      const s = getSafeSearchPattern(query.search);
+      qb.where('(log.username LIKE :s OR log.fullName LIKE :s OR log.action LIKE :s OR log.module LIKE :s OR log.details LIKE :s)', { s });
     }
 
     if (query.module) {
@@ -66,16 +67,10 @@ export class LogsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  /**
-   * Batch log persistence (Non-blocking for the caller)
-   */
   logActivity(data: Partial<SystemLog>) {
     this.logSubject.next(data);
   }
 
-  /**
-   * Blocking log persistence (Immediate save)
-   */
   async addLog(data: Partial<SystemLog>): Promise<SystemLog> {
     const log = this.logRepository.create(data);
     return this.logRepository.save(log);

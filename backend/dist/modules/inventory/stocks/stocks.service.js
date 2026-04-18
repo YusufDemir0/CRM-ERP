@@ -37,6 +37,7 @@ const finance_helper_1 = require("../../../common/utils/finance.helper");
 const logs_service_1 = require("../../logs/logs.service");
 const transactional_decorator_1 = require("../../../common/decorators/transactional.decorator");
 const transaction_context_service_1 = require("../../../common/services/transaction-context.service");
+const sql_helper_1 = require("../../../common/utils/sql.helper");
 let StocksService = class StocksService {
     constructor(stockRepo, movementRepo, dataSource, sequenceGenerator, logsService, transactionContext) {
         this.stockRepo = stockRepo;
@@ -57,7 +58,8 @@ let StocksService = class StocksService {
         if (query.itemId)
             qb.andWhere('stock.itemId = :itemId', { itemId: query.itemId });
         if (query.search) {
-            qb.andWhere('(item.name LIKE :s OR item.code LIKE :s)', { s: `%${query.search}%` });
+            const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            qb.andWhere('(item.name LIKE :s OR item.code LIKE :s)', { s });
         }
         if (query.isCritical === 'true') {
             qb.andWhere('stock.quantity <= item.criticalLimit');
@@ -222,8 +224,6 @@ let StocksService = class StocksService {
                 stock = manager.create(stock_entity_1.Stock, { itemId, departmentId, quantity: new decimal_js_1.Decimal(0), reservedQuantity: new decimal_js_1.Decimal(0) });
                 stock = await manager.save(stock_entity_1.Stock, stock);
             }
-            if (!stock)
-                continue;
             stock.reservedQuantity = new decimal_js_1.Decimal(stock.reservedQuantity || 0).add(qty);
             stock.updatedBy = userId || null;
             if (!stocks.find((s) => s.id === stock.id)) {

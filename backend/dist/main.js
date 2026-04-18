@@ -22,12 +22,11 @@ async function bootstrap() {
     logger.log('✅ Response compression enabled');
     app.getHttpAdapter().getInstance().set('trust proxy', 1);
     app.use((0, cookie_parser_1.default)());
+    const allowedOrigins = process.env.ALLOWED_ORIGINS
+        ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+        : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5143'];
     app.enableCors({
-        origin: [
-            'http://localhost:5173',
-            'http://127.0.0.1:5173',
-            'http://localhost:5143',
-        ],
+        origin: allowedOrigins,
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
         credentials: true,
         exposedHeaders: ['X-CSRF-TOKEN'],

@@ -28,34 +28,23 @@ export class SequenceGeneratorService {
 
     const prefix = codeGroup.prefix;
 
-    return await this.dataSource.transaction(async (autonomousManager) => {
-      let sequence = await autonomousManager.findOne(ItemCodeSequence, { where: { itemCodeGroupId } });
+    // Atomic UPSERT + Increment
+    await manager.query(
+      `INSERT INTO item_code_sequences (item_code_group_id, current_number)
+       VALUES (?, 1)
+       ON DUPLICATE KEY UPDATE current_number = current_number + 1`,
+      [itemCodeGroupId],
+    );
 
-      if (!sequence) {
-        try {
-          const newSeq = autonomousManager.create(ItemCodeSequence, { itemCodeGroupId, currentNumber: 2 });
-          await autonomousManager.save(newSeq);
-          return `${prefix}-001`;
-        } catch (e) {
-          // Ignored. Another thread might have inserted it.
-        }
-      }
+    const [row] = await manager.query(
+      `SELECT current_number FROM item_code_sequences WHERE item_code_group_id = ?`,
+      [itemCodeGroupId],
+    );
 
-      sequence = await autonomousManager
-        .createQueryBuilder(ItemCodeSequence, 'seq')
-        .setLock('pessimistic_write')
-        .where('seq.itemCodeGroupId = :id', { id: itemCodeGroupId })
-        .getOne();
-
-      const currentNumber = sequence!.currentNumber;
-      await autonomousManager.update(ItemCodeSequence, sequence!.id, { 
-        currentNumber: currentNumber + 1 
-      });
-
-      const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
-      this.logger.debug(`Generated item code: ${code}`);
-      return code;
-    });
+    const currentNumber = (row as any).current_number;
+    const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
+    this.logger.debug(`Generated item code: ${code}`);
+    return code;
   }
 
   async generateSaleCode(
@@ -69,101 +58,69 @@ export class SequenceGeneratorService {
 
     const prefix = saleType.abbreviation;
 
-    return await this.dataSource.transaction(async (autonomousManager) => {
-      let sequence = await autonomousManager.findOne(SaleSequence, { where: { saleTypeId } });
+    // Atomic UPSERT + Increment
+    await manager.query(
+      `INSERT INTO sale_sequences (sale_type_id, current_number)
+       VALUES (?, 1)
+       ON DUPLICATE KEY UPDATE current_number = current_number + 1`,
+      [saleTypeId],
+    );
 
-      if (!sequence) {
-        try {
-          const newSeq = autonomousManager.create(SaleSequence, { saleTypeId, currentNumber: 2 });
-          await autonomousManager.save(newSeq);
-          return `${prefix}-001`;
-        } catch (e) {
-          // Ignored. Another thread might have inserted it.
-        }
-      }
+    const [row] = await manager.query(
+      `SELECT current_number FROM sale_sequences WHERE sale_type_id = ?`,
+      [saleTypeId],
+    );
 
-      sequence = await autonomousManager
-        .createQueryBuilder(SaleSequence, 'seq')
-        .setLock('pessimistic_write')
-        .where('seq.saleTypeId = :id', { id: saleTypeId })
-        .getOne();
-
-      const currentNumber = sequence!.currentNumber;
-      await autonomousManager.update(SaleSequence, sequence!.id, { 
-        currentNumber: currentNumber + 1 
-      });
-
-      const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
-      this.logger.debug(`Generated sale code: ${code}`);
-      return code;
-    });
+    const currentNumber = (row as any).current_number;
+    const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
+    this.logger.debug(`Generated sale code: ${code}`);
+    return code;
   }
 
   async generateProductionCode(
     manager: EntityManager = this.transactionContext.manager,
     prefix: string = 'URT',
   ): Promise<string> {
-    return await this.dataSource.transaction(async (autonomousManager) => {
-      let sequence = await autonomousManager.findOne(ProductionSequence, { where: { prefix } });
+    // Atomic UPSERT + Increment
+    await manager.query(
+      `INSERT INTO production_sequences (prefix, current_number)
+       VALUES (?, 1)
+       ON DUPLICATE KEY UPDATE current_number = current_number + 1`,
+      [prefix],
+    );
 
-      if (!sequence) {
-        try {
-          const newSeq = autonomousManager.create(ProductionSequence, { prefix, currentNumber: 2 });
-          await autonomousManager.save(newSeq);
-          return `${prefix}-001`;
-        } catch (e) {
-          // Ignored. Another thread might have inserted it.
-        }
-      }
+    const [row] = await manager.query(
+      `SELECT current_number FROM production_sequences WHERE prefix = ?`,
+      [prefix],
+    );
 
-      sequence = await autonomousManager
-        .createQueryBuilder(ProductionSequence, 'seq')
-        .setLock('pessimistic_write')
-        .where('seq.prefix = :prefix', { prefix })
-        .getOne();
-
-      const currentNumber = sequence!.currentNumber;
-      await autonomousManager.update(ProductionSequence, sequence!.id, { 
-        currentNumber: currentNumber + 1 
-      });
-
-      const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
-      this.logger.debug(`Generated production code: ${code}`);
-      return code;
-    });
+    const currentNumber = (row as any).current_number;
+    const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
+    this.logger.debug(`Generated production code: ${code}`);
+    return code;
   }
 
   async generateTransactionCode(
     manager: EntityManager = this.transactionContext.manager,
     prefix: string,
   ): Promise<string> {
-    return await this.dataSource.transaction(async (autonomousManager) => {
-      let sequence = await autonomousManager.findOne(TransactionSequence, { where: { prefix } });
+    // Atomic UPSERT + Increment
+    await manager.query(
+      `INSERT INTO transaction_sequences (prefix, current_number)
+       VALUES (?, 1)
+       ON DUPLICATE KEY UPDATE current_number = current_number + 1`,
+      [prefix],
+    );
 
-      if (!sequence) {
-        try {
-          const newSeq = autonomousManager.create(TransactionSequence, { prefix, currentNumber: 2 });
-          await autonomousManager.save(newSeq);
-          return `${prefix}-001`;
-        } catch (e) {
-          // Ignored. Another thread might have inserted it.
-        }
-      }
+    const [row] = await manager.query(
+      `SELECT current_number FROM transaction_sequences WHERE prefix = ?`,
+      [prefix],
+    );
 
-      sequence = await autonomousManager
-        .createQueryBuilder(TransactionSequence, 'seq')
-        .setLock('pessimistic_write')
-        .where('seq.prefix = :prefix', { prefix })
-        .getOne();
-
-      const currentNumber = sequence!.currentNumber;
-      await autonomousManager.update(TransactionSequence, sequence!.id, { 
-        currentNumber: currentNumber + 1 
-      });
-
-      const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
-      this.logger.debug(`Generated transaction code: ${code}`);
-      return code;
-    });
+    const currentNumber = (row as any).current_number;
+    const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
+    this.logger.debug(`Generated transaction code: ${code}`);
+    return code;
   }
+
 }

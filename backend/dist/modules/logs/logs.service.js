@@ -20,6 +20,7 @@ const typeorm_2 = require("typeorm");
 const log_entity_1 = require("./entities/log.entity");
 const rxjs_1 = require("rxjs");
 const operators_1 = require("rxjs/operators");
+const sql_helper_1 = require("../../common/utils/sql.helper");
 let LogsService = LogsService_1 = class LogsService {
     constructor(logRepository) {
         this.logRepository = logRepository;
@@ -46,7 +47,8 @@ let LogsService = LogsService_1 = class LogsService {
     async findAll(query) {
         const qb = this.logRepository.createQueryBuilder('log');
         if (query.search) {
-            qb.where('(log.username LIKE :s OR log.fullName LIKE :s OR log.action LIKE :s OR log.module LIKE :s OR log.details LIKE :s)', { s: `%${query.search}%` });
+            const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            qb.where('(log.username LIKE :s OR log.fullName LIKE :s OR log.action LIKE :s OR log.module LIKE :s OR log.details LIKE :s)', { s });
         }
         if (query.module) {
             qb.andWhere('log.module = :module', { module: query.module });

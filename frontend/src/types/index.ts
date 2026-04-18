@@ -43,8 +43,10 @@ export interface Permission extends BaseEntity {
   name: string;
   key: string;
   module: string;
+  action?: string;
   description?: string;
 }
+
 
 export interface Currency extends BaseEntity {
   code: string;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { salesAPI, departmentsAPI } from '../services/api';
 import { 
@@ -131,17 +131,17 @@ export default function SalesPage() {
     });
   };
 
-  const handleCancelSale = async (id: number) => {
+  const handleCancelSale = useCallback(async (id: number) => {
     const confirmed = await confirmDialog('Bu siparişi iptal etmek istediğinize emin misiniz?', true);
     if (confirmed) cancelMutation.mutate(id);
-  };
+  }, [cancelMutation]);
 
-  const handleShipSale = async (id: number) => {
+  const handleShipSale = useCallback(async (id: number) => {
     const confirmed = await confirmDialog('Tüm ürünlerin sevkiyatı yapılsın mı?', false);
     if (confirmed) shipMutation.mutate(id);
-  };
+  }, [shipMutation]);
 
-  const openViewModal = async (id: number) => {
+  const openViewModal = useCallback(async (id: number) => {
     try {
       const res = await salesAPI.getOne(id);
       setViewSaleData(res.data);
@@ -149,7 +149,18 @@ export default function SalesPage() {
     } catch (error) {
       toast.error("Satış detayı getirilemedi.");
     }
-  };
+  }, []);
+
+  const handleNewSale = useCallback(() => setInnerView('new'), []);
+  const handlePageChange = useCallback((p: number) => setPage(p), []);
+  const handleLimitChange = useCallback((l: number) => setLimit(l), []);
+  const handleSortChange = useCallback((key: string) => {
+    setSort(prev => {
+      const isAsc = prev.key === key && prev.order === 'ASC';
+      return { key, order: isAsc ? 'DESC' : 'ASC' };
+    });
+    setPage(1);
+  }, []);
 
   if (innerView === 'new') {
     return (
@@ -184,21 +195,17 @@ export default function SalesPage() {
         onFilterStatusChange={(id) => { setFilterStatus(id); setPage(1); }}
         searchTerm={searchTerm}
         onSearchTermChange={(term) => { setSearchTerm(term); setPage(1); }}
-        onNewSale={() => setInnerView('new')}
+        onNewSale={handleNewSale}
       />
 
       <SalesTable 
         sales={sales}
         isLoading={loading}
         paginationMeta={paginationMeta}
-        onPageChange={setPage}
-        onLimitChange={setLimit}
+        onPageChange={handlePageChange}
+        onLimitChange={handleLimitChange}
         sortConfigs={[{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }]}
-        onSort={(key: string) => {
-          const isAsc = sort.key === key && sort.order === 'ASC';
-          setSort({ key, order: isAsc ? 'DESC' : 'ASC' });
-          setPage(1);
-        }}
+        onSort={handleSortChange}
         onView={openViewModal}
         onApprove={setApproveSaleId}
         onShip={handleShipSale}

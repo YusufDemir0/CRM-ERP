@@ -1,10 +1,43 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
@@ -19,6 +52,7 @@ const typeorm_2 = require("typeorm");
 const party_entity_1 = require("./entities/party.entity");
 const currencies_service_1 = require("../finance/currencies/currencies.service");
 const decimal_js_1 = require("decimal.js");
+const sql_helper_1 = require("../../common/utils/sql.helper");
 let PartiesService = class PartiesService {
     constructor(partyRepo, currenciesService) {
         this.partyRepo = partyRepo;
@@ -28,7 +62,10 @@ let PartiesService = class PartiesService {
         const qb = this.partyRepo.createQueryBuilder('party')
             .leftJoinAndSelect('party.currency', 'currency');
         if (query.search) {
-            qb.andWhere('(party.name LIKE :s OR party.phone1 LIKE :s OR party.email LIKE :s OR party.taxNumber LIKE :s OR party.taxOffice LIKE :s OR party.districtName LIKE :s OR party.address LIKE :s OR party.notes LIKE :s OR currency.name LIKE :s)', { s: `%${query.search}%` });
+            const searchPattern = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            if (searchPattern) {
+                qb.andWhere('(party.name LIKE :s OR party.phone1 LIKE :s OR party.email LIKE :s OR party.taxNumber LIKE :s OR party.taxOffice LIKE :s OR party.districtName LIKE :s OR party.address LIKE :s OR party.notes LIKE :s OR currency.name LIKE :s)', { s: searchPattern });
+            }
         }
         const partyFilterMap = {
             name: 'party.name',
@@ -42,8 +79,12 @@ let PartiesService = class PartiesService {
         };
         Object.keys(query).forEach(key => {
             const dbCol = partyFilterMap[key];
-            if (dbCol && query[key] !== undefined) {
-                qb.andWhere(`${dbCol} LIKE :${key}`, { [key]: `%${query[key]}%` });
+            const val = query[key];
+            if (dbCol && val !== undefined) {
+                const searchPattern = (0, sql_helper_1.getSafeSearchPattern)(val.toString());
+                if (searchPattern) {
+                    qb.andWhere(`${dbCol} LIKE :${key}`, { [key]: searchPattern });
+                }
             }
         });
         if (query.type) {
@@ -123,6 +164,15 @@ let PartiesService = class PartiesService {
         if (!new decimal_js_1.Decimal(party.balance).isZero()) {
             throw new common_1.BadRequestException(`Bakiyesi olan cari hesaplar silinemez. Mevcut Bakiye: ${party.balance.toString()}. ` +
                 `Lütfen önce finansal hesabı sıfırlayınız (Tahsilat/Ödeme).`);
+        }
+        const dataSource = this.partyRepo.manager.connection;
+        const { Sale } = await Promise.resolve().then(() => __importStar(require('../sales/entities/sale.entity')));
+        const activeSales = await dataSource.getRepository(Sale).count({
+            where: { partyId: id, status: (0, typeorm_2.In)(['draft', 'approved', 'shipped']) }
+        });
+        if (activeSales > 0) {
+            throw new common_1.BadRequestException(`Bu cari hesaba ait ${activeSales} adet aktif satış/sipariş bulunmaktadır. ` +
+                `Önce bunları iptal etmeli veya tamamlamalısınız.`);
         }
         const timestamp = Date.now();
         await this.partyRepo.update(id, {

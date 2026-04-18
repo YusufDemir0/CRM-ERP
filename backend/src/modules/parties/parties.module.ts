@@ -17,4 +17,4 @@ import { AccountingLedger } from './entities/ledger.entity';
   providers: [PartiesService],
   exports: [PartiesService],
 })
-export class PartiesModule {}
+export class PartiesModule { }

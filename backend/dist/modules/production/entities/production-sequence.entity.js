@@ -51,6 +51,7 @@ __decorate([
     __metadata("design:type", Number)
 ], ProductionSequence.prototype, "state", void 0);
 exports.ProductionSequence = ProductionSequence = __decorate([
-    (0, typeorm_1.Entity)('production_sequences')
+    (0, typeorm_1.Entity)('production_sequences'),
+    (0, typeorm_1.Unique)(['prefix'])
 ], ProductionSequence);
 //# sourceMappingURL=production-sequence.entity.js.map

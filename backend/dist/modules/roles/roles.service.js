@@ -21,6 +21,7 @@ const permission_entity_1 = require("../auth/entities/permission.entity");
 const user_role_entity_1 = require("../auth/entities/user-role.entity");
 const user_permission_entity_1 = require("../auth/entities/user-permission.entity");
 const role_permission_entity_1 = require("../auth/entities/role-permission.entity");
+const sql_helper_1 = require("../../common/utils/sql.helper");
 let RolesService = class RolesService {
     constructor(roleRepo, permRepo, userRoleRepo, userPermRepo, rolePermRepo) {
         this.roleRepo = roleRepo;
@@ -30,17 +31,32 @@ let RolesService = class RolesService {
         this.rolePermRepo = rolePermRepo;
     }
     async findAllRoles(query) {
-        const qb = this.roleRepo.createQueryBuilder('role')
-            .leftJoinAndSelect('role.permissions', 'permissions');
+        const qb = this.roleRepo.createQueryBuilder('role');
         if (query.search) {
-            qb.where('(role.name LIKE :search OR permissions.name LIKE :search)', { search: `%${query.search}%` });
+            const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            qb.leftJoin('role.permissions', 'permissions');
+            qb.where('(role.name LIKE :s OR permissions.name LIKE :s)', { s });
         }
         qb.orderBy('role.createdAt', query.sortOrder || 'DESC');
         qb.skip(query.skip).take(query.limit);
-        const [data, total] = await qb.getManyAndCount();
+        const [idRows, total] = await qb.select('role.id').getManyAndCount();
+        const ids = idRows.map(r => r.id);
+        let data = [];
+        if (ids.length > 0) {
+            data = await this.roleRepo.find({
+                where: { id: (0, typeorm_2.In)(ids) },
+                relations: ['permissions'],
+                order: { createdAt: query.sortOrder || 'DESC' },
+            });
+        }
         return {
             data,
-            meta: { total, page: query.page || 1, limit: query.limit || 20, totalPages: Math.ceil(total / (query.limit || 20)) },
+            meta: {
+                total,
+                page: query.page || 1,
+                limit: query.limit || 20,
+                totalPages: Math.ceil(total / (query.limit || 20)),
+            },
         };
     }
     async findOneRole(id) {
@@ -83,13 +99,14 @@ let RolesService = class RolesService {
         return this.roleRepo.save(role);
     }
     async deleteRole(id) {
-        const role = await this.findOneRole(id);
+        await this.findOneRole(id);
         await this.roleRepo.softDelete(id);
     }
     async findAllPermissions(query) {
         const qb = this.permRepo.createQueryBuilder('perm');
         if (query.search) {
-            qb.where('(perm.name LIKE :s OR perm.key LIKE :s OR perm.module LIKE :s)', { s: `%${query.search}%` });
+            const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            qb.where('(perm.name LIKE :s OR perm.key LIKE :s OR perm.module LIKE :s)', { s });
         }
         qb.orderBy('perm.module', 'ASC').addOrderBy('perm.name', 'ASC');
         qb.skip(query.skip).take(query.limit);

@@ -3,4 +3,5 @@ export declare class Permission extends BaseEntity {
     key: string;
     name: string;
     module: string;
+    action: string;
 }

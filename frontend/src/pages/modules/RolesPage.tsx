@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { rolesAPI } from '../../services/api';
 import { 
   FiEdit2, FiShield, FiPlus, FiCheckCircle, FiLock, 
-  FiActivity, FiCommand, FiGrid, FiX
+  FiActivity, FiGrid, FiX
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { DataTable, Column } from '../../components/common/DataTable';
@@ -35,7 +35,7 @@ export function RolesPage() {
   const { sortedData, sortConfigs, toggleSort } = useSort(roles);
 
   const { data: allPermissions = [] } = useQuery({
-    queryKey: ['permissions'], // Keep for now or add to queryKeys
+    queryKey: ['permissions'],
     queryFn: async ({ signal }) => {
       const res = await rolesAPI.getPermissions({ limit: 500 }, { signal });
       return res.data.data;
@@ -96,13 +96,17 @@ export function RolesPage() {
     if (type === 'all') {
       setFormData(prev => ({ ...prev, permissionIds: allPermissions.map((p: Permission) => p.id) }));
     } else if (type === 'view') {
-      setFormData(prev => ({ ...prev, permissionIds: allPermissions.filter((p: Permission) => p.key?.includes('goruntuleme') || p.key?.includes('view')).map((p: Permission) => p.id) }));
+      setFormData(prev => ({ 
+        ...prev, 
+        permissionIds: allPermissions
+          .filter((p: Permission) => p.action === 'read')
+          .map((p: Permission) => p.id) 
+      }));
     } else if (type === 'clear') {
       setFormData(prev => ({ ...prev, permissionIds: [] }));
     }
   };
 
-  // Yetkileri modüle göre gruplama
   const moduleTranslations: Record<string, string> = {
     'inventory': 'Stok ve Envanter',
     'users': 'Kullanıcılar',
@@ -112,9 +116,7 @@ export function RolesPage() {
     'sales': 'Satış Yönetimi',
     'finance': 'Finansal Hareketler',
     'production': 'Üretim Planlama',
-    'system': 'Sistem Konfigürasyonu',
-    'satışlar': 'Satış Yönetimi',
-    'satislar': 'Satış Yönetimi'
+    'system': 'Sistem Konfigürasyonu'
   };
 
   const groupedPermissions = allPermissions.reduce((acc: Record<string, Permission[]>, perm: Permission) => {
@@ -171,7 +173,6 @@ export function RolesPage() {
   return (
     <div className="animate-in flex flex-col gap-8">
       
-      {/* 🔴 HEADER SECTION */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6">
         <div>
           <div className="inline-flex items-center gap-2 bg-danger/10 text-danger px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
@@ -221,17 +222,15 @@ export function RolesPage() {
           onRestore={(r) => toggleState(r.id, 0)}
           getRowOpacity={(r) => r.state === 0 ? 0.5 : 1}
           
-          // Integrated Search
           search={searchTerm}
           onSearchChange={setSearchTerm}
           placeholder="Rol adı ile ara..."
         />
       </div>
 
-      {/* 🟢 MODAL SECTION */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white max-w-[950px] w-full p-10 rounded-[2.5rem] shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300 relative max-h-[90vh] overflow-hidden">
+          <div className="bg-white max-w-[1000px] w-full p-10 rounded-[2.5rem] shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300 relative max-h-[90vh] overflow-hidden">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-black text-slate-900 tracking-tight">
                 {editingId ? 'Rol Revizyonu' : 'Yeni Güvenlik Profili'}
@@ -262,7 +261,6 @@ export function RolesPage() {
                     <FiGrid /> YETKİ MATRİSİ (CAPABILITY MATRIX)
                   </label>
                   
-                  {/* Hızlı Seçim Butonları */}
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-1">HIZLI ŞABLON:</span>
                     <button type="button" onClick={() => applyFastRole('all')} className="h-9 px-4 bg-primary/10 text-primary font-black text-[10px] sm:text-xs uppercase tracking-widest rounded-xl hover:bg-primary/20 hover:scale-105 active:scale-95 transition-all">
@@ -308,25 +306,39 @@ export function RolesPage() {
                       </div>
                       <div className="flex flex-col gap-2">
                         {groupedPermissions[moduleName].map((perm: Permission) => (
-                          <label key={perm.id} className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-colors hover:bg-slate-50 group ${
+                          <label key={perm.id} className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-colors hover:bg-slate-50 group ${
                             formData.permissionIds.includes(perm.id) ? 'bg-primary/[0.03] ring-1 ring-primary/10' : ''
                           }`}>
-                            <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-colors ${
-                              formData.permissionIds.includes(perm.id) ? 'bg-primary border-primary text-white scale-110' : 'border-slate-200 bg-white group-hover:border-primary/50'
-                            }`}>
-                              <input 
-                                type="checkbox" 
-                                className="hidden"
-                                checked={formData.permissionIds.includes(perm.id)} 
-                                onChange={() => togglePermission(perm.id)} 
-                              />
-                              {formData.permissionIds.includes(perm.id) && <FiCheckCircle size={12} />}
+                            <div className="flex items-center gap-3">
+                              <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-colors ${
+                                formData.permissionIds.includes(perm.id) ? 'bg-primary border-primary text-white scale-110' : 'border-slate-200 bg-white group-hover:border-primary/50'
+                              }`}>
+                                <input 
+                                  type="checkbox" 
+                                  className="hidden"
+                                  checked={formData.permissionIds.includes(perm.id)} 
+                                  onChange={() => togglePermission(perm.id)} 
+                                />
+                                {formData.permissionIds.includes(perm.id) && <FiCheckCircle size={12} />}
+                              </div>
+                              <span className={`text-[13px] font-bold select-none ${
+                                formData.permissionIds.includes(perm.id) ? 'text-slate-900' : 'text-slate-500'
+                              }`}>
+                                {perm.name}
+                              </span>
                             </div>
-                            <span className={`text-[13px] font-bold select-none ${
-                              formData.permissionIds.includes(perm.id) ? 'text-slate-900' : 'text-slate-500'
-                            }`}>
-                              {perm.name}
-                            </span>
+                            
+                            {perm.action && (
+                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter ${
+                                perm.action === 'manage' ? 'bg-purple-100 text-purple-700' :
+                                perm.action === 'delete' ? 'bg-red-100 text-red-700' :
+                                perm.action === 'update' ? 'bg-blue-100 text-blue-700' :
+                                perm.action === 'create' ? 'bg-green-100 text-green-700' :
+                                'bg-slate-100 text-slate-700'
+                              }`}>
+                                {perm.action}
+                              </span>
+                            )}
                           </label>
                         ))}
                       </div>

@@ -15,7 +15,7 @@ export class CommonModule implements OnModuleInit {
   constructor(
     private readonly dataSource: DataSource,
     private readonly cls: ClsService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     // FE-11: Bridge TypeORM and CLS for @Transactional decorator

@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ShipSaleDto = exports.SalesQueryDto = exports.ApproveSaleDto = exports.CreateSaleTypeDto = exports.UpdateSaleDto = exports.CreateSaleDto = exports.CreateSaleItemDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
+const number_helper_1 = require("../../../common/helpers/number.helper");
 const pagination_dto_1 = require("../../../common/dto/pagination.dto");
 class CreateSaleItemDto {
 }
@@ -23,37 +24,34 @@ __decorate([
     __metadata("design:type", Number)
 ], CreateSaleItemDto.prototype, "itemId", void 0);
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0.0001),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_transformer_1.Transform)(number_helper_1.transformDecimalString),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateSaleItemDto.prototype, "quantity", void 0);
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_transformer_1.Transform)(number_helper_1.transformDecimalString),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateSaleItemDto.prototype, "price", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(number_helper_1.transformDecimalString),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateSaleItemDto.prototype, "discountAmount", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(number_helper_1.transformDecimalString),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateSaleItemDto.prototype, "discountPercent", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(number_helper_1.transformDecimalString),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateSaleItemDto.prototype, "kdvRate", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -89,24 +87,21 @@ __decorate([
 ], CreateSaleDto.prototype, "deliveryDate", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(number_helper_1.transformDecimalString),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateSaleDto.prototype, "deposit", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(number_helper_1.transformDecimalString),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateSaleDto.prototype, "discountAmount", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(number_helper_1.transformDecimalString),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateSaleDto.prototype, "discountPercent", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -143,24 +138,21 @@ __decorate([
 ], UpdateSaleDto.prototype, "deliveryDate", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(number_helper_1.transformDecimalString),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], UpdateSaleDto.prototype, "deposit", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(number_helper_1.transformDecimalString),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], UpdateSaleDto.prototype, "discountAmount", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.Min)(0),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_transformer_1.Transform)(number_helper_1.transformDecimalString),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], UpdateSaleDto.prototype, "discountPercent", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),

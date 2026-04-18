@@ -12,4 +12,8 @@ export class Permission extends BaseEntity {
 
   @Column({ type: 'varchar', length: 50 })
   module: string;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  action: string; // 'read', 'create', 'update', 'delete', 'manage'
 }
+

@@ -3,10 +3,14 @@ import { ItemsService } from './items.service';
 import { CreateItemDto, UpdateItemDto, CreateItemTypeDto, CreateQuantityTypeDto, CreateItemCodeGroupDto, ItemsQueryDto, UpdateItemTypeDto, UpdateQuantityTypeDto, UpdateItemCodeGroupDto } from '../dto/inventory.dto';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
+import { InventoryOrchestratorService } from '../inventory-orchestrator.service';
 
 @Controller('items')
 export class ItemsController {
-  constructor(private readonly itemsService: ItemsService) {}
+  constructor(
+    private readonly itemsService: ItemsService,
+    private readonly orchestrator: InventoryOrchestratorService,
+  ) {}
 
   // ──── STATIC ROUTES MUST COME BEFORE :id ────
 
@@ -71,6 +75,9 @@ export class ItemsController {
   @Put(':id')
   @RequirePermissions('stok_duzenleme')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateItemDto, @CurrentUser('sub') userId: number) {
+    if (dto.state === 0) {
+      return this.orchestrator.safeUpdateState(id, 0, userId);
+    }
     return this.itemsService.update(id, dto, userId);
   }
 
@@ -83,5 +90,7 @@ export class ItemsController {
 
   @Delete(':id')
   @RequirePermissions('stok_silme')
-  remove(@Param('id', ParseIntPipe) id: number) { return this.itemsService.softDelete(id); }
+  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser('sub') userId: number) { 
+    return this.orchestrator.safeDelete(id, userId); 
+  }
 }

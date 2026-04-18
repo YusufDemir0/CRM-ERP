@@ -7,7 +7,7 @@ export class TransactionContextService {
   constructor(
     private readonly cls: ClsService,
     private readonly dataSource: DataSource,
-  ) {}
+  ) { }
 
   /**
    * Returns the current transactional manager or the default one if no transaction is active.

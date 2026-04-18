@@ -31,11 +31,13 @@ export class AuthService {
     });
 
     if (!user) {
-      // SEC-07: Constant-time comparison simulation to prevent username enumeration
-      // FE-Fix: Replaced CPU-heavy bcrypt with a simple non-blocking timeout to prevent DDoS
-      await new Promise(resolve => setTimeout(resolve, 50));
+      // SEC-07: Perform a dummy comparison to normalize response time (prevents username enumeration)
+      // We use a real bcrypt hash structure to ensure the comparison algorithm runs.
+      const DUMMY_HASH = '$2b$12$d7R1A.L8P.Gv9D/7yU7kE7P.r7Y.e7r7r7r7r7r7r7r7r7r7r7r7r7'; 
+      await bcrypt.compare(dto.password, DUMMY_HASH);
       throw new UnauthorizedException('Kullanıcı adı veya şifre hatalı');
     }
+
 
     if (user.state === 2) {
       throw new UnauthorizedException('Hesabınız kalıcı olarak kilitlenmiştir. Lütfen sistem yöneticisi ile iletişime geçiniz.');

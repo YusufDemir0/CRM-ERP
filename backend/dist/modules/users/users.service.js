@@ -56,6 +56,7 @@ const role_entity_1 = require("../auth/entities/role.entity");
 const user_dto_1 = require("./dto/user.dto");
 const transactional_decorator_1 = require("../../common/decorators/transactional.decorator");
 const transaction_context_service_1 = require("../../common/services/transaction-context.service");
+const sql_helper_1 = require("../../common/utils/sql.helper");
 let UsersService = class UsersService {
     constructor(userRepo, roleRepo, cacheManager, transactionContext) {
         this.userRepo = userRepo;
@@ -64,26 +65,37 @@ let UsersService = class UsersService {
         this.transactionContext = transactionContext;
     }
     async findAll(query) {
-        const qb = this.userRepo.createQueryBuilder('user')
-            .leftJoinAndSelect('user.department', 'department')
-            .leftJoinAndSelect('user.roles', 'roles')
-            .select([
-            'user.id', 'user.username', 'user.fullName', 'user.email',
-            'user.phone', 'user.departmentId', 'user.state', 'user.createdAt',
-            'department.id', 'department.name',
-            'roles.id', 'roles.name',
-        ]);
+        const qb = this.userRepo.createQueryBuilder('user');
         if (query.search) {
-            qb.where('(user.fullName LIKE :search OR user.username LIKE :search OR user.email LIKE :search OR department.name LIKE :search OR roles.name LIKE :search)', {
-                search: `%${query.search}%`,
-            });
+            const searchPattern = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            if (searchPattern) {
+                qb.leftJoin('user.department', 'dept_filter');
+                qb.leftJoin('user.roles', 'role_filter');
+                qb.where('(user.fullName LIKE :search OR user.username LIKE :search OR user.email LIKE :search OR dept_filter.name LIKE :search OR role_filter.name LIKE :search)', { search: searchPattern });
+            }
         }
         if (query.state !== undefined) {
             qb.andWhere('user.state = :state', { state: query.state });
         }
         qb.orderBy(`user.${query.sortBy || 'createdAt'}`, query.sortOrder || 'DESC');
         qb.skip(query.skip).take(query.limit);
-        const [data, total] = await qb.getManyAndCount();
+        const [idRows, total] = await qb.select('user.id').getManyAndCount();
+        const ids = idRows.map((r) => r.id);
+        let data = [];
+        if (ids.length > 0) {
+            data = await this.userRepo.createQueryBuilder('user')
+                .leftJoinAndSelect('user.department', 'department')
+                .leftJoinAndSelect('user.roles', 'roles')
+                .select([
+                'user.id', 'user.username', 'user.fullName', 'user.email',
+                'user.phone', 'user.departmentId', 'user.state', 'user.createdAt',
+                'department.id', 'department.name',
+                'roles.id', 'roles.name',
+            ])
+                .where('user.id IN (:...ids)', { ids })
+                .orderBy(`user.${query.sortBy || 'createdAt'}`, query.sortOrder || 'DESC')
+                .getMany();
+        }
         return {
             data,
             meta: {

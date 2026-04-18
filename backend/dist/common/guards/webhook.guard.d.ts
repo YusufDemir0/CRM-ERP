@@ -4,4 +4,5 @@ export declare class WebhookGuard implements CanActivate {
     private configService;
     constructor(configService: ConfigService);
     canActivate(context: ExecutionContext): boolean;
+    private safeCompare;
 }

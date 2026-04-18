@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, EntityManager } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Decimal } from 'decimal.js';
 import { Transaction } from './entities/transaction.entity';
 import { Party } from '../../parties/entities/party.entity';
@@ -14,6 +14,7 @@ import { FinanceHelper as FH } from '../../../common/utils/finance.helper';
 import dayjs from 'dayjs';
 import { Transactional } from '../../../common/decorators/transactional.decorator';
 import { TransactionContextService } from '../../../common/services/transaction-context.service';
+import { getSafeSearchPattern } from '../../../common/utils/sql.helper';
 
 @Injectable()
 export class TransactionsService {
@@ -31,7 +32,8 @@ export class TransactionsService {
       .leftJoinAndSelect('tx.currency', 'currency');
 
     if (query.search) {
-      qb.andWhere('(tx.code LIKE :s OR party.name LIKE :s OR tx.description LIKE :s OR account.name LIKE :s OR account.bankName LIKE :s)', { s: `%${query.search}%` });
+      const s = getSafeSearchPattern(query.search);
+      qb.andWhere('(tx.code LIKE :s OR party.name LIKE :s OR tx.description LIKE :s OR account.name LIKE :s OR account.bankName LIKE :s)', { s });
     }
     if (query.partyId) qb.andWhere('tx.partyId = :partyId', { partyId: query.partyId });
     if (query.type) qb.andWhere('tx.type = :type', { type: query.type });
@@ -102,7 +104,7 @@ export class TransactionsService {
     const tx = manager.create(Transaction, {
       code, partyId: dto.partyId || undefined, commercialAccountId: dto.commercialAccountId,
       amount: new Decimal(dto.amount), currencyId: dto.currencyId || undefined, exchangeRate,
-      type: dto.type, referenceType: dto.referenceType || undefined, referenceId: dto.referenceId || undefined,
+      type: dto.type, referenceType: dto.referenceType as any, referenceId: dto.referenceId || undefined,
       date: dto.date, description: dto.description || undefined, status: 'completed', createdBy: userId,
     });
 

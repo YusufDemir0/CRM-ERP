@@ -26,7 +26,6 @@ interface AuthState {
   logout: () => Promise<void>;
   fetchProfile: () => Promise<void>;
   hasPermission: (key: string) => boolean;
-  setRedirectToLogin: (fn: () => void) => void;
 }
 
 // ────── HELPERS ──────
@@ -36,19 +35,12 @@ function normalizeRoles(roles: (string | Role)[] | undefined): string[] {
   return roles.map((r) => typeof r === 'string' ? r : r.name || '');
 }
 
-// Store a redirect function (set by NavigationManager inside Router context)
-let _redirectToLogin: (() => void) | null = null;
-
 // ────── ZUSTAND STORE ──────
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isLoading: true,
   isAuthenticated: false,
-
-  setRedirectToLogin: (fn: () => void) => {
-    _redirectToLogin = fn;
-  },
 
   fetchProfile: async () => {
     // Don't fetch profile on login page (avoids unnecessary 401)
@@ -95,8 +87,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.error('Logout error:', err);
     } finally {
       set({ user: null, isAuthenticated: false });
-      // Navigate to login via the router-context redirect function
-      _redirectToLogin?.();
+      // Clean logout with full page reload to clear memory
+      window.location.href = '/login';
     }
   },
 

@@ -31,6 +31,7 @@ const date_utils_1 = require("../../common/utils/date.utils");
 const decimal_js_1 = require("decimal.js");
 const transactional_decorator_1 = require("../../common/decorators/transactional.decorator");
 const transaction_context_service_1 = require("../../common/services/transaction-context.service");
+const sql_helper_1 = require("../../common/utils/sql.helper");
 let ProductionService = ProductionService_1 = class ProductionService {
     constructor(bomRepo, bomItemRepo, poRepo, itemRepo, dataSource, sequenceGenerator, stocksService, itemsService, logsService, transactionContext) {
         this.bomRepo = bomRepo;
@@ -51,7 +52,8 @@ let ProductionService = ProductionService_1 = class ProductionService {
             .leftJoinAndSelect('items.item', 'item')
             .leftJoinAndSelect('bom.targetItem', 'targetItem');
         if (query.search) {
-            qb.andWhere('(bom.name LIKE :s OR targetItem.name LIKE :s OR targetItem.code LIKE :s)', { s: `%${query.search}%` });
+            const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            qb.andWhere('(bom.name LIKE :s OR targetItem.name LIKE :s OR targetItem.code LIKE :s)', { s });
         }
         if (query.state !== undefined) {
             qb.andWhere('bom.state = :state', { state: query.state });
@@ -175,8 +177,10 @@ let ProductionService = ProductionService_1 = class ProductionService {
             .leftJoinAndSelect('po.bom', 'bom')
             .leftJoinAndSelect('po.sourceDepartment', 'sourceDept')
             .leftJoinAndSelect('po.targetDepartment', 'targetDept');
-        if (query.search)
-            qb.where('(po.code LIKE :s OR bom.name LIKE :s)', { s: `%${query.search}%` });
+        if (query.search) {
+            const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            qb.where('(po.code LIKE :s OR bom.name LIKE :s)', { s });
+        }
         if (query.status)
             qb.andWhere('po.status = :status', { status: query.status });
         qb.orderBy('po.createdAt', 'DESC').skip(query.skip).take(query.limit);

@@ -1,27 +1,29 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, MoreThan, EntityManager } from 'typeorm';
+import { Repository, DataSource, MoreThan } from 'typeorm';
 import { Item } from './entities/item.entity';
 import { ItemType } from './entities/item-type.entity';
 import { QuantityType } from './entities/quantity-type.entity';
 import { ItemCodeGroup } from './entities/item-code-group.entity';
-import { 
-  CreateItemDto, 
-  UpdateItemDto, 
-  CreateItemTypeDto, 
-  CreateQuantityTypeDto, 
-  CreateItemCodeGroupDto, 
+import { Stock } from '../stocks/entities/stock.entity';
+import {
+  CreateItemDto,
+  UpdateItemDto,
+  CreateItemTypeDto,
+  CreateQuantityTypeDto,
+  CreateItemCodeGroupDto,
   ItemsQueryDto,
   UpdateItemTypeDto,
   UpdateQuantityTypeDto,
-  UpdateItemCodeGroupDto 
+  UpdateItemCodeGroupDto
 } from '../dto/inventory.dto';
 import { SequenceGeneratorService } from '../../../common/services/sequence-generator.service';
-import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
+import { PaginatedResult } from '../../../common/dto/pagination.dto';
 import { CurrenciesService } from '../../finance/currencies/currencies.service';
 import { Decimal } from 'decimal.js';
 import { Transactional } from '../../../common/decorators/transactional.decorator';
 import { TransactionContextService } from '../../../common/services/transaction-context.service';
+import { getSafeSearchPattern } from '../../../common/utils/sql.helper';
 
 @Injectable()
 export class ItemsService {
@@ -30,6 +32,7 @@ export class ItemsService {
     @InjectRepository(ItemType) private itemTypeRepo: Repository<ItemType>,
     @InjectRepository(QuantityType) private qtyTypeRepo: Repository<QuantityType>,
     @InjectRepository(ItemCodeGroup) private codeGroupRepo: Repository<ItemCodeGroup>,
+    @InjectRepository(Stock) private stockRepo: Repository<Stock>,
     private dataSource: DataSource,
     private sequenceGenerator: SequenceGeneratorService,
     private currenciesService: CurrenciesService,
@@ -47,13 +50,15 @@ export class ItemsService {
       .leftJoinAndSelect('item.currency', 'currency');
 
     if (query.search) {
-      qb.andWhere('(item.name LIKE :s OR item.code LIKE :s OR item.code1 LIKE :s OR item.code2 LIKE :s OR item.description LIKE :s OR item.notes LIKE :s OR itemType.name LIKE :s OR provider.name LIKE :s)', { s: `%${query.search}%` });
+      const s = getSafeSearchPattern(query.search);
+      qb.andWhere('(item.name LIKE :s OR item.code LIKE :s OR item.code1 LIKE :s OR item.code2 LIKE :s OR item.description LIKE :s OR item.notes LIKE :s OR itemType.name LIKE :s OR provider.name LIKE :s)', { s });
     }
+
     if (query.itemTypeId) qb.andWhere('item.itemTypeId = :typeId', { typeId: query.itemTypeId });
     if (query.providerId) qb.andWhere('item.providerId = :providerId', { providerId: query.providerId });
     if (query.currencyId) qb.andWhere('item.currencyId = :currencyId', { currencyId: query.currencyId });
     if (query.state !== undefined) qb.andWhere('item.state = :state', { state: query.state });
-    
+
     if (query.critical === 'true') {
       qb.andWhere('(SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE item_id = item.id) < item.criticalLimit');
       qb.andWhere('item.criticalLimit > 0');
@@ -72,8 +77,10 @@ export class ItemsService {
 
     Object.keys(query).forEach(key => {
       const dbCol = itemFilterMap[key];
-      if (dbCol && query[key as keyof typeof query] !== undefined) {
-        qb.andWhere(`${dbCol} LIKE :${key}`, { [key]: `%${query[key as keyof typeof query]}%` });
+      const val = query[key as keyof typeof query];
+      if (dbCol && val !== undefined) {
+        const s = getSafeSearchPattern(val.toString());
+        qb.andWhere(`${dbCol} LIKE :${key}`, { [key]: s });
       }
     });
 
@@ -88,7 +95,7 @@ export class ItemsService {
       'provider.name': 'provider.name',
       'state': 'item.state'
     };
-    
+
     const sortCol = sortFieldMap[query.sortBy || ''] || 'item.createdAt';
     qb.orderBy(sortCol, query.sortOrder || 'DESC');
     qb.skip(query.skip).take(query.limit);
@@ -123,7 +130,7 @@ export class ItemsService {
     }
 
     const code = await this.sequenceGenerator.generateItemCode(manager, dto.itemCodeGroupId);
-    
+
     const existing = await manager.findOne(Item, { where: { code } });
     if (existing) {
       throw new BadRequestException(`'${code}' kodlu bir ürün zaten mevcut.`);
@@ -160,9 +167,8 @@ export class ItemsService {
     if (dto.description !== undefined) item.description = dto.description;
     if (dto.notes !== undefined) item.notes = dto.notes;
     if (dto.providerId !== undefined) item.providerId = dto.providerId;
-    
+
     if (dto.state !== undefined) {
-      if (dto.state === 0) await this.checkUsage(id);
       item.state = dto.state;
     }
 
@@ -176,29 +182,32 @@ export class ItemsService {
     return this.itemRepo.save(item);
   }
 
-  async softDelete(id: number): Promise<void> {
-    await this.checkUsage(id);
-    await this.itemRepo.softDelete(id);
-  }
+  async softDelete(id: number, currentUserId?: number): Promise<void> {
+    const item = await this.findOne(id);
 
-  async checkUsage(id: number): Promise<void> {
-    const Stock = (await import('../stocks/entities/stock.entity')).Stock;
-    const totalStock = await this.dataSource.getRepository(Stock).createQueryBuilder('stock')
+    // SEC-03: Stock check before delete
+    const totalQtyResult = await this.stockRepo.createQueryBuilder('stock')
       .where('stock.itemId = :id', { id })
-      .select('SUM(stock.quantity)', 'sum')
+      .select('SUM(stock.quantity)', 'total')
       .getRawOne();
-    
-    if (totalStock && totalStock.sum && new Decimal(totalStock.sum).gt(0)) {
-      throw new BadRequestException(`Stokta ${totalStock.sum} adet bulunan ürün pasife alınamaz/silinemez. Lütfen önce stokları sıfırlayınız.`);
+
+    const totalQty = new Decimal(totalQtyResult?.total || 0);
+    if (!totalQty.isZero()) {
+      throw new BadRequestException(`Stokta ${totalQty.toString()} adet ürün bulunduğu için silinemez. Lütfen önce stokları sıfırlayınız.`);
     }
 
-    let usageCount = 0;
-    const BomItem = (await import('../../production/entities/bom-item.entity')).BomItem;
-    usageCount = await this.dataSource.getRepository(BomItem).count({ where: { itemId: id } });
-
-    if (usageCount > 0) {
-      throw new BadRequestException(`Bu ürün ${usageCount} farklı reçetede (BOM) kullanılmaktadır. Önce reçetelerden çıkarılmalıdır.`);
+    // SEC-03: BOM usage check (BOMs are in production module, but we can check via BomItem)
+    const { BomItem } = await import('../../production/entities/bom-item.entity');
+    const bomUsage = await this.dataSource.getRepository(BomItem).count({ where: { itemId: id } });
+    if (bomUsage > 0) {
+      throw new BadRequestException(`Bu ürün ${bomUsage} adet üretim reçetesinde (BOM) kullanılmaktadır ve silinemez.`);
     }
+
+    await this.itemRepo.update(id, {
+      state: 0,
+      updatedBy: currentUserId || null,
+    });
+    await this.itemRepo.softDelete(id);
   }
 
   // ────── ITEM TYPES ──────
