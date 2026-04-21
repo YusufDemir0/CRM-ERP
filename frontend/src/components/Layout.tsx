@@ -3,11 +3,15 @@ import { useAuth } from '../context/AuthContext';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import { useState } from 'react';
+import { useRealtimeSync } from '../hooks/useRealtimeSync';
 
 export default function Layout() {
   const { user, isLoading } = useAuth();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
+  
+  // Real-time synchronization
+  useRealtimeSync();
 
   if (isLoading) {
     return (

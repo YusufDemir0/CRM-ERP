@@ -26,7 +26,7 @@ export interface QuickCreateStackItem {
 export interface QuickCreateOptions {
   editingId?: number | null;
   initialData?: Record<string, unknown>;
-  onSuccess: (data: unknown) => void;
+  onSuccess?: (data: unknown) => void;
   onCancel?: () => void;
 }
 
@@ -37,7 +37,7 @@ interface QuickCreateState {
   cache: Record<string, unknown>;
 
   // Actions
-  openCreate: (type: QuickCreateType, options: QuickCreateOptions) => void;
+  openCreate: (type: QuickCreateType, options?: QuickCreateOptions) => void;
   closeCurrent: () => void;
   updateCache: (type: string, data: unknown) => void;
   getCache: (type: string) => unknown;
@@ -50,13 +50,13 @@ export const useQuickCreateStore = create<QuickCreateState>((set, get) => ({
   stack: [],
   cache: {},
 
-  openCreate: (type, options) => {
+  openCreate: (type, options = {}) => {
     const newItem: QuickCreateStackItem = {
       id: Math.random().toString(36).substring(7),
       type,
       editingId: options.editingId ?? null,
       initialData: options.initialData ?? {},
-      onSuccess: options.onSuccess,
+      onSuccess: options.onSuccess ?? (() => {}),
       onCancel: options.onCancel ?? (() => {}),
     };
     set((state) => ({ stack: [...state.stack, newItem] }));

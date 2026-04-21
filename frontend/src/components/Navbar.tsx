@@ -6,6 +6,7 @@ import { getAllNavItems } from '../config/navigation';
 import { useDebounce } from '../hooks/useDebounce';
 import { itemsAPI, partiesAPI, salesAPI } from '../services/api';
 import { Item, Party, Sale } from '../types';
+import { formatDisplayDate } from '../utils/date.helper';
 
 export default function Navbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const { user, logout } = useAuth();
@@ -248,7 +249,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar: () => voi
                           </div>
                           <div className="flex flex-col">
                             <span className="text-sm font-bold text-slate-800">{sale.party?.name || 'Bilinmeyen Cari'}</span>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{sale.code} • {new Date(sale.createdAt).toLocaleDateString('tr-TR')}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{sale.code} • {formatDisplayDate(sale.createdAt)}</span>
                           </div>
                         </div>
                         <div className="text-right">
