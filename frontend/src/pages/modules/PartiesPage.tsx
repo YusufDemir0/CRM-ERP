@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { partiesAPI } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -19,13 +20,34 @@ export default function PartiesPage() {
   const queryClient = useQueryClient();
   const { openCreate } = useQuickCreateStore();
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const page = Number(searchParams.get('page')) || 1;
+  const searchTerm = searchParams.get('q') || '';
+  const filterTab = (searchParams.get('tab') as 'active' | 'passive' | 'all') || 'active';
+  const limit = Number(searchParams.get('limit')) || 20;
+
   const deferredSearch = useDeferredValue(searchTerm);
-  const [filterTab, setFilterTab] = useState<'active' | 'passive' | 'all'>('active');
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
   const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'name', order: 'ASC' });
   const [filters] = useState<Record<string, unknown>>({});
+
+  const updateParams = useCallback((newParams: Record<string, string | number | undefined>) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      Object.entries(newParams).forEach(([key, value]) => {
+        if (value === undefined || value === '' || (key === 'page' && value === 1)) {
+          next.delete(key);
+        } else {
+          next.set(key, String(value));
+        }
+      });
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const setPage = (p: number) => updateParams({ page: p });
+  const setFilterTab = (tab: string) => updateParams({ tab, page: 1 });
+  const setSearchTerm = (q: string) => updateParams({ q, page: 1 });
 
   const { data: partiesData, isLoading: loading } = useQuery({
     queryKey: queryKeys.parties.all({ page, limit, deferredSearch, filterTab, sort, filters }),
@@ -96,7 +118,7 @@ export default function PartiesPage() {
 
   useEffect(() => {
     if (!loading && parties.length === 0 && paginationMeta && paginationMeta.total > 0 && page > 1) {
-      setPage(prev => Math.max(1, prev - 1));
+      setPage(Math.max(1, page - 1));
     }
   }, [parties.length, loading, page, paginationMeta]);
 

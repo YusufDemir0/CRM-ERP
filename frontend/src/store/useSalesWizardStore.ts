@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { Party, Item, SaleType, Account } from '../types';
 import { SelectedItem } from '../pages/modules/SalesWizard/types';
 import dayjs from 'dayjs';
@@ -55,115 +56,123 @@ interface SalesWizardState {
   reset: () => void;
 }
 
-export const useSalesWizardStore = create<SalesWizardState>((set) => ({
-  step: 1,
-  isProductPhase: false,
-  customer: null,
-  staffId: null,
-  phone: '',
-  phone2: '',
-  address: '',
-  city: '',
-  cityId: 0,
-  district: '',
-  isNewInfo: false,
-  date: dayjs().format('YYYY-MM-DD'),
-  deliveryDate: dayjs().format('YYYY-MM-DD'),
-  paymentAccount: null,
-  taxId: '',
-  description: '',
-  email: '',
-  source: '',
-  deposit: 0,
-  discountAmount: 0,
-  isTaxed: true,
-  selectedItems: [],
-  loading: false,
+export const useSalesWizardStore = create<SalesWizardState>()(
+  persist(
+    (set) => ({
+      step: 1,
+      isProductPhase: false,
+      customer: null,
+      staffId: null,
+      phone: '',
+      phone2: '',
+      address: '',
+      city: '',
+      cityId: 0,
+      district: '',
+      isNewInfo: false,
+      date: dayjs().format('YYYY-MM-DD'),
+      deliveryDate: dayjs().format('YYYY-MM-DD'),
+      paymentAccount: null,
+      taxId: '',
+      description: '',
+      email: '',
+      source: '',
+      deposit: 0,
+      discountAmount: 0,
+      isTaxed: true,
+      selectedItems: [],
+      loading: false,
 
-  setStep: (step) => set({ step }),
-  setIsProductPhase: (isProductPhase) => set({ isProductPhase }),
-  setCustomer: (customer) => set({ 
-    customer, 
-    phone: customer?.phone1 || '', 
-    phone2: customer?.phone2 || '',
-    email: customer?.email || '', 
-    address: customer?.address || '', 
-    taxId: customer?.taxNumber || '',
-    cityId: customer?.cityId || 0,
-    district: customer?.districtName || '',
-    isNewInfo: false
-  }),
-  setStaffId: (staffId) => set({ staffId }),
-  setPhone: (phone) => set({ phone }),
-  setPhone2: (phone2) => set({ phone2 }),
-  setAddress: (address) => set({ address }),
-  setCity: (city) => set({ city }),
-  setCityId: (cityId) => set({ cityId }),
-  setDistrict: (district) => set({ district }),
-  setIsNewInfo: (isNewInfo) => {
-    if (isNewInfo) {
-      set({ 
-        phone: '', 
-        phone2: '', 
-        email: '', 
-        taxId: '', 
-        address: '', 
-        city: '', 
+      setStep: (step) => set({ step }),
+      setIsProductPhase: (isProductPhase) => set({ isProductPhase }),
+      setCustomer: (customer) => set({ 
+        customer, 
+        phone: customer?.phone1 || '', 
+        phone2: customer?.phone2 || '',
+        email: customer?.email || '', 
+        address: customer?.address || '', 
+        taxId: customer?.taxNumber || '',
+        cityId: customer?.cityId || 0,
+        district: customer?.districtName || '',
+        isNewInfo: false
+      }),
+      setStaffId: (staffId) => set({ staffId }),
+      setPhone: (phone) => set({ phone }),
+      setPhone2: (phone2) => set({ phone2 }),
+      setAddress: (address) => set({ address }),
+      setCity: (city) => set({ city }),
+      setCityId: (cityId) => set({ cityId }),
+      setDistrict: (district) => set({ district }),
+      setIsNewInfo: (isNewInfo) => {
+        if (isNewInfo) {
+          set({ 
+            phone: '', 
+            phone2: '', 
+            email: '', 
+            taxId: '', 
+            address: '', 
+            city: '', 
+            district: '',
+            isNewInfo: true 
+          });
+        } else {
+          const { customer } = useSalesWizardStore.getState();
+          if (customer) {
+            set({
+              phone: customer.phone1 || '',
+              phone2: customer.phone2 || '',
+              email: customer.email || '',
+              taxId: customer.taxNumber || '',
+              address: customer.address || '',
+              district: customer.districtName || '',
+              isNewInfo: false
+            });
+          } else {
+            set({ isNewInfo: false });
+          }
+        }
+      },
+      setDate: (date) => set({ date }),
+      setDeliveryDate: (deliveryDate) => set({ deliveryDate }),
+      setPaymentAccount: (paymentAccount) => set({ paymentAccount }),
+      setTaxId: (taxId) => set({ taxId }),
+      setDescription: (description) => set({ description }),
+      setEmail: (email) => set({ email }),
+      setSource: (source) => set({ source }),
+      setDeposit: (deposit) => set({ deposit }),
+      setDiscountAmount: (discountAmount) => set({ discountAmount }),
+      setIsTaxed: (isTaxed) => set({ isTaxed }),
+      setSelectedItems: (selectedItems) => set({ selectedItems }),
+      setLoading: (loading) => set({ loading }),
+      reset: () => set({
+        step: 1,
+        isProductPhase: false,
+        customer: null,
+        staffId: null,
+        phone: '',
+        phone2: '',
+        address: '',
+        city: '',
+        cityId: 0,
         district: '',
-        isNewInfo: true 
-      });
-    } else {
-      const { customer } = useSalesWizardStore.getState();
-      if (customer) {
-        set({
-          phone: customer.phone1 || '',
-          phone2: customer.phone2 || '',
-          email: customer.email || '',
-          taxId: customer.taxNumber || '',
-          address: customer.address || '',
-          district: customer.districtName || '',
-          isNewInfo: false
-        });
-      } else {
-        set({ isNewInfo: false });
-      }
+        isNewInfo: false,
+        date: dayjs().format('YYYY-MM-DD'),
+        deliveryDate: dayjs().format('YYYY-MM-DD'),
+        paymentAccount: null,
+        taxId: '',
+        description: '',
+        email: '',
+        source: '',
+        deposit: 0,
+        discountAmount: 0,
+        isTaxed: true,
+        selectedItems: [],
+        loading: false,
+      }),
+    }),
+    {
+      name: 'sales-wizard-storage',
+      storage: createJSONStorage(() => sessionStorage),
     }
-  },
-  setDate: (date) => set({ date }),
-  setDeliveryDate: (deliveryDate) => set({ deliveryDate }),
-  setPaymentAccount: (paymentAccount) => set({ paymentAccount }),
-  setTaxId: (taxId) => set({ taxId }),
-  setDescription: (description) => set({ description }),
-  setEmail: (email) => set({ email }),
-  setSource: (source) => set({ source }),
-  setDeposit: (deposit) => set({ deposit }),
-  setDiscountAmount: (discountAmount) => set({ discountAmount }),
-  setIsTaxed: (isTaxed) => set({ isTaxed }),
-  setSelectedItems: (selectedItems) => set({ selectedItems }),
-  setLoading: (loading) => set({ loading }),
-  reset: () => set({
-    step: 1,
-    isProductPhase: false,
-    customer: null,
-    staffId: null,
-    phone: '',
-    phone2: '',
-    address: '',
-    city: '',
-    cityId: 0,
-    district: '',
-    isNewInfo: false,
-    date: dayjs().format('YYYY-MM-DD'),
-    deliveryDate: dayjs().format('YYYY-MM-DD'),
-    paymentAccount: null,
-    taxId: '',
-    description: '',
-    email: '',
-    source: '',
-    deposit: 0,
-    discountAmount: 0,
-    isTaxed: true,
-    selectedItems: [],
-    loading: false,
-  }),
-}));
+  )
+);

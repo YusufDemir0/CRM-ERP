@@ -41,6 +41,8 @@ const queryClient = new QueryClient({
 });
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { QuickCreateManager } from './components/common/QuickCreateManager';
+import { ReAuthModal } from './components/common/ReAuthModal';
+import { CommandPalette } from './components/common/CommandPalette';
 import { initCsrf } from './services/api';
 
 export default function App() {
@@ -82,6 +84,8 @@ export default function App() {
               </Routes>
             </Suspense>
             <QuickCreateManager />
+            <ReAuthModal />
+            <CommandPalette />
             <Toaster
               position="top-right"
               toastOptions={{

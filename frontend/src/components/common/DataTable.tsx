@@ -227,7 +227,7 @@ const DataTableInner = <T,>({
   });
 
   return (
-    <div className="bg-white border border-slate-100 shadow-premium rounded-[2.5rem] overflow-hidden animate-in">
+    <div className="bg-white border border-slate-100 shadow-premium rounded-2xl overflow-hidden animate-in">
       {onSearchChange !== undefined && (
         <div className="p-6 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="relative w-full md:max-w-md group">
@@ -249,15 +249,28 @@ const DataTableInner = <T,>({
         style={{ maxHeight: virtualized ? `${containerHeight}px` : 'none', minHeight: '400px' }}
       >
         {isLoading ? (
-          <div className="py-24 flex flex-col items-center justify-center gap-4">
-            <div className="relative w-12 h-12">
-              <div className="absolute inset-0 rounded-full border-4 border-primary/10"></div>
-              <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
-            </div>
-            <p className="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase animate-pulse">
-              Veriler Hazırlanıyor...
-            </p>
-          </div>
+          <table className="w-full border-separate border-spacing-0">
+            {tableHeader}
+            <tbody>
+              {[...Array(5)].map((_, i) => (
+                <tr key={i} className="animate-pulse border-b border-slate-50 last:border-0">
+                  {columns.map((_, idx) => (
+                    <td key={idx} className="py-4 px-6 first:pl-10">
+                      <div className="h-4 bg-slate-100 rounded-md skeleton w-full max-w-[120px]" />
+                    </td>
+                  ))}
+                  {hasActions && (
+                    <td className="py-4 px-10 text-right">
+                      <div className="flex gap-2 justify-end">
+                        <div className="w-8 h-8 bg-slate-100 rounded-lg skeleton" />
+                        <div className="w-8 h-8 bg-slate-100 rounded-lg skeleton" />
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : (
           <table className="w-full border-separate border-spacing-0">
             {tableHeader}

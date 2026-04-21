@@ -1,6 +1,7 @@
 
 import { FiX } from 'react-icons/fi';
 import { Sale, SaleItem } from '../../types';
+import { formatDisplayDate } from '../../utils/date.helper';
 
 interface ViewSaleModalProps {
   sale: Sale;
@@ -16,7 +17,7 @@ export const ViewSaleModal: React.FC<ViewSaleModalProps> = ({ sale, onClose }) =
         </button>
         <h3 className="text-[var(--primary)] mb-1">Sipariş İnceleme: {sale.code}</h3>
         <p className="text-xs text-gray-500 mb-5">
-          Tarih: {new Date(sale.createdAt).toLocaleString('tr-TR')} | 
+          Tarih: {formatDisplayDate(sale.createdAt)} | 
           Durum: <strong className={
             sale.status === 'approved' ? 'text-[var(--success)]' : 
             sale.status === 'cancelled' ? 'text-[var(--danger)]' : 
@@ -33,7 +34,7 @@ export const ViewSaleModal: React.FC<ViewSaleModalProps> = ({ sale, onClose }) =
           </div>
           <div className="bg-[var(--surface-container-low)] p-4 rounded-xl">
             <h4 className="text-xs text-[var(--text-muted)] mb-2.5">SİPARİŞ ÖZETİ</h4>
-            <div className="text-xs mb-1"><strong>Teslimat:</strong> {sale.deliveryDate ? new Date(sale.deliveryDate).toLocaleDateString('tr-TR') : 'Belirtilmedi'}</div>
+            <div className="text-xs mb-1"><strong>Teslimat:</strong> {sale.deliveryDate ? formatDisplayDate(sale.deliveryDate) : 'Belirtilmedi'}</div>
             <div className="text-xs mb-1"><strong>Satış Tipi:</strong> {sale.saleType?.name || '-'}</div>
             <div className="text-xs mb-1"><strong>Para Birimi:</strong> {sale.currency?.name || 'TRY'} ({sale.currency?.symbol || '₺'})</div>
           </div>
