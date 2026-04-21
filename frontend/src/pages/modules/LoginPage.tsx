@@ -2,21 +2,30 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useLoaderStore } from '../../store/useLoaderStore';
-import { FiLock, FiUser, FiArrowRight, FiShield, FiEye, FiEyeOff } from 'react-icons/fi';
+import logo from '../../assets/images/logo.png';
+import { FiInfo, FiX } from 'react-icons/fi';
 
 export default function LoginPage() {
   const { login, user } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [toast, setToast] = useState<{ message: string, type: 'info' | 'error' | 'success' } | null>(null);
 
   useEffect(() => {
     if (user) {
       navigate('/', { replace: true });
     }
   }, [user, navigate]);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   const loaderShow = useLoaderStore((s) => s.show);
   const loaderHide = useLoaderStore((s) => s.hide);
@@ -28,149 +37,157 @@ export default function LoginPage() {
       return;
     }
     setError('');
-
-    loaderShow('Güvenli Oturum Başlatılıyor...');
+    setSuccess('');
+    loaderShow('Oturum açılıyor...');
 
     try {
       await login(username, password);
       loaderHide();
-      navigate('/');
+      setSuccess('Giriş başarılı! Yönlendiriliyorsunuz...');
+      setTimeout(() => {
+        navigate('/');
+      }, 800);
     } catch (err: unknown) {
       loaderHide();
-      const error = err as { response?: { data?: { message?: string | string[] } }, message?: string };
-      const msg = error.response?.data?.message || error.message;
+      const errorData = err as { response?: { data?: { message?: string | string[] } }, message?: string };
+      const msg = errorData.response?.data?.message || errorData.message;
       const safeMsg = Array.isArray(msg) ? msg[0] : (typeof msg === 'string' ? msg : '');
 
       if (safeMsg === 'INVALID_USERNAME') {
-        setError('Kullanıcı adı sistemde bulunamadı.');
+        setError('Kullanıcı adı bulunamadı.');
       } else if (safeMsg === 'INVALID_PASSWORD') {
-        setError('Hatalı parola. Lütfen tekrar deneyiniz.');
+        setError('Girdiğiniz şifre yanlış.');
       } else {
-        setError('Kimlik doğrulama başarısız oldu.');
+        setError('Giriş başarısız. Bilgilerinizi kontrol edin.');
       }
     }
   };
 
+  const handleForgotPassword = () => {
+    setToast({
+      message: 'Şifre sıfırlama işlemleri için lütfen sistem yöneticinizle iletişime geçin.',
+      type: 'info'
+    });
+  };
+
   return (
-    <div className="relative min-h-screen w-full flex items-center justify-center p-4 overflow-hidden bg-slate-950 font-sans">
-
-      {/* 🔮 Background Decorative Elements */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/20 blur-[150px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-600/10 blur-[150px] rounded-full" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full opacity-10"
-          style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-      </div>
-
-      <div className="relative z-10 w-full max-w-[1100px] grid grid-cols-1 lg:grid-cols-2 bg-white/5 backdrop-blur-2xl rounded-[3rem] border border-white/10 shadow-2xl overflow-hidden animate-in zoom-in duration-700">
-
-        {/* 🌠 Information Side (Visible on desktop) */}
-        <div className="hidden lg:flex flex-col justify-between p-16 bg-gradient-to-br from-primary/20 to-transparent border-r border-white/5">
-          <div>
-            <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center text-white shadow-lg shadow-primary/30 mb-8">
-              <FiShield size={28} />
+    <div className="relative min-h-screen w-full flex flex-col items-center justify-center bg-[var(--background)] font-sans overflow-hidden">
+      
+      {/* 🎈 Balloon Toast Notification */}
+      {toast && (
+        <div className="fixed top-8 right-8 z-[100] animate-in slide-in-from-right-8 fade-in duration-500">
+          <div className="bg-white rounded-2xl shadow-premium border border-slate-100 p-4 flex items-center gap-4 max-w-sm">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+              toast.type === 'info' ? 'bg-indigo-50 text-indigo-600' : 
+              toast.type === 'error' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
+            }`}>
+              <FiInfo size={20} />
             </div>
-            <h2 className="text-5xl font-black text-white leading-tight tracking-tighter mb-6">
-              Geleceğin <span className="text-primary italic">ERP</span> Deneyimi.
-            </h2>
-            <p className="text-lg text-slate-400 font-medium leading-relaxed max-w-sm">
-              Ermay Metal için özel olarak tasarlanmış, yapay zeka destekli kurumsal kaynak planlama portalı.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-6">
-            <div className="flex items-center gap-4 group cursor-default">
-              <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:border-primary/30 transition-colors">
-                <FiLock className="text-primary" />
-              </div>
-              <div>
-                <h4 className="text-sm font-black text-white uppercase tracking-wider">Uçtan Uca Güvenlik</h4>
-                <p className="text-xs text-slate-500 font-bold">256-bit SSL ve Çoklu Doğrulama</p>
-              </div>
+            <div className="flex-1">
+              <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Sistem Bilgisi</p>
+              <p className="text-xs font-bold text-slate-700 leading-relaxed">{toast.message}</p>
             </div>
-            <div className="flex items-center gap-4 group cursor-default">
-              <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:border-primary/30 transition-colors">
-                <FiArrowRight className="text-primary" />
-              </div>
-              <div>
-                <h4 className="text-sm font-black text-white uppercase tracking-wider">Hızlı Erişim</h4>
-                <p className="text-xs text-slate-500 font-bold">Optimize edilmiş düşük gecikmeli altyapı</p>
-              </div>
-            </div>
+            <button onClick={() => setToast(null)} className="text-slate-300 hover:text-slate-500 transition-colors">
+              <FiX size={18} />
+            </button>
           </div>
         </div>
+      )}
 
-        {/* 🔑 Login Side */}
-        <div className="p-8 sm:p-16 flex flex-col justify-center gap-10">
-          <div className="text-center lg:text-left">
-            <h1 className="text-4xl font-black text-white tracking-tighter mb-2">Hoş Geldiniz</h1>
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">SİSTEME ERİŞİM İÇİN KİMLİĞİNİZİ DOĞRULAYIN</p>
+      {/* 🔮 Subtle Decorative Background */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-[var(--primary-glow)] blur-[120px] rounded-full opacity-50" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-[var(--primary-glow)] blur-[120px] rounded-full opacity-30" />
+        <div className="absolute inset-0 opacity-[0.03]" 
+          style={{ backgroundImage: 'radial-gradient(var(--primary) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+      </div>
+
+      {/* 🏷️ Top Logo Section (Minimalist) */}
+      <div className="relative z-10 mb-8 animate-in">
+        <div className="flex flex-col items-center gap-6">
+          <div className="w-64 h-32 bg-[var(--primary)] rounded-[var(--radius-xl)] flex items-center justify-center shadow-xl shadow-[var(--primary-glow)] p-6">
+            <img src={logo} alt="Ermay Logo" className="h-full w-full object-contain brightness-0 invert" />
+          </div>
+          <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em]">Kurumsal Yönetim Sistemi</h2>
+        </div>
+      </div>
+
+      {/* ⚪ Centered Login Card */}
+      <div className="relative z-20 w-full max-w-[480px] px-6">
+        <div className="bg-[var(--surface)] rounded-[var(--radius-xl)] shadow-[var(--shadow-premium)] p-12 sm:p-14 border border-[var(--border)] flex flex-col gap-10 animate-slide-up">
+          
+          <div className="text-center">
+            <h1 className="text-xl font-black text-slate-800 tracking-tight mb-1">Hesabınıza Giriş Yapın</h1>
+            <p className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-widest">KİMLİK DOĞRULAMA GEREKLİ</p>
           </div>
 
           {error && (
-            <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl flex items-center gap-3 animate-shake">
-              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-[11px] font-black text-red-400 uppercase tracking-wider">{error}</span>
+            <div className="bg-[var(--error-glow)] border border-[var(--error)]/20 p-4 rounded-[var(--radius-md)] flex items-center gap-3 animate-shake">
+              <div className="w-1.5 h-1.5 rounded-full bg-[var(--error)] animate-pulse" />
+              <span className="text-[10px] font-black text-[var(--error)] uppercase tracking-wider">{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="flex flex-col gap-6">
-            <div className="flex flex-col gap-2.5">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] pl-1">KULLANICI ADI</label>
-              <div className="relative group">
-                <FiUser className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors" />
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Kullanıcı adınızı girin"
-                  className="w-full h-14 pl-14 pr-5 bg-white/5 border border-white/10 rounded-2xl text-white font-bold placeholder:text-slate-600 focus:bg-white/10 focus:border-primary transition-colors outline-none"
-                />
+          {success && (
+            <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-[var(--radius-md)] flex items-center gap-3 animate-in fade-in zoom-in">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-wider">{success}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="flex flex-col gap-5">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between px-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Kullanıcı Adı</label>
               </div>
+              <input 
+                type="text"
+                autoFocus
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full h-12 px-5 rounded-[var(--radius-md)] border border-slate-200 bg-slate-50/50 text-sm font-bold text-slate-800 focus:bg-white focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-glow)] outline-none transition-all"
+                placeholder="isminiz"
+              />
             </div>
 
-            <div className="flex flex-col gap-2.5">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] pl-1">GİZLİ PAROLA</label>
-              <div className="relative group">
-                <FiLock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary transition-colors" />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full h-14 pl-14 pr-14 bg-white/5 border border-white/10 rounded-2xl text-white font-bold placeholder:text-slate-600 focus:bg-white/10 focus:border-primary transition-colors outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between px-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Şifre</label>
+                <span 
+                  onClick={handleForgotPassword}
+                  className="text-[9px] font-bold text-[var(--primary)] cursor-pointer hover:underline uppercase tracking-tighter"
                 >
-                  {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
-                </button>
+                  Şifremi Unuttum
+                </span>
               </div>
+              <input 
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full h-12 px-5 rounded-[var(--radius-md)] border border-slate-200 bg-slate-50/50 text-sm font-bold text-slate-800 focus:bg-white focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary-glow)] outline-none transition-all"
+                placeholder="••••••••"
+              />
             </div>
 
-            <button
+            <button 
               type="submit"
-              className="group relative h-16 w-full bg-primary text-white rounded-2xl text-lg font-black tracking-wider uppercase overflow-hidden shadow-2xl shadow-primary/30 hover:-translate-y-1 active:scale-95 transition-colors"
+              disabled={!!success}
+              className={`mt-4 w-full h-14 text-white rounded-[var(--radius-md)] text-xs font-black uppercase tracking-widest shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3 ${
+                success ? 'bg-emerald-500 shadow-emerald-200' : 'bg-[var(--primary)] shadow-[var(--primary-glow)] hover:brightness-110'
+              }`}
             >
-              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-              <span className="relative z-10 flex items-center justify-center gap-3">
-                OTURUMU BAŞLAT <FiArrowRight className="group-hover:translate-x-1.5 transition-transform" />
-              </span>
+              {success ? 'Giriş Başarılı' : 'OTURUMU AÇ'}
             </button>
           </form>
-
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-10 border-t border-white/5">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/10 font-black text-[10px] text-primary">V3</div>
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">PRO-GOLD EDITION</span>
-            </div>
-            <span className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em]">© 2026 ERMAY METAL A.Ş.</span>
-          </div>
         </div>
-
       </div>
+
+      {/* 🏢 Footer */}
+      <div className="mt-12 relative z-10 flex flex-col items-center justify-center gap-2">
+        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">© 2026 ERMAY MOBİLYA A.Ş.</span>
+        <div className="h-1 w-8 bg-slate-200 rounded-full" />
+      </div>
+
     </div>
   );
 }
