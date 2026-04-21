@@ -33,6 +33,27 @@ export interface Department extends BaseEntity {
   commercialAccount?: Account;
 }
 
+export interface Staff extends BaseEntity {
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  entryDate?: string;
+  departmentId: number;
+  department?: Department;
+  isActive: boolean;
+}
+
+export interface CreateStaffDto {
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  entryDate?: string;
+  departmentId: number;
+  isActive?: boolean;
+}
+
+export type UpdateStaffDto = Partial<CreateStaffDto>;
+
 export interface Role extends BaseEntity {
   name: string;
   description?: string;
@@ -65,6 +86,7 @@ export interface Party extends BaseEntity {
   email?: string | null;
   address?: string | null;
   addressDetail?: string; // UI only
+  cityId?: number | null;
   districtName?: string; // UI only
   balance: string; // DB-03: Decimal → JSON string
   creditLimit: string; // DB-03: Decimal → JSON string
@@ -147,6 +169,11 @@ export interface Sale extends BaseEntity {
   deposit: string; // DB-03: Decimal → JSON string
   status: 'draft' | 'approved' | 'shipped' | 'invoiced' | 'cancelled';
   notes?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  taxNumber?: string | null;
+  email?: string | null;
+  source?: string | null;
   deliveryDate?: string | null;
   items?: SaleItem[];
 }
@@ -368,6 +395,11 @@ export interface CreateSaleDto {
   discountPercent?: string | number;
   items: CreateSaleItemDto[];
   notes?: string;
+  phone?: string;
+  address?: string;
+  taxNumber?: string;
+  email?: string;
+  source?: string;
 }
 
 export interface ProductionOrderFormData {
@@ -411,4 +443,16 @@ export interface SalesWizardState {
   genDiscountValue: string;
   deposit: string;
   saleNotes: string;
+  // New fields for the single-page wizard
+  contactPhone1: string;
+  contactPhone2: string;
+  contactEmail: string;
+  contactTaxId: string;
+  leadSource: string;
+  addressType: 'same' | 'new';
+  cityId: string;
+  cityName: string;
+  districtName: string;
+  addressDetail: string;
+  isPartyModalOpen: boolean;
 }
