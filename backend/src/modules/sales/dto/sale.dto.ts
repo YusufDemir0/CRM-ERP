@@ -17,11 +17,20 @@ export class CreateSaleDto {
   @IsNumber() @IsInt() @Type(() => Number) partyId: number;
   @IsNumber() @IsInt() @Type(() => Number) saleTypeId: number;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) currencyId?: number;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) staffId?: number;
   @IsOptional() @IsDateString() deliveryDate?: string;
   @IsOptional() @Transform(transformDecimalString) @IsString() deposit?: string;
   @IsOptional() @Transform(transformDecimalString) @IsString() discountAmount?: string;
   @IsOptional() @Transform(transformDecimalString) @IsString() discountPercent?: string;
   @IsOptional() @IsString() notes?: string;
+  @IsOptional() @IsString() phone?: string;
+  @IsOptional() @IsString() address?: string;
+  @IsOptional() @IsString() taxNumber?: string;
+  @IsOptional() @IsString() email?: string;
+  @IsOptional() @IsString() source?: string;
+  @IsOptional() @IsString() city?: string;
+  @IsOptional() @IsString() district?: string;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) commercialAccountId?: number;
 
   @IsArray()
   @ValidateNested({ each: true })
@@ -33,11 +42,20 @@ export class CreateSaleDto {
 export class UpdateSaleDto {
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) partyId?: number;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) currencyId?: number;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) staffId?: number;
   @IsOptional() @IsDateString() deliveryDate?: string;
   @IsOptional() @Transform(transformDecimalString) @IsString() deposit?: string;
   @IsOptional() @Transform(transformDecimalString) @IsString() discountAmount?: string;
   @IsOptional() @Transform(transformDecimalString) @IsString() discountPercent?: string;
   @IsOptional() @IsString() notes?: string;
+  @IsOptional() @IsString() phone?: string;
+  @IsOptional() @IsString() address?: string;
+  @IsOptional() @IsString() taxNumber?: string;
+  @IsOptional() @IsString() email?: string;
+  @IsOptional() @IsString() source?: string;
+  @IsOptional() @IsString() city?: string;
+  @IsOptional() @IsString() district?: string;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) commercialAccountId?: number;
 
   @IsOptional()
   @IsArray()

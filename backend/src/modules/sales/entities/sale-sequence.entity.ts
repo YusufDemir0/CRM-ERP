@@ -1,13 +1,13 @@
 import { Entity, Column, PrimaryGeneratedColumn, Unique } from 'typeorm';
 
 @Entity('sale_sequences')
-@Unique(['saleTypeId'])
+@Unique(['departmentId'])
 export class SaleSequence {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;
 
-  @Column({ name: 'sale_type_id', type: 'bigint' })
-  saleTypeId: number;
+  @Column({ name: 'department_id', type: 'bigint' })
+  departmentId: number;
 
   @Column({ name: 'current_number', type: 'int', default: 1 })
   currentNumber: number;

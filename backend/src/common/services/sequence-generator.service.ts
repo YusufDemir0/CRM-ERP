@@ -6,7 +6,12 @@ import { SaleType } from '../../modules/sales/entities/sale-type.entity';
 import { SaleSequence } from '../../modules/sales/entities/sale-sequence.entity';
 import { ProductionSequence } from '../../modules/production/entities/production-sequence.entity';
 import { TransactionSequence } from '../../modules/finance/transactions/entities/transaction-sequence.entity';
+import { Department } from '../../modules/departments/entities/department.entity';
 import { TransactionContextService } from './transaction-context.service';
+
+interface SequenceRow {
+  current_number: number;
+}
 
 @Injectable()
 export class SequenceGeneratorService {
@@ -41,7 +46,7 @@ export class SequenceGeneratorService {
       [itemCodeGroupId],
     );
 
-    const currentNumber = (row as any).current_number;
+    const currentNumber = (row as SequenceRow).current_number;
     const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
     this.logger.debug(`Generated item code: ${code}`);
     return code;
@@ -49,30 +54,32 @@ export class SequenceGeneratorService {
 
   async generateSaleCode(
     manager: EntityManager = this.transactionContext.manager,
-    saleTypeId: number,
+    departmentId: number,
   ): Promise<string> {
-    const saleType = await manager.findOne(SaleType, { where: { id: saleTypeId } });
-    if (!saleType) {
-      throw new NotFoundException(`Sale type bulunamadı: ${saleTypeId}`);
+    const department = await manager.findOne(Department, { where: { id: departmentId } });
+    
+    if (!department) {
+      throw new NotFoundException(`Departman bulunamadı: ${departmentId}`);
     }
 
-    const prefix = saleType.abbreviation;
+    const deptPrefix = department.abbreviation || 'GEN';
+    const finalPrefix = `S-${deptPrefix}`.toUpperCase();
 
     // Atomic UPSERT + Increment
     await manager.query(
-      `INSERT INTO sale_sequences (sale_type_id, current_number)
+      `INSERT INTO sale_sequences (department_id, current_number)
        VALUES (?, 1)
        ON DUPLICATE KEY UPDATE current_number = current_number + 1`,
-      [saleTypeId],
+      [departmentId],
     );
 
     const [row] = await manager.query(
-      `SELECT current_number FROM sale_sequences WHERE sale_type_id = ?`,
-      [saleTypeId],
+      `SELECT current_number FROM sale_sequences WHERE department_id = ?`,
+      [departmentId],
     );
 
-    const currentNumber = (row as any).current_number;
-    const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
+    const currentNumber = (row as SequenceRow).current_number;
+    const code = `${finalPrefix}-${String(currentNumber).padStart(3, '0')}`;
     this.logger.debug(`Generated sale code: ${code}`);
     return code;
   }
@@ -94,7 +101,7 @@ export class SequenceGeneratorService {
       [prefix],
     );
 
-    const currentNumber = (row as any).current_number;
+    const currentNumber = (row as SequenceRow).current_number;
     const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
     this.logger.debug(`Generated production code: ${code}`);
     return code;
@@ -117,7 +124,7 @@ export class SequenceGeneratorService {
       [prefix],
     );
 
-    const currentNumber = (row as any).current_number;
+    const currentNumber = (row as SequenceRow).current_number;
     const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
     this.logger.debug(`Generated transaction code: ${code}`);
     return code;

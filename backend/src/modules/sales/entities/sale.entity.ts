@@ -7,6 +7,8 @@ import { SaleType } from './sale-type.entity';
 import { Currency } from '../../finance/currencies/entities/currency.entity';
 import { SaleItem } from './sale-item.entity';
 import { DecimalTransformer } from '../../../common/transformers/decimal.transformer';
+import { Staff } from '../../staff/entities/staff.entity';
+import { CommercialAccount } from '../../finance/accounts/entities/commercial-account.entity';
 
 @Entity('sales')
 @Unique(['code'])
@@ -24,6 +26,10 @@ export class Sale extends BaseEntity {
   @Index()
   @Column({ name: 'department_id', type: 'bigint', nullable: true })
   departmentId: number | null;
+
+  @Index()
+  @Column({ name: 'staff_id', type: 'bigint', nullable: true })
+  staffId: number | null;
 
   @Column({ name: 'currency_id', type: 'bigint', nullable: true })
   currencyId: number | null;
@@ -66,6 +72,30 @@ export class Sale extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 
+  @Column({ name: 'contact_phone', type: 'varchar', length: 20, nullable: true })
+  phone: string | null;
+
+  @Column({ name: 'address_detail', type: 'text', nullable: true })
+  address: string | null;
+
+  @Column({ name: 'address_city', type: 'varchar', length: 50, nullable: true })
+  city: string | null;
+
+  @Column({ name: 'address_district', type: 'varchar', length: 50, nullable: true })
+  district: string | null;
+
+  @Column({ name: 'contact_tax_id', type: 'varchar', length: 20, nullable: true })
+  taxNumber: string | null;
+
+  @Column({ name: 'contact_email', type: 'varchar', length: 100, nullable: true })
+  email: string | null;
+
+  @Column({ name: 'lead_source', type: 'varchar', length: 50, nullable: true })
+  source: string | null;
+
+  @Column({ name: 'commercial_account_id', type: 'bigint', nullable: true })
+  commercialAccountId: number | null;
+
   @ManyToOne(() => Party)
   @JoinColumn({ name: 'party_id' })
   party: Party;
@@ -77,6 +107,14 @@ export class Sale extends BaseEntity {
   @ManyToOne(() => Currency, { nullable: true })
   @JoinColumn({ name: 'currency_id' })
   currency: Currency;
+
+  @ManyToOne(() => Staff, { nullable: true })
+  @JoinColumn({ name: 'staff_id' })
+  staff: Staff | null;
+
+  @ManyToOne(() => CommercialAccount, { nullable: true })
+  @JoinColumn({ name: 'commercial_account_id' })
+  commercialAccount: CommercialAccount | null;
 
   @OneToMany(() => SaleItem, (si) => si.sale)
   items: SaleItem[];
