@@ -1,8 +1,8 @@
 import { Decimal } from 'decimal.js';
-export declare function parseTurkishDecimal(input: any): string | null;
+export declare function parseTurkishDecimal(input: unknown): string | null;
 export declare function transformDecimal({ value }: {
-    value: any;
+    value: unknown;
 }): Decimal | string | undefined;
 export declare function transformDecimalString({ value }: {
-    value: any;
+    value: unknown;
 }): string | undefined;

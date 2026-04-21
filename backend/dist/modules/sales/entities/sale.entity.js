@@ -19,6 +19,8 @@ const sale_type_entity_1 = require("./sale-type.entity");
 const currency_entity_1 = require("../../finance/currencies/entities/currency.entity");
 const sale_item_entity_1 = require("./sale-item.entity");
 const decimal_transformer_1 = require("../../../common/transformers/decimal.transformer");
+const staff_entity_1 = require("../../staff/entities/staff.entity");
+const commercial_account_entity_1 = require("../../finance/accounts/entities/commercial-account.entity");
 let Sale = class Sale extends base_entity_1.BaseEntity {
 };
 exports.Sale = Sale;
@@ -40,6 +42,11 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'department_id', type: 'bigint', nullable: true }),
     __metadata("design:type", Object)
 ], Sale.prototype, "departmentId", void 0);
+__decorate([
+    (0, typeorm_1.Index)(),
+    (0, typeorm_1.Column)({ name: 'staff_id', type: 'bigint', nullable: true }),
+    __metadata("design:type", Object)
+], Sale.prototype, "staffId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'currency_id', type: 'bigint', nullable: true }),
     __metadata("design:type", Object)
@@ -93,6 +100,38 @@ __decorate([
     __metadata("design:type", Object)
 ], Sale.prototype, "notes", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'contact_phone', type: 'varchar', length: 20, nullable: true }),
+    __metadata("design:type", Object)
+], Sale.prototype, "phone", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'address_detail', type: 'text', nullable: true }),
+    __metadata("design:type", Object)
+], Sale.prototype, "address", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'address_city', type: 'varchar', length: 50, nullable: true }),
+    __metadata("design:type", Object)
+], Sale.prototype, "city", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'address_district', type: 'varchar', length: 50, nullable: true }),
+    __metadata("design:type", Object)
+], Sale.prototype, "district", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'contact_tax_id', type: 'varchar', length: 20, nullable: true }),
+    __metadata("design:type", Object)
+], Sale.prototype, "taxNumber", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'contact_email', type: 'varchar', length: 100, nullable: true }),
+    __metadata("design:type", Object)
+], Sale.prototype, "email", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'lead_source', type: 'varchar', length: 50, nullable: true }),
+    __metadata("design:type", Object)
+], Sale.prototype, "source", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'commercial_account_id', type: 'bigint', nullable: true }),
+    __metadata("design:type", Object)
+], Sale.prototype, "commercialAccountId", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => party_entity_1.Party),
     (0, typeorm_1.JoinColumn)({ name: 'party_id' }),
     __metadata("design:type", party_entity_1.Party)
@@ -107,6 +146,16 @@ __decorate([
     (0, typeorm_1.JoinColumn)({ name: 'currency_id' }),
     __metadata("design:type", currency_entity_1.Currency)
 ], Sale.prototype, "currency", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => staff_entity_1.Staff, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: 'staff_id' }),
+    __metadata("design:type", Object)
+], Sale.prototype, "staff", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => commercial_account_entity_1.CommercialAccount, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: 'commercial_account_id' }),
+    __metadata("design:type", Object)
+], Sale.prototype, "commercialAccount", void 0);
 __decorate([
     (0, typeorm_1.OneToMany)(() => sale_item_entity_1.SaleItem, (si) => si.sale),
     __metadata("design:type", Array)

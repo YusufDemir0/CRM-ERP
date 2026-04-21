@@ -50,6 +50,6 @@ function transformDecimalString({ value }) {
     if (value === undefined || value === null || value === '')
         return undefined;
     const parsed = parseTurkishDecimal(value);
-    return parsed || value;
+    return (parsed || value);
 }
 //# sourceMappingURL=number.helper.js.map

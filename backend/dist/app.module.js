@@ -42,6 +42,7 @@ const settings_module_1 = require("./modules/settings/settings.module");
 const logs_module_1 = require("./modules/logs/logs.module");
 const notes_module_1 = require("./modules/notes/notes.module");
 const webhooks_module_1 = require("./modules/webhooks/webhooks.module");
+const staff_module_1 = require("./modules/staff/staff.module");
 let AppModule = class AppModule {
     configure(consumer) {
         consumer
@@ -88,6 +89,7 @@ exports.AppModule = AppModule = __decorate([
             logs_module_1.LogsModule,
             notes_module_1.NotesModule,
             webhooks_module_1.WebhooksModule,
+            staff_module_1.StaffModule,
             common_module_1.CommonModule,
         ],
         providers: [

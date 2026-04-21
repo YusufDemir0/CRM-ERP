@@ -14,7 +14,7 @@ exports.SequenceGeneratorService = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("typeorm");
 const item_code_group_entity_1 = require("../../modules/inventory/items/entities/item-code-group.entity");
-const sale_type_entity_1 = require("../../modules/sales/entities/sale-type.entity");
+const department_entity_1 = require("../../modules/departments/entities/department.entity");
 const transaction_context_service_1 = require("./transaction-context.service");
 let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGeneratorService {
     constructor(transactionContext, dataSource) {
@@ -37,18 +37,19 @@ let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGenera
         this.logger.debug(`Generated item code: ${code}`);
         return code;
     }
-    async generateSaleCode(manager = this.transactionContext.manager, saleTypeId) {
-        const saleType = await manager.findOne(sale_type_entity_1.SaleType, { where: { id: saleTypeId } });
-        if (!saleType) {
-            throw new common_1.NotFoundException(`Sale type bulunamadı: ${saleTypeId}`);
+    async generateSaleCode(manager = this.transactionContext.manager, departmentId) {
+        const department = await manager.findOne(department_entity_1.Department, { where: { id: departmentId } });
+        if (!department) {
+            throw new common_1.NotFoundException(`Departman bulunamadı: ${departmentId}`);
         }
-        const prefix = saleType.abbreviation;
-        await manager.query(`INSERT INTO sale_sequences (sale_type_id, current_number)
+        const deptPrefix = department.abbreviation || 'GEN';
+        const finalPrefix = `S-${deptPrefix}`.toUpperCase();
+        await manager.query(`INSERT INTO sale_sequences (department_id, current_number)
        VALUES (?, 1)
-       ON DUPLICATE KEY UPDATE current_number = current_number + 1`, [saleTypeId]);
-        const [row] = await manager.query(`SELECT current_number FROM sale_sequences WHERE sale_type_id = ?`, [saleTypeId]);
+       ON DUPLICATE KEY UPDATE current_number = current_number + 1`, [departmentId]);
+        const [row] = await manager.query(`SELECT current_number FROM sale_sequences WHERE department_id = ?`, [departmentId]);
         const currentNumber = row.current_number;
-        const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
+        const code = `${finalPrefix}-${String(currentNumber).padStart(3, '0')}`;
         this.logger.debug(`Generated sale code: ${code}`);
         return code;
     }

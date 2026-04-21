@@ -12,21 +12,39 @@ export declare class CreateSaleDto {
     partyId: number;
     saleTypeId: number;
     currencyId?: number;
+    staffId?: number;
     deliveryDate?: string;
     deposit?: string;
     discountAmount?: string;
     discountPercent?: string;
     notes?: string;
+    phone?: string;
+    address?: string;
+    taxNumber?: string;
+    email?: string;
+    source?: string;
+    city?: string;
+    district?: string;
+    commercialAccountId?: number;
     items: CreateSaleItemDto[];
 }
 export declare class UpdateSaleDto {
     partyId?: number;
     currencyId?: number;
+    staffId?: number;
     deliveryDate?: string;
     deposit?: string;
     discountAmount?: string;
     discountPercent?: string;
     notes?: string;
+    phone?: string;
+    address?: string;
+    taxNumber?: string;
+    email?: string;
+    source?: string;
+    city?: string;
+    district?: string;
+    commercialAccountId?: number;
     items?: CreateSaleItemDto[];
 }
 export declare class CreateSaleTypeDto {

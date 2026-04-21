@@ -4,11 +4,14 @@ import { Party } from '../../parties/entities/party.entity';
 import { SaleType } from './sale-type.entity';
 import { Currency } from '../../finance/currencies/entities/currency.entity';
 import { SaleItem } from './sale-item.entity';
+import { Staff } from '../../staff/entities/staff.entity';
+import { CommercialAccount } from '../../finance/accounts/entities/commercial-account.entity';
 export declare class Sale extends BaseEntity {
     code: string;
     partyId: number;
     saleTypeId: number;
     departmentId: number | null;
+    staffId: number | null;
     currencyId: number | null;
     exchangeRate: Decimal;
     deliveryDate: string | null;
@@ -20,8 +23,18 @@ export declare class Sale extends BaseEntity {
     kdv: Decimal;
     grandTotal: Decimal;
     notes: string | null;
+    phone: string | null;
+    address: string | null;
+    city: string | null;
+    district: string | null;
+    taxNumber: string | null;
+    email: string | null;
+    source: string | null;
+    commercialAccountId: number | null;
     party: Party;
     saleType: SaleType;
     currency: Currency;
+    staff: Staff | null;
+    commercialAccount: CommercialAccount | null;
     items: SaleItem[];
 }

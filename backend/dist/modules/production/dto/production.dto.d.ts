@@ -2,7 +2,7 @@ import { PaginationDto } from '../../../common/dto/pagination.dto';
 export declare class BomQueryDto extends PaginationDto {
 }
 export declare class ProductionOrderQueryDto extends PaginationDto {
-    status?: string;
+    status?: 'draft' | 'planned' | 'in_progress' | 'completed' | 'cancelled';
 }
 export declare class CreateBomItemDto {
     itemId: number;
@@ -37,7 +37,7 @@ export declare class UpdateProductionOrderDto {
     wastageQuantity?: string | number;
     sourceDepartmentId?: number;
     targetDepartmentId?: number;
-    status?: string;
+    status?: 'draft' | 'planned' | 'in_progress' | 'completed' | 'cancelled';
     laborCost?: string | number;
     overheadCost?: string | number;
     startDate?: string;

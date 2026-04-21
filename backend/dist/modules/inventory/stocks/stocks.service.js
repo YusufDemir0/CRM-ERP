@@ -509,7 +509,7 @@ let StocksService = class StocksService {
     }
     async revertStockMovementsByReference(referenceType, referenceId, manager = this.transactionContext.manager, userId) {
         const movements = await manager.find(stock_movement_entity_1.StockMovement, {
-            where: { referenceType: referenceType, referenceId: referenceId },
+            where: { referenceType, referenceId },
             relations: ['stock']
         });
         if (movements.length === 0)

@@ -3,7 +3,7 @@ import { Decimal } from 'decimal.js';
 import { Stock } from './entities/stock.entity';
 import { StockMovement } from './entities/stock-movement.entity';
 import { StockAdjustmentDto, StocksQueryDto, TransferStockDto } from '../dto/inventory.dto';
-import { PaginatedResult } from '../../../common/dto/pagination.dto';
+import { PaginatedResult, PaginationDto } from '../../../common/dto/pagination.dto';
 import { SequenceGeneratorService } from '../../../common/services/sequence-generator.service';
 import { LogsService } from '../../logs/logs.service';
 import { TransactionContextService } from '../../../common/services/transaction-context.service';
@@ -18,7 +18,7 @@ export declare class StocksService {
     findAll(query: StocksQueryDto): Promise<PaginatedResult<Stock>>;
     private updateMovingAverageCost;
     private validateStock;
-    getMovements(stockId: number, query: any): Promise<PaginatedResult<StockMovement>>;
+    getMovements(stockId: number, query: PaginationDto): Promise<PaginatedResult<StockMovement>>;
     decreaseStock(itemId: number, departmentId: number, quantity: number | Decimal, manager?: EntityManager, referenceInfo?: {
         type: StockMovement['referenceType'];
         id: number;

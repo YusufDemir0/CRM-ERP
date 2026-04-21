@@ -19,9 +19,9 @@ __decorate([
     __metadata("design:type", Number)
 ], SaleSequence.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'sale_type_id', type: 'bigint' }),
+    (0, typeorm_1.Column)({ name: 'department_id', type: 'bigint' }),
     __metadata("design:type", Number)
-], SaleSequence.prototype, "saleTypeId", void 0);
+], SaleSequence.prototype, "departmentId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'current_number', type: 'int', default: 1 }),
     __metadata("design:type", Number)
@@ -52,6 +52,6 @@ __decorate([
 ], SaleSequence.prototype, "state", void 0);
 exports.SaleSequence = SaleSequence = __decorate([
     (0, typeorm_1.Entity)('sale_sequences'),
-    (0, typeorm_1.Unique)(['saleTypeId'])
+    (0, typeorm_1.Unique)(['departmentId'])
 ], SaleSequence);
 //# sourceMappingURL=sale-sequence.entity.js.map

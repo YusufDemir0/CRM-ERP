@@ -26,6 +26,7 @@ const typeorm_2 = require("typeorm");
 const sale_entity_1 = require("./entities/sale.entity");
 const sale_item_entity_1 = require("./entities/sale-item.entity");
 const sale_type_entity_1 = require("./entities/sale-type.entity");
+const user_entity_1 = require("../auth/entities/user.entity");
 const party_entity_1 = require("../parties/entities/party.entity");
 const currency_entity_1 = require("../finance/currencies/entities/currency.entity");
 const transaction_entity_1 = require("../finance/transactions/entities/transaction.entity");
@@ -83,7 +84,8 @@ let SalesService = SalesService_1 = class SalesService {
         };
     }
     async findOne(id) {
-        const sale = await this.saleRepo.findOne({
+        const repo = this.transactionContext.manager.getRepository(sale_entity_1.Sale);
+        const sale = await repo.findOne({
             where: { id },
             relations: ['party', 'saleType', 'currency', 'items', 'items.item'],
         });
@@ -100,7 +102,9 @@ let SalesService = SalesService_1 = class SalesService {
             throw new common_1.BadRequestException('Sadece Tedarikçi tipindeki bir cariye satış yapılamaz.');
         const currency = await manager.findOne(currency_entity_1.Currency, { where: { id: dto.currencyId } });
         const currentExchangeRate = currency ? currency.exchangeRate : new decimal_js_1.Decimal(1);
-        const code = await this.sequenceGenerator.generateSaleCode(manager, dto.saleTypeId);
+        const user = await manager.findOne(user_entity_1.User, { where: { id: userId } });
+        const userDeptId = user?.departmentId || 1;
+        const code = await this.sequenceGenerator.generateSaleCode(manager, Number(userDeptId));
         let rawTotalAmount = new decimal_js_1.Decimal(0);
         const saleItems = [];
         for (const itemDto of dto.items) {
@@ -130,6 +134,7 @@ let SalesService = SalesService_1 = class SalesService {
             saleItems.push({
                 itemId: itemDto.itemId,
                 quantity: new decimal_js_1.Decimal(itemDto.quantity),
+                shippedQuantity: new decimal_js_1.Decimal(0),
                 price: unitPrice,
                 discountAmount,
                 discountPercent,
@@ -187,6 +192,7 @@ let SalesService = SalesService_1 = class SalesService {
             partyId: dto.partyId,
             saleTypeId: dto.saleTypeId,
             currencyId: dto.currencyId,
+            staffId: dto.staffId,
             exchangeRate: currentExchangeRate,
             deliveryDate: dto.deliveryDate,
             status: 'draft',
@@ -197,6 +203,14 @@ let SalesService = SalesService_1 = class SalesService {
             kdv: totalKdv,
             grandTotal,
             notes: dto.notes,
+            phone: dto.phone,
+            address: dto.address,
+            taxNumber: dto.taxNumber,
+            email: dto.email,
+            source: dto.source,
+            city: dto.city,
+            district: dto.district,
+            commercialAccountId: dto.commercialAccountId,
             createdBy: userId,
         });
         const savedSale = await manager.save(sale);
@@ -214,6 +228,24 @@ let SalesService = SalesService_1 = class SalesService {
             sale.notes = dto.notes;
         if (dto.deliveryDate !== undefined)
             sale.deliveryDate = dto.deliveryDate;
+        if (dto.staffId !== undefined)
+            sale.staffId = dto.staffId;
+        if (dto.phone !== undefined)
+            sale.phone = dto.phone;
+        if (dto.address !== undefined)
+            sale.address = dto.address;
+        if (dto.taxNumber !== undefined)
+            sale.taxNumber = dto.taxNumber;
+        if (dto.email !== undefined)
+            sale.email = dto.email;
+        if (dto.source !== undefined)
+            sale.source = dto.source;
+        if (dto.city !== undefined)
+            sale.city = dto.city;
+        if (dto.district !== undefined)
+            sale.district = dto.district;
+        if (dto.commercialAccountId !== undefined)
+            sale.commercialAccountId = dto.commercialAccountId;
         sale.updatedBy = userId || null;
         if (dto.items && dto.items.length > 0) {
             let rawTotalAmount = new decimal_js_1.Decimal(0);
@@ -244,6 +276,7 @@ let SalesService = SalesService_1 = class SalesService {
                 saleItems.push({
                     itemId: itemDto.itemId,
                     quantity: new decimal_js_1.Decimal(itemDto.quantity),
+                    shippedQuantity: new decimal_js_1.Decimal(0),
                     price: unitPrice,
                     discountAmount,
                     discountPercent,

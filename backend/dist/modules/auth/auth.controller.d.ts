@@ -14,8 +14,14 @@ export declare class AuthController {
             username: string;
             fullName: string;
             email: string;
+            phone: string | null;
             departmentId: number | null;
-            roles: string[];
+            department: import("../departments/entities/department.entity").Department;
+            roles: {
+                id: number;
+                name: string;
+            }[];
+            permissions: string[];
         };
     }>;
     logout(res: Response): Promise<{
