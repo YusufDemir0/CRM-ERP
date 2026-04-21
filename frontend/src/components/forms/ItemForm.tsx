@@ -20,9 +20,8 @@ import {
   Currency
 } from '../../types';
 
-import {
-  useQuickCreateStore
-} from '../../store/useQuickCreateStore';
+import { useQuickCreateStore } from '../../store/useQuickCreateStore';
+import { FormField } from '../common/FormField';
 
 interface ItemFormProps {
   initialData?: Partial<Item>;
@@ -374,54 +373,48 @@ export const ItemForm: React.FC<ItemFormProps> = ({
     };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} onBlur={saveDraft} className="login-form">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="form-group">
-          <label>Ürün Türü *</label>
-          <select required className="uppercase-input" {...register('itemTypeId')}>
-            <option value="">Seçiniz</option>
-            {itemTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+    <form onSubmit={handleSubmit(onSubmit)} onBlur={saveDraft} className="flex flex-col gap-6 animate-in">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormField label="Ürün Türü" required>
+          <select required className="input-premium font-black" {...register('itemTypeId')}>
+            <option value="">Seçiniz...</option>
+            {itemTypes.map(t => <option key={t.id} value={t.id}>{t.name.toUpperCase()}</option>)}
           </select>
-        </div>
-        <div className="form-group">
-          <label>Kod Grubu *</label>
-          <select required className="uppercase-input" {...register('itemCodeGroupId')}>
-            <option value="">Seçiniz</option>
-            {itemCodeGroups.map(g => <option key={g.id} value={g.id}>{g.prefix} - {g.name}</option>)}
+        </FormField>
+        <FormField label="Kod Grubu" required>
+          <select required className="input-premium font-black" {...register('itemCodeGroupId')}>
+            <option value="">Seçiniz...</option>
+            {itemCodeGroups.map(g => <option key={g.id} value={g.id}>{g.prefix} - {g.name.toUpperCase()}</option>)}
           </select>
-        </div>
+        </FormField>
       </div>
 
-      <div className="form-group mt-4">
-        <label>Ürün Adı *</label>
+      <FormField label="Ürün Adı" required>
         <input 
           required 
-          className="uppercase-input" 
+          className="input-premium uppercase-input font-black tracking-tight" 
           {...register('name')} 
           onInput={(e) => { e.currentTarget.value = e.currentTarget.value.toLocaleUpperCase('tr-TR'); }}
-          placeholder="ÜRÜN ADI" 
+          placeholder="ÖR: POLİESTER İPLİK 150/48" 
         />
-      </div>
+      </FormField>
 
-      <div className="grid grid-cols-3 gap-4 mt-4">
-        <div className="form-group">
-          <label>Birim *</label>
-          <select required className="uppercase-input" {...register('quantityTypeId')}>
-            <option value="">Seçiniz</option>
-            {quantityTypes.map(q => <option key={q.id} value={q.id}>{q.name} ({q.abbreviation})</option>)}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <FormField label="Birim" required>
+          <select required className="input-premium font-black" {...register('quantityTypeId')}>
+            <option value="">Seçiniz...</option>
+            {quantityTypes.map(q => <option key={q.id} value={q.id}>{q.name.toUpperCase()} ({q.abbreviation})</option>)}
           </select>
-        </div>
-        <div className="form-group">
-          <label>Kritik Limit</label>
+        </FormField>
+        <FormField label="Kritik Limit">
           <input 
             type="number" 
-            className="uppercase-input tabular-nums" 
+            className="input-premium font-black tabular-nums" 
             {...register('criticalLimit')} 
           />
-        </div>
-        <div className="form-group">
-          <label>KDV Oranı</label>
-          <select className="uppercase-input" {...register('kdv')}>
+        </FormField>
+        <FormField label="KDV Oranı">
+          <select className="input-premium font-black" {...register('kdv')}>
             <option value="0">%0</option>
             <option value="1">%1</option>
             <option value="10">%10</option>
@@ -431,67 +424,62 @@ export const ItemForm: React.FC<ItemFormProps> = ({
           {kdvValue === 'custom' && (
             <input 
               type="number" 
-              className="uppercase-input tabular-nums mt-2" 
+              className="input-premium font-black tabular-nums mt-2" 
               value={customKdv || ''} 
               onChange={e => setCustomKdv(Number(e.target.value))} 
               placeholder="Özel KDV %" 
             />
           )}
-        </div>
+        </FormField>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mt-4">
-        <div className="form-group">
-          <label>Alış Fiyatı</label>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <FormField label="Alış Fiyatı">
           <input 
             type="number" 
             step="0.01"
-            className="uppercase-input tabular-nums" 
+            className="input-premium font-black tabular-nums" 
             {...register('purchasePrice')} 
           />
-        </div>
-        <div className="form-group">
-          <label>Satış Fiyatı</label>
+        </FormField>
+        <FormField label="Satış Fiyatı">
           <input 
             type="number" 
             step="0.01"
-            className="uppercase-input tabular-nums" 
+            className="input-premium font-black tabular-nums" 
             {...register('salePrice')} 
           />
-        </div>
-        <div className="form-group">
-          <label>Para Birimi *</label>
-          <select required className="uppercase-input" {...register('currencyId')}>
-            <option value="">Seçiniz</option>
-            {currencies.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
+        </FormField>
+        <FormField label="Para Birimi" required>
+          <select required className="input-premium font-black" {...register('currencyId')}>
+            <option value="">Seçiniz...</option>
+            {currencies.map(c => <option key={c.id} value={c.id}>{c.code} - {c.name.toUpperCase()}</option>)}
           </select>
-        </div>
+        </FormField>
       </div>
 
-      <div className="form-group mt-4">
-        <label>Açıklama</label>
+      <FormField label="Açıklama">
         <textarea 
-          className="uppercase-input min-h-[80px]" 
+          className="input-premium uppercase-input min-h-[100px] font-medium" 
           {...register('description')} 
           onInput={(e) => { e.currentTarget.value = e.currentTarget.value.toLocaleUpperCase('tr-TR'); }}
-          placeholder="Açıklama..." 
+          placeholder="Üretim veya satış birimi için ek notlar..." 
         />
-      </div>
+      </FormField>
 
-      <div className="form-group mt-4">
-        <label>Notlar</label>
+      <FormField label="Notlar">
         <textarea 
-          className="uppercase-input min-h-[80px]" 
+          className="input-premium min-h-[100px] font-medium" 
           {...register('notes')} 
-          placeholder="İç Notlar..." 
+          placeholder="İşletme içi özel notlar..." 
         />
-      </div>
+      </FormField>
 
-      <div className="flex gap-4 mt-8">
-        <button type="submit" className="btn btn-primary flex-1 h-[50px]">
-          <FiCheck /> {editingId ? 'GÜNCELLE' : 'ÜRÜNÜ KAYDET'}
+      <div className="flex flex-col sm:flex-row gap-4 mt-4 pt-6 border-t border-slate-100">
+        <button type="submit" className="btn btn-primary btn-lg flex-1 shadow-2xl shadow-[var(--primary-glow)]">
+          <FiCheck size={20} /> {editingId ? 'GÜNCELLEMELERİ KAYDET' : 'YENİ ÜRÜNÜ SİSTEME KAYDET'}
         </button>
-        <button type="button" className="btn bg-slate-200 flex-[0.5] h-[50px]" onClick={onCancel}>
+        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200" onClick={onCancel}>
           İPTAL
         </button>
       </div>

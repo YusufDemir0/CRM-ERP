@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 import { Account, Currency } from '../../types';
+import { FormField } from '../common/FormField';
 
 interface AccountFormProps {
   initialData?: Partial<Account>;
@@ -119,102 +120,98 @@ export const AccountForm: React.FC<AccountFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} onBlur={saveDraft} className="login-form">
-      <div className="form-group">
-        <label>Hesap Adı (Zorunlu)</label>
+    <form onSubmit={handleSubmit(onSubmit)} onBlur={saveDraft} className="flex flex-col gap-6 animate-in">
+      <FormField label="Hesap Adı" required>
         <input 
           required 
-          className="uppercase-input" 
+          className="input-premium uppercase-input font-black tracking-tight" 
           {...register('name')}
           onInput={(e) => {
             e.currentTarget.value = e.currentTarget.value.replace(/[0-9]/g, '').toLocaleUpperCase('tr-TR');
           }}
           placeholder="ÖR: MERKEZ NAKİT KASA" 
         />
-      </div>
+      </FormField>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="form-group">
-          <label>Banka Adı</label>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormField label="Banka Adı">
           <input 
-            className="uppercase-input" 
+            className="input-premium uppercase-input font-bold" 
             {...register('bankName')}
             onInput={(e) => {
               e.currentTarget.value = e.currentTarget.value.replace(/[0-9]/g, '').toLocaleUpperCase('tr-TR');
             }}
             placeholder="ÖR: ZİRAAT BANKASI" 
           />
-        </div>
-        <div className="form-group">
-          <label>Para Birimi</label>
-          <select required className="uppercase-input" {...register('currencyId')}>
+        </FormField>
+        <FormField label="Para Birimi" required>
+          <select required className="input-premium font-black" {...register('currencyId')}>
+            <option value="">Seçiniz...</option>
             {currencies.map(c => <option key={c.id} value={c.id}>{c.code} ({c.symbol})</option>)}
           </select>
-        </div>
+        </FormField>
       </div>
 
-      <div className="form-group">
-        <label>IBAN Bilgisi</label>
+      <FormField label="IBAN Bilgisi">
         <input 
-          className="uppercase-input" 
+          className="input-premium font-black tabular-nums tracking-widest" 
           {...register('iban')}
           onInput={(e) => {
             e.currentTarget.value = formatIban(e.currentTarget.value);
           }}
           placeholder="TR00 0000 0000 0000 0000 0000 00" 
         />
-      </div>
+      </FormField>
 
-      <div className="form-group">
-        <label>IBAN Sahibi Ad-Soyad</label>
+      <FormField label="IBAN Sahibi Ad-Soyad">
         <input 
-          className="uppercase-input" 
+          className="input-premium uppercase-input font-bold" 
           {...register('ibanName')}
           onInput={(e) => {
             e.currentTarget.value = e.currentTarget.value.replace(/[0-9]/g, '').toLocaleUpperCase('tr-TR');
           }}
-          placeholder="AD SOYAD" 
+          placeholder="HESAP SAHİBİ" 
         />
-      </div>
+      </FormField>
 
-      <div className="form-group">
-        <label>Kritik Bakiye / Eksi Limit Tutarı</label>
+      <FormField label="Kritik Bakiye / Eksi Limit" className="bg-[var(--primary-glow)] p-5 rounded-[2rem] border border-[var(--primary-glow)]">
         <div className="flex items-center gap-2">
           <div className="flex gap-1">
-            <button type="button" className="btn btn-sm bg-slate-50 border border-border px-2 py-1 text-[10px]" onClick={() => setValue('criticalLimit', Number(criticalLimit) - 10000)}>-10K</button>
-            <button type="button" className="btn btn-sm bg-slate-50 border border-border px-2 py-1 text-[10px]" onClick={() => setValue('criticalLimit', Number(criticalLimit) - 1000)}>-1K</button>
+            <button type="button" className="btn btn-sm bg-white border border-slate-200 px-2 py-1 text-[10px] font-black" onClick={() => setValue('criticalLimit', Number(criticalLimit) - 10000)}>-10K</button>
+            <button type="button" className="btn btn-sm bg-white border border-slate-200 px-2 py-1 text-[10px] font-black" onClick={() => setValue('criticalLimit', Number(criticalLimit) - 1000)}>-1K</button>
           </div>
           
           <input 
             type="number" 
-            className="uppercase-input tabular-nums w-[150px] text-center font-black text-2xl h-[45px] border-2 border-primary/20 rounded-xl" 
+            className="input-premium tabular-nums flex-1 text-center font-black text-2xl h-14 text-[var(--primary)]" 
             {...register('criticalLimit')} 
           />
 
           <div className="flex gap-1">
-            <button type="button" className="btn btn-sm bg-slate-50 border border-border px-2 py-1 text-[10px]" onClick={() => setValue('criticalLimit', Number(criticalLimit) + 1000)}>+1K</button>
-            <button type="button" className="btn btn-sm bg-slate-50 border border-border px-2 py-1 text-[10px]" onClick={() => setValue('criticalLimit', Number(criticalLimit) + 10000)}>+10K</button>
+            <button type="button" className="btn btn-sm bg-white border border-slate-200 px-2 py-1 text-[10px] font-black" onClick={() => setValue('criticalLimit', Number(criticalLimit) + 1000)}>+1K</button>
+            <button type="button" className="btn btn-sm bg-white border border-slate-200 px-2 py-1 text-[10px] font-black" onClick={() => setValue('criticalLimit', Number(criticalLimit) + 10000)}>+10K</button>
           </div>
         </div>
-      </div>
+      </FormField>
 
-      <div className="form-group">
-        <label>Kısa Açıklama</label>
+      <FormField label="Açıklama">
         <input 
-          className="uppercase-input" 
+          className="input-premium uppercase-input font-medium" 
           {...register('description')}
           onInput={(e) => {
             e.currentTarget.value = e.currentTarget.value.toLocaleUpperCase('tr-TR');
           }}
           placeholder="..." 
         />
-      </div>
+      </FormField>
 
-      <div className="flex gap-4 mt-5">
-        <button type="submit" className="btn btn-primary flex-1 h-[50px]">
-          <FiCheck /> {editingId ? 'GÜNCELLE' : 'HESABI KAYDET'}
+      <div className="flex flex-col sm:flex-row gap-4 mt-4 pt-6 border-t border-slate-100">
+        <button type="submit" className="btn btn-primary btn-lg flex-1 shadow-2xl shadow-[var(--primary-glow)]">
+          <FiCheck size={20} /> {editingId ? 'GÜNCELLEMELERİ KAYDET' : 'HESABI SİSTEME KAYDET'}
         </button>
-        <button type="button" className="btn flex-[0.5] bg-slate-200 h-[50px]" onClick={onCancel}>İPTAL</button>
+        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all" onClick={onCancel}>
+          İPTAL
+        </button>
       </div>
     </form>
   );

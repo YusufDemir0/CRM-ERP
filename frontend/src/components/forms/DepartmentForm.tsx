@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { departmentsAPI, accountsAPI } from '../../services/api';
-import { FiCheck } from 'react-icons/fi';
+import { FiCheck, FiPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 import { Account, Department } from '../../types';
+import { FormField } from '../common/FormField';
 
 interface DepartmentFormProps {
   initialData?: Record<string, unknown>;
@@ -110,76 +111,72 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} onBlur={saveDraft} className="login-form">
-      <div className="grid grid-cols-[2fr_1fr] gap-4">
-        <div className="form-group">
-          <label>Departman Adı (Zorunlu)</label>
+    <form onSubmit={handleSubmit(onSubmit)} onBlur={saveDraft} className="flex flex-col gap-6 animate-in">
+      <div className="grid grid-cols-1 md:grid-cols-[2.5fr_1fr] gap-4">
+        <FormField label="Departman Adı" required>
           <input 
             required 
-            className="uppercase-input" 
+            className="input-premium uppercase-input font-black tracking-tight" 
             {...register('name')} 
             placeholder="ÖR: MERKEZ DEPO" 
           />
-        </div>
-        <div className="form-group">
-          <label>Kısa Kod (3-4 harf)</label>
+        </FormField>
+        <FormField label="Kısa Kod">
           <input
             maxLength={4}
-            className="uppercase-input font-extrabold tracking-[3px] text-center"
+            className="input-premium font-black tracking-[4px] text-center"
             {...register('abbreviation')}
             placeholder="MKZ"
           />
-        </div>
+        </FormField>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mt-4">
-        <div className="form-group">
-          <label>Departman Tipi</label>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormField label="Departman Tipi" required>
           <select 
-            className="uppercase-input appearance-none" 
+            required
+            className="input-premium font-black" 
             {...register('departmentTypeId')}
           >
-            <option value="">Lütfen Seçiniz</option>
-            {deptTypes.map((dt) => <option key={String(dt.id)} value={String(dt.id)}>{String(dt.name)} ({String(dt.abbreviation)})</option>)}
+            <option value="">Lütfen Seçiniz...</option>
+            {deptTypes.map((dt) => <option key={String(dt.id)} value={String(dt.id)}>{String(dt.name).toUpperCase()} ({String(dt.abbreviation)})</option>)}
           </select>
-        </div>
-        <div className="form-group">
-          <div className="flex justify-between items-center mb-1">
-            <label>Bağlı Finans/Kasa Hesabı</label>
+        </FormField>
+        <FormField label="Finans/Kasa Hesabı" helperText="YENİ KASA EKLEMEK İÇİN YANDAKİ BUTONU KULLANIN">
+          <div className="flex flex-col gap-2">
+            <select 
+              className="input-premium font-black" 
+              {...register('commercialAccountId')}
+            >
+              <option value="">Lütfen Seçiniz...</option>
+              {accounts.map((acc: Account) => (
+                <option key={acc.id} value={acc.id}>{acc.name.toUpperCase()}</option>
+              ))}
+            </select>
             <button
               type="button"
-              className="text-[11px] font-semibold text-primary hover:underline"
+              className="text-[10px] font-black text-primary flex items-center justify-center gap-1 p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
               onClick={handleAddAccount}
             >
-              + YENİ HESAP EKLE
+              <FiPlus size={12} /> YENİ HESAP TANIMLA
             </button>
           </div>
-          <select 
-            className="uppercase-input appearance-none" 
-            {...register('commercialAccountId')}
-          >
-            <option value="">Lütfen Seçiniz</option>
-            {accounts.map((acc: Account) => (
-              <option key={acc.id} value={acc.id}>{acc.name}</option>
-            ))}
-          </select>
-        </div>
+        </FormField>
       </div>
 
-      <div className="form-group mt-4">
-        <label>Departman Açıklaması</label>
+      <FormField label="Operasyonel Açıklama">
         <input 
-          className="uppercase-input" 
+          className="input-premium uppercase-input font-medium" 
           {...register('description')} 
-          placeholder="..." 
+          placeholder="Departman görevi, sorumlulukları..." 
         />
-      </div>
+      </FormField>
 
-      <div className="flex gap-4 mt-5">
-        <button type="submit" className="btn btn-primary flex-1 h-[50px]">
-          <FiCheck /> {editingId ? 'GÜNCELLE' : 'DEPARTMANI KAYDET'}
+      <div className="flex flex-col sm:flex-row gap-4 mt-4 pt-6 border-t border-slate-100">
+        <button type="submit" className="btn btn-primary btn-lg flex-1 shadow-2xl shadow-[var(--primary-glow)]">
+          <FiCheck size={20} /> {editingId ? 'GÜNCELLEMELERİ KAYDET' : 'DEPARTMANI SİSTEME KAYDET'}
         </button>
-        <button type="button" className="btn bg-slate-200 flex-[0.5] h-[50px]" onClick={onCancel}>İPTAL</button>
+        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all" onClick={onCancel}>İPTAL</button>
       </div>
     </form>
   );

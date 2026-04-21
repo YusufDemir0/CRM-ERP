@@ -5,6 +5,8 @@ import { departmentsAPI, rolesAPI, usersAPI } from '../../services/api';
 import { FiCheck, FiPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
+import { PhoneInput } from '../common/PhoneInput';
+import { FormField } from '../common/FormField';
 import { formatPhoneNumber } from '../../utils/formatters';
 
 interface UserFormData {
@@ -50,19 +52,10 @@ export const UserForm: React.FC<UserFormProps> = ({
     };
   };
 
-  const getCachedCountryCode = () => {
-    if (!editingId) {
-      const cached = getCache('user') as { formData?: UserFormData; countryCode?: string } | null;
-      if (cached?.countryCode) return cached.countryCode;
-    }
-    return '+90';
-  };
-
   const { register, handleSubmit, setValue, getValues, watch } = useForm<UserFormData>({
     defaultValues: getCachedData()
   });
 
-  const [countryCode, setCountryCode] = useState(getCachedCountryCode());
   const [emailFocus, setEmailFocus] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -71,9 +64,9 @@ export const UserForm: React.FC<UserFormProps> = ({
 
   const saveDraft = useCallback(() => {
     if (!editingId) {
-      updateCache('user', { formData: getValues(), countryCode });
+      updateCache('user', { formData: getValues() });
     }
-  }, [getValues, countryCode, updateCache, editingId]);
+  }, [getValues, updateCache, editingId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -103,9 +96,8 @@ export const UserForm: React.FC<UserFormProps> = ({
   }, [departments, initialData?.departmentId, setValue]);
 
   useEffect(() => {
-    if (initialData?.phone?.startsWith('+90 ')) {
-      setCountryCode('+90');
-      setValue('phone', initialData.phone?.substring(4) || '');
+    if (initialData?.phone) {
+      setValue('phone', initialData.phone);
     }
   }, [initialData, setValue]);
 
@@ -130,7 +122,7 @@ export const UserForm: React.FC<UserFormProps> = ({
         username: data.username,
         fullName: data.fullName,
         email: data.email,
-        phone: `${countryCode} ${data.phone}`,
+        phone: data.phone,
         departmentId: data.departmentId ? Number(data.departmentId) : undefined,
         roleIds: data.selectedRoles,
         password: data.password || undefined,
@@ -167,27 +159,25 @@ export const UserForm: React.FC<UserFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} onBlur={saveDraft} className="login-form">
-      <div className="grid grid-cols-[2fr_1fr] gap-8">
-        <div className="flex flex-col gap-4">
-          <div className="form-group">
-            <label>Personel Ad Soyad</label>
+    <form onSubmit={handleSubmit(onSubmit)} onBlur={saveDraft} className="flex flex-col gap-6 animate-in">
+      <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-8">
+        <div className="flex flex-col gap-5">
+          <FormField label="Personel Ad Soyad" required>
             <input
               required
-              className="uppercase-input"
+              className="input-premium uppercase-input font-black tracking-tight"
               {...register('fullName')}
               onInput={(e) => {
                 e.currentTarget.value = e.currentTarget.value.replace(/[0-9]/g, '').toLocaleUpperCase('tr-TR');
               }}
               placeholder="ÖR: AHMET YILMAZ"
             />
-          </div>
-          <div className="flex gap-4">
-            <div className="form-group flex-1">
-              <label>Kullanıcı Adı</label>
+          </FormField>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField label="Kullanıcı Adı" required>
               <input
                 required
-                className="uppercase-input"
+                className="input-premium font-bold text-[var(--primary)]"
                 {...register('username')}
                 onInput={(e) => {
                   e.currentTarget.value = e.currentTarget.value.toLowerCase().replace(/\s/g, '');
@@ -195,109 +185,84 @@ export const UserForm: React.FC<UserFormProps> = ({
                 placeholder="ahmety"
                 disabled={!!editingId}
               />
-            </div>
-            <div className="form-group flex-1">
-              <label>E-Posta *</label>
-              <div className="relative">
-                <input
-                  required
-                  type="text"
-                  {...register('email')}
-                  onInput={(e) => {
-                    e.currentTarget.value = e.currentTarget.value.toLowerCase();
-                  }}
-                  onFocus={() => setEmailFocus(true)}
-                  onBlur={() => setTimeout(() => setEmailFocus(false), 200)}
-                  placeholder="ahmet@ermay.com"
-                />
-                {emailFocus && emailValue && !emailValue.includes('@') && (
-                  <div className="absolute top-full left-0 right-0 bg-white border border-border rounded-lg z-10 shadow-sm mt-1 overflow-hidden">
-                    {['@gmail.com', '@hotmail.com', '@outlook.com', '@icloud.com'].map(ext => (
-                      <div 
-                        key={ext} 
-                        className="p-2 cursor-pointer transition-colors text-sm hover:bg-slate-100"
-                        onClick={() => setValue('email', emailValue + ext)}
-                      >
-                        <strong>{emailValue}</strong>{ext}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {emailFocus && emailValue && emailValue.includes('@') && (
-                  <div className="absolute top-full left-0 right-0 bg-white border border-border rounded-lg z-10 shadow-sm mt-1 overflow-hidden">
-                    {[ '@gmail.com', '@hotmail.com', '@outlook.com', '@icloud.com'].map(ext => (
-                      <div 
-                        key={ext} 
-                        className={`p-2 cursor-pointer transition-colors text-sm hover:bg-slate-100 ${emailValue.split('@')[1] !== ext.substring(1) ? 'block' : 'hidden'}`}
-                        onClick={() => setValue('email', emailValue.split('@')[0] + ext)}
-                      >
-                        Hızlı Değiştir: <strong>{emailValue.split('@')[0]}</strong>{ext}
-                      </div>
-                    ))}
-                  </div>
-                 )}
-              </div>
-            </div>
+            </FormField>
+            <FormField label="E-Posta" required className="relative">
+              <input
+                required
+                type="text"
+                className="input-premium lowercase font-bold"
+                {...register('email')}
+                onInput={(e) => { e.currentTarget.value = e.currentTarget.value.toLowerCase(); }}
+                onFocus={() => setEmailFocus(true)}
+                onBlur={() => setTimeout(() => setEmailFocus(false), 200)}
+                placeholder="ahmet@ermay.com"
+              />
+              {emailFocus && emailValue && !emailValue.includes('@') && (
+                <div className="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded-2xl z-50 shadow-2xl mt-2 overflow-hidden ring-4 ring-[var(--primary-glow)]">
+                  {['@gmail.com', '@hotmail.com', '@outlook.com'].map(ext => (
+                    <div 
+                      key={ext} 
+                      className="p-3 cursor-pointer hover:bg-slate-50 text-sm font-black flex justify-between items-center group"
+                      onClick={() => setValue('email', emailValue + ext)}
+                    >
+                      <span className="text-slate-600">{emailValue}</span>
+                      <span className="text-[var(--primary)] group-hover:scale-110 transition-transform">{ext}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </FormField>
           </div>
-          <div className="flex gap-4">
-            <div className="form-group flex-1">
-              <label>Şifre (Minimum 8 karakter) {editingId && <span className="text-[9px] text-danger">(Boş=Aynı)</span>}</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField label={`Şifre ${editingId ? '(BOŞ=DEĞİŞMEZ)' : ''}`} required={!editingId}>
               <input
                 type="password"
                 required={!editingId}
-                className="uppercase-input"
+                className="input-premium font-black tracking-widest"
                 {...register('password')}
-                placeholder="****"
+                placeholder="••••••••"
               />
-            </div>
-            <div className="form-group flex-1">
-              <label>Telefon *</label>
-              <div className="flex gap-1">
-                <select value={countryCode} onChange={(e) => setCountryCode(e.target.value)} className="w-20">
-                  <option value="+90">+90</option><option value="+1">+1</option>
-                </select>
-                <input 
-                  required 
-                  className="uppercase-input tabular-nums flex-1" 
-                  {...register('phone')}
-                  onInput={(e) => {
-                    e.currentTarget.value = formatPhoneNumber(e.currentTarget.value);
-                  }}
-                  placeholder="5XX XXX XX XX" 
-                />
-              </div>
-            </div>
+            </FormField>
+            <FormField label="İletişim Hattı" required>
+              <PhoneInput 
+                value={watch('phone') || ''}
+                onChange={(val) => setValue('phone', val)}
+              />
+            </FormField>
           </div>
-          <div className="form-group">
-            <div className="flex justify-between items-center">
-              <label>Departman *</label>
+          <FormField 
+            label="Bağlı Olduğu Departman" 
+            required
+            helperText="YENİ DEPARTMAN EKLEMEK İÇİN YANDAKİ BUTONU KULLANIN"
+          >
+            <div className="flex flex-col gap-2">
+              <select
+                required
+                className="input-premium font-black"
+                {...register('departmentId')}
+              >
+                <option value="">Lütfen Seçiniz...</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={String(d.id)}>{d.name.toUpperCase()}</option>
+                ))}
+              </select>
               <button
                 type="button"
-                className="btn-link text-[11px] font-semibold text-primary mb-1 flex items-center gap-1"
+                className="text-[10px] font-black text-primary flex items-center justify-center gap-1 p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
                 onClick={handleAddDepartment}
               >
-                <FiPlus size={12} /> YENİ
+                <FiPlus size={12} /> YENİ DEPARTMAN TANIMLA
               </button>
             </div>
-            <select
-              required
-              className="uppercase-input"
-              {...register('departmentId')}
-            >
-              <option value="">Lütfen Seçiniz</option>
-              {departments.map((d) => (
-                <option key={d.id} value={String(d.id)}>{d.name}</option>
-              ))}
-            </select>
-          </div>
+          </FormField>
         </div>
 
-        <div className="bg-surface-container-low p-4 rounded-xl border border-border">
-          <label className="text-sm text-primary font-extrabold mb-3 block">Rolsüz Kullanıcı Eklenemez (Tek Rol Seçilebilir).</label>
-          <div className="flex flex-col gap-2 max-h-[250px] overflow-y-auto">
+        <div className="bg-[var(--primary-glow)] p-6 rounded-[2rem] border border-[var(--primary-glow)] shadow-inner flex flex-col gap-4">
+          <label className="text-[10px] text-[var(--primary)] font-black uppercase tracking-widest text-center">Erişim Rolü Atama</label>
+          <div className="flex flex-col gap-2 overflow-y-auto pr-1">
             {availableRoles.map((r) => (
-              <label key={r.id} className={`flex items-center gap-2 text-sm cursor-pointer p-3 rounded-xl border transition-all ${
-                selectedRoles.includes(r.id) ? 'bg-primary/5 border-primary text-primary shadow-sm' : 'bg-white border-slate-200 text-slate-600 hover:border-primary/30'
+              <label key={r.id} className={`flex items-center gap-3 cursor-pointer p-4 rounded-2xl border transition-all ${
+                selectedRoles.includes(r.id) ? 'bg-white border-primary shadow-xl scale-[1.02]' : 'bg-white/50 border-transparent text-slate-500 hover:bg-white'
               }`}>
                 <input 
                   type="radio" 
@@ -306,21 +271,24 @@ export const UserForm: React.FC<UserFormProps> = ({
                   onChange={() => setValue('selectedRoles', [r.id])} 
                   className="hidden"
                 />
-                <div className={`w-4 h-4 rounded-full border-[4px] flex-shrink-0 transition-colors ${
+                <div className={`w-5 h-5 rounded-full border-[5px] flex-shrink-0 transition-colors ${
                   selectedRoles.includes(r.id) ? 'border-primary bg-white' : 'border-slate-300 bg-white'
                 }`} />
-                <strong className="font-bold tracking-wide">{r.name}</strong>
+                <span className="font-black text-xs uppercase tracking-tight">{r.name}</span>
               </label>
             ))}
           </div>
         </div>
       </div>
 
-      <div className="flex gap-4 mt-8">
-        <button type="submit" className="btn btn-primary flex-1 h-[50px]" disabled={selectedRoles.length === 0 || isSubmitting}>
-          {isSubmitting ? <FiPlus className="animate-spin" /> : <FiCheck />} {editingId ? 'GÜNCELLE' : 'PERSONELİ KAYDET'}
+      <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-slate-100">
+        <button type="submit" disabled={selectedRoles.length === 0 || isSubmitting} className="btn btn-primary btn-lg flex-1 shadow-2xl shadow-[var(--primary-glow)]">
+          {isSubmitting ? <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" /> : <FiCheck size={20} />} 
+          {editingId ? 'GÜNCELLEMELERİ KAYDET' : 'YENİ PERSONELİ SİSTEME KAYDET'}
         </button>
-        <button type="button" className="btn flex-[0.5] bg-slate-200 h-[50px]" onClick={onCancel} disabled={isSubmitting}>İPTAL</button>
+        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all" onClick={onCancel} disabled={isSubmitting}>
+          İPTAL
+        </button>
       </div>
     </form>
   );

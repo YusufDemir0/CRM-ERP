@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { FiX, FiCheck, FiPlus } from 'react-icons/fi';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 import { Item, Bom } from '../../types';
+import { FormField } from '../common/FormField';
 
 export interface BomItemData {
   itemId: number;
@@ -55,6 +56,17 @@ export const BomForm: React.FC<BomFormProps> = ({
     return () => controller.abort();
   }, []);
 
+  // Form kapandığında (unmount) taslağı temizle (X, Esc, İptal hepsini kapsar)
+  useEffect(() => {
+    return () => {
+      if (!editingId) {
+        clearCache('bom_create');
+      } else {
+        clearCache(`bom_edit_${editingId}`);
+      }
+    };
+  }, [editingId, clearCache]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.items.length === 0) {
@@ -81,10 +93,36 @@ export const BomForm: React.FC<BomFormProps> = ({
   };
 
   const addBomItem = () => {
-    setFormData((prev) => ({
-      ...prev,
-      items: [...prev.items, { itemId: Number(itemsList[0]?.id) || 0, quantity: 1, description: '' }]
-    }));
+    setFormData((prev) => {
+      // 1. Mevcut ekli kalemlerin ID'lerini topla (Tip güvenliği için Number zorlamasıyla)
+      const usedIds = new Set(prev.items.map(i => Number(i.itemId)));
+      
+      // 2. Eğer bir hedef ürün (üretilen ürün) seçiliyse onu da öneriler arasından çıkar
+      if (prev.targetItemId) {
+        usedIds.add(Number(prev.targetItemId));
+      }
+
+      // 3. Henüz eklenmemiş ilk ürünü bul
+      const nextCandidate = itemsList.find(i => !usedIds.has(Number(i.id)));
+      
+      // 4. Eğer hepsi eklenmişse mecburen listenin ilkini al (Fallback)
+      const finalItem = nextCandidate || itemsList[0];
+
+      // 5. Eğer ürün listesi henüz yüklenmemişse (veya boşsa) state'i değiştirme
+      if (!finalItem) return prev;
+
+      return {
+        ...prev,
+        items: [
+          ...prev.items, 
+          { 
+            itemId: Number(finalItem.id), 
+            quantity: 1, 
+            description: '' 
+          }
+        ]
+      };
+    });
   };
 
   const removeBomItem = (index: number) => {
@@ -101,58 +139,83 @@ export const BomForm: React.FC<BomFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} onBlur={saveDraft} className="login-form">
-      <div className="grid grid-cols-[2fr_1.5fr] gap-4">
-        <div className="form-group">
-          <label>Reçete Adı (Zorunlu)</label>
-          <input required className="uppercase-input" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value.toLocaleUpperCase('tr-TR') })} placeholder="ÖR: ÖZEL ÜRETİM REÇETESİ" />
-        </div>
-        <div className="form-group">
-          <label>Hedef Ürün (Üretilecek)</label>
-          <select className="uppercase-input" value={formData.targetItemId} onChange={e => setFormData({ ...formData, targetItemId: Number(e.target.value) })}>
-            <option value="">Seçiniz</option>
-            {itemsList.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6 animate-in pb-4">
+      <div className="grid grid-cols-1 md:grid-cols-[1.5fr_2fr] gap-5">
+        <FormField label="Hedef Ürün (Üretilecek)" required>
+          <select 
+            required 
+            className="input-premium font-black" 
+            value={formData.targetItemId} 
+            onChange={e => {
+              const val = Number(e.target.value);
+              const selectedItem = itemsList.find(i => Number(i.id) === val);
+              setFormData(prev => ({ 
+                ...prev, 
+                targetItemId: val,
+                name: selectedItem ? selectedItem.name.toLocaleUpperCase('tr-TR') : prev.name
+              }));
+            }}
+          >
+            <option value="">Seçiniz...</option>
+            {itemsList.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name.toUpperCase()}</option>)}
           </select>
-        </div>
+        </FormField>
+        <FormField label="Reçete Adı" required>
+          <input required className="input-premium uppercase-input font-black tracking-tight" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value.toLocaleUpperCase('tr-TR') })} placeholder="ÖR: ÖZEL ÜRETİM REÇETESİ" />
+        </FormField>
       </div>
 
-      <div className="form-group">
-        <label>Açıklama</label>
-        <input className="uppercase-input" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value.toLocaleUpperCase('tr-TR') })} placeholder="..." />
-      </div>
+      <FormField label="Genel Operasyonel Açıklama">
+        <input className="input-premium uppercase-input font-medium h-12" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value.toLocaleUpperCase('tr-TR') })} placeholder="..." />
+      </FormField>
 
-      <div className="mt-5 p-4 bg-[var(--surface-container-low)] rounded-xl border border-[var(--border)]">
-        <div className="flex justify-between items-center mb-4">
-          <label className="text-[var(--primary)] font-extrabold">Kullanılacak Bileşenler</label>
-          <button type="button" className="btn btn-primary btn-sm" onClick={addBomItem}>
-            <FiPlus /> Kalem Ekle
+      <div className="mt-4 p-5 bg-[var(--primary-glow)] rounded-[2rem] border border-[var(--primary-glow)]">
+        <div className="flex justify-between items-center mb-4 px-2">
+          <label className="text-[var(--primary)] font-black uppercase tracking-widest text-[10px]">Kullanılacak Bileşen Listesi</label>
+          <button type="button" className="btn btn-primary btn-sm px-4 rounded-xl shadow-lg" onClick={addBomItem}>
+            <FiPlus /> KALEM EKLE
           </button>
         </div>
 
-        {formData.items.map((item, idx: number) => (
-          <div key={idx} className="grid grid-cols-[2.5fr_1fr_1.5fr_auto] gap-2.5 mb-2.5 items-center">
-            <select required className="uppercase-input h-10 text-xs" value={item.itemId} onChange={e => updateBomItem(idx, 'itemId', Number(e.target.value))}>
-              <option value="">Ürün Seç</option>
-              {itemsList.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}
-            </select>
-            <input type="number" required step="0.0001" className="uppercase-input tabular-nums h-10" value={item.quantity} onChange={e => updateBomItem(idx, 'quantity', Number(e.target.value))} placeholder="Mkt" />
-            <input type="text" className="uppercase-input h-10 text-xs" value={item.description} onChange={e => updateBomItem(idx, 'description', e.target.value.toLocaleUpperCase('tr-TR'))} placeholder="Not..." />
-            <button type="button" className="btn-icon circle text-[var(--error)] bg-[var(--error-glow)]" onClick={() => removeBomItem(idx)}>
-              <FiX />
-            </button>
-          </div>
-        ))}
+        <div className="flex flex-col gap-3">
+          {formData.items.map((item, idx: number) => (
+            <div key={idx} className="grid grid-cols-1 md:grid-cols-[2.5fr_1fr_1.5fr_auto] gap-3 items-center bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
+              <select required className="input-premium font-black text-xs h-10" value={item.itemId} onChange={e => updateBomItem(idx, 'itemId', Number(e.target.value))}>
+                <option value="">Ürün Seç...</option>
+                {itemsList.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name.toUpperCase()}</option>)}
+              </select>
+              <input 
+                type="number" 
+                required 
+                step="1" 
+                min="1"
+                className="input-premium font-black tabular-nums h-10 text-center" 
+                value={item.quantity} 
+                onChange={e => updateBomItem(idx, 'quantity', Math.floor(Number(e.target.value)))} 
+                placeholder="Mkt" 
+              />
+              <input type="text" className="input-premium font-medium h-10 text-xs" value={item.description} onChange={e => updateBomItem(idx, 'description', e.target.value.toLocaleUpperCase('tr-TR'))} placeholder="İşlem notu..." />
+              <button type="button" className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--error)] bg-[var(--error-glow)] hover:bg-[var(--error)] hover:text-white transition-all" onClick={() => removeBomItem(idx)}>
+                <FiX />
+              </button>
+            </div>
+          ))}
+        </div>
 
         {formData.items.length === 0 && (
-          <div className="text-center text-gray-500 py-2.5">Henüz bileşen eklenmedi.</div>
+          <div className="text-center text-slate-400 font-black uppercase tracking-widest text-[10px] py-6 bg-white/50 rounded-2xl border border-dashed border-slate-200">
+            Henüz bir bileşen tanımlanmadı.
+          </div>
         )}
       </div>
 
-      <div className="flex gap-4 mt-5">
-        <button type="submit" className="btn btn-primary flex-1 h-[50px]">
-          <FiCheck /> {editingId ? 'GÜNCELLE' : 'REÇETEYİ KAYDET'}
+      <div className="flex flex-col sm:flex-row gap-4 mt-4 pt-6 border-t border-slate-100">
+        <button type="submit" className="btn btn-primary btn-lg flex-1 shadow-2xl shadow-[var(--primary-glow)]">
+          <FiCheck size={20} /> {editingId ? 'GÜNCELLEMELERİ KAYDET' : 'REÇETEYİ SİSTEME KAYDET'}
         </button>
-        <button type="button" className="btn bg-slate-200 flex-[0.4] h-[50px]" onClick={onCancel}>İPTAL</button>
+        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all" onClick={onCancel}>
+          İPTAL
+        </button>
       </div>
     </form>
   );
