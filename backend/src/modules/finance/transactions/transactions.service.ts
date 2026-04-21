@@ -104,7 +104,7 @@ export class TransactionsService {
     const tx = manager.create(Transaction, {
       code, partyId: dto.partyId || undefined, commercialAccountId: dto.commercialAccountId,
       amount: new Decimal(dto.amount), currencyId: dto.currencyId || undefined, exchangeRate,
-      type: dto.type, referenceType: dto.referenceType as any, referenceId: dto.referenceId || undefined,
+      type: dto.type, referenceType: dto.referenceType, referenceId: dto.referenceId || undefined,
       date: dto.date, description: dto.description || undefined, status: 'completed', createdBy: userId,
     });
 

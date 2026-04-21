@@ -36,6 +36,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { LogsModule } from './modules/logs/logs.module';
 import { NotesModule } from './modules/notes/notes.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { StaffModule } from './modules/staff/staff.module';
 
 @Module({
   imports:[
@@ -81,6 +82,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     LogsModule,
     NotesModule,
     WebhooksModule,
+    StaffModule,
     CommonModule,
   ],
   providers:[

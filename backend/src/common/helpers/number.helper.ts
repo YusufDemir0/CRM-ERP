@@ -5,7 +5,7 @@ import { Decimal } from 'decimal.js';
  * "1234567.89" biçiminde döndürür (parseFloat KULLANILMAZ).
  * Geçersiz girişte null döner — caller exception fırlatmalı.
  */
-export function parseTurkishDecimal(input: any): string | null {
+export function parseTurkishDecimal(input: unknown): string | null {
   if (input === undefined || input === null) return null;
   let s = input.toString();
 
@@ -57,18 +57,18 @@ export function parseTurkishDecimal(input: any): string | null {
  * Class-transformer Transform decorator'ı için yardımcı fonksiyon.
  * Giriş tipinden bağımsız olarak Decimal döner.
  */
-export function transformDecimal({ value }: { value: any }): Decimal | string | undefined {
+export function transformDecimal({ value }: { value: unknown }): Decimal | string | undefined {
   if (value === undefined || value === null || value === '') return undefined;
   const parsed = parseTurkishDecimal(value);
-  if (parsed === null) return value; // Validator hata fırlatsın diye orjinalini dön
+  if (parsed === null) return value as string; // Validator hata fırlatsın diye orjinalini dön
   return new Decimal(parsed);
 }
 
 /**
  * Class-transformer Transform decorator'ı için yardımcı fonksiyon (string döner).
  */
-export function transformDecimalString({ value }: { value: any }): string | undefined {
+export function transformDecimalString({ value }: { value: unknown }): string | undefined {
   if (value === undefined || value === null || value === '') return undefined;
   const parsed = parseTurkishDecimal(value);
-  return parsed || value;
+  return (parsed || value) as string | undefined;
 }

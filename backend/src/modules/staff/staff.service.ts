@@ -1,0 +1,84 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, IsNull } from 'typeorm';
+import { Staff } from './entities/staff.entity';
+import { CreateStaffDto } from './dto/create-staff.dto';
+import { UpdateStaffDto } from './dto/update-staff.dto';
+
+@Injectable()
+export class StaffService {
+  constructor(
+    @InjectRepository(Staff)
+    private readonly staffRepository: Repository<Staff>,
+  ) {}
+
+  async create(createStaffDto: CreateStaffDto, userId: number) {
+    const staff = this.staffRepository.create({
+      ...createStaffDto,
+      entryDate: createStaffDto.entryDate || new Date().toISOString().split('T')[0],
+      createdBy: userId,
+      updatedBy: userId,
+    });
+    return await this.staffRepository.save(staff);
+  }
+
+  async findAll(query: { departmentId?: number; page?: number; limit?: number }) {
+    const qb = this.staffRepository.createQueryBuilder('staff')
+      .leftJoinAndSelect('staff.department', 'department')
+      .where('staff.deletedAt IS NULL');
+
+    if (query.departmentId) {
+      qb.andWhere('staff.departmentId = :departmentId', { departmentId: query.departmentId });
+    }
+
+    const page = query.page || 1;
+    const limit = query.limit || 20;
+    const skip = (page - 1) * limit;
+
+    qb.skip(skip).take(limit);
+
+    const [data, total] = await qb.getManyAndCount();
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findOne(id: number) {
+    const staff = await this.staffRepository.findOne({
+      where: { id, deletedAt: IsNull() },
+      relations: ['department'],
+    });
+    if (!staff) throw new NotFoundException('Personel bulunamadı');
+    return staff;
+  }
+
+  async update(id: number, updateStaffDto: UpdateStaffDto, userId: number) {
+    const staff = await this.findOne(id);
+    Object.assign(staff, {
+      ...updateStaffDto,
+      updatedBy: userId,
+    });
+    return await this.staffRepository.save(staff);
+  }
+
+  async remove(id: number, userId: number) {
+    const staff = await this.findOne(id);
+    staff.deletedAt = new Date();
+    staff.updatedBy = userId;
+    return await this.staffRepository.save(staff);
+  }
+
+  async toggleActive(id: number, userId: number) {
+    const staff = await this.findOne(id);
+    staff.isActive = !staff.isActive;
+    staff.state = staff.isActive ? 1 : 0;
+    staff.updatedBy = userId;
+    return await this.staffRepository.save(staff);
+  }
+}

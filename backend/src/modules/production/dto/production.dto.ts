@@ -7,7 +7,7 @@ export class BomQueryDto extends PaginationDto {}
 export class ProductionOrderQueryDto extends PaginationDto {
   @IsOptional()
   @IsEnum(['draft', 'planned', 'in_progress', 'completed', 'cancelled'])
-  status?: string;
+  status?: 'draft' | 'planned' | 'in_progress' | 'completed' | 'cancelled';
 }
 
 export class CreateBomItemDto {
@@ -56,7 +56,9 @@ export class UpdateProductionOrderDto {
   @IsOptional() wastageQuantity?: string | number;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) sourceDepartmentId?: number;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) targetDepartmentId?: number;
-  @IsOptional() @IsEnum(['draft', 'planned', 'in_progress', 'completed', 'cancelled']) status?: string;
+  @IsOptional()
+  @IsEnum(['draft', 'planned', 'in_progress', 'completed', 'cancelled']) 
+  status?: 'draft' | 'planned' | 'in_progress' | 'completed' | 'cancelled';
   @IsOptional() laborCost?: string | number;
   @IsOptional() overheadCost?: string | number;
   @IsOptional() @IsDateString() startDate?: string;

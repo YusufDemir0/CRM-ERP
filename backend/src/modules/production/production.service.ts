@@ -347,7 +347,7 @@ export class ProductionService {
     if (dto.targetDepartmentId !== undefined) po.targetDepartmentId = dto.targetDepartmentId;
     if (dto.startDate !== undefined) po.startDate = dto.startDate;
     if (dto.endDate !== undefined) po.endDate = dto.endDate;
-    if (dto.status !== undefined) po.status = dto.status as any;
+    if (dto.status !== undefined) po.status = dto.status as ProductionOrder['status'];
     if (dto.laborCost !== undefined) po.laborCost = new Decimal(dto.laborCost);
     if (dto.overheadCost !== undefined) po.overheadCost = new Decimal(dto.overheadCost);
     if (dto.notes !== undefined) po.notes = dto.notes;

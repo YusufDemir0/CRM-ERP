@@ -30,10 +30,10 @@ import { RolePermission } from './entities/role-permission.entity';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService): JwtModuleOptions => ({
         secret: configService.get<string>('jwt.secret'),
         signOptions: {
-          expiresIn: (configService.get<string>('jwt.expiresIn') || '24h') as any,
+          expiresIn: (configService.get<string>('jwt.expiresIn') || '24h') as NonNullable<JwtModuleOptions['signOptions']>['expiresIn'],
         },
       }),
     }),

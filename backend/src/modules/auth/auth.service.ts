@@ -85,16 +85,11 @@ export class AuthService {
       tokenVersion: user.tokenVersion,
     };
 
+    const userProfile = await this.getProfile(user.id);
+
     return {
       access_token: this.jwtService.sign(payload),
-      user: {
-        id: user.id,
-        username: user.username,
-        fullName: user.fullName,
-        email: user.email,
-        departmentId: user.departmentId,
-        roles: user.roles?.map((r) => r.name) || [],
-      },
+      user: userProfile,
     };
   }
 

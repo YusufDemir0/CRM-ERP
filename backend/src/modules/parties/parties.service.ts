@@ -37,7 +37,6 @@ export class PartiesService {
       taxOffice: 'party.taxOffice',
       cityId: 'party.cityId',
       districtName: 'party.districtName',
-      type: 'party.type',
     };
 
     Object.keys(query).forEach(key => {
@@ -52,7 +51,12 @@ export class PartiesService {
     });
 
     if (query.type) {
-      qb.andWhere('party.type = :type', { type: query.type });
+      const types = query.type.split(',');
+      if (types.length > 1) {
+        qb.andWhere('party.type IN (:...types)', { types });
+      } else {
+        qb.andWhere('party.type = :type', { type: query.type });
+      }
     }
 
     if (query.state !== undefined) {

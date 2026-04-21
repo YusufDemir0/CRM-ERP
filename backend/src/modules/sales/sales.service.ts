@@ -12,6 +12,7 @@ import { Repository, DataSource } from 'typeorm';
 import { Sale } from './entities/sale.entity';
 import { SaleItem } from './entities/sale-item.entity';
 import { SaleType } from './entities/sale-type.entity';
+import { User } from '../auth/entities/user.entity';
 
 import { Party } from '../parties/entities/party.entity';
 import { Currency } from '../finance/currencies/entities/currency.entity';
@@ -90,7 +91,8 @@ export class SalesService {
   }
 
   async findOne(id: number): Promise<Sale> {
-    const sale = await this.saleRepo.findOne({
+    const repo = this.transactionContext.manager.getRepository(Sale);
+    const sale = await repo.findOne({
       where: { id },
       relations: ['party', 'saleType', 'currency', 'items', 'items.item'],
     });
@@ -109,7 +111,10 @@ export class SalesService {
     const currency = await manager.findOne(Currency, { where: { id: dto.currencyId } });
     const currentExchangeRate = currency ? currency.exchangeRate : new Decimal(1);
 
-    const code = await this.sequenceGenerator.generateSaleCode(manager, dto.saleTypeId);
+    const user = await manager.findOne(User, { where: { id: userId } });
+    const userDeptId = user?.departmentId || 1; // Fallback to 1 if not set
+
+    const code = await this.sequenceGenerator.generateSaleCode(manager, Number(userDeptId));
 
     let rawTotalAmount = new Decimal(0);
     const saleItems: Partial<SaleItem>[] = [];
@@ -146,6 +151,7 @@ export class SalesService {
       saleItems.push({
         itemId: itemDto.itemId,
         quantity: new Decimal(itemDto.quantity),
+        shippedQuantity: new Decimal(0),
         price: unitPrice,
         discountAmount,
         discountPercent,
@@ -215,6 +221,7 @@ export class SalesService {
       partyId: dto.partyId,
       saleTypeId: dto.saleTypeId,
       currencyId: dto.currencyId,
+      staffId: dto.staffId,
       exchangeRate: currentExchangeRate,
       deliveryDate: dto.deliveryDate,
       status: 'draft',
@@ -225,6 +232,14 @@ export class SalesService {
       kdv: totalKdv,
       grandTotal,
       notes: dto.notes,
+      phone: dto.phone,
+      address: dto.address,
+      taxNumber: dto.taxNumber,
+      email: dto.email,
+      source: dto.source,
+      city: dto.city,
+      district: dto.district,
+      commercialAccountId: dto.commercialAccountId,
       createdBy: userId,
     });
 
@@ -246,6 +261,15 @@ export class SalesService {
 
     if (dto.notes !== undefined) sale.notes = dto.notes;
     if (dto.deliveryDate !== undefined) sale.deliveryDate = dto.deliveryDate;
+    if (dto.staffId !== undefined) sale.staffId = dto.staffId;
+    if (dto.phone !== undefined) sale.phone = dto.phone;
+    if (dto.address !== undefined) sale.address = dto.address;
+    if (dto.taxNumber !== undefined) sale.taxNumber = dto.taxNumber;
+    if (dto.email !== undefined) sale.email = dto.email;
+    if (dto.source !== undefined) sale.source = dto.source;
+    if (dto.city !== undefined) sale.city = dto.city;
+    if (dto.district !== undefined) sale.district = dto.district;
+    if (dto.commercialAccountId !== undefined) sale.commercialAccountId = dto.commercialAccountId;
     sale.updatedBy = userId || null;
 
     if (dto.items && dto.items.length > 0) {
@@ -283,6 +307,7 @@ export class SalesService {
         saleItems.push({
           itemId: itemDto.itemId,
           quantity: new Decimal(itemDto.quantity),
+          shippedQuantity: new Decimal(0),
           price: unitPrice,
           discountAmount,
           discountPercent,

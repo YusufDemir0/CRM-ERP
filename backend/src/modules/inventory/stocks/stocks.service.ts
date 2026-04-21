@@ -12,7 +12,7 @@ dayjs.extend(timezone);
 import { Stock } from './entities/stock.entity';
 import { StockMovement } from './entities/stock-movement.entity';
 import { StockAdjustmentDto, StocksQueryDto, TransferStockDto } from '../dto/inventory.dto';
-import { PaginatedResult } from '../../../common/dto/pagination.dto';
+import { PaginatedResult, PaginationDto } from '../../../common/dto/pagination.dto';
 import { Item } from '../items/entities/item.entity';
 import { Transaction } from '../../finance/transactions/entities/transaction.entity';
 import { Party } from '../../parties/entities/party.entity';
@@ -119,7 +119,7 @@ export class StocksService {
     }
   }
 
-  async getMovements(stockId: number, query: any): Promise<PaginatedResult<StockMovement>> {
+  async getMovements(stockId: number, query: PaginationDto): Promise<PaginatedResult<StockMovement>> {
     const qb = this.movementRepo.createQueryBuilder('sm')
       .where('sm.stockId = :stockId', { stockId })
       .orderBy('sm.createdAt', 'DESC')
@@ -642,7 +642,7 @@ export class StocksService {
     userId?: number
   ): Promise<void> {
     const movements = await manager.find(StockMovement, {
-      where: { referenceType: referenceType as any, referenceId: referenceId as any },
+      where: { referenceType, referenceId },
       relations: ['stock']
     });
 
