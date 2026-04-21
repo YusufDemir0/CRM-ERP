@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { salesAPI, departmentsAPI } from '../services/api';
 import { 
@@ -11,7 +12,7 @@ import { Sale, Department } from '../types';
 import { ApproveSaleModal } from '../components/modals/ApproveSaleModal';
 import { ViewSaleModal } from '../components/modals/ViewSaleModal';
 import { DataTable, Column } from '../components/common/DataTable';
-import SalesWizard from './modules/SalesWizard/SalesWizard';
+import { SaleWizard } from './modules/SalesWizard/SaleWizard';
 import { Decimal } from 'decimal.js';
 import { SalesHeader } from '../components/sales/SalesHeader';
 import { SalesTable } from '../components/sales/SalesTable';
@@ -20,6 +21,8 @@ import { queryKeys } from '../services/queryKeys';
 
 export default function SalesPage() {
   const queryClient = useQueryClient();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [filterStatus, setFilterStatus] = useState<'draft' | 'approved' | 'shipped' | 'cancelled' | 'all'>('draft');
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 500);
@@ -31,8 +34,7 @@ export default function SalesPage() {
   // Modals
   const [approveSaleId, setApproveSaleId] = useState<number | null>(null);
   const [selectedDeptId, setSelectedDeptId] = useState('');
-  const [innerView, setInnerView] = useState<'list' | 'new' | 'edit'>('list');
-  
+
   // View/Ship Modal State
   const [viewSaleData, setViewSaleData] = useState<Sale | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -151,7 +153,7 @@ export default function SalesPage() {
     }
   }, []);
 
-  const handleNewSale = useCallback(() => setInnerView('new'), []);
+  const handleNewSale = useCallback(() => navigate('/sales/wizard'), [navigate]);
   const handlePageChange = useCallback((p: number) => setPage(p), []);
   const handleLimitChange = useCallback((l: number) => setLimit(l), []);
   const handleSortChange = useCallback((key: string) => {
@@ -161,32 +163,6 @@ export default function SalesPage() {
     });
     setPage(1);
   }, []);
-
-  if (innerView === 'new') {
-    return (
-      <div className="animate-in flex flex-col gap-6">
-        <div className="flex justify-between items-center pb-6 border-b border-surface-container">
-          <button 
-            className="group flex items-center gap-2 text-slate-400 hover:text-primary transition-colors font-black text-xs uppercase tracking-widest" 
-            onClick={() => { setInnerView('list'); queryClient.invalidateQueries({ queryKey: ['sales'] }); }}
-          >
-            <FiArrowLeft className="group-hover:-translate-x-1 transition-transform" /> Listeye Dön
-          </button>
-          <div className="text-right">
-             <h2 className="text-2xl font-black tracking-tighter text-on-surface">Yeni Satis Sihirbazi</h2>
-             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Hızlı satış ve teklif hazırlama ekranı</p>
-          </div>
-        </div>
-        
-        <div className="bg-white p-8 sm:p-12 rounded-[3.5rem] shadow-premium border border-surface-container">
-          <SalesWizard onCompleted={() => {
-            setInnerView('list');
-            queryClient.invalidateQueries({ queryKey: ['sales'] });
-          }} />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="animate-in flex flex-col gap-8">
