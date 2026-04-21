@@ -53,11 +53,11 @@ export const QuickCreateManager: React.FC = () => {
               }
             }}
           >
-            <div className="bg-white max-w-3xl w-full relative rounded-[2.5rem] shadow-premium border border-slate-100 animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh] overflow-hidden">
+            <div className="bg-white max-w-3xl w-full relative rounded-2xl shadow-premium border border-slate-100 animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh] overflow-hidden">
               {/* Header: Fixed */}
-              <div className="p-8 sm:p-10 pb-2 shrink-0 relative">
+              <div className="p-6 pb-2 shrink-0 relative">
                 <button 
-                  className="btn-icon circle absolute top-8 right-8" 
+                  className="btn-icon circle absolute top-6 right-6" 
                   onClick={() => {
                     clearCache(item.type);
                     item.onCancel();
@@ -74,7 +74,7 @@ export const QuickCreateManager: React.FC = () => {
               </div>
 
               {/* Body: Scrollable */}
-              <div className="flex-1 overflow-y-auto p-8 sm:p-10 pt-4 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto p-6 pt-2 custom-scrollbar">
                 <Suspense fallback={<GlobalLoader />}>
                   {renderFormInternal(item, () => closeCurrent())}
                 </Suspense>

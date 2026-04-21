@@ -49,7 +49,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       {label && <label>{label}</label>}
       <div className="relative">
         <div
-          className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--border)] bg-white cursor-pointer hover:border-[var(--primary)] transition-colors"
+          className="flex items-center justify-between p-2 rounded-lg border border-[var(--border)] bg-white cursor-pointer hover:border-[var(--primary)] transition-colors"
           onClick={() => setIsOpen(!isOpen)}
         >
           <span className={selectedOption ? 'text-[var(--text-main)]' : 'text-[var(--text-muted)]'}>
@@ -87,7 +87,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                 filteredOptions.map((option) => (
                   <div
                     key={option.id}
-                    className={`p-2.5 text-sm cursor-pointer hover:bg-[var(--primary-glow)] hover:text-[var(--primary)] transition-colors ${
+                    className={`p-2 text-sm cursor-pointer hover:bg-[var(--primary-glow)] hover:text-[var(--primary)] transition-colors ${
                       option.id === value ? 'bg-[var(--primary-glow)] text-[var(--primary)] font-bold' : ''
                     }`}
                     onClick={() => {

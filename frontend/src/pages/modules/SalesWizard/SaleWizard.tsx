@@ -76,13 +76,13 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
       </div>
 
       {/* Main Content: 50/50 Split */}
-      <div className="flex flex-1 overflow-hidden p-4 gap-4">
+      <div className="flex flex-1 overflow-hidden p-3 gap-3">
         
         {/* Left Side: Customer & Sale Details (50%) */}
-        <div className="w-1/2 flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
+        <div className="w-1/2 flex flex-col gap-3 overflow-y-auto pr-2 custom-scrollbar">
           
           {/* Section 1: Customer Selection */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">MÜŞTERİ SEÇİMİ</h3>
                <div className="flex bg-slate-50 p-1 rounded-lg border border-slate-100">
@@ -121,7 +121,7 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
             </div>
 
             {/* Customer Details Form */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
                <FormField label="TEL 1">
                   <PhoneInput 
                     value={store.phone}
@@ -131,7 +131,7 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
               <FormField label="E-POSTA" className="relative">
                 <input 
                   type="email"
-                  className="input-premium h-10 text-sm font-bold"
+                  className="input-premium h-9 text-sm font-bold"
                   placeholder="ornek@mail.com"
                   value={store.email}
                   onChange={(e) => store.setEmail(e.target.value.toLowerCase())}
@@ -154,7 +154,7 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
               </FormField>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <FormField label="TEL 2">
                 <PhoneInput 
                   value={store.phone2}
@@ -163,7 +163,7 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
               </FormField>
               <FormField label={getTaxLabel()}>
                 <input 
-                  className="input-premium h-10 text-sm font-bold tabular-nums"
+                  className="input-premium h-9 text-sm font-bold tabular-nums"
                   placeholder="TCKN / VKN"
                   value={store.taxId}
                   onChange={(e) => store.setTaxId(e.target.value.replace(/\D/g, '').substring(0, 11))}
@@ -171,10 +171,10 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
               </FormField>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
                <FormField label="ŞEHİR / İL">
                   <select 
-                    className="input-premium h-10 text-sm font-black"
+                    className="input-premium h-9 text-sm font-black"
                     value={store.cityId || 0}
                     onChange={(e) => {
                       const id = Number(e.target.value);
@@ -190,7 +190,7 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
                </FormField>
                <FormField label="İLÇE / BÖLGE">
                   <select 
-                    className="input-premium h-10 text-sm font-black"
+                    className="input-premium h-9 text-sm font-black"
                     disabled={!store.cityId}
                     value={store.district}
                     onChange={(e) => store.setDistrict(e.target.value.toUpperCase())}
@@ -212,14 +212,14 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
           </div>
 
           {/* Section 2: Sale Logistics */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">SATIŞ VE TESLİMAT</h3>
              
-             <div className="grid grid-cols-2 gap-4">
+             <div className="grid grid-cols-2 gap-3">
                 <FormField label="SATIŞ TARİHİ">
                   <input 
                     type="date"
-                    className="input-premium h-10 text-sm font-bold"
+                    className="input-premium h-9 text-sm font-bold"
                     value={store.date}
                     onChange={(e) => store.setDate(e.target.value)}
                   />
@@ -227,14 +227,14 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
                 <FormField label="TESLİMAT TARİHİ">
                   <input 
                     type="date"
-                    className="input-premium h-10 text-sm font-bold"
+                    className="input-premium h-9 text-sm font-bold"
                     value={store.deliveryDate}
                     onChange={(e) => store.setDeliveryDate(e.target.value)}
                   />
                 </FormField>
              </div>
 
-             <div className="grid grid-cols-2 gap-4">
+             <div className="grid grid-cols-2 gap-3">
                 <FormField label="ALINAN KAPORA (TL)">
                   <input 
                     type="number"
@@ -268,10 +268,10 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
                 />
              </div>
 
-             <div className="grid grid-cols-2 gap-4">
+             <div className="grid grid-cols-2 gap-3">
                 <FormField label="NEREDEN DUYDU?">
                   <select 
-                    className="input-premium h-10 text-sm font-black"
+                    className="input-premium h-9 text-sm font-black"
                     value={store.source}
                     onChange={(e) => store.setSource(e.target.value)}
                   >
@@ -309,7 +309,7 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
         </div>
 
         {/* Right Side: Products & Summary (50%) */}
-        <div className="w-1/2 flex flex-col gap-4 overflow-hidden">
+        <div className="w-1/2 flex flex-col gap-3 overflow-hidden">
           <div className={`flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden relative transition-opacity ${!isMandatoryFilled ? 'opacity-50 pointer-events-none' : ''}`}>
             {!isMandatoryFilled && (
               <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 backdrop-blur-[1px]">
