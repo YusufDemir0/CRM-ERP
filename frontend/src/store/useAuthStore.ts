@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { authAPI } from '../services/api';
+import { authAPI, resolveFailedRequests, rejectFailedRequests } from '../services/api';
 import type { Role } from '../types';
 
 // ────── AUTH USER TYPE ──────
@@ -26,6 +26,8 @@ interface AuthState {
   logout: () => Promise<void>;
   fetchProfile: () => Promise<void>;
   hasPermission: (key: string) => boolean;
+  isReAuthModalOpen: boolean;
+  setReAuthModal: (isOpen: boolean) => void;
 }
 
 // ────── HELPERS ──────
@@ -41,6 +43,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isLoading: true,
   isAuthenticated: false,
+  isReAuthModalOpen: false,
+
+  setReAuthModal: (isOpen: boolean) => set({ isReAuthModalOpen: isOpen }),
 
   fetchProfile: async () => {
     // Don't fetch profile on login page (avoids unnecessary 401)
@@ -77,7 +82,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         permissions: userData.permissions || [],
       },
       isAuthenticated: true,
+      isReAuthModalOpen: false,
     });
+    
+    // Resume queued requests
+    resolveFailedRequests();
   },
 
   logout: async () => {
@@ -86,7 +95,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (err) {
       console.error('Logout error:', err);
     } finally {
-      set({ user: null, isAuthenticated: false });
+      set({ user: null, isAuthenticated: false, isReAuthModalOpen: false });
+      // Cancel queued requests
+      rejectFailedRequests(new Error('Logged out during re-authentication'));
       // Clean logout with full page reload to clear memory
       window.location.href = '/login';
     }

@@ -37,9 +37,24 @@ const api = axios.create({
 let csrfToken: string | null = null;
 
 const MUTATION_METHODS = ['post', 'put', 'delete', 'patch'];
-
 const isMutationMethod = (method?: string): boolean =>
   MUTATION_METHODS.includes(method?.toLowerCase() || '');
+
+// ────── SILENT RE-AUTH QUEUE ──────
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (value?: unknown) => void; reject: (reason?: unknown) => void }> = [];
+
+export const resolveFailedRequests = () => {
+  isRefreshing = false;
+  failedQueue.forEach((prom) => prom.resolve());
+  failedQueue = [];
+};
+
+export const rejectFailedRequests = (error: unknown) => {
+  isRefreshing = false;
+  failedQueue.forEach((prom) => prom.reject(error));
+  failedQueue = [];
+};
 
 // [FIX-TASK-02]: Centralized loader management via request counting
 let requestCount = 0;
@@ -103,9 +118,26 @@ api.interceptors.response.use(
       }
 
       if (error.response?.status === 401) {
+        // [MODERNIZATION]: Silent Re-Auth Queuing
+        const originalRequest = error.config;
+        
         if (config?.url && !config.url.includes('/auth/login') && window.location.pathname !== '/login') {
-          useAuthStore.getState().logout();
-          return Promise.reject(error);
+          if (isRefreshing) {
+            return new Promise((resolve, reject) => {
+              failedQueue.push({ resolve, reject });
+            })
+              .then(() => api(originalRequest as AxiosRequestConfig))
+              .catch((err) => Promise.reject(err));
+          }
+
+          isRefreshing = true;
+          useAuthStore.getState().setReAuthModal(true);
+
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          })
+            .then(() => api(originalRequest as AxiosRequestConfig))
+            .catch((err) => Promise.reject(err));
         }
       }
 
