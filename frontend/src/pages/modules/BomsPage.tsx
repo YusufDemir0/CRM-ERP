@@ -112,10 +112,6 @@ export function BomsPage() {
           </div>
           <div>
             <div className="font-black text-on-surface text-sm uppercase tracking-tighter">{b.name}</div>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[10px] font-black text-slate-400">V{b.version}</span>
-              {b.isActive && <span className="text-[9px] font-black text-success uppercase tracking-widest">• AKTİF</span>}
-            </div>
           </div>
         </div>
       ),

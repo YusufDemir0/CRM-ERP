@@ -11,7 +11,8 @@ export type QuickCreateType =
   | 'item-type' 
   | 'code-group' 
   | 'quantity-type' 
-  | 'bom';
+  | 'bom'
+  | 'staff';
 
 export interface QuickCreateStackItem {
   id: string;

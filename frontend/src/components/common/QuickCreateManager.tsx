@@ -10,6 +10,7 @@ const UserForm = lazy(() => import('../forms/UserForm').then(m => ({ default: m.
 const PartyForm = lazy(() => import('../forms/PartyForm').then(m => ({ default: m.PartyForm })));
 const ItemForm = lazy(() => import('../forms/ItemForm').then(m => ({ default: m.ItemForm })));
 const BomForm = lazy(() => import('../forms/BomForm').then(m => ({ default: m.BomForm })));
+const StaffForm = lazy(() => import('../forms/StaffForm').then(m => ({ default: m.StaffForm })));
 
 export const QuickCreateManager: React.FC = () => {
   const { stack, closeCurrent, clearCache } = useQuickCreateStore();
@@ -37,11 +38,10 @@ export const QuickCreateManager: React.FC = () => {
         return (
           <div 
             key={item.id} 
-            className={`loader-overlay items-start overflow-y-auto transition-opacity duration-200 ${
+            className={`loader-overlay flex flex-col items-center justify-center p-4 transition-opacity duration-200 ${
               isTop ? 'flex opacity-100 pointer-events-auto' : 'hidden opacity-0 pointer-events-none'
             }`}
             style={{ 
-              paddingTop: `${5 + index * 2}%`, 
               zIndex: 9000 + index, 
               background: 'rgba(15, 23, 42, 0.4)'
             }}
@@ -53,26 +53,32 @@ export const QuickCreateManager: React.FC = () => {
               }
             }}
           >
-            <div className="bg-white max-w-3xl w-full relative p-8 sm:p-12 rounded-[2.5rem] shadow-premium border border-slate-100 animate-in fade-in zoom-in duration-300">
-              <button 
-                className="btn-icon circle absolute top-6 right-6" 
-                onClick={() => {
-                  clearCache(item.type);
-                  item.onCancel();
-                  closeCurrent();
-                }}
-              >
-                <FiX size={20} />
-              </button>
+            <div className="bg-white max-w-3xl w-full relative rounded-[2.5rem] shadow-premium border border-slate-100 animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh] overflow-hidden">
+              {/* Header: Fixed */}
+              <div className="p-8 sm:p-10 pb-2 shrink-0 relative">
+                <button 
+                  className="btn-icon circle absolute top-8 right-8" 
+                  onClick={() => {
+                    clearCache(item.type);
+                    item.onCancel();
+                    closeCurrent();
+                  }}
+                >
+                  <FiX size={20} />
+                </button>
 
-              <h3 className="text-xl font-black text-primary border-b border-slate-100 pb-4 mb-8 flex items-center gap-3">
-                <span className="w-2 h-8 bg-primary rounded-full hidden sm:block" />
-                {getTitle(item.type, !!item.editingId)}
-              </h3>
+                <h3 className="text-xl font-black text-primary border-b border-slate-100 pb-4 flex items-center gap-3">
+                  <span className="w-2 h-8 bg-primary rounded-full hidden sm:block" />
+                  {getTitle(item.type, !!item.editingId)}
+                </h3>
+              </div>
 
-              <Suspense fallback={<GlobalLoader />}>
-                {renderFormInternal(item, () => closeCurrent())}
-              </Suspense>
+              {/* Body: Scrollable */}
+              <div className="flex-1 overflow-y-auto p-8 sm:p-10 pt-4 custom-scrollbar">
+                <Suspense fallback={<GlobalLoader />}>
+                  {renderFormInternal(item, () => closeCurrent())}
+                </Suspense>
+              </div>
             </div>
           </div>
         );
@@ -102,6 +108,7 @@ export const QuickCreateManager: React.FC = () => {
       case 'party': return <PartyForm {...props} />;
       case 'item': return <ItemForm {...props} />;
       case 'bom': return <BomForm {...props} />;
+      case 'staff': return <StaffForm {...props} />;
       default: return <div>Henüz form hazırlanmadı: {item.type}</div>;
     }
   }
@@ -115,6 +122,7 @@ function getTitle(type: string, isEditing: boolean): string {
     party: isEditing ? 'Cari Güncelle' : 'Hızlı Cari Kart Ekle',
     item: isEditing ? 'Ürün Güncelle' : 'Hızlı Ürün Kaydı',
     bom: isEditing ? 'Reçete Güncelle' : 'Hızlı Reçete Tanımı',
+    staff: isEditing ? 'Personel Güncelle' : 'Hızlı Personel Ekle',
   };
   return titles[type] || 'Hızlı Oluştur';
 }

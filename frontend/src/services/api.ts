@@ -16,7 +16,8 @@ import {
   Bom,
   ProductionOrder,
   CreateNoteDto, UpdateNoteDto,
-  CreateSaleDto
+  CreateSaleDto,
+  Staff, CreateStaffDto, UpdateStaffDto
 } from '../types';
 import { useAuthStore } from '../store/useAuthStore';
 import { useLoaderStore } from '../store/useLoaderStore';
@@ -344,4 +345,14 @@ export const notesAPI = {
   create: (data: CreateNoteDto, config?: AxiosRequestConfig) => api.post('/notes', data, config),
   update: (id: number, data: UpdateNoteDto, config?: AxiosRequestConfig) => api.put(`/notes/${id}`, data, config),
   delete: (id: number, config?: AxiosRequestConfig) => api.delete(`/notes/${id}`, config),
+};
+// ────── STAFF API ──────
+
+export const staffAPI = {
+  getAll: (params?: PaginationParams & { departmentId?: number }, config?: AxiosRequestConfig) => api.get<PaginatedResult<Staff>>('/staff', { params, ...config }),
+  getOne: (id: number, config?: AxiosRequestConfig) => api.get<Staff>(`/staff/${id}`, config),
+  create: (data: CreateStaffDto, config?: AxiosRequestConfig) => api.post<Staff>('/staff', data, config),
+  update: (id: number, data: UpdateStaffDto, config?: AxiosRequestConfig) => api.put<Staff>(`/staff/${id}`, data, config),
+  toggleActive: (id: number, config?: AxiosRequestConfig) => api.patch<{ isActive: boolean }>(`/staff/${id}/toggle-active`, {}, config),
+  delete: (id: number, config?: AxiosRequestConfig) => api.delete(`/staff/${id}`, config),
 };

@@ -23,7 +23,7 @@ export default function Layout() {
   const sidebarWidth = isCollapsed ? '80px' : '256px';
 
   return (
-    <div className="app-layout" style={{ '--sidebar-w': sidebarWidth } as any}>
+    <div className="app-layout" style={{ '--sidebar-w': sidebarWidth } as React.CSSProperties}>
       <Sidebar isCollapsed={isCollapsed} />
       <div className="flex flex-col flex-1 min-h-screen">
         <Navbar onToggleSidebar={() => setIsCollapsed(!isCollapsed)} />

@@ -119,7 +119,7 @@ export default function DashboardPage() {
         {[
           { label: 'YENİ CARİ EKLE', icon: <FiUsers />, path: '/parties', color: 'text-blue-500', bg: 'bg-blue-50', hover: 'hover:border-blue-200', desc: 'Müşteri veya Tedarikçi' },
           { label: 'YENİ ÜRÜN EKLE', icon: <FiBox />, path: '/items', color: 'text-indigo-500', bg: 'bg-indigo-50', hover: 'hover:border-indigo-200', desc: 'Stok ve Hammadde' },
-          { label: 'SATIŞ YAP', icon: <FiShoppingCart />, path: '/sales', color: 'text-emerald-500', bg: 'bg-emerald-50', hover: 'hover:border-emerald-200', desc: 'Hızlı Satış Ekranı' },
+          { label: 'SATIŞ YAP', icon: <FiShoppingCart />, path: '/sales/wizard', color: 'text-emerald-500', bg: 'bg-emerald-50', hover: 'hover:border-emerald-200', desc: 'Hızlı Satış Ekranı' },
           { label: 'HESAP HAREKETİ', icon: <FiActivity />, path: '/transactions', color: 'text-amber-500', bg: 'bg-amber-50', hover: 'hover:border-amber-200', desc: 'Ödeme veya Tahsilat' },
         ].map((act, i) => (
           <div 

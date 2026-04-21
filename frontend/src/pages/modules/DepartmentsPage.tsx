@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { departmentsAPI } from '../../services/api';
 import { 
   FiEdit2, FiArchive, FiRefreshCw, FiSearch, FiPlus, 
-  FiFilter, FiBriefcase, FiActivity, FiUsers, FiGlobe
+  FiFilter, FiBriefcase, FiActivity, FiUsers, FiGlobe, FiEye, FiArrowLeft
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { confirmDialog } from '../../utils/confirmDialog';
@@ -14,6 +14,7 @@ import { useDeferredValue } from 'react';
 import { queryKeys } from '../../services/queryKeys';
 
 import { Department } from '../../types';
+import { StaffList } from '../../components/departments/StaffList';
 
 export default function DepartmentsPage() {
   const queryClient = useQueryClient();
@@ -24,6 +25,7 @@ export default function DepartmentsPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'name', order: 'ASC' });
+  const [viewingDepartment, setViewingDepartment] = useState<Department | null>(null);
 
   const { data: departmentsData, isLoading: loading } = useQuery({
     queryKey: queryKeys.departments.all({ page, limit, deferredSearch, filterTab, sort }),
@@ -140,6 +142,68 @@ export default function DepartmentsPage() {
     }
   ];
 
+  if (viewingDepartment) {
+    return (
+      <div className="animate-in flex flex-col gap-8">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setViewingDepartment(null)}
+            className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center hover:bg-slate-100 transition-colors"
+          >
+            <FiArrowLeft size={24} />
+          </button>
+          <div>
+            <h1 className="text-3xl font-black tracking-tighter text-on-surface uppercase">
+              {viewingDepartment.name}
+            </h1>
+            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">DEPARTMAN DETAYI VE PERSONEL YÖNETİMİ</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Dept Info */}
+          <div className="lg:col-span-1 space-y-6">
+            <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-premium">
+              <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-6">DEPARTMAN BİLGİLERİ</h3>
+              <div className="space-y-4">
+                <div>
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">KOD / KISALTMA</div>
+                  <div className="font-bold text-slate-800">{viewingDepartment.abbreviation || 'BELİRTİLMEMİŞ'}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">KATEGORİ</div>
+                  <div className="font-bold text-slate-800">{viewingDepartment.departmentType?.name || 'GENEL'}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">FİNANSAL BAĞLANTI</div>
+                  <div className="font-bold text-slate-800">{viewingDepartment.commercialAccount?.name || 'NAKİT / MERKEZ'}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">AÇIKLAMA</div>
+                  <div className="text-sm text-slate-500 italic">{viewingDepartment.description || 'NOT BELİRTİLMEMİŞ'}</div>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => handleEdit(viewingDepartment)}
+                className="w-full h-12 mt-8 bg-slate-50 text-slate-600 rounded-2xl font-black text-xs hover:bg-primary/10 hover:text-primary transition-all flex items-center justify-center gap-2"
+              >
+                <FiEdit2 /> BİLGİLERİ DÜZENLE
+              </button>
+            </div>
+          </div>
+
+          {/* Staff List */}
+          <div className="lg:col-span-2">
+            <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-premium min-h-[400px]">
+              <StaffList departmentId={viewingDepartment.id} />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="animate-in flex flex-col gap-8">
       
@@ -192,6 +256,15 @@ export default function DepartmentsPage() {
           onEdit={handleEdit}
           onArchive={(d) => toggleState(d.id, 1)}
           onRestore={(d) => toggleState(d.id, 0)}
+          renderExtraActions={(d) => (
+            <button 
+              onClick={() => setViewingDepartment(d)}
+              className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-primary/10 text-slate-400 hover:text-primary"
+              title="Görüntüle"
+            >
+              <FiEye size={14} />
+            </button>
+          )}
           getRowOpacity={(d) => d.state === 0 ? 0.5 : 1}
           
           // Integrated Search & Pagination

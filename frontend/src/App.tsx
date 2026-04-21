@@ -19,6 +19,7 @@ const PartiesPage = lazy(() => import('./pages/modules/PartiesPage'));
 const ItemsPage = lazy(() => import('./pages/modules/ItemsPage'));
 const StocksPage = lazy(() => import('./pages/modules/StocksPage').then(m => ({ default: m.StocksPage })));
 const SalesPage = lazy(() => import('./pages/SalesPage'));
+const SaleWizardPage = lazy(() => import('./pages/modules/SalesWizard/SaleWizardPage'));
 const AccountsPage = lazy(() => import('./pages/modules/AccountsPage'));
 const TransactionsPage = lazy(() => import('./pages/modules/TransactionsPage'));
 const BomsPage = lazy(() => import('./pages/modules/BomsPage').then(m => ({ default: m.BomsPage })));
@@ -67,6 +68,7 @@ export default function App() {
                   <Route path="items" element={<ErrorBoundary><ProtectedRoute requiredPermission="stok_goruntuleme"><ItemsPage /></ProtectedRoute></ErrorBoundary>} />
                   <Route path="stocks" element={<ErrorBoundary><ProtectedRoute requiredPermission="stok_goruntuleme"><StocksPage /></ProtectedRoute></ErrorBoundary>} />
                   <Route path="sales" element={<ErrorBoundary><ProtectedRoute requiredPermission="satis_goruntuleme"><SalesPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="sales/wizard" element={<ErrorBoundary><ProtectedRoute requiredPermission="satis_goruntuleme"><SaleWizardPage /></ProtectedRoute></ErrorBoundary>} />
 
                   <Route path="accounts" element={<ErrorBoundary><ProtectedRoute requiredPermission="finans_goruntuleme"><AccountsPage /></ProtectedRoute></ErrorBoundary>} />
                   <Route path="transactions" element={<ErrorBoundary><ProtectedRoute requiredPermission="finans_goruntuleme"><TransactionsPage /></ProtectedRoute></ErrorBoundary>} />
