@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { bomsAPI, itemsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
-import { FiX, FiCheck, FiPlus } from 'react-icons/fi';
+import { FiX, FiCheck, FiPlus, FiBox } from 'react-icons/fi';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 import { Item, Bom } from '../../types';
 import { FormField } from '../common/FormField';
 import { PremiumNumberInput } from '../common/PremiumNumberInput';
+import { SearchableSelect } from '../common/SearchableSelect';
 
 export interface BomItemData {
   itemId: number;
@@ -40,7 +41,32 @@ export const BomForm: React.FC<BomFormProps> = ({
     };
   });
 
-  // Caching strategy: Update only on blur or unmount to prevent re-render loops
+  // Transform items for SearchableSelect
+  const itemOptions = useMemo(() => 
+    itemsList.map(i => ({
+      id: i.id,
+      label: `${i.code} - ${i.name.toUpperCase()}`,
+      type: i.itemType?.name,
+      name: i.name
+    })),
+    [itemsList]
+  );
+
+  // Filter for Target Product (Manufactured)
+  const targetOptions = itemOptions;
+
+  // Filter for Components (Consumed)
+  // [RULE]: Cannot add target item to its own BOM.
+  // [RULE]: Commercial Goods (Ticari Mal) cannot be components.
+  const componentOptions = useMemo(() => 
+    itemOptions.filter(o => {
+      const isSelf = String(o.id) === String(formData.targetItemId);
+      const isExcluded = itemsList.find(i => i.id === o.id)?.itemType?.isExcludedFromBom;
+      return !isSelf && !isExcluded;
+    }),
+    [itemOptions, formData.targetItemId, itemsList]
+  );
+
   const saveDraft = useCallback(() => {
     updateCache(cacheKey, formData);
   }, [formData, cacheKey, updateCache]);
@@ -57,7 +83,6 @@ export const BomForm: React.FC<BomFormProps> = ({
     return () => controller.abort();
   }, []);
 
-  // Form kapandığında (unmount) taslağı temizle (X, Esc, İptal hepsini kapsar)
   useEffect(() => {
     return () => {
       if (!editingId) {
@@ -95,33 +120,20 @@ export const BomForm: React.FC<BomFormProps> = ({
 
   const addBomItem = () => {
     setFormData((prev) => {
-      // 1. Mevcut ekli kalemlerin ID'lerini topla (Tip güvenliği için Number zorlamasıyla)
       const usedIds = new Set(prev.items.map(i => Number(i.itemId)));
-      
-      // 2. Eğer bir hedef ürün (üretilen ürün) seçiliyse onu da öneriler arasından çıkar
-      if (prev.targetItemId) {
-        usedIds.add(Number(prev.targetItemId));
+      if (prev.targetItemId) usedIds.add(Number(prev.targetItemId));
+
+      const nextCandidate = componentOptions.find(o => !usedIds.has(Number(o.id)));
+      const finalItem = nextCandidate || componentOptions[0];
+
+      if (!finalItem) {
+        toast.error("Eklenebilir uygun ürün kalmadı.");
+        return prev;
       }
-
-      // 3. Henüz eklenmemiş ilk ürünü bul
-      const nextCandidate = itemsList.find(i => !usedIds.has(Number(i.id)));
-      
-      // 4. Eğer hepsi eklenmişse mecburen listenin ilkini al (Fallback)
-      const finalItem = nextCandidate || itemsList[0];
-
-      // 5. Eğer ürün listesi henüz yüklenmemişse (veya boşsa) state'i değiştirme
-      if (!finalItem) return prev;
 
       return {
         ...prev,
-        items: [
-          ...prev.items, 
-          { 
-            itemId: Number(finalItem.id), 
-            quantity: 1, 
-            description: '' 
-          }
-        ]
+        items: [...prev.items, { itemId: Number(finalItem.id), quantity: 1, description: '' }]
       };
     });
   };
@@ -142,25 +154,26 @@ export const BomForm: React.FC<BomFormProps> = ({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6 animate-in pb-4">
       <div className="grid grid-cols-1 md:grid-cols-[1.5fr_2fr] gap-5">
-        <FormField label="Hedef Ürün (Üretilecek)" required>
-          <select 
-            required 
-            className="input-premium font-black" 
-            value={formData.targetItemId} 
-            onChange={e => {
-              const val = Number(e.target.value);
-              const selectedItem = itemsList.find(i => Number(i.id) === val);
+        <SearchableSelect 
+          label="Hedef Ürün (Üretilecek)"
+          placeholder="Üretilecek ürünü seçin..."
+          options={targetOptions}
+          value={formData.targetItemId}
+          onChange={(opt) => {
+            if (opt) {
+              const targetId = Number(opt.id);
               setFormData(prev => ({ 
                 ...prev, 
-                targetItemId: val,
-                name: selectedItem ? selectedItem.name.toLocaleUpperCase('tr-TR') : prev.name
+                targetItemId: targetId,
+                name: (opt as any).name ? (opt as any).name.toLocaleUpperCase('tr-TR') : prev.name,
+                // 🔥 Eğer seçilen ürün bileşen listesinde varsa onu oradan kaldır
+                items: prev.items.filter(i => Number(i.itemId) !== targetId)
               }));
-            }}
-          >
-            <option value="">Seçiniz...</option>
-            {itemsList.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name.toUpperCase()}</option>)}
-          </select>
-        </FormField>
+            } else {
+              setFormData(prev => ({ ...prev, targetItemId: '' }));
+            }
+          }}
+        />
         <FormField label="Reçete Adı" required>
           <input required className="input-premium uppercase-input font-black tracking-tight" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value.toLocaleUpperCase('tr-TR') })} placeholder="ÖR: ÖZEL ÜRETİM REÇETESİ" />
         </FormField>
@@ -172,7 +185,9 @@ export const BomForm: React.FC<BomFormProps> = ({
 
       <div className="mt-4 p-5 bg-[var(--primary-glow)] rounded-2xl border border-[var(--primary-glow)]">
         <div className="flex justify-between items-center mb-4 px-2">
-          <label className="text-[var(--primary)] font-black uppercase tracking-widest text-[10px]">Kullanılacak Bileşen Listesi</label>
+          <label className="text-[var(--primary)] font-black uppercase tracking-widest text-[10px] flex items-center gap-2">
+            <FiBox /> Kullanılacak Bileşen Listesi
+          </label>
           <button type="button" className="btn btn-primary btn-sm px-4 rounded-xl shadow-lg" onClick={addBomItem}>
             <FiPlus /> KALEM EKLE
           </button>
@@ -180,19 +195,27 @@ export const BomForm: React.FC<BomFormProps> = ({
 
         <div className="flex flex-col gap-3">
           {formData.items.map((item, idx: number) => (
-            <div key={idx} className="grid grid-cols-1 md:grid-cols-[2.5fr_1.5fr_2fr_auto] gap-4 items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-              <select required className="input-premium font-black text-xs h-10" value={item.itemId} onChange={e => updateBomItem(idx, 'itemId', Number(e.target.value))}>
-                <option value="">Ürün Seç...</option>
-                {itemsList.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name.toUpperCase()}</option>)}
-              </select>
-              <PremiumNumberInput 
-                value={item.quantity} 
-                onChange={val => updateBomItem(idx, 'quantity', val)} 
-                min={0.0001}
-                className="h-12"
+            <div key={idx} className="grid grid-cols-1 md:grid-cols-[3fr_1.5fr_2fr_auto] gap-4 items-end bg-white p-4 rounded-2xl shadow-sm border border-slate-100 transition-all hover:border-primary/20">
+              <SearchableSelect 
+                placeholder="Bileşen seç..."
+                options={componentOptions}
+                value={item.itemId}
+                onChange={(opt) => updateBomItem(idx, 'itemId', opt ? Number(opt.id) : 0)}
               />
-              <input type="text" className="input-premium font-medium h-10 text-xs" value={item.description} onChange={e => updateBomItem(idx, 'description', e.target.value.toLocaleUpperCase('tr-TR'))} placeholder="İşlem notu..." />
-              <button type="button" className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--error)] bg-[var(--error-glow)] hover:bg-[var(--error)] hover:text-white transition-all" onClick={() => removeBomItem(idx)}>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Miktar</label>
+                <PremiumNumberInput 
+                  value={item.quantity} 
+                  onChange={val => updateBomItem(idx, 'quantity', val)} 
+                  min={0.0001}
+                  className="h-12"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">İşlem Notu</label>
+                <input type="text" className="input-premium font-medium h-12 text-xs" value={item.description} onChange={e => updateBomItem(idx, 'description', e.target.value.toLocaleUpperCase('tr-TR'))} placeholder="..." />
+              </div>
+              <button type="button" className="w-12 h-12 rounded-xl flex items-center justify-center text-[var(--error)] bg-[var(--error-glow)] hover:bg-[var(--error)] hover:text-white transition-all shadow-sm" onClick={() => removeBomItem(idx)}>
                 <FiX />
               </button>
             </div>
@@ -200,7 +223,8 @@ export const BomForm: React.FC<BomFormProps> = ({
         </div>
 
         {formData.items.length === 0 && (
-          <div className="text-center text-slate-400 font-black uppercase tracking-widest text-[10px] py-6 bg-white/50 rounded-2xl border border-dashed border-slate-200">
+          <div className="text-center text-slate-400 font-black uppercase tracking-widest text-[10px] py-10 bg-white/50 rounded-2xl border border-dashed border-slate-200 flex flex-col items-center gap-2">
+            <FiBox size={24} className="opacity-20" />
             Henüz bir bileşen tanımlanmadı.
           </div>
         )}
