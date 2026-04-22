@@ -45,29 +45,25 @@ let isRefreshing = false;
 let failedQueue: Array<{ resolve: (value?: unknown) => void; reject: (reason?: unknown) => void }> = [];
 
 export const resolveFailedRequests = () => {
+  console.log('🛡️ Session: Thawing request queue...');
   isRefreshing = false;
   failedQueue.forEach((prom) => prom.resolve());
   failedQueue = [];
 };
 
 export const rejectFailedRequests = (error: unknown) => {
+  console.log('🛡️ Session: Rejecting request queue...');
   isRefreshing = false;
   failedQueue.forEach((prom) => prom.reject(error));
   failedQueue = [];
 };
 
-// [FIX-TASK-02]: Centralized loader management via request counting
-let requestCount = 0;
+// [FIX-TASK-02]: Centralized loader management via store-based counting
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   // P0-2: Only show global loader for mutation methods (POST/PUT/DELETE)
   // GET requests use inline loading states (DataTable skeleton, etc.)
-  if (isMutationMethod(config.method)) {
-    requestCount++;
-    if (requestCount === 1) {
-      useLoaderStore.getState().show();
-    }
-  }
+  useLoaderStore.getState().show();
 
   if (csrfToken && isMutationMethod(config.method)) {
     config.headers['X-XSRF-TOKEN'] = csrfToken;
@@ -84,12 +80,7 @@ interface ApiErrorData {
 
 api.interceptors.response.use(
   (response) => {
-    if (isMutationMethod(response.config.method)) {
-      requestCount = Math.max(0, requestCount - 1);
-      if (requestCount === 0) {
-        useLoaderStore.getState().hide();
-      }
-    }
+    useLoaderStore.getState().hide();
     
     const extractedToken = response.headers['x-csrf-token'];
     if (extractedToken) {
@@ -99,12 +90,7 @@ api.interceptors.response.use(
     return response;
   },
   (error: unknown) => {
-    if (axios.isAxiosError(error) && isMutationMethod(error.config?.method)) {
-      requestCount = Math.max(0, requestCount - 1);
-      if (requestCount === 0) {
-        useLoaderStore.getState().hide();
-      }
-    }
+    useLoaderStore.getState().hide();
 
     if (axios.isAxiosError(error)) {
       const config = error.config;
@@ -120,8 +106,13 @@ api.interceptors.response.use(
       if (error.response?.status === 401) {
         // [MODERNIZATION]: Silent Re-Auth Queuing
         const originalRequest = error.config;
+        const isAuthRequest = config?.url?.includes('/auth/login') || 
+                            config?.url?.includes('/auth/profile') || 
+                            config?.url?.includes('/auth/csrf');
         
-        if (config?.url && !config.url.includes('/auth/login') && window.location.pathname !== '/login') {
+        if (config?.url && !isAuthRequest && window.location.pathname !== '/login') {
+          console.warn('🛡️ Session: 401 Unauthorized detected. Freezing request...');
+          
           if (isRefreshing) {
             return new Promise((resolve, reject) => {
               failedQueue.push({ resolve, reject });
@@ -136,7 +127,10 @@ api.interceptors.response.use(
           return new Promise((resolve, reject) => {
             failedQueue.push({ resolve, reject });
           })
-            .then(() => api(originalRequest as AxiosRequestConfig))
+            .then(() => {
+              console.log('🛡️ Session: Retrying frozen request...');
+              return api(originalRequest as AxiosRequestConfig);
+            })
             .catch((err) => Promise.reject(err));
         }
       }
@@ -297,7 +291,7 @@ export const salesAPI = {
 // ────── CURRENCIES API ──────
 
 export const currenciesAPI = {
-  getAll: (params?: PaginationParams, config?: AxiosRequestConfig) => api.get<Currency[]>('/currencies', { params, ...config }),
+  getAll: (params?: PaginationParams, config?: AxiosRequestConfig) => api.get<PaginatedResult<Currency>>('/currencies', { params, ...config }),
   getDefault: (config?: AxiosRequestConfig) => api.get<Currency>('/currencies/default', config),
   create: (data: Partial<Currency>, config?: AxiosRequestConfig) => api.post('/currencies', data, config),
   update: (id: number, data: Partial<Currency>, config?: AxiosRequestConfig) => api.put(`/currencies/${id}`, data, config),

@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 import { Account, Currency } from '../../types';
 import { FormField } from '../common/FormField';
+import { PremiumNumberInput } from '../common/PremiumNumberInput';
 
 interface AccountFormProps {
   initialData?: Partial<Account>;
@@ -59,15 +60,10 @@ export const AccountForm: React.FC<AccountFormProps> = ({
     
     async function fetchCurrencies() {
       try {
-        const res = await currenciesAPI.getAll({}, { signal: controller.signal });
-        const curList = res.data;
+        const res = await currenciesAPI.getAll({ limit: 500 }, { signal: controller.signal });
+        const curList = res.data.data;
         if (curList && Array.isArray(curList)) {
           setCurrencies(curList);
-          const currentCur = getValues('currencyId');
-          if (!currentCur && curList.length > 0) {
-            const defaultCur = curList.find((c: Currency) => c.isDefault === 1);
-            if (defaultCur) setValue('currencyId', String(defaultCur.id));
-          }
         }
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== 'AbortError') {
@@ -79,6 +75,17 @@ export const AccountForm: React.FC<AccountFormProps> = ({
     fetchCurrencies();
     return () => controller.abort();
   }, [getValues, setValue]);
+
+  /* 🔥 DEFAULT CURRENCY SELECTION */
+  useEffect(() => {
+    if (currencies.length > 0 && !editingId) {
+      const current = getValues('currencyId');
+      if (!current || current === '0' || current === '') {
+        const defaultCur = currencies.find(c => c.isDefault === 1);
+        if (defaultCur) setValue('currencyId', String(defaultCur.id));
+      }
+    }
+  }, [currencies, editingId, getValues, setValue]);
 
   const formatIban = (val: string) => {
     let raw = val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
@@ -174,23 +181,13 @@ export const AccountForm: React.FC<AccountFormProps> = ({
         />
       </FormField>
 
-      <FormField label="Kritik Bakiye / Eksi Limit" className="bg-[var(--primary-glow)] p-5 rounded-[2rem] border border-[var(--primary-glow)]">
+      <FormField label="Kritik Bakiye / Eksi Limit" className="bg-[var(--primary-glow)] p-5 rounded-2xl border border-[var(--primary-glow)]">
         <div className="flex items-center gap-2">
-          <div className="flex gap-1">
-            <button type="button" className="btn btn-sm bg-white border border-slate-200 px-2 py-1 text-[10px] font-black" onClick={() => setValue('criticalLimit', Number(criticalLimit) - 10000)}>-10K</button>
-            <button type="button" className="btn btn-sm bg-white border border-slate-200 px-2 py-1 text-[10px] font-black" onClick={() => setValue('criticalLimit', Number(criticalLimit) - 1000)}>-1K</button>
-          </div>
-          
-          <input 
-            type="number" 
-            className="input-premium tabular-nums flex-1 text-center font-black text-2xl h-14 text-[var(--primary)]" 
-            {...register('criticalLimit')} 
+          <PremiumNumberInput 
+            value={watch('criticalLimit')} 
+            onChange={val => setValue('criticalLimit', val)} 
+            className="h-14"
           />
-
-          <div className="flex gap-1">
-            <button type="button" className="btn btn-sm bg-white border border-slate-200 px-2 py-1 text-[10px] font-black" onClick={() => setValue('criticalLimit', Number(criticalLimit) + 1000)}>+1K</button>
-            <button type="button" className="btn btn-sm bg-white border border-slate-200 px-2 py-1 text-[10px] font-black" onClick={() => setValue('criticalLimit', Number(criticalLimit) + 10000)}>+10K</button>
-          </div>
         </div>
       </FormField>
 
@@ -209,7 +206,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({
         <button type="submit" className="btn btn-primary btn-lg flex-1 shadow-2xl shadow-[var(--primary-glow)]">
           <FiCheck size={20} /> {editingId ? 'GÜNCELLEMELERİ KAYDET' : 'HESABI SİSTEME KAYDET'}
         </button>
-        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all" onClick={onCancel}>
+        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all" onClick={() => { clearCache(cacheKey); onCancel(); }}>
           İPTAL
         </button>
       </div>

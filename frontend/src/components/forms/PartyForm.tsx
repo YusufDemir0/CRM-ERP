@@ -7,6 +7,7 @@ import type { Party, Currency } from '../../types';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 import { PhoneInput } from '../common/PhoneInput';
 import { FormField } from '../common/FormField';
+import { PremiumNumberInput } from '../common/PremiumNumberInput';
 
 interface PartyFormData {
   name: string;
@@ -20,7 +21,7 @@ interface PartyFormData {
   cityId: number;
   districtName: string;
   creditLimit: number;
-  currencyId: number;
+  currencyId: string;
   notes: string;
 }
 
@@ -54,7 +55,7 @@ export const PartyForm: React.FC<PartyFormProps> = ({
       cityId: initialData?.cityId || 0,
       districtName: initialData?.districtName || '',
       creditLimit: initialData?.creditLimit || 0,
-      currencyId: initialData?.currencyId || 1,
+      currencyId: initialData?.currencyId ? String(initialData.currencyId) : '',
       notes: initialData?.notes || ''
     }
   });
@@ -77,20 +78,24 @@ export const PartyForm: React.FC<PartyFormProps> = ({
 
   useEffect(() => {
     const controller = new AbortController();
-    currenciesAPI.getAll({}, { signal: controller.signal }).then(res => {
-      const curList = res.data;
-      setCurrencies(curList);
-      
-      const currentCurrency = getValues('currencyId');
-      if (!currentCurrency && curList.length > 0) {
-        const defaultCur = curList.find((c: Currency) => c.isDefault === 1);
-        if (defaultCur) setValue('currencyId', defaultCur.id);
-      }
+    currenciesAPI.getAll({ limit: 500 }, { signal: controller.signal }).then(res => {
+      setCurrencies(res.data.data);
     }).catch(err => {
       if (err.name !== 'AbortError') console.error(err);
     });
     return () => controller.abort();
   }, [setValue, getValues]);
+
+  /* 🔥 DEFAULT CURRENCY SELECTION */
+  useEffect(() => {
+    if (currencies.length > 0 && !editingId) {
+      const current = getValues('currencyId');
+      if (!current || current === '0' || current === '') {
+        const defaultCur = currencies.find(c => c.isDefault === 1);
+        if (defaultCur) setValue('currencyId', String(defaultCur.id));
+      }
+    }
+  }, [currencies, editingId, getValues, setValue]);
 
   const onSubmit = async (data: PartyFormData) => {
     try {
@@ -220,12 +225,12 @@ export const PartyForm: React.FC<PartyFormProps> = ({
         <FormField label="Kredi Limiti">
           <div className="flex flex-col gap-2">
             <div className="relative">
-              <input 
-                type="number" 
-                className="input-premium font-black text-2xl tabular-nums text-[var(--primary)] pl-4 pr-12 h-14"
-                {...register('creditLimit')}
+              <PremiumNumberInput 
+                value={watch('creditLimit')} 
+                onChange={val => setValue('creditLimit', val)} 
+                className="h-14"
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 font-black text-slate-400">TRY</span>
+              <span className="absolute right-12 top-1/2 -translate-y-1/2 font-black text-slate-400 pointer-events-none">TRY</span>
             </div>
             <div className="flex gap-1">
               {[-10000, -1000, 1000, 10000].map(val => (
@@ -261,7 +266,7 @@ export const PartyForm: React.FC<PartyFormProps> = ({
         <button type="submit" disabled={isSubmitting} className="btn btn-primary btn-lg flex-1 shadow-2xl shadow-[var(--primary-glow)]">
           <FiSave size={20} /> {editingId ? 'DEĞİŞİKLİKLERİ KAYDET' : 'YENİ CARİ KART OLUŞTUR'}
         </button>
-        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all" onClick={onCancel}>
+        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all" onClick={() => { clearCache('party'); onCancel(); }}>
           <FiX size={20} /> İPTAL
         </button>
       </div>

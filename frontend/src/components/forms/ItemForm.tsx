@@ -22,6 +22,7 @@ import {
 
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 import { FormField } from '../common/FormField';
+import { PremiumNumberInput } from '../common/PremiumNumberInput';
 
 interface ItemFormProps {
   initialData?: Partial<Item>;
@@ -224,32 +225,7 @@ export const ItemForm: React.FC<ItemFormProps> = ({
           setItemTypes(types.data);
           setItemCodeGroups(groups.data);
           setQuantityTypes(qtys.data);
-          setCurrencies(curs.data);
-
-          const current =
-            getValues(
-              'currencyId'
-            );
-
-          if (
-            !current &&
-            curs.data.length > 0
-          ) {
-
-            const def =
-              curs.data.find(
-                (
-                  c: Currency
-                ) =>
-                  c.isDefault === 1
-              );
-
-            if (def)
-              setValue(
-                'currencyId',
-                String(def.id)
-              );
-          }
+          setCurrencies(curs.data.data);
 
         } catch (err: unknown) {
 
@@ -275,6 +251,17 @@ export const ItemForm: React.FC<ItemFormProps> = ({
       controller.abort();
 
   }, [setValue, getValues]);
+  
+  /* 🔥 DEFAULT CURRENCY SELECTION */
+  useEffect(() => {
+    if (currencies.length > 0 && !editingId) {
+      const current = getValues('currencyId');
+      if (!current || current === '0' || current === '') {
+        const def = currencies.find(c => c.isDefault === 1);
+        if (def) setValue('currencyId', String(def.id));
+      }
+    }
+  }, [currencies, editingId, getValues, setValue]);
 
   /* 🔥 SUBMIT */
   const onSubmit:
@@ -407,10 +394,10 @@ export const ItemForm: React.FC<ItemFormProps> = ({
           </select>
         </FormField>
         <FormField label="Kritik Limit">
-          <input 
-            type="number" 
-            className="input-premium font-black tabular-nums" 
-            {...register('criticalLimit')} 
+          <PremiumNumberInput 
+            value={watch('criticalLimit')} 
+            onChange={val => setValue('criticalLimit', String(val))} 
+            className="h-12"
           />
         </FormField>
         <FormField label="KDV Oranı">
@@ -435,19 +422,19 @@ export const ItemForm: React.FC<ItemFormProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <FormField label="Alış Fiyatı">
-          <input 
-            type="number" 
-            step="0.01"
-            className="input-premium font-black tabular-nums" 
-            {...register('purchasePrice')} 
+          <PremiumNumberInput 
+            value={watch('purchasePrice')} 
+            onChange={val => setValue('purchasePrice', String(val))} 
+            step={1}
+            className="h-12"
           />
         </FormField>
         <FormField label="Satış Fiyatı">
-          <input 
-            type="number" 
-            step="0.01"
-            className="input-premium font-black tabular-nums" 
-            {...register('salePrice')} 
+          <PremiumNumberInput 
+            value={watch('salePrice')} 
+            onChange={val => setValue('salePrice', String(val))} 
+            step={1}
+            className="h-12"
           />
         </FormField>
         <FormField label="Para Birimi" required>
@@ -479,7 +466,7 @@ export const ItemForm: React.FC<ItemFormProps> = ({
         <button type="submit" className="btn btn-primary btn-lg flex-1 shadow-2xl shadow-[var(--primary-glow)]">
           <FiCheck size={20} /> {editingId ? 'GÜNCELLEMELERİ KAYDET' : 'YENİ ÜRÜNÜ SİSTEME KAYDET'}
         </button>
-        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200" onClick={onCancel}>
+        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200" onClick={() => { clearCache(cacheKey); onCancel(); }}>
           İPTAL
         </button>
       </div>
