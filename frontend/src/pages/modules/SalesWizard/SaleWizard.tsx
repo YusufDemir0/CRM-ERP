@@ -121,9 +121,10 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
               />
               <button 
                 onClick={() => openCreate('party', { 
-                  onSuccess: (res: any) => {
+                  onSuccess: (res: unknown) => {
                     refreshLookups();
-                    const newParty = res?.data ? res.data : res;
+                    const response = res as { data?: any } | any; // Internal cast for extraction
+                    const newParty = response?.data ? response.data : response;
                     if (newParty && newParty.id) {
                       store.setCustomer(newParty);
                     }

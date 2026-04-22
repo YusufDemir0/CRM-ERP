@@ -17,7 +17,8 @@ import {
   ItemType,
   ItemCodeGroup,
   QuantityType,
-  Currency
+  Currency,
+  PaginatedResult
 } from '../../types';
 
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
@@ -173,10 +174,10 @@ export const ItemForm: React.FC<ItemFormProps> = ({
             ]);
 
           // 🛡️ Veri yapısını sağlama al (Hem [..] hem de { data: [..] } formatını destekle)
-          const typesList = Array.isArray(types.data) ? types.data : (types.data as any).data || [];
-          const groupsList = Array.isArray(groups.data) ? groups.data : (groups.data as any).data || [];
-          const qtysList = Array.isArray(qtys.data) ? qtys.data : (qtys.data as any).data || [];
-          const cursList = Array.isArray(curs.data) ? curs.data : (curs.data as any).data || [];
+          const typesList = Array.isArray(types.data) ? types.data : (types.data as PaginatedResult<ItemType>).data || [];
+          const groupsList = Array.isArray(groups.data) ? groups.data : (groups.data as PaginatedResult<ItemCodeGroup>).data || [];
+          const qtysList = Array.isArray(qtys.data) ? qtys.data : (qtys.data as PaginatedResult<QuantityType>).data || [];
+          const cursList = Array.isArray(curs.data) ? curs.data : (curs.data as PaginatedResult<Currency>).data || [];
 
           setItemTypes(typesList);
           setItemCodeGroups(groupsList);
@@ -185,11 +186,10 @@ export const ItemForm: React.FC<ItemFormProps> = ({
 
           // 🔥 Edit modunda listeler yüklenince değerleri tekrar set et
           if (editingId && initialData) {
-            const i = initialData as any;
-            setValue('itemTypeId', String(i.itemTypeId ?? i.itemType?.id ?? ''));
-            setValue('itemCodeGroupId', String(i.itemCodeGroupId ?? i.itemCodeGroup?.id ?? ''));
-            setValue('quantityTypeId', String(i.quantityTypeId ?? i.quantityType?.id ?? ''));
-            setValue('currencyId', String(i.currencyId ?? i.currency?.id ?? ''));
+            setValue('itemTypeId', String(initialData.itemTypeId ?? initialData.itemType?.id ?? ''));
+            setValue('itemCodeGroupId', String(initialData.itemCodeGroupId ?? initialData.itemCodeGroup?.id ?? ''));
+            setValue('quantityTypeId', String(initialData.quantityTypeId ?? initialData.quantityType?.id ?? ''));
+            setValue('currencyId', String(initialData.currencyId ?? initialData.currency?.id ?? ''));
           }
 
         } catch (err: unknown) {

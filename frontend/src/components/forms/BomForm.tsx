@@ -162,10 +162,11 @@ export const BomForm: React.FC<BomFormProps> = ({
           onChange={(opt) => {
             if (opt) {
               const targetId = Number(opt.id);
+              const selectedItem = itemsList.find(i => i.id === targetId);
               setFormData(prev => ({ 
                 ...prev, 
                 targetItemId: targetId,
-                name: (opt as any).name ? (opt as any).name.toLocaleUpperCase('tr-TR') : prev.name,
+                name: selectedItem?.name ? selectedItem.name.toLocaleUpperCase('tr-TR') : prev.name,
                 // 🔥 Eğer seçilen ürün bileşen listesinde varsa onu oradan kaldır
                 items: prev.items.filter(i => Number(i.itemId) !== targetId)
               }));

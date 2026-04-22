@@ -6,6 +6,8 @@ import { formatDisplayDate } from '../utils/date.helper';
 import { translateLog } from '../utils/logTranslator';
 import toast from 'react-hot-toast';
 
+import { Log } from '../types';
+
 export const NotificationCenter: React.FC = () => {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
@@ -93,7 +95,7 @@ export const NotificationCenter: React.FC = () => {
               </div>
             ) : (
               <div className="flex flex-col">
-                {notifications.map((log: any) => {
+                {notifications.map((log: Log) => {
                   const translated = translateLog(log);
                   return (
                     <div 

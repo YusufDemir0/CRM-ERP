@@ -51,7 +51,7 @@ export class RolesService {
       data = await this.roleRepo.find({
         where: { id: In(ids) },
         relations: ['permissions'],
-      order: { [sortCol]: query.sortOrder || 'DESC' } as any,
+      order: { [sortCol]: query.sortOrder || 'DESC' } as import('typeorm').FindOptionsOrder<Role>,
       });
     }
 

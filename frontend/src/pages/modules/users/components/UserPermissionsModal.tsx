@@ -131,7 +131,7 @@ export const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({
                                 className="peer hidden" 
                                 name={`perm-${perm.id}`}
                                 checked={effect === opt.id}
-                                onChange={() => onSetPermission(perm.id, opt.id as any, 'global')}
+                                onChange={() => onSetPermission(perm.id, opt.id as 'allow' | 'deny' | null, 'global')}
                               />
                               <div className={`h-8 flex items-center justify-center rounded-lg text-[9px] font-black transition-all hover:bg-slate-50 active:scale-95 ${opt.color}`}>
                                 <span className="flex items-center gap-1.5 uppercase tracking-tighter">

@@ -8,6 +8,7 @@ export interface EnumItem {
   name: string;
   abbreviation: string;
   state: number;
+  isExcludedFromBom?: boolean;
 }
 
 interface EnumSettingsProps {
@@ -48,7 +49,7 @@ export const EnumSettings: React.FC<EnumSettingsProps> = ({
     },
     ...(showStar ? [{
       header: 'Reçete Hariç',
-      accessor: (t: any) => (
+      accessor: (t: EnumItem) => (
         <button 
           onClick={() => onStarToggle?.(t.id, !!t.isExcludedFromBom)}
           className={`p-2 rounded-xl transition-all ${t.isExcludedFromBom ? 'bg-amber-100 text-amber-600' : 'bg-slate-50 text-slate-300 hover:text-amber-400'}`}

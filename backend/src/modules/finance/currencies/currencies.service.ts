@@ -8,7 +8,7 @@ import { CreateCurrencyDto, UpdateCurrencyDto } from '../dto/finance.dto';
 export class CurrenciesService {
   constructor(@InjectRepository(Currency) private currencyRepo: Repository<Currency>) {}
 
-  async findAll(query: any): Promise<any> {
+  async findAll(query: import('../../../common/dto/pagination.dto').PaginationDto): Promise<import('../../../common/dto/pagination.dto').PaginatedResult<Currency>> {
     const qb = this.currencyRepo.createQueryBuilder('currency');
 
     const allowedSortCols = ['code', 'name', 'symbol', 'exchangeRate', 'isDefault', 'createdAt'];

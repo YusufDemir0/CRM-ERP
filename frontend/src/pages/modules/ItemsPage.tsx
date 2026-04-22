@@ -101,14 +101,15 @@ export default function ItemsPage() {
     onError: () => toast.error("Hata oluştu")
   });
 
-  const handleFormSuccess = (data?: any) => {
+  const handleFormSuccess = (data?: unknown) => {
     // 🔥 Hem manuel cache güncellemesi yap hem de tüm listeyi geçersiz kıl
-    if (data && data.id) {
-      queryClient.setQueriesData({ queryKey: ['items', 'list'] }, (old: any) => {
+    const itemData = data as Item | undefined;
+    if (itemData && itemData.id) {
+      queryClient.setQueriesData({ queryKey: ['items', 'list'] }, (old: { data: Item[] } | undefined) => {
         if (!old || !old.data) return old;
         return {
           ...old,
-          data: old.data.map((item: any) => item.id === data.id ? { ...item, ...data } : item)
+          data: old.data.map((item: Item) => (itemData && itemData.id === item.id) ? { ...item, ...itemData } : item)
         };
       });
     }

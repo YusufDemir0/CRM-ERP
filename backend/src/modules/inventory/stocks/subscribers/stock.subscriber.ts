@@ -22,7 +22,7 @@ export class StockSubscriber implements EntitySubscriberInterface<Stock> {
   async afterRemove(event: RemoveEvent<Stock>) {
     if (event.entityId) {
        // Since it's a uniqueitemId/departmentId, we need to find the item
-       const stock = await event.manager.getRepository(Stock).findOne({ where: { id: event.entityId as any } });
+       const stock = await event.manager.getRepository(Stock).findOne({ where: { id: event.entityId as number } });
        if (stock) {
            await this.updateItemTotalStock(stock.itemId, event);
        }

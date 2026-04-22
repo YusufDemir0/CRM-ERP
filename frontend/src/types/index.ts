@@ -256,6 +256,15 @@ export interface Transaction extends BaseEntity {
   status: 'completed' | 'cancelled';
 }
 
+export interface Log extends BaseEntity {
+  module: string;
+  action: string;
+  message: string;
+  tag: 'INFO' | 'WARNING' | 'ERROR' | 'SUCCESS' | string;
+  userId?: number;
+  user?: User;
+}
+
 export interface PaginationMeta {
   total: number;
   page: number;

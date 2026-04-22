@@ -52,7 +52,7 @@ export const StaffList: React.FC<StaffListProps> = ({ departmentId }) => {
   const handleEditStaff = (s: Staff) => {
     openCreate('staff', {
       editingId: s.id,
-      initialData: s as any,
+      initialData: s as unknown as Record<string, unknown>,
       onSuccess: () => queryClient.invalidateQueries({ queryKey: ['staff'] })
     });
   };

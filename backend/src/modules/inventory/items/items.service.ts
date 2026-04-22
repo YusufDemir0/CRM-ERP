@@ -168,7 +168,7 @@ export class ItemsService {
     const item = await this.findOne(id);
 
     // Direct update to ensure database commit
-    const updateData: any = {
+    const updateData: Partial<Item> = {
       updatedBy: userId || null
     };
 
