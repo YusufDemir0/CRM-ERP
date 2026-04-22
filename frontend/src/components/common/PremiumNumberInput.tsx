@@ -46,7 +46,7 @@ export const PremiumNumberInput: React.FC<PremiumNumberInputProps> = ({
         tabIndex={-1}
         onClick={handleDecrement}
         disabled={disabled || (min !== undefined && numValue <= min)}
-        className="absolute left-1 w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-30 disabled:hover:bg-slate-50 disabled:hover:text-slate-400 transition-all z-10"
+        className="absolute left-1 w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-30 disabled:hover:bg-slate-50 disabled:hover:text-slate-400 transition-all z-10"
       >
         <FiMinus size={16} />
       </button>
@@ -60,7 +60,7 @@ export const PremiumNumberInput: React.FC<PremiumNumberInputProps> = ({
         onChange={(e) => onChange(Number(e.target.value))}
         placeholder={placeholder}
         disabled={disabled}
-        className="input-premium w-full h-12 px-12 text-center font-black tabular-nums text-lg focus:ring-2 focus:ring-primary/20"
+        className="input-premium w-full h-12 px-10 text-center font-black tabular-nums text-base focus:ring-2 focus:ring-primary/20"
       />
 
       <button
@@ -68,7 +68,7 @@ export const PremiumNumberInput: React.FC<PremiumNumberInputProps> = ({
         tabIndex={-1}
         onClick={handleIncrement}
         disabled={disabled || (max !== undefined && numValue >= max)}
-        className="absolute right-1 w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-green-50 hover:text-green-600 disabled:opacity-30 disabled:hover:bg-slate-50 disabled:hover:text-slate-400 transition-all z-10"
+        className="absolute right-1 w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:bg-green-50 hover:text-green-600 disabled:opacity-30 disabled:hover:bg-slate-50 disabled:hover:text-slate-400 transition-all z-10"
       >
         <FiPlus size={16} />
       </button>
