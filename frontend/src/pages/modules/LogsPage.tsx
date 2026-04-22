@@ -10,6 +10,7 @@ import { DataTable, Column } from '../../components/common/DataTable';
 import { useSort } from '../../hooks/useSort';
 import { queryKeys } from '../../services/queryKeys';
 import { formatDisplayDateTime } from '../../utils/date.helper';
+import { translateLog } from '../../utils/logTranslator';
 
 interface SystemLog {
   id: number;
@@ -157,14 +158,17 @@ export default function LogsPage() {
     },
     { 
       header: 'AKTİVİTE / MODÜL', 
-      accessor: (log) => (
-        <div>
-          <div className="text-sm font-black text-primary mb-0.5">{log.action}</div>
-          <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
-            <FiCpu size={10} /> {log.module?.toUpperCase() || 'SİSTEM ÇEKİRDEĞİ'}
+      accessor: (log) => {
+        const translated = translateLog(log);
+        return (
+          <div>
+            <div className="text-sm font-black text-primary mb-0.5">{translated.title}</div>
+            <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
+              <FiCpu size={10} /> {log.module?.toUpperCase() || 'SİSTEM ÇEKİRDEĞİ'}
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
       sortKey: 'action'
     },
     { 

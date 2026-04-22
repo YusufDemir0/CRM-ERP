@@ -18,6 +18,7 @@ import { SalesHeader } from '../components/sales/SalesHeader';
 import { SalesTable } from '../components/sales/SalesTable';
 import { useDebounce } from '../hooks/useDebounce';
 import { queryKeys } from '../services/queryKeys';
+import { useSalesWizardStore } from '../store/useSalesWizardStore';
 
 export default function SalesPage() {
   const queryClient = useQueryClient();
@@ -165,7 +166,11 @@ export default function SalesPage() {
     }
   }, []);
 
-  const handleNewSale = useCallback(() => navigate('/sales/wizard'), [navigate]);
+  const handleNewSale = useCallback(() => {
+    const salesStore = useSalesWizardStore.getState();
+    salesStore.reset();
+    navigate('/sales/wizard');
+  }, [navigate]);
   const handlePageChange = useCallback((p: number) => updateParams({ page: p }), []);
   const handleLimitChange = useCallback((l: number) => updateParams({ limit: l, page: 1 }), []);
   const handleFilterStatusChange = useCallback((status: string) => updateParams({ status, page: 1 }), []);

@@ -6,6 +6,7 @@ import { FiCalendar, FiCheck } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { PhoneInput } from '../common/PhoneInput';
 import { FormField } from '../common/FormField';
+import dayjs from 'dayjs';
 
 interface StaffFormProps {
   initialData?: Partial<Staff>;
@@ -20,9 +21,10 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
     firstName: initialData?.firstName || '',
     lastName: initialData?.lastName || '',
     phone: initialData?.phone || '',
-    entryDate: initialData?.entryDate || new Date().toISOString().split('T')[0],
+    entryDate: initialData?.entryDate ? dayjs(initialData.entryDate).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
     departmentId: initialData?.departmentId || undefined,
     isActive: initialData?.isActive ?? true,
+    tckn: initialData?.tckn || '',
   });
 
   const mutation = useMutation({
@@ -44,8 +46,9 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
     // Strip spaces before sending
     const dataToSubmit = {
       ...formData,
-      departmentId: Number(formData.departmentId),
-      phone: formData.phone.replace(/\s/g, '')
+      departmentId: formData.departmentId ? Number(formData.departmentId) : undefined,
+      phone: formData.phone.replace(/\s/g, ''),
+      tckn: formData.tckn || undefined
     };
     
     mutation.mutate(dataToSubmit);
@@ -98,12 +101,24 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
         </FormField>
       </div>
 
-      <FormField label="İletişim Hattı" required>
-        <PhoneInput 
-          value={formData.phone.startsWith('+') ? formData.phone : `+90 ${formData.phone}`}
-          onChange={(val) => setFormData(prev => ({ ...prev, phone: val }))}
-        />
-      </FormField>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormField label="İletişim Hattı" required>
+          <PhoneInput 
+            value={formData.phone.startsWith('+') ? formData.phone : `+90 ${formData.phone}`}
+            onChange={(val) => setFormData(prev => ({ ...prev, phone: val }))}
+          />
+        </FormField>
+        <FormField label="TC Kimlik No">
+          <input 
+            type="text"
+            maxLength={11}
+            className="input-premium font-black tracking-tight tabular-nums"
+            value={formData.tckn}
+            onChange={(e) => setFormData(prev => ({ ...prev, tckn: e.target.value.replace(/\D/g, '') }))}
+            placeholder="11 Haneli TCKN"
+          />
+        </FormField>
+      </div>
 
       <FormField label="İşe Giriş Tarihi">
         <div className="relative">

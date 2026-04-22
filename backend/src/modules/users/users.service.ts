@@ -168,6 +168,13 @@ export class UsersService {
       user.state = dto.state;
       // Durum değişince oturumları iptal et (Kovulma/Dondurma anında iptal)
       user.tokenVersion += 1;
+      
+      const today = new Date().toISOString().split('T')[0];
+      if (dto.state === 0) {
+        user.lastDeactivationDate = today;
+      } else if (dto.state === 1) {
+        user.entryDate = today;
+      }
     }
 
     user.updatedBy = currentUserId || null;

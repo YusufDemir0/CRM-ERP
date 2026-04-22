@@ -6,6 +6,7 @@ export type QuickCreateType =
   | 'department' 
   | 'account' 
   | 'party' 
+  | 'party-fast'
   | 'user' 
   | 'item' 
   | 'item-type' 

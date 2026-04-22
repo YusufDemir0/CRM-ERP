@@ -53,6 +53,7 @@ interface SalesWizardState {
   setIsTaxed: (val: boolean) => void;
   setSelectedItems: (items: SelectedItem[]) => void;
   setLoading: (loading: boolean) => void;
+  startQuickSale: (customer: Party | null) => void;
   reset: () => void;
 }
 
@@ -144,6 +145,45 @@ export const useSalesWizardStore = create<SalesWizardState>()(
       setIsTaxed: (isTaxed) => set({ isTaxed }),
       setSelectedItems: (selectedItems) => set({ selectedItems }),
       setLoading: (loading) => set({ loading }),
+      startQuickSale: (customer) => {
+        const initialState = {
+          step: 1,
+          isProductPhase: false,
+          customer: null,
+          staffId: null,
+          phone: '',
+          phone2: '',
+          address: '',
+          city: '',
+          cityId: 0,
+          district: '',
+          isNewInfo: false,
+          date: dayjs().format('YYYY-MM-DD'),
+          deliveryDate: dayjs().format('YYYY-MM-DD'),
+          paymentAccount: null,
+          taxId: '',
+          description: '',
+          email: '',
+          source: '',
+          deposit: 0,
+          discountAmount: 0,
+          isTaxed: true,
+          selectedItems: [],
+          loading: false,
+        };
+        
+        set({
+          ...initialState,
+          customer,
+          phone: customer?.phone1 || '',
+          phone2: customer?.phone2 || '',
+          email: customer?.email || '',
+          address: customer?.address || '',
+          taxId: customer?.taxNumber || '',
+          cityId: customer?.cityId || 0,
+          district: customer?.districtName || '',
+        });
+      },
       reset: () => set({
         step: 1,
         isProductPhase: false,

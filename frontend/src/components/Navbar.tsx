@@ -7,6 +7,7 @@ import { useDebounce } from '../hooks/useDebounce';
 import { itemsAPI, partiesAPI, salesAPI } from '../services/api';
 import { Item, Party, Sale } from '../types';
 import { formatDisplayDate } from '../utils/date.helper';
+import { NotificationCenter } from './NotificationCenter';
 
 export default function Navbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const { user, logout } = useAuth();
@@ -287,10 +288,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar: () => voi
           <button className="nav-action-btn bg-transparent border-none text-[var(--text-muted)] p-2.5 rounded-xl cursor-pointer transition-colors hover:text-[var(--primary)]" title="Yardım">
             <FiHelpCircle size={20} />
           </button>
-          <button className="nav-action-btn relative bg-[var(--surface)] border-[1.5px] border-[var(--border)] text-[var(--text-primary)] p-2.5 rounded-[14px] cursor-pointer transition-colors hover:border-[var(--primary)]" title="Bildirimler">
-            <FiBell size={20} />
-            <div className="absolute top-2.5 right-[11px] w-2 h-2 bg-[var(--error)] rounded-full border-2 border-white"></div>
-          </button>
+          <NotificationCenter />
         </div>
         
         <div className="nav-user-info flex items-center gap-3 pl-4 border-l border-[var(--border)]">

@@ -6,6 +6,7 @@ import {
   FiTrendingUp, FiSettings, FiLayout, FiFileText 
 } from 'react-icons/fi';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
+import { useSalesWizardStore } from '../../store/useSalesWizardStore';
 
 export const CommandPalette: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -54,7 +55,10 @@ export const CommandPalette: React.FC = () => {
           </Command.Empty>
 
           <Command.Group heading="Hızlı İşlemler" className="px-2 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            <Item icon={<FiPlus />} label="Yeni Satış Faturası" onSelect={() => runCommand(() => navigate('/sales/wizard'))} />
+            <Item icon={<FiPlus />} label="Yeni Satış Faturası" onSelect={() => runCommand(() => {
+              useSalesWizardStore.getState().reset();
+              navigate('/sales/wizard');
+            })} />
             <Item icon={<FiUsers />} label="Yeni Cari/Müşteri Ekle" onSelect={() => runCommand(() => openCreate('party'))} />
             <Item icon={<FiBox />} label="Yeni Ürün Kaydı" onSelect={() => runCommand(() => openCreate('item'))} />
           </Command.Group>

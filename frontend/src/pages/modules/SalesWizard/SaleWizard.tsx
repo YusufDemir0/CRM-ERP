@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FiCheck, FiPlus, FiTrash2, FiSearch, FiInfo } from 'react-icons/fi';
 import { useSalesWizardStore } from '../../../store/useSalesWizardStore';
 import { useSalesWizard } from '../../../hooks/useSalesWizard';
@@ -19,6 +19,14 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
   const { cities } = useTurkiyeCities();
   const { districts } = useTurkiyeDistricts(store.cityId || null);
 
+  const customerOptions = useMemo(() => {
+    const base = (customers || []).map(c => ({ id: c.id, label: c.name }));
+    if (store.customer && !base.find(o => String(o.id) === String(store.customer?.id))) {
+      base.unshift({ id: store.customer.id, label: store.customer.name });
+    }
+    return base;
+  }, [customers, store.customer]);
+
   // Email domain extensions
   const domainExtensions = ['@gmail.com', '@hotmail.com', '@outlook.com'];
 
@@ -36,8 +44,8 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
     store.staffId && 
     store.paymentAccount && 
     store.phone && 
-    store.city && 
-    store.district
+    store.cityId && 
+    store.district?.trim()
   );
 
   return (
@@ -104,19 +112,20 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
             <div className="relative">
               <SearchableSelect
                 placeholder="Müşteri ara veya seç..."
-                options={(customers || []).map(c => ({ id: c.id, label: c.name }))}
+                options={customerOptions}
                 value={store.customer?.id || null}
                 onChange={(opt) => {
-                  const c = (customers || []).find(x => x.id === opt?.id);
+                  const c = (customers || []).find(x => x.id === opt?.id) || (store.customer?.id === opt?.id ? store.customer : null);
                   store.setCustomer(c || null);
                 }}
               />
               <button 
                 onClick={() => openCreate('party', { 
-                  onSuccess: (res) => {
+                  onSuccess: (res: any) => {
                     refreshLookups();
-                    if (res?.data) {
-                      store.setCustomer(res.data as unknown as import('../../../types').Party);
+                    const newParty = res?.data ? res.data : res;
+                    if (newParty && newParty.id) {
+                      store.setCustomer(newParty);
                     }
                   }
                 })}

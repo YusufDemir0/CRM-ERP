@@ -23,6 +23,7 @@ import {
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 import { FormField } from '../common/FormField';
 import { PremiumNumberInput } from '../common/PremiumNumberInput';
+import { SearchableSelect } from '../common/SearchableSelect';
 
 interface ItemFormProps {
   initialData?: Partial<Item>;
@@ -51,7 +52,6 @@ type ItemFormData = {
   image: string;
   description: string;
   notes: string;
-
 };
 
 export const ItemForm: React.FC<ItemFormProps> = ({
@@ -81,8 +81,7 @@ export const ItemForm: React.FC<ItemFormProps> = ({
   const [quantityTypes, setQuantityTypes] =
     useState<QuantityType[]>([]);
 
-  const [currencies, setCurrencies] =
-    useState<Currency[]>([]);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
 
   /* 🔥 FORM */
   const {
@@ -90,65 +89,23 @@ export const ItemForm: React.FC<ItemFormProps> = ({
     handleSubmit,
     watch,
     setValue,
-    getValues
+    getValues,
+    reset
   } = useForm<ItemFormData>({
-
-    defaultValues:
-      (getCache(cacheKey) as ItemFormData) || {
-
-        name:
-          initialData?.name ?? '',
-
-        itemTypeId:
-          initialData?.itemTypeId
-            ? String(initialData.itemTypeId)
-            : '',
-
-        itemCodeGroupId:
-          initialData?.itemCodeGroupId
-            ? String(initialData.itemCodeGroupId)
-            : '',
-
-        criticalLimit:
-          initialData?.criticalLimit
-            ? String(initialData.criticalLimit)
-            : '0',
-
-        purchasePrice:
-          initialData?.purchasePrice
-            ? String(initialData.purchasePrice)
-            : '0',
-
-        salePrice:
-          initialData?.salePrice
-            ? String(initialData.salePrice)
-            : '0',
-
-        currencyId:
-          initialData?.currencyId
-            ? String(initialData.currencyId)
-            : '',
-
-        quantityTypeId:
-          initialData?.quantityTypeId
-            ? String(initialData.quantityTypeId)
-            : '',
-
-        kdv:
-          initialData?.kdv
-            ? String(initialData.kdv)
-            : '20',
-
-        image:
-          initialData?.image ?? '',
-
-        description:
-          initialData?.description ?? '',
-
-        notes:
-          initialData?.notes ?? ''
-      }
-
+    defaultValues: (!editingId ? getCache(cacheKey) as ItemFormData : null) || {
+      name: initialData?.name ?? '',
+      itemTypeId: initialData?.itemTypeId ? String(initialData.itemTypeId) : (initialData?.itemType?.id ? String(initialData.itemType.id) : ''),
+      itemCodeGroupId: initialData?.itemCodeGroupId ? String(initialData.itemCodeGroupId) : (initialData?.itemCodeGroup?.id ? String(initialData.itemCodeGroup.id) : ''),
+      criticalLimit: initialData?.criticalLimit ? String(initialData.criticalLimit) : '0',
+      purchasePrice: initialData?.purchasePrice ? String(initialData.purchasePrice) : '0',
+      salePrice: initialData?.salePrice ? String(initialData.salePrice) : '0',
+      currencyId: initialData?.currencyId ? String(initialData.currencyId) : (initialData?.currency?.id ? String(initialData.currency.id) : ''),
+      quantityTypeId: initialData?.quantityTypeId ? String(initialData.quantityTypeId) : (initialData?.quantityType?.id ? String(initialData.quantityType.id) : ''),
+      kdv: initialData?.kdv ? String(initialData.kdv) : '20',
+      image: initialData?.image ?? '',
+      description: initialData?.description ?? '',
+      notes: initialData?.notes ?? ''
+    }
   });
 
   /* 🔥 CACHE SAVE */
@@ -212,20 +169,28 @@ export const ItemForm: React.FC<ItemFormProps> = ({
                   controller.signal
               }),
 
-              currenciesAPI.getAll(
-                {},
-                {
-                  signal:
-                    controller.signal
-                }
-              )
-
+              currenciesAPI.getAll({}, { signal: controller.signal })
             ]);
 
-          setItemTypes(types.data);
-          setItemCodeGroups(groups.data);
-          setQuantityTypes(qtys.data);
-          setCurrencies(curs.data.data);
+          // 🛡️ Veri yapısını sağlama al (Hem [..] hem de { data: [..] } formatını destekle)
+          const typesList = Array.isArray(types.data) ? types.data : (types.data as any).data || [];
+          const groupsList = Array.isArray(groups.data) ? groups.data : (groups.data as any).data || [];
+          const qtysList = Array.isArray(qtys.data) ? qtys.data : (qtys.data as any).data || [];
+          const cursList = Array.isArray(curs.data) ? curs.data : (curs.data as any).data || [];
+
+          setItemTypes(typesList);
+          setItemCodeGroups(groupsList);
+          setQuantityTypes(qtysList);
+          setCurrencies(cursList);
+
+          // 🔥 Edit modunda listeler yüklenince değerleri tekrar set et
+          if (editingId && initialData) {
+            const i = initialData as any;
+            setValue('itemTypeId', String(i.itemTypeId ?? i.itemType?.id ?? ''));
+            setValue('itemCodeGroupId', String(i.itemCodeGroupId ?? i.itemCodeGroup?.id ?? ''));
+            setValue('quantityTypeId', String(i.quantityTypeId ?? i.quantityType?.id ?? ''));
+            setValue('currencyId', String(i.currencyId ?? i.currency?.id ?? ''));
+          }
 
         } catch (err: unknown) {
 
@@ -247,10 +212,8 @@ export const ItemForm: React.FC<ItemFormProps> = ({
 
     load();
 
-    return () =>
-      controller.abort();
-
-  }, [setValue, getValues]);
+    return () => controller.abort();
+  }, []); // Lookups should only load once on mount
   
   /* 🔥 DEFAULT CURRENCY SELECTION */
   useEffect(() => {
@@ -275,29 +238,21 @@ export const ItemForm: React.FC<ItemFormProps> = ({
           data.name,
 
         itemTypeId:
-          Number(
-            data.itemTypeId
-          ),
-
+          data.itemTypeId ? Number(data.itemTypeId) : undefined,
+          
         itemCodeGroupId:
-          Number(
-            data.itemCodeGroupId
-          ),
+          data.itemCodeGroupId ? Number(data.itemCodeGroupId) : undefined,
 
         currencyId:
-          Number(
-            data.currencyId
-          ),
+          data.currencyId ? Number(data.currencyId) : undefined,
 
         quantityTypeId:
-          Number(
-            data.quantityTypeId
-          ),
+          data.quantityTypeId ? Number(data.quantityTypeId) : undefined,
 
         kdv:
           data.kdv === 'custom'
-            ? Number(customKdv)
-            : Number(data.kdv),
+            ? Number(customKdv || 0)
+            : Number(data.kdv || 0),
 
         /* ⚠️ string bırakıyoruz */
         purchasePrice:
@@ -314,12 +269,8 @@ export const ItemForm: React.FC<ItemFormProps> = ({
         image:
           data.image,
 
-        description:
-          data.description,
-
-        notes:
-          data.notes
-
+        description: data.description,
+        notes: data.notes
       };
 
       try {
@@ -362,18 +313,22 @@ export const ItemForm: React.FC<ItemFormProps> = ({
   return (
     <form onSubmit={handleSubmit(onSubmit)} onBlur={saveDraft} className="flex flex-col gap-6 animate-in">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <FormField label="Ürün Türü" required>
-          <select required className="input-premium font-black" {...register('itemTypeId')}>
-            <option value="">Seçiniz...</option>
-            {itemTypes.map(t => <option key={t.id} value={t.id}>{t.name.toUpperCase()}</option>)}
-          </select>
-        </FormField>
-        <FormField label="Kod Grubu" required>
-          <select required className="input-premium font-black" {...register('itemCodeGroupId')}>
-            <option value="">Seçiniz...</option>
-            {itemCodeGroups.map(g => <option key={g.id} value={g.id}>{g.prefix} - {g.name.toUpperCase()}</option>)}
-          </select>
-        </FormField>
+        <SearchableSelect 
+          label="Ürün Türü"
+          required
+          placeholder="Tür seçin..."
+          options={itemTypes.map(t => ({ id: t.id, label: t.name.toUpperCase() }))}
+          value={watch('itemTypeId')}
+          onChange={(opt) => setValue('itemTypeId', opt ? String(opt.id) : '')}
+        />
+        <SearchableSelect 
+          label="Kod Grubu"
+          required
+          placeholder="Grup seçin..."
+          options={itemCodeGroups.map(g => ({ id: g.id, label: `${g.prefix} - ${g.name.toUpperCase()}` }))}
+          value={watch('itemCodeGroupId')}
+          onChange={(opt) => setValue('itemCodeGroupId', opt ? String(opt.id) : '')}
+        />
       </div>
 
       <FormField label="Ürün Adı" required>
@@ -387,18 +342,37 @@ export const ItemForm: React.FC<ItemFormProps> = ({
       </FormField>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <FormField label="Birim" required>
-          <select required className="input-premium font-black" {...register('quantityTypeId')}>
-            <option value="">Seçiniz...</option>
-            {quantityTypes.map(q => <option key={q.id} value={q.id}>{q.name.toUpperCase()} ({q.abbreviation})</option>)}
-          </select>
-        </FormField>
+        <SearchableSelect 
+          label="Birim"
+          required
+          placeholder="Birim seçin..."
+          options={quantityTypes.map(q => ({ id: q.id, label: `${q.name.toUpperCase()} (${q.abbreviation})` }))}
+          value={watch('quantityTypeId')}
+          onChange={(opt) => setValue('quantityTypeId', opt ? String(opt.id) : '')}
+        />
         <FormField label="Kritik Limit">
-          <PremiumNumberInput 
-            value={watch('criticalLimit')} 
-            onChange={val => setValue('criticalLimit', String(val))} 
-            className="h-12"
-          />
+          <div className="flex flex-col gap-2">
+            <PremiumNumberInput 
+              value={watch('criticalLimit')} 
+              onChange={val => setValue('criticalLimit', String(val))} 
+              className="h-12"
+            />
+            <div className="flex gap-1">
+              {[-10000, -1000, 1000, 10000].map(val => (
+                <button 
+                  key={val}
+                  type="button" 
+                  className="flex-1 h-8 rounded-lg bg-slate-50 border border-slate-200 text-[10px] font-black text-slate-600 hover:bg-[var(--primary)] hover:text-white transition-all"
+                  onClick={() => {
+                    const current = Number(getValues('criticalLimit') || 0);
+                    setValue('criticalLimit', String(Math.max(0, current + val)));
+                  }}
+                >
+                  {val > 0 ? `+${val/1000}K` : `${val/1000}K`}
+                </button>
+              ))}
+            </div>
+          </div>
         </FormField>
         <FormField label="KDV Oranı">
           <select className="input-premium font-black" {...register('kdv')}>
@@ -437,12 +411,14 @@ export const ItemForm: React.FC<ItemFormProps> = ({
             className="h-12"
           />
         </FormField>
-        <FormField label="Para Birimi" required>
-          <select required className="input-premium font-black" {...register('currencyId')}>
-            <option value="">Seçiniz...</option>
-            {currencies.map(c => <option key={c.id} value={c.id}>{c.code} - {c.name.toUpperCase()}</option>)}
-          </select>
-        </FormField>
+        <SearchableSelect 
+          label="Para Birimi"
+          required
+          placeholder="Döviz seçin..."
+          options={currencies.map(c => ({ id: c.id, label: `${c.code} - ${c.name.toUpperCase()}` }))}
+          value={watch('currencyId')}
+          onChange={(opt) => setValue('currencyId', opt ? String(opt.id) : '')}
+        />
       </div>
 
       <FormField label="Açıklama">

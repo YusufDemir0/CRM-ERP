@@ -37,6 +37,12 @@ export class Staff {
   @Column({ name: 'entry_date', type: 'date', nullable: true })
   entryDate: string;
 
+  @Column({ name: 'last_deactivation_date', type: 'date', nullable: true })
+  lastDeactivationDate: string | null;
+
+  @Column({ type: 'varchar', length: 11, nullable: true })
+  tckn: string | null;
+
   @Column({ name: 'department_id', type: 'bigint' })
   departmentId: number;
 

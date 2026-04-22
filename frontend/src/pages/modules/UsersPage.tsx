@@ -159,19 +159,23 @@ export default function UsersPage() {
     }
   };
 
-  const handleSetSpecificPermission = async (permId: number, effect: 'allow' | 'deny', scope: 'global' | 'department') => {
+  const handleSetSpecificPermission = async (permId: number, effect: 'allow' | 'deny' | null, scope: 'global' | 'department') => {
     if (!selectedUserForPerms) return;
     try {
-      await rolesAPI.setUserPermission({
-        userId: selectedUserForPerms.id,
-        permissionId: permId,
-        effect,
-        scopeType: scope,
-        scopeId: scope === 'department' ? (selectedUserForPerms.departmentId ?? null) : null,
-      });
+      if (effect === null) {
+        await rolesAPI.removeUserPermission({ userId: selectedUserForPerms.id, permissionId: permId });
+      } else {
+        await rolesAPI.setUserPermission({
+          userId: selectedUserForPerms.id,
+          permissionId: permId,
+          effect,
+          scopeType: scope,
+          scopeId: scope === 'department' ? (selectedUserForPerms.departmentId ?? null) : null,
+        });
+      }
       const res = await rolesAPI.getUserPermissions(selectedUserForPerms.id);
       setUserSpecificPerms(res.data);
-      toast.success("Yetki kuralı uygulandı.");
+      toast.success("Yetki kuralı güncellendi.");
     } catch (error) {
       toast.error("Bir hata oluştu.");
     }
@@ -221,6 +225,26 @@ export default function UsersPage() {
         </div>
       ),
       sortKey: 'email'
+    },
+    {
+      header: 'TARİHÇE',
+      accessor: (u) => (
+        <div className="flex flex-col gap-1">
+          {u.entryDate && (
+            <div className="text-[10px] text-slate-500 font-bold tracking-widest uppercase">
+              <span className="text-emerald-500 mr-1">GİRİŞ:</span> {new Date(u.entryDate).toLocaleDateString('tr-TR')}
+            </div>
+          )}
+          {u.state === 0 && u.lastDeactivationDate && (
+            <div className="text-[10px] text-slate-500 font-bold tracking-widest uppercase">
+              <span className="text-rose-500 mr-1">ÇIKIŞ:</span> {new Date(u.lastDeactivationDate).toLocaleDateString('tr-TR')}
+            </div>
+          )}
+          {!u.entryDate && !u.lastDeactivationDate && (
+            <span className="text-[10px] text-slate-400 font-bold tracking-widest">BİLGİ YOK</span>
+          )}
+        </div>
+      )
     }
   ];
 

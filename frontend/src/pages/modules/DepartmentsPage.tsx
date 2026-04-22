@@ -16,6 +16,7 @@ import { queryKeys } from '../../services/queryKeys';
 
 import { Department } from '../../types';
 import { StaffList } from '../../components/departments/StaffList';
+import { DepartmentPartiesList } from '../../components/departments/DepartmentPartiesList';
 
 export default function DepartmentsPage() {
   const queryClient = useQueryClient();
@@ -35,6 +36,7 @@ export default function DepartmentsPage() {
   };
 
   const [viewingDepartment, setViewingDepartment] = useState<Department | null>(null);
+  const [detailsTab, setDetailsTab] = useState<'staff' | 'parties'>('staff');
 
   const updateParams = useCallback((newParams: Record<string, string | number | undefined>) => {
     setSearchParams(prev => {
@@ -217,9 +219,28 @@ export default function DepartmentsPage() {
             </div>
           </div>
 
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 flex flex-col gap-4">
+            <div className="flex items-center gap-4 border-b border-slate-100 px-2">
+              <button 
+                className={`px-4 py-3 font-black text-xs uppercase tracking-widest border-b-2 transition-all ${detailsTab === 'staff' ? 'border-primary text-primary' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                onClick={() => setDetailsTab('staff')}
+              >
+                PERSONELLER
+              </button>
+              <button 
+                className={`px-4 py-3 font-black text-xs uppercase tracking-widest border-b-2 transition-all ${detailsTab === 'parties' ? 'border-primary text-primary' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                onClick={() => setDetailsTab('parties')}
+              >
+                İLGİLİ CARİLER
+              </button>
+            </div>
+            
             <div className="bg-white border border-slate-100 rounded-2xl p-8 shadow-premium min-h-[400px]">
-              <StaffList departmentId={viewingDepartment.id} />
+              {detailsTab === 'staff' ? (
+                <StaffList departmentId={viewingDepartment.id} />
+              ) : (
+                <DepartmentPartiesList departmentId={viewingDepartment.id} />
+              )}
             </div>
           </div>
         </div>

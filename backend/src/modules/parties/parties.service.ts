@@ -17,9 +17,13 @@ export class PartiesService {
     private currenciesService: CurrenciesService,
   ) { }
 
-  async findAll(query: PaginationDto & { type?: string }): Promise<PaginatedResult<Party>> {
+  async findAll(query: PaginationDto & { type?: string; departmentId?: number }): Promise<PaginatedResult<Party>> {
     const qb = this.partyRepo.createQueryBuilder('party')
       .leftJoinAndSelect('party.currency', 'currency');
+
+    if (query.departmentId) {
+      qb.innerJoin('users', 'u', 'u.id = party.createdBy AND u.department_id = :departmentId', { departmentId: query.departmentId });
+    }
 
     if (query.search) {
       const searchPattern = getSafeSearchPattern(query.search);

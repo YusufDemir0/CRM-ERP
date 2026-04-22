@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, Min, IsInt, IsIn, IsBooleanString } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, Min, IsInt, IsIn, IsBooleanString, IsBoolean } from 'class-validator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { Type, Transform } from 'class-transformer';
 import { Decimal } from 'decimal.js';
@@ -70,12 +70,14 @@ export class UpdateItemDto {
 export class CreateItemTypeDto {
   @IsString() @IsNotEmpty() name: string;
   @IsString() @IsNotEmpty() abbreviation: string;
+  @IsOptional() @IsBoolean() isExcludedFromBom?: boolean;
 }
 
 export class UpdateItemTypeDto {
   @IsOptional() @IsString() name?: string;
   @IsOptional() @IsString() abbreviation?: string;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) state?: number;
+  @IsOptional() @IsBoolean() isExcludedFromBom?: boolean;
 }
 
 export class CreateQuantityTypeDto {

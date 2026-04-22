@@ -47,6 +47,12 @@ export class User extends BaseEntity {
   @Column({ name: 'locked_until', type: 'timestamp', nullable: true })
   lockedUntil: Date | null;
 
+  @Column({ name: 'entry_date', type: 'date', nullable: true })
+  entryDate: string | null;
+
+  @Column({ name: 'last_deactivation_date', type: 'date', nullable: true })
+  lastDeactivationDate: string | null;
+
   @Column({ name: 'token_version', type: 'int', default: 1 })
   tokenVersion: number;
 

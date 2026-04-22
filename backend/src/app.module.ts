@@ -19,6 +19,7 @@ import { PermissionsGuard } from './common/guards/permissions.guard';
 import { CsrfGuard } from './common/guards/csrf.guard';
 import { CsrfMiddleware } from './common/middleware/csrf.middleware';
 import { AuditSubscriber } from './common/subscribers/audit.subscriber';
+import { StockSubscriber } from './modules/inventory/stocks/subscribers/stock.subscriber';
 import { CommonModule } from './common/common.module';
 
 // Modules
@@ -61,6 +62,7 @@ import { StaffModule } from './modules/staff/staff.module';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
     AuditSubscriber,
+    StockSubscriber,
   ],
 })
 export class AppModule {

@@ -84,4 +84,10 @@ export class RolesController {
   getUserPermissions(@Param('userId', ParseIntPipe) userId: number) {
     return this.rolesService.getUserPermissions(userId);
   }
+
+  @Delete('user-permissions')
+  @RequirePermissions('yetki_atama')
+  removeUserPermission(@Body() dto: { userId: number; permissionId: number }) {
+    return this.rolesService.removeUserPermission(dto);
+  }
 }

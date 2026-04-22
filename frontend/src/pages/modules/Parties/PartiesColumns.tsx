@@ -1,10 +1,10 @@
 
-import { FiBriefcase } from 'react-icons/fi';
+import { FiBriefcase, FiShoppingCart } from 'react-icons/fi';
 import { Column } from '../../../components/common/DataTable';
 import { Party } from '../../../types';
 import { Decimal } from 'decimal.js';
 
-export const getPartiesColumns = (): Column<Party>[] => [
+export const getPartiesColumns = (onQuickSale?: (partyId: number) => void): Column<Party>[] => [
   { 
     header: 'CARİ ADI', 
     accessor: (p) => (
@@ -16,7 +16,18 @@ export const getPartiesColumns = (): Column<Party>[] => [
           <FiBriefcase />
         </div>
         <div className="flex flex-col">
-          <div className="font-black text-slate-800 text-[15px] tracking-tight group-hover/item:text-primary transition-colors">{p.name}</div>
+          <div className="flex items-center gap-2">
+            <div className="font-black text-slate-800 text-[15px] tracking-tight group-hover/item:text-primary transition-colors">{p.name}</div>
+            {onQuickSale && p.state === 1 && p.type !== 'provider' && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); onQuickSale(p.id); }}
+                className="p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg transition-all border border-emerald-100 shadow-sm"
+                title="Hızlı Satış Başlat"
+              >
+                <FiShoppingCart size={14} />
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-2">
              <span className="text-[9px] text-slate-400 font-black tracking-widest uppercase opacity-70">
                {p.type === 'customer' ? 'MÜŞTERİ' : (p.type === 'provider' ? 'TEDARİKÇİ' : 'HİBRİT')}

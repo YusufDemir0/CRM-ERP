@@ -29,4 +29,9 @@ export class CreateStaffDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(11)
+  tckn?: string;
 }

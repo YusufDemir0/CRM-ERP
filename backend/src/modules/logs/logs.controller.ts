@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Param, UseGuards, Query, ParseIntPipe } from '@nestjs/common';
 import { LogsService } from './logs.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -13,5 +13,20 @@ export class LogsController {
   @RequirePermissions('system:manage')
   async findAll(@Query() query: LogsQueryDto) {
     return this.logsService.findAll(query);
+  }
+
+  @Get('notifications')
+  async getNotifications() {
+    return this.logsService.getNotifications();
+  }
+
+  @Post('notifications/:id/read')
+  async markAsRead(@Param('id', ParseIntPipe) id: number) {
+    return this.logsService.markAsRead(id);
+  }
+
+  @Post('notifications/read-all')
+  async markAllAsRead() {
+    return this.logsService.markAllAsRead();
   }
 }

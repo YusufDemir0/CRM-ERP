@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsDateString, MaxLength, IsInt, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsDateString, MaxLength, IsInt, IsNumber, maxLength } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpdateStaffDto {
@@ -8,4 +8,7 @@ export class UpdateStaffDto {
   @IsOptional() @IsDateString() entryDate?: string;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) departmentId?: number;
   @IsOptional() @IsBoolean() isActive?: boolean;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) state?: number;
+  @IsOptional() @IsString() @MaxLength(11) tckn?: string;
+
 }

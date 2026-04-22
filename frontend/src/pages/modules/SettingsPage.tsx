@@ -136,7 +136,7 @@ export default function SettingsPage() {
   // Generic Enum Mutations
   type EnumTabType = 'quantity-types' | 'item-types' | 'dept-types';
   type EnumData = { name: string; abbreviation: string };
-  type EnumUpdateData = Record<string, string | number>;
+  type EnumUpdateData = Record<string, string | number | boolean>;
 
   const enumApiMap = {
     add: {
@@ -288,6 +288,8 @@ export default function SettingsPage() {
               data={itemTypes as EnumItem[]}
               newItem={newItemType}
               setNewItem={setNewItemType}
+              showStar
+              onStarToggle={(id, current) => updateEnumMut.mutate({ type: 'item-types', id, data: { isExcludedFromBom: !current } })}
               onAdd={() => addEnumMut.mutate({ type: 'item-types', data: newItemType })}
               onToggle={(id, state) => updateEnumMut.mutate({ type: 'item-types', id, data: { state: state === 1 ? 0 : 1 } })}
               onDelete={(id) => confirmDialog('Bu türü silmek istediğinize emin misiniz?', true).then(ok => ok && deleteEnumMut.mutate({ type: 'item-types', id }))}

@@ -192,6 +192,10 @@ export class RolesService {
     });
   }
 
+  async removeUserPermission(dto: { userId: number; permissionId: number }): Promise<void> {
+    await this.userPermRepo.delete({ userId: dto.userId, permissionId: dto.permissionId });
+  }
+
   // ────── V2 REFINEMENTS ──────
 
   async getStatus() {

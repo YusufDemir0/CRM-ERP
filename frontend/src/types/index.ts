@@ -17,6 +17,8 @@ export interface User extends BaseEntity {
   department?: Department;
   roles?: Role[];
   failedLoginAttempts?: number;
+  entryDate?: string;
+  lastDeactivationDate?: string;
 }
 
 export interface DepartmentType extends BaseEntity {
@@ -38,9 +40,11 @@ export interface Staff extends BaseEntity {
   lastName: string;
   phone?: string;
   entryDate?: string;
+  lastDeactivationDate?: string;
   departmentId: number;
   department?: Department;
   isActive: boolean;
+  tckn?: string;
 }
 
 export interface CreateStaffDto {
@@ -50,6 +54,7 @@ export interface CreateStaffDto {
   entryDate?: string;
   departmentId: number;
   isActive?: boolean;
+  tckn?: string;
 }
 
 export type UpdateStaffDto = Partial<CreateStaffDto>;
@@ -109,6 +114,8 @@ export interface Account extends BaseEntity {
 
 export interface ItemType extends BaseEntity {
   name: string;
+  abbreviation: string;
+  isExcludedFromBom?: boolean;
 }
 
 export interface ItemCodeGroup extends BaseEntity {

@@ -405,7 +405,7 @@ export class SalesService {
   async approveSale(saleId: number, dto: ApproveSaleDto, userId?: number): Promise<Sale> {
     const manager = this.transactionContext.manager;
 
-    const sale = await manager.findOne(Sale, { where: { id: saleId }, relations: ['items'] });
+    const sale = await manager.findOne(Sale, { where: { id: saleId }, relations: ['items'], lock: { mode: 'pessimistic_write' } });
     if (!sale) throw new NotFoundException('Satış bulunamadı');
     if (sale.status !== 'draft') throw new BadRequestException('Sadece taslak durumundaki siparişler onaylanabilir.');
 
@@ -594,7 +594,7 @@ export class SalesService {
   async shipSale(saleId: number, dto: ShipSaleDto, userId?: number): Promise<Sale> {
     const manager = this.transactionContext.manager;
 
-    const sale = await manager.findOne(Sale, { where: { id: saleId }, relations: ['items'] });
+    const sale = await manager.findOne(Sale, { where: { id: saleId }, relations: ['items'], lock: { mode: 'pessimistic_write' } });
     if (!sale) throw new NotFoundException('Satış bulunamadı');
     if (sale.status !== 'approved' && sale.status !== 'shipped') {
       throw new BadRequestException('Sadece onaylanmış veya kısmi sevk edilmiş siparişler sevk edilebilir.');

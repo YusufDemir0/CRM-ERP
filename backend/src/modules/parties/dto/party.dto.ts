@@ -50,4 +50,5 @@ import { PaginationDto } from '../../../common/dto/pagination.dto';
 export class PartiesQueryDto extends PaginationDto {
   @IsOptional() @IsString() type?: string;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) state?: number;
+  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) departmentId?: number;
 }

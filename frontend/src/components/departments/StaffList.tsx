@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { staffAPI } from '../../services/api';
 import { Staff } from '../../types';
-import { FiPlus, FiTrash2, FiToggleLeft, FiToggleRight, FiPhone, FiCalendar } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiToggleLeft, FiToggleRight, FiPhone, FiCalendar, FiEdit2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 import { confirmDialog } from '../../utils/confirmDialog';
@@ -48,6 +48,14 @@ export const StaffList: React.FC<StaffListProps> = ({ departmentId }) => {
       onSuccess: () => queryClient.invalidateQueries({ queryKey: ['staff'] })
     });
   };
+  
+  const handleEditStaff = (s: Staff) => {
+    openCreate('staff', {
+      editingId: s.id,
+      initialData: s as any,
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['staff'] })
+    });
+  };
 
   const handleDelete = async (id: number) => {
     const confirmed = await confirmDialog('Bu personeli silmek istediğinize emin misiniz?', true);
@@ -82,18 +90,37 @@ export const StaffList: React.FC<StaffListProps> = ({ departmentId }) => {
                 </div>
                 <div>
                   <div className="font-black text-sm text-slate-800">{s.firstName} {s.lastName}</div>
-                  <div className="flex items-center gap-3 mt-1">
+                  <div className="flex flex-wrap items-center gap-3 mt-1">
                     <div className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
                       <FiPhone size={10} /> {s.phone || 'NO TEL'}
                     </div>
-                    <div className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-                      <FiCalendar size={10} /> {dayjs(s.entryDate).format('DD.MM.YYYY')}
-                    </div>
+                    {s.tckn && (
+                      <div className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                        TC: {s.tckn}
+                      </div>
+                    )}
+                    {s.entryDate && (
+                      <div className="text-[10px] text-emerald-500 font-bold flex items-center gap-1 uppercase">
+                        GİRİŞ: {dayjs(s.entryDate).format('DD.MM.YYYY')}
+                      </div>
+                    )}
+                    {!s.isActive && s.lastDeactivationDate && (
+                      <div className="text-[10px] text-rose-500 font-bold flex items-center gap-1 uppercase">
+                        ÇIKIŞ: {dayjs(s.lastDeactivationDate).format('DD.MM.YYYY')}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                  onClick={() => handleEditStaff(s)}
+                  className="p-2 text-primary hover:bg-primary/10 rounded-xl transition-colors"
+                  title="Düzenle"
+                >
+                  <FiEdit2 size={18} />
+                </button>
                 <button 
                   onClick={() => toggleMutation.mutate(s.id)}
                   className={`p-2 rounded-xl transition-colors ${s.isActive ? 'text-emerald-500 hover:bg-emerald-50' : 'text-slate-400 hover:bg-slate-100'}`}

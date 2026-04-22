@@ -60,7 +60,7 @@ export class ItemsService {
     if (query.state !== undefined) qb.andWhere('item.state = :state', { state: query.state });
 
     if (query.critical === 'true') {
-      qb.andWhere('(SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE item_id = item.id) < item.criticalLimit');
+      qb.andWhere('item.totalStock < item.criticalLimit');
       qb.andWhere('item.criticalLimit > 0');
     }
 
@@ -94,7 +94,7 @@ export class ItemsService {
       'itemType.name': 'itemType.name',
       'provider.name': 'provider.name',
       'state': 'item.state',
-      'totalStock': '(SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE item_id = item.id)'
+      'totalStock': 'item.totalStock'
     };
 
     const sortCol = sortFieldMap[query.sortBy || ''] || 'item.createdAt';

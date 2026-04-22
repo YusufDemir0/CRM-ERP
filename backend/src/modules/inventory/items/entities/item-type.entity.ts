@@ -8,4 +8,7 @@ export class ItemType extends BaseEntity {
 
   @Column({ type: 'varchar', length: 20 })
   abbreviation: string;
+
+  @Column({ name: 'is_excluded_from_bom', type: 'boolean', default: false })
+  isExcludedFromBom: boolean;
 }

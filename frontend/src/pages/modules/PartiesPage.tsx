@@ -10,6 +10,8 @@ import { DataTable } from '../../components/common/DataTable';
 import { Decimal } from 'decimal.js';
 import { useSort } from '../../hooks/useSort';
 import { useDeferredValue } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useSalesWizardStore } from '../../store/useSalesWizardStore';
 import { queryKeys } from '../../services/queryKeys';
 
 // Sub-components
@@ -19,6 +21,7 @@ import { getPartiesColumns } from './Parties/PartiesColumns';
 export default function PartiesPage() {
   const queryClient = useQueryClient();
   const { openCreate } = useQuickCreateStore();
+  const navigate = useNavigate();
 
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -163,7 +166,16 @@ export default function PartiesPage() {
     });
   };
 
-  const columns = useMemo(() => getPartiesColumns(), []);
+  const handleQuickSale = useCallback((partyId: number) => {
+    const party = parties.find(p => p.id === partyId);
+    if (party) {
+      const salesStore = useSalesWizardStore.getState();
+      salesStore.startQuickSale(party);
+      navigate('/sales/wizard');
+    }
+  }, [parties, navigate]);
+
+  const columns = useMemo(() => getPartiesColumns(handleQuickSale), [handleQuickSale]);
 
   return (
     <div className="animate-in flex flex-col gap-8">

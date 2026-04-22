@@ -61,9 +61,9 @@ export const rejectFailedRequests = (error: unknown) => {
 // [FIX-TASK-02]: Centralized loader management via store-based counting
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  // P0-2: Only show global loader for mutation methods (POST/PUT/DELETE)
-  // GET requests use inline loading states (DataTable skeleton, etc.)
-  useLoaderStore.getState().show();
+  if (isMutationMethod(config.method)) {
+    useLoaderStore.getState().show();
+  }
 
   if (csrfToken && isMutationMethod(config.method)) {
     config.headers['X-XSRF-TOKEN'] = csrfToken;
@@ -80,7 +80,9 @@ interface ApiErrorData {
 
 api.interceptors.response.use(
   (response) => {
-    useLoaderStore.getState().hide();
+    if (isMutationMethod(response.config.method)) {
+      useLoaderStore.getState().hide();
+    }
     
     const extractedToken = response.headers['x-csrf-token'];
     if (extractedToken) {
@@ -90,7 +92,9 @@ api.interceptors.response.use(
     return response;
   },
   (error: unknown) => {
-    useLoaderStore.getState().hide();
+    if (axios.isAxiosError(error) && isMutationMethod(error.config?.method)) {
+      useLoaderStore.getState().hide();
+    }
 
     if (axios.isAxiosError(error)) {
       const config = error.config;
@@ -205,6 +209,7 @@ export const rolesAPI = {
   removeRole: (data: { userId: number; roleId: number }, config?: AxiosRequestConfig) => api.delete('/roles/assign', { data, ...config }),
   setUserPermission: (data: { userId: number; permissionId: number; effect: 'allow' | 'deny'; scopeType?: string; scopeId?: number | null }, config?: AxiosRequestConfig) => api.post('/roles/user-permissions', data, config),
   getUserPermissions: (userId: number, config?: AxiosRequestConfig) => api.get(`/roles/user-permissions/${userId}`, config),
+  removeUserPermission: (data: { userId: number; permissionId: number }, config?: AxiosRequestConfig) => api.delete('/roles/user-permissions', { data, ...config }),
 };
 
 // ────── DEPARTMENTS API ──────
@@ -362,6 +367,9 @@ export const settingsAPI = {
 
 export const logsAPI = {
   getAll: (params?: PaginationParams, config?: AxiosRequestConfig) => api.get('/logs', { params, ...config }),
+  getNotifications: (config?: AxiosRequestConfig) => api.get<any[]>('/logs/notifications', config),
+  markAsRead: (id: number, config?: AxiosRequestConfig) => api.post(`/logs/notifications/${id}/read`, {}, config),
+  markAllAsRead: (config?: AxiosRequestConfig) => api.post('/logs/notifications/read-all', {}, config),
 };
 
 // ────── NOTES API ──────

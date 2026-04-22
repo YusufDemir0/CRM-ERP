@@ -138,18 +138,36 @@ export function RolesPage() {
   };
 
   const applyFastRole = (type: string) => {
-    if (type === 'all') {
-      setFormData(prev => ({ ...prev, permissionIds: allPermissions.map((p: Permission) => p.id) }));
-    } else if (type === 'view') {
-      setFormData(prev => ({ 
-        ...prev, 
-        permissionIds: allPermissions
-          .filter((p: Permission) => p.action === 'read')
-          .map((p: Permission) => p.id) 
-        }));
-    } else if (type === 'clear') {
-      setFormData(prev => ({ ...prev, permissionIds: [] }));
+    let ids: number[] = [];
+    switch (type) {
+      case 'admin':
+        ids = allPermissions.map((p: Permission) => p.id);
+        break;
+      case 'sales':
+        ids = allPermissions
+          .filter((p: Permission) => ['sales', 'parties', 'dashboard'].includes(p.module?.toLowerCase()))
+          .map((p: Permission) => p.id);
+        break;
+      case 'warehouse':
+        ids = allPermissions
+          .filter((p: Permission) => ['inventory', 'stocks', 'production'].includes(p.module?.toLowerCase()))
+          .map((p: Permission) => p.id);
+        break;
+      case 'accounting':
+        ids = allPermissions
+          .filter((p: Permission) => ['finance', 'accounts', 'parties'].includes(p.module?.toLowerCase()))
+          .map((p: Permission) => p.id);
+        break;
+      case 'special':
+        ids = allPermissions
+          .filter((p: Permission) => p.action === 'read' || p.action === 'view')
+          .map((p: Permission) => p.id);
+        break;
+      case 'clear':
+        ids = [];
+        break;
     }
+    setFormData(prev => ({ ...prev, permissionIds: ids }));
   };
 
   const moduleTranslations: Record<string, string> = {
@@ -307,16 +325,32 @@ export function RolesPage() {
                     <FiGrid /> YETKİ MATRİSİ (CAPABILITY MATRIX)
                   </label>
                   
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-1">HIZLI ŞABLON:</span>
-                    <button type="button" onClick={() => applyFastRole('all')} className="h-9 px-4 bg-primary/10 text-primary font-black text-[10px] sm:text-xs uppercase tracking-widest rounded-xl hover:bg-primary/20 hover:scale-105 active:scale-95 transition-all">
-                      Süper Admin
-                    </button>
-                    <button type="button" onClick={() => applyFastRole('view')} className="h-9 px-4 bg-secondary/10 text-secondary font-black text-[10px] sm:text-xs uppercase tracking-widest rounded-xl hover:bg-secondary/20 hover:scale-105 active:scale-95 transition-all">
-                      Sadece Görüntüleme
-                    </button>
-                    <button type="button" onClick={() => applyFastRole('clear')} className="h-9 px-4 bg-slate-100 text-slate-500 font-black text-[10px] sm:text-xs uppercase tracking-widest rounded-xl hover:bg-slate-200 hover:text-danger hover:scale-105 active:scale-95 transition-all">
-                      Temizle
+                  <div className="flex flex-wrap items-center gap-3">
+                    {[
+                      { id: 'admin', label: 'Admin', color: 'bg-red-50 text-red-600 border-red-200' },
+                      { id: 'sales', label: 'Satış', color: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
+                      { id: 'warehouse', label: 'Depo', color: 'bg-blue-50 text-blue-600 border-blue-200' },
+                      { id: 'accounting', label: 'Muhasebe', color: 'bg-amber-50 text-amber-600 border-amber-200' },
+                      { id: 'special', label: 'Özel (Yetkili)', color: 'bg-purple-50 text-purple-600 border-purple-200' },
+                    ].map(role => (
+                      <label key={role.id} className="cursor-pointer group">
+                        <input 
+                          type="radio" 
+                          name="baseRole" 
+                          className="hidden" 
+                          onChange={() => applyFastRole(role.id)}
+                        />
+                        <div className={`px-4 py-2 rounded-xl border-2 text-[10px] font-black uppercase tracking-widest transition-all group-hover:scale-105 active:scale-95 ${role.color}`}>
+                          {role.label}
+                        </div>
+                      </label>
+                    ))}
+                    <button 
+                      type="button" 
+                      onClick={() => applyFastRole('clear')} 
+                      className="h-9 px-4 bg-slate-100 text-slate-500 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-slate-200 hover:text-danger transition-all ml-auto"
+                    >
+                      TEMİZLE
                     </button>
                   </div>
                 </div>

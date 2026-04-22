@@ -14,6 +14,7 @@ import 'dayjs/locale/tr';
 import { Decimal } from 'decimal.js';
 import { queryKeys } from '../../services/queryKeys';
 import { formatCurrency, calculateTrend } from '../../utils/formatters';
+import { useSalesWizardStore } from '../../store/useSalesWizardStore';
 
 dayjs.locale('tr');
 
@@ -70,20 +71,28 @@ export default function DashboardPage() {
   const { progress, quote } = useMemo(() => {
     if (!data) return { progress: 0, quote: motivationQuotes['0-20'][0] };
 
-    let p = 0;
-    const thisMonthRevenue = new Decimal(data.thisMonth?.revenue || 0);
-    const lastMonthRevenue = new Decimal(data.lastMonth?.revenue || 0);
+    const calculateP = (current: number | string, previous: number | string) => {
+      const cur = new Decimal(current || 0);
+      const pre = new Decimal(previous || 0);
+      if (pre.gt(0)) {
+        return cur.div(pre).mul(100).toDecimalPlaces(0).toNumber();
+      }
+      return cur.gt(0) ? 100 : 0;
+    };
 
-    if (lastMonthRevenue.gt(0)) {
-      p = thisMonthRevenue.div(lastMonthRevenue).mul(100).toDecimalPlaces(0).toNumber();
-    } else if (thisMonthRevenue.gt(0)) {
-      p = 100;
-    }
+    const pRevenue = calculateP(data.thisMonth?.revenue, data.lastMonth?.revenue);
+    const pCount = calculateP(data.thisMonth?.count, data.lastMonth?.count);
+
+    // Ortalama ilerleme (Hem ciro hem adet bazında genel performans)
+    const p = Math.round((pRevenue + pCount) / 2);
 
     let b = '0-20';
     if (p < 20) b = '0-20';
-    else if (p < 50) b = '20-40';
-    else if (p < 100) b = '60-80';
+    else if (p < 40) b = '20-40';
+    else if (p < 60) b = '40-60';
+    else if (p < 80) b = '60-80';
+    else if (p < 100) b = '80-100';
+    else if (p < 110) b = '100-110';
     else b = '110+';
 
     const quotes = motivationQuotes[b] || motivationQuotes['110+'];
@@ -115,17 +124,15 @@ export default function DashboardPage() {
       </div>
 
       {/* 🔹 ROW 1: QUICK ACTIONS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
         {[
-          { label: 'YENİ CARİ EKLE', icon: <FiUsers />, path: '/parties', color: 'text-blue-500', bg: 'bg-blue-50', hover: 'hover:border-blue-200', desc: 'Müşteri veya Tedarikçi' },
-          { label: 'YENİ ÜRÜN EKLE', icon: <FiBox />, path: '/items', color: 'text-indigo-500', bg: 'bg-indigo-50', hover: 'hover:border-indigo-200', desc: 'Stok ve Hammadde' },
-          { label: 'SATIŞ YAP', icon: <FiShoppingCart />, path: '/sales/wizard', color: 'text-emerald-500', bg: 'bg-emerald-50', hover: 'hover:border-emerald-200', desc: 'Hızlı Satış Ekranı' },
-          { label: 'HESAP HAREKETİ', icon: <FiActivity />, path: '/transactions', color: 'text-amber-500', bg: 'bg-amber-50', hover: 'hover:border-amber-200', desc: 'Ödeme veya Tahsilat' },
+          { label: 'SATIŞ YAP', icon: <FiShoppingCart />, path: '/sales/wizard', action: () => { useSalesWizardStore.getState().reset(); navigate('/sales/wizard'); }, color: 'text-emerald-500', bg: 'bg-emerald-50', hover: 'hover:border-emerald-200', desc: 'Hızlı Satış Ekranı' },
+          { label: 'YENİ CARİ EKLE', icon: <FiUsers />, path: '/parties', action: undefined, color: 'text-blue-500', bg: 'bg-blue-50', hover: 'hover:border-blue-200', desc: 'Müşteri veya Tedarikçi' },
         ].map((act, i) => (
           <div 
             key={i} 
             className={`group p-5 bg-white border border-slate-100 rounded-3xl shadow-sm ${act.hover} transition-colors cursor-pointer flex items-center gap-4`}
-            onClick={() => navigate(act.path)}
+            onClick={() => act.action ? act.action() : navigate(act.path)}
           >
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-colors ${act.bg} ${act.color}`}>
               {act.icon}
@@ -154,7 +161,6 @@ export default function DashboardPage() {
             {[
               { label: 'SATIŞ ADEDİ', value: data?.lastMonth?.count || 0, isMoney: false },
               { label: 'AYLIK CİRO', value: data?.lastMonth?.revenue || 0, isMoney: true },
-              { label: 'TAHMİNİ KAR', value: data?.lastMonth?.profit || 0, isMoney: true },
             ].map((kpi, i) => (
               <div 
                 key={i} 
@@ -188,7 +194,6 @@ export default function DashboardPage() {
             {[
               { label: 'SATIŞ ADEDİ', current: data?.thisMonth?.count || 0, last: data?.lastMonth?.count || 0, isMoney: false },
               { label: 'AYLIK CİRO', current: data?.thisMonth?.revenue || 0, last: data?.lastMonth?.revenue || 0, isMoney: true },
-              { label: 'TAHMİNİ KAR', current: data?.thisMonth?.profit || 0, last: data?.lastMonth?.profit || 0, isMoney: true },
             ].map((kpi, i) => {
               const trend = calculateTrend(kpi.current, kpi.last);
               const isPositive = trend >= 0;

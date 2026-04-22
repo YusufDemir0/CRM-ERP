@@ -78,4 +78,20 @@ export class LogsService implements OnModuleInit, OnModuleDestroy {
     const log = this.logRepository.create(data);
     return this.logRepository.save(log);
   }
+
+  async getNotifications(limit: number = 20): Promise<SystemLog[]> {
+    return this.logRepository.find({
+      where: { isDeleted: false },
+      order: { createdAt: 'DESC' },
+      take: limit
+    });
+  }
+
+  async markAsRead(id: number): Promise<void> {
+    await this.logRepository.update(id, { isDeleted: true });
+  }
+
+  async markAllAsRead(): Promise<void> {
+    await this.logRepository.update({ isDeleted: false }, { isDeleted: true });
+  }
 }

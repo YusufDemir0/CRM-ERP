@@ -11,15 +11,18 @@ import { DecimalTransformer } from '../../../../common/transformers/decimal.tran
 
 @Entity('items')
 export class Item extends BaseEntity {
+  @Index()
   @Column({ type: 'varchar', length: 150 })
   name: string;
 
+  @Index()
   @Column({ name: 'item_type_id', type: 'bigint' })
   itemTypeId: number;
 
   @Column({ name: 'item_code_group_id', type: 'bigint', nullable: true })
   itemCodeGroupId: number | null;
 
+  @Index({ unique: true })
   @Column({ name: 'code', type: 'varchar', length: 50 })
   code: string;
 
@@ -52,6 +55,7 @@ export class Item extends BaseEntity {
   @Column({ name: 'net_price', type: 'decimal', precision: 15, scale: 2, nullable: true, transformer: new DecimalTransformer() })
   netPrice: Decimal | null;
 
+  @Index()
   @Column({ name: 'currency_id', type: 'bigint', nullable: true })
   currencyId: number | null;
 
@@ -61,6 +65,10 @@ export class Item extends BaseEntity {
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 20, transformer: new DecimalTransformer() })
   kdv: Decimal;
+
+  @Transform(({ value }) => value ? String(value) : value)
+  @Column({ name: 'total_stock', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
+  totalStock: Decimal;
 
   @Column({ type: 'text', nullable: true })
   description: string | null;
@@ -76,6 +84,7 @@ export class Item extends BaseEntity {
   @JoinColumn({ name: 'item_code_group_id' })
   itemCodeGroup: ItemCodeGroup;
 
+  @Index()
   @Column({ name: 'provider_id', type: 'bigint', nullable: true })
   providerId: number | null;
 

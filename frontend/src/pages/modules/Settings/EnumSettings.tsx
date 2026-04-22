@@ -1,5 +1,5 @@
 
-import { FiPlus, FiLock } from 'react-icons/fi';
+import { FiPlus, FiLock, FiStar, FiTrash2 } from 'react-icons/fi';
 import { DataTable, Column } from '../../../components/common/DataTable';
 import { useSort } from '../../../hooks/useSort';
 
@@ -18,11 +18,13 @@ interface EnumSettingsProps {
   onAdd: () => void;
   onToggle: (id: number, state: number) => void;
   onDelete: (id: number) => void;
+  onStarToggle?: (id: number, current: boolean) => void;
+  showStar?: boolean;
   lockedAbbreviations?: string[];
 }
 
 export const EnumSettings: React.FC<EnumSettingsProps> = ({
-  title, data, newItem, setNewItem, onAdd, onToggle, onDelete, lockedAbbreviations = []
+  title, data, newItem, setNewItem, onAdd, onToggle, onDelete, onStarToggle, showStar, lockedAbbreviations = []
 }) => {
   const { sortedData, sortConfigs, toggleSort } = useSort(data, [{ key: 'name', direction: 'asc' }]);
 
@@ -43,7 +45,19 @@ export const EnumSettings: React.FC<EnumSettingsProps> = ({
       header: 'Kısaltma', 
       accessor: (t) => <span className="font-black text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/10 tracking-tight">{t.abbreviation}</span>, 
       sortKey: 'abbreviation' 
-    }
+    },
+    ...(showStar ? [{
+      header: 'Reçete Hariç',
+      accessor: (t: any) => (
+        <button 
+          onClick={() => onStarToggle?.(t.id, !!t.isExcludedFromBom)}
+          className={`p-2 rounded-xl transition-all ${t.isExcludedFromBom ? 'bg-amber-100 text-amber-600' : 'bg-slate-50 text-slate-300 hover:text-amber-400'}`}
+          title="Reçete (BOM) seçim listesinden gizle/göster"
+        >
+          <FiStar fill={t.isExcludedFromBom ? 'currentColor' : 'none'} size={18} />
+        </button>
+      )
+    }] : [])
   ];
 
   return (
