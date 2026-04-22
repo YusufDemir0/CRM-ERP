@@ -41,7 +41,7 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
   );
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 rounded-[2rem] border border-slate-200 shadow-premium overflow-hidden animate-in">
+    <div className="flex flex-col h-full bg-slate-50 rounded-2xl border border-slate-200 shadow-premium overflow-hidden animate-in">
       {/* Header */}
       <div className="flex items-center justify-between px-8 py-4 bg-white border-b border-slate-100 shrink-0">
         <div>
@@ -112,7 +112,14 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
                 }}
               />
               <button 
-                onClick={() => openCreate('party', { onSuccess: refreshLookups })}
+                onClick={() => openCreate('party', { 
+                  onSuccess: (res) => {
+                    refreshLookups();
+                    if (res?.data) {
+                      store.setCustomer(res.data as unknown as import('../../../types').Party);
+                    }
+                  }
+                })}
                 className="absolute right-0 -top-8 p-1.5 bg-[var(--success-glow)] text-[var(--success)] rounded-lg hover:bg-[var(--success)] hover:text-white transition-all z-10"
                 title="Yeni Müşteri Ekle"
               >
@@ -222,6 +229,7 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
                     className="input-premium h-9 text-sm font-bold"
                     value={store.date}
                     onChange={(e) => store.setDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
                   />
                 </FormField>
                 <FormField label="TESLİMAT TARİHİ">
@@ -230,6 +238,7 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
                     className="input-premium h-9 text-sm font-bold"
                     value={store.deliveryDate}
                     onChange={(e) => store.setDeliveryDate(e.target.value)}
+                    min={store.date || new Date().toISOString().split('T')[0]}
                   />
                 </FormField>
              </div>

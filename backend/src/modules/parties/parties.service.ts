@@ -64,7 +64,7 @@ export class PartiesService {
     }
 
     // Security: Whitelist sort columns
-    const allowedSortCols = ['name', 'balance', 'creditLimit', 'createdAt'];
+    const allowedSortCols = ['name', 'balance', 'creditLimit', 'createdAt', 'taxNumber', 'phone1'];
     const sortCol = allowedSortCols.includes(query.sortBy || '') ? query.sortBy! : 'name';
     qb.orderBy(`party.${sortCol}`, query.sortOrder || 'ASC');
 
@@ -103,7 +103,7 @@ export class PartiesService {
         console.warn('Default currency not found, setting to null');
       }
     }
-    const party = this.partyRepo.create({ ...dto, createdBy: userId });
+    const party = this.partyRepo.create({ ...dto, balance: new Decimal(0), createdBy: userId });
     return this.partyRepo.save(party);
   }
 

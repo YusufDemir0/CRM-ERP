@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { navItems } from '../config/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { partiesAPI, stocksAPI, itemsAPI, salesAPI } from '../services/api';
+import { partiesAPI, stocksAPI, itemsAPI, salesAPI, accountsAPI, transactionsAPI, bomsAPI, productionOrdersAPI } from '../services/api';
 import { queryKeys } from '../services/queryKeys';
 import logo from '../assets/images/logo.png';
 
@@ -31,6 +31,26 @@ export default function Sidebar({ isCollapsed }: { isCollapsed: boolean }) {
       queryClient.prefetchQuery({
         queryKey: queryKeys.sales.all({ page: 1, limit: 20 }),
         queryFn: () => salesAPI.getAll({ page: 1, limit: 20 })
+      });
+    } else if (to === '/accounts') {
+      queryClient.prefetchQuery({
+        queryKey: queryKeys.accounts.all({ page: 1, limit: 20 }),
+        queryFn: () => accountsAPI.getAll({ page: 1, limit: 20 })
+      });
+    } else if (to === '/transactions') {
+      queryClient.prefetchQuery({
+        queryKey: queryKeys.transactions.all({ page: 1, limit: 20 }),
+        queryFn: () => transactionsAPI.getAll({ page: 1, limit: 20 })
+      });
+    } else if (to === '/boms') {
+      queryClient.prefetchQuery({
+        queryKey: queryKeys.boms.all({ page: 1, limit: 20 }),
+        queryFn: () => bomsAPI.getAll({ page: 1, limit: 20 })
+      });
+    } else if (to === '/production') {
+      queryClient.prefetchQuery({
+        queryKey: queryKeys.productionOrders.all({ page: 1, limit: 20 }),
+        queryFn: () => productionOrdersAPI.getAll({ page: 1, limit: 20 })
       });
     }
   };

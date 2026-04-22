@@ -91,4 +91,5 @@ export declare class StocksQueryDto extends PaginationDto {
     departmentId?: number;
     itemId?: number;
     isCritical?: string;
+    state?: number;
 }

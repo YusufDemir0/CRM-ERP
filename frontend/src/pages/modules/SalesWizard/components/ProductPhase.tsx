@@ -125,7 +125,7 @@ export const ProductPhase: React.FC<ProductPhaseProps> = ({ items }) => {
             ))}
             {store.selectedItems.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-12 text-center text-slate-300 italic font-bold text-xs uppercase tracking-widest">
+                <td colSpan={6} className="p-8 text-center text-slate-300 italic font-bold text-xs uppercase tracking-widest">
                   Henüz ürün eklenmedi.
                 </td>
               </tr>

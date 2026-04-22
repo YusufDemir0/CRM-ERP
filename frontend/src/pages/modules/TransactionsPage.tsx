@@ -1,4 +1,5 @@
-import { useState, useDeferredValue } from 'react';
+import { useState, useDeferredValue, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { transactionsAPI, partiesAPI, accountsAPI, currenciesAPI } from '../../services/api';
 import { 
@@ -13,17 +14,43 @@ import { Transaction, Party, Account, Currency, CreateTransactionDto } from '../
 import { DataTable, Column } from '../../components/common/DataTable';
 import { Decimal } from 'decimal.js';
 import { useSort } from '../../hooks/useSort';
+import { PremiumNumberInput } from '../../components/common/PremiumNumberInput';
 
 export default function TransactionsPage() {
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const page = Number(searchParams.get('page')) || 1;
+  const searchTerm = searchParams.get('q') || '';
+  const limit = Number(searchParams.get('limit')) || 20;
+  
+  const sort = {
+    key: searchParams.get('sortBy') || 'date',
+    order: (searchParams.get('sortOrder') as 'ASC' | 'DESC') || 'DESC'
+  };
+
+  const [filters] = useState<Record<string, string | number | undefined>>({});
+
   const deferredSearch = useDeferredValue(searchTerm);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
-  const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'date', order: 'DESC' });
-  const [filters, setFilters] = useState<Record<string, string | number | undefined>>({});
+
+  const updateParams = useCallback((newParams: Record<string, string | number | undefined>) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      Object.entries(newParams).forEach(([key, value]) => {
+        if (value === undefined || value === '' || (key === 'page' && value === 1)) {
+          next.delete(key);
+        } else {
+          next.set(key, String(value));
+        }
+      });
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const setPage = (p: number) => updateParams({ page: p });
+  const setSearchTerm = (q: string) => updateParams({ q, page: 1 });
+  const setSort = (key: string, order: 'ASC' | 'DESC') => updateParams({ sortBy: key, sortOrder: order, page: 1 });
 
   // ────── QUERIES ──────
 
@@ -61,8 +88,8 @@ export default function TransactionsPage() {
   const { data: currencies = [] } = useQuery({
     queryKey: queryKeys.currencies.all,
     queryFn: async ({ signal }) => {
-      const res = await currenciesAPI.getAll(undefined, { signal });
-      return res.data || [];
+      const res = await currenciesAPI.getAll({ limit: 500 }, { signal });
+      return res.data.data || [];
     }
   });
 
@@ -75,11 +102,10 @@ export default function TransactionsPage() {
     [{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }],
     (configs) => {
       if (configs.length > 0) {
-        setSort({ 
-          key: configs[0].key, 
-          order: configs[0].direction.toUpperCase() as 'ASC' | 'DESC' 
-        });
-        setPage(1); // FE-01: Reset page on sort change
+        setSort(
+          configs[0].key, 
+          configs[0].direction.toUpperCase() as 'ASC' | 'DESC' 
+        );
       }
     }
   );
@@ -205,6 +231,11 @@ export default function TransactionsPage() {
     }
   ];
 
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setFormData({ type: 'in', partyId: '', commercialAccountId: '', amount: 0, date: getTodayString(), description: '', referenceType: '', referenceId: '', currencyId: '' });
+  };
+
   return (
     <div className="animate-in flex flex-col gap-8">
       
@@ -220,7 +251,12 @@ export default function TransactionsPage() {
         </div>
         
         <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
-          setFormData({ type: 'in', partyId: '', commercialAccountId: '', amount: 0, date: getTodayString(), description: '', referenceType: '', referenceId: '', currencyId: String(currencies.find((c: Currency) => c.isDefault === 1)?.id || '') });
+          const defaultCur = currencies.find((c: Currency) => c.isDefault === 1);
+          setFormData({ 
+            type: 'in', partyId: '', commercialAccountId: '', amount: 0, 
+            date: getTodayString(), description: '', referenceType: '', 
+            referenceId: '', currencyId: String(defaultCur?.id || '') 
+          });
           setIsModalOpen(true);
         }}>
           <FiPlus size={20} /> Yeni İşlem Ekle
@@ -251,10 +287,10 @@ export default function TransactionsPage() {
       {/* 🟢 TRANSACTION MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 animate-in fade-in duration-200">
-          <div className="bg-white max-w-[600px] w-full p-10 rounded-[2.5rem] shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300">
+          <div className="bg-white max-w-[600px] w-full p-6 rounded-2xl shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-black text-slate-900 tracking-tight">Finansal Hareket Ekle</h2>
-              <button className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:text-red-500 transition-colors" onClick={() => setIsModalOpen(false)}>
+              <button className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:text-red-500 transition-colors" onClick={handleCloseModal}>
                 <FiX size={20} />
               </button>
             </div>
@@ -278,6 +314,7 @@ export default function TransactionsPage() {
                     type="date" 
                     value={formData.date} 
                     onChange={e => setFormData({...formData, date: e.target.value})}
+                    min={new Date().toISOString().split('T')[0]}
                     className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors"
                   />
                 </div>
@@ -315,12 +352,10 @@ export default function TransactionsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 <div className="flex flex-col gap-2 sm:col-span-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">TUTAR</label>
-                  <input 
-                    type="number" 
-                    step="0.01" 
+                  <PremiumNumberInput 
                     value={formData.amount} 
-                    onChange={e => setFormData({...formData, amount: Number(e.target.value)})}
-                    className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-black text-xl text-primary focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors"
+                    onChange={val => setFormData({...formData, amount: val})}
+                    className="h-14"
                   />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -350,7 +385,7 @@ export default function TransactionsPage() {
                 <button type="submit" className="flex-1 h-14 bg-primary text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-colors shadow-lg shadow-primary/25">
                   İŞLEMİ KAYDET
                 </button>
-                <button type="button" className="flex-[0.4] h-14 bg-slate-50 text-slate-500 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-100 transition-colors" onClick={() => setIsModalOpen(false)}>
+                <button type="button" className="flex-[0.4] h-14 bg-slate-50 text-slate-500 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-100 transition-colors" onClick={handleCloseModal}>
                   VAZGEÇ
                 </button>
               </div>

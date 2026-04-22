@@ -40,85 +40,32 @@ import { StaffModule } from './modules/staff/staff.module';
 
 @Module({
   imports:[
-    // DDOS ve Brute Force Koruması (1 Dakikada maks 120 istek)
-    ThrottlerModule.forRoot([{
-      ttl: 60000, 
-      limit: 100, // Daha sıkı limit: Dakikada 100 istek  
-    }]),
-
-    // Async Context
-    ClsModule.forRoot({
-      global: true,
-      middleware: { mount: true },
-    }),
-
-    // Global Config
-    ConfigModule.forRoot({
-      isGlobal: true,
-      load: [databaseConfig, jwtConfig],
-      envFilePath: '.env',
-    }),
-
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    ClsModule.forRoot({ global: true, middleware: { mount: true } }),
+    ConfigModule.forRoot({ isGlobal: true, load: [databaseConfig, jwtConfig], envFilePath: '.env' }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        ...configService.get('database'),
-      }),
+      useFactory: (configService: ConfigService) => ({ ...configService.get('database') }),
     }),
-
     CacheModule.register({ isGlobal: true, ttl: 60000 }),
-    AuthModule,
-    UsersModule,
-    RolesModule,
-    DepartmentsModule,
-    PartiesModule,
-    InventoryModule,
-    SalesModule,
-    FinanceModule,
-    ProductionModule,
-    DashboardModule,
-    SettingsModule,
-    LogsModule,
-    NotesModule,
-    WebhooksModule,
-    StaffModule,
-    CommonModule,
+    AuthModule, UsersModule, RolesModule, DepartmentsModule, PartiesModule, InventoryModule,
+    SalesModule, FinanceModule, ProductionModule, DashboardModule, SettingsModule,
+    LogsModule, NotesModule, WebhooksModule, StaffModule, CommonModule,
   ],
   providers:[
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: AuditInterceptor,
-    },
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: LogsInterceptor,
-    },
-    // Sistem geneli Throttler (Hız Sınırlayıcı)
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerProxyGuard,
-    },
-
-    {
-      provide: APP_GUARD,
-      useClass: CsrfGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: PermissionsGuard,
-    },
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: LogsInterceptor },
+    { provide: APP_GUARD, useClass: ThrottlerProxyGuard },
+    { provide: APP_GUARD, useClass: CsrfGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
     AuditSubscriber,
   ],
 })
 export class AppModule {
+
   configure(consumer: import('@nestjs/common').MiddlewareConsumer) {
-    consumer
-      .apply(CsrfMiddleware)
-      .forRoutes('*');
+    consumer.apply(CsrfMiddleware).forRoutes('*');
   }
 }

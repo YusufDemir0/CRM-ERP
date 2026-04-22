@@ -10,6 +10,7 @@ export declare class StaffService {
         departmentId?: number;
         page?: number;
         limit?: number;
+        state?: number;
     }): Promise<{
         data: Staff[];
         meta: {

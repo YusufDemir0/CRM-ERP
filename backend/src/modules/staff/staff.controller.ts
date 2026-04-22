@@ -15,7 +15,7 @@ export class StaffController {
   }
 
   @Get()
-  findAll(@Query() query: { departmentId?: number; page?: number; limit?: number }) {
+  findAll(@Query() query: { departmentId?: number; page?: number; limit?: number; state?: number }) {
     return this.staffService.findAll(query);
   }
 

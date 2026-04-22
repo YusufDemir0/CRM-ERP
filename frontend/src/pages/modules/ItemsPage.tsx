@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { itemsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -19,17 +19,40 @@ import { getItemColumns } from './Items/ItemColumns';
 export default function ItemsPage() {
   const queryClient = useQueryClient();
   const location = useLocation();
-  const queryParams = new URLSearchParams(location.search);
-  const initialFilter = (queryParams.get('filter') as 'active' | 'passive' | 'all' | 'critical') || 'active';
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const page = Number(searchParams.get('page')) || 1;
+  const searchTerm = searchParams.get('q') || '';
+  const filterTab = (searchParams.get('tab') as 'active' | 'passive' | 'all' | 'critical') || 'active';
+  const limit = Number(searchParams.get('limit')) || 20;
 
-  const [filterTab, setFilterTab] = useState<'active' | 'passive' | 'all' | 'critical'>(initialFilter);
-  const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDeferredValue(searchTerm);
 
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
-  const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'name', order: 'ASC' });
+  const sort = {
+    key: searchParams.get('sortBy') || 'name',
+    order: (searchParams.get('sortOrder') as 'ASC' | 'DESC') || 'ASC'
+  };
+
   const [filters] = useState<Record<string, string | number | (string | number)[]>>({});
+
+  const updateParams = useCallback((newParams: Record<string, string | number | undefined>) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      Object.entries(newParams).forEach(([key, value]) => {
+        if (value === undefined || value === '' || (key === 'page' && value === 1)) {
+          next.delete(key);
+        } else {
+          next.set(key, String(value));
+        }
+      });
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const setPage = (p: number) => updateParams({ page: p });
+  const setFilterTab = (tab: string) => updateParams({ tab, page: 1 });
+  const setSearchTerm = (q: string) => updateParams({ q, page: 1 });
+  const setSort = (key: string, order: 'ASC' | 'DESC') => updateParams({ sortBy: key, sortOrder: order, page: 1 });
   
   const { openCreate } = useQuickCreateStore();
 
@@ -58,23 +81,15 @@ export default function ItemsPage() {
     [{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }],
     (configs) => {
       if (configs.length > 0) {
-        setSort({ 
-          key: configs[0].key, 
-          order: configs[0].direction.toUpperCase() as 'ASC' | 'DESC' 
-        });
-        setPage(1);
+        setSort(
+          configs[0].key, 
+          configs[0].direction.toUpperCase() as 'ASC' | 'DESC' 
+        );
       }
     }
   );
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const f = params.get('filter');
-    if (f && ['active', 'passive', 'all', 'critical'].includes(f)) {
-      setFilterTab(f as 'active' | 'passive' | 'all');
-      setPage(1);
-    }
-  }, [location.search]);
+  // Removed redundant useEffect as searchParams handles initialization
 
 
   const toggleMutation = useMutation({
@@ -109,7 +124,29 @@ export default function ItemsPage() {
     }
   };
 
-  const columns = useMemo(() => getItemColumns(() => ({ isOver: false, totalAvailable: 0 })), []); // Note: Logic simplified for brevity or can be passed if context exists
+  const columns = useMemo(() => getItemColumns(() => ({ isOver: false, totalAvailable: 0 })), []);
+
+  useEffect(() => {
+    const id = searchParams.get('id');
+    if (id) {
+      const existingItem = items.find(i => i.id === Number(id));
+      if (existingItem) {
+        handleEdit(existingItem);
+        updateParams({ id: undefined });
+      } else {
+        // Fetch from API if not in current page
+        itemsAPI.getOne(Number(id)).then(res => {
+          if (res.data) {
+            handleEdit(res.data);
+            updateParams({ id: undefined });
+          }
+        }).catch(() => {
+          toast.error("Ürün bulunamadı");
+          updateParams({ id: undefined });
+        });
+      }
+    }
+  }, [searchParams, items]);
 
   return (
     <div className="animate-in flex flex-col gap-8">

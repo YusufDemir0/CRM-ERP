@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { currenciesAPI } from '../../services/api';
 import { 
   FiX, FiStar, FiEdit2, FiPlus, FiFilter, 
@@ -18,17 +19,55 @@ export function CurrenciesPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState({ code: '', name: '', symbol: '', exchangeRate: 1, isDefault: 0 });
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = Number(searchParams.get('page')) || 1;
+  const limit = Number(searchParams.get('limit')) || 20;
+  const sort = {
+    key: searchParams.get('sortBy') || 'isDefault',
+    order: (searchParams.get('sortOrder') as 'ASC' | 'DESC') || 'DESC'
+  };
+
+  const updateParams = (newParams: Record<string, string | number | undefined>) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      Object.entries(newParams).forEach(([key, value]) => {
+        if (value === undefined || value === '' || (key === 'page' && value === 1)) {
+          next.delete(key);
+        } else {
+          next.set(key, String(value));
+        }
+      });
+      return next;
+    }, { replace: true });
+  };
+
   const { data: currenciesData, isLoading: loading } = useQuery({
-    queryKey: queryKeys.currencies.all,
+    queryKey: queryKeys.currencies.allWithParams({ page, limit, sort }),
     queryFn: async () => {
-      const res = await currenciesAPI.getAll();
-      return res.data || [];
+      const res = await currenciesAPI.getAll({ 
+        page, limit, 
+        sortBy: sort.key, sortOrder: sort.order 
+      });
+      return res.data;
     }
   });
 
-  const currencies = currenciesData || [];
+  const currencies = currenciesData?.data || [];
+  const paginationMeta = currenciesData?.meta || { total: 0, page: 1, limit: 20, totalPages: 0 };
   
-  const { sortedData, sortConfigs, toggleSort } = useSort(currencies);
+  const { sortedData, sortConfigs, toggleSort } = useSort<Currency>(
+    currencies, 
+    [{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }],
+    (configs) => {
+      if (configs.length > 0) {
+        updateParams({ 
+          sortBy: configs[0].key, 
+          sortOrder: configs[0].direction.toUpperCase(),
+          page: 1 
+        });
+      }
+    }
+  );
 
   const mutation = useMutation({
     mutationFn: async ({ id, data }: { id: number | null; data: Partial<Currency> }) => {
@@ -147,7 +186,7 @@ export function CurrenciesPage() {
       {/* 🟢 MODAL SECTION */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white max-w-[500px] w-full p-10 rounded-[2.5rem] shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300 relative">
+          <div className="bg-white max-w-[500px] w-full p-6 rounded-2xl shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300 relative">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-black text-slate-900 tracking-tight">
                 {editingId ? 'Birim Güncelle' : 'Yeni Para Birimi'}

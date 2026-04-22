@@ -64,7 +64,7 @@ export const EnumSettings: React.FC<EnumSettingsProps> = ({
         }}
       />
 
-      <div className="mt-10 p-8 rounded-[2rem] bg-slate-50 border-2 border-dashed border-slate-200 grid grid-cols-1 md:grid-cols-[1fr_120px_auto] gap-4 items-end">
+      <div className="mt-10 p-8 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 grid grid-cols-1 md:grid-cols-[1fr_120px_auto] gap-4 items-end">
         <div className="flex flex-col gap-2">
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">TANIM</label>
           <input 

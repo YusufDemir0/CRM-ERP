@@ -41,7 +41,7 @@ export default class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-[400px] flex items-center justify-center p-8 text-center bg-white/50 backdrop-blur-xl rounded-[3rem] border-2 border-dashed border-danger/20 animate-in zoom-in-95 duration-500">
+        <div className="min-h-[400px] flex items-center justify-center p-8 text-center bg-white/50 backdrop-blur-xl rounded-2xl border-2 border-dashed border-danger/20 animate-in zoom-in-95 duration-500">
           <div className="max-w-md flex flex-col items-center gap-6">
             <div className="w-20 h-20 rounded-3xl bg-danger/10 text-danger flex items-center justify-center text-4xl shadow-lg shadow-danger/10">
               <FiAlertTriangle />

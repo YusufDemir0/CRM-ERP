@@ -64,9 +64,9 @@
   --s: 75%;
   --l: 58%;
 
-  --background-raw: 230, 100%, 98%;
+  --background-raw: 220, 33%, 98%;
   --surface-raw: 0, 0%, 100%;
-  --surface-container-raw: 221, 100%, 97%;
+  --surface-container-raw: 215, 60%, 97%;
   --surface-container-low-raw: 210, 40%, 96%;
   --surface-container-highest-raw: 216, 100%, 91%;
 
@@ -101,7 +101,7 @@
   --text-secondary: var(--on-surface-variant);
   --text-muted: hsl(215, 16%, 47%);
 
-  --border: hsl(221, 100%, 97%);
+  --border: hsl(215, 60%, 94%);
   --outline: hsl(213, 89%, 74%);
 
   --error: hsl(351, 43%, 43%);
@@ -206,7 +206,7 @@ body {
 
 .input-premium {
   background: white !important;
-  border: 1.5px solid var(--border) !important;
+  border: 1.5px solid hsl(215, 60%, 90%) !important;
   border-radius: var(--radius-md) !important;
   box-shadow: var(--shadow-subtle);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

@@ -1,10 +1,9 @@
 import { AccountsService } from './accounts.service';
-import { CreateAccountDto, UpdateAccountDto } from '../dto/finance.dto';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
+import { CreateAccountDto, UpdateAccountDto, AccountsQueryDto } from '../dto/finance.dto';
 export declare class AccountsController {
     private readonly accService;
     constructor(accService: AccountsService);
-    findAll(query: PaginationDto): Promise<import("../../../common/dto/pagination.dto").PaginatedResult<import("./entities/commercial-account.entity").CommercialAccount>>;
+    findAll(query: AccountsQueryDto): Promise<import("../../../common/dto/pagination.dto").PaginatedResult<import("./entities/commercial-account.entity").CommercialAccount>>;
     getStatus(): Promise<{
         active: number;
         passive: number;

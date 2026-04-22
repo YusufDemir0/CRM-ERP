@@ -114,7 +114,7 @@ export default function LoginPage() {
 
       {/* ⚪ Centered Login Card */}
       <div className="relative z-20 w-full max-w-[480px] px-6">
-        <div className="bg-[var(--surface)] rounded-[var(--radius-xl)] shadow-[var(--shadow-premium)] p-12 sm:p-14 border border-[var(--border)] flex flex-col gap-10 animate-slide-up">
+        <div className="bg-[var(--surface)] rounded-[var(--radius-xl)] shadow-[var(--shadow-premium)] p-8 sm:p-10 border border-[var(--border)] flex flex-col gap-6 animate-slide-up">
           
           <div className="text-center">
             <h1 className="text-xl font-black text-slate-800 tracking-tight mb-1">Hesabınıza Giriş Yapın</h1>

@@ -1,6 +1,7 @@
 
 import { FiRepeat } from 'react-icons/fi';
 import { Item, Department } from '../../types';
+import { PremiumNumberInput } from '../common/PremiumNumberInput';
 
 interface StockTransferFormData {
   itemId: string;
@@ -29,7 +30,7 @@ export const StockTransferModal: React.FC<StockTransferModalProps> = ({
 }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white max-w-[650px] w-full p-10 rounded-[2.5rem] shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300">
+      <div className="bg-white max-w-[650px] w-full p-6 rounded-2xl shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
             <FiRepeat size={24} />
@@ -83,13 +84,10 @@ export const StockTransferModal: React.FC<StockTransferModalProps> = ({
 
           <div className="flex flex-col gap-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">MİKTAR</label>
-            <input 
-              type="number" 
-              step="0.0001" 
-              required 
-              className="h-16 px-6 rounded-2xl border-2 border-amber-500/20 bg-amber-500/5 font-black text-2xl text-center text-amber-600 tabular-nums transition-colors outline-none focus:border-amber-500/40" 
+            <PremiumNumberInput 
               value={transferData.quantity} 
-              onChange={e => onTransferDataChange({...transferData, quantity: Number(e.target.value)})} 
+              onChange={val => onTransferDataChange({...transferData, quantity: val})} 
+              className="h-16"
             />
           </div>
 

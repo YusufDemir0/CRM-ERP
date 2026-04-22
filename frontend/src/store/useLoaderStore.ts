@@ -8,6 +8,8 @@ import { create } from 'zustand';
 interface LoaderState {
   isLoading: boolean;
   message: string | null;
+  count: number;
+  startTime: number | null;
   
   // Actions
   show: (message?: string) => void;
@@ -15,17 +17,47 @@ interface LoaderState {
 }
 
 const DEFAULT_MESSAGE = 'İŞLEM YAPILIYOR...';
+const MIN_DURATION = 2000;
 
-export const useLoaderStore = create<LoaderState>((set) => ({
+export const useLoaderStore = create<LoaderState>((set, get) => ({
   isLoading: false,
   message: null,
+  count: 0,
+  startTime: null,
 
   show: (message = DEFAULT_MESSAGE) => {
-    set({ isLoading: true, message });
+    const { count, startTime } = get();
+    set({ 
+      count: count + 1,
+      isLoading: true,
+      message: message,
+      startTime: startTime || Date.now()
+    });
   },
 
   hide: () => {
-    set({ isLoading: false, message: null });
+    const { count, startTime } = get();
+    const newCount = Math.max(0, count - 1);
+    
+    if (newCount === 0) {
+      const elapsed = Date.now() - (startTime || 0);
+      
+      if (elapsed < MIN_DURATION) {
+        setTimeout(() => {
+          // Double check count in case a new request started during timeout
+          if (get().count === 0) {
+            set({ isLoading: false, message: null, startTime: null, count: 0 });
+          }
+        }, MIN_DURATION - elapsed);
+      } else {
+        set({ isLoading: false, message: null, startTime: null, count: 0 });
+      }
+      
+      // Update count immediately even if we delay the hide
+      set({ count: 0 });
+    } else {
+      set({ count: newCount });
+    }
   }
 }));
 

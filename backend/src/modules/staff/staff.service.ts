@@ -22,13 +22,17 @@ export class StaffService {
     return await this.staffRepository.save(staff);
   }
 
-  async findAll(query: { departmentId?: number; page?: number; limit?: number }) {
+  async findAll(query: { departmentId?: number; page?: number; limit?: number; state?: number }) {
     const qb = this.staffRepository.createQueryBuilder('staff')
       .leftJoinAndSelect('staff.department', 'department')
       .where('staff.deletedAt IS NULL');
 
     if (query.departmentId) {
       qb.andWhere('staff.departmentId = :departmentId', { departmentId: query.departmentId });
+    }
+
+    if (query.state !== undefined) {
+      qb.andWhere('staff.state = :state', { state: query.state });
     }
 
     const page = query.page || 1;

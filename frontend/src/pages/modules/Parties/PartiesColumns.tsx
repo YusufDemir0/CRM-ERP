@@ -49,7 +49,8 @@ export const getPartiesColumns = (): Column<Party>[] => [
         </div>
         <span className="text-slate-400 text-[11px] font-bold pl-3 truncate max-w-[150px]">{p.email || '—'}</span>
       </div>
-    )
+    ),
+    sortKey: 'phone1'
   },
   { 
     header: 'BAKİYE DURUMU', 

@@ -5,6 +5,7 @@ import { FiX, FiCheck, FiPlus } from 'react-icons/fi';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 import { Item, Bom } from '../../types';
 import { FormField } from '../common/FormField';
+import { PremiumNumberInput } from '../common/PremiumNumberInput';
 
 export interface BomItemData {
   itemId: number;
@@ -169,7 +170,7 @@ export const BomForm: React.FC<BomFormProps> = ({
         <input className="input-premium uppercase-input font-medium h-12" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value.toLocaleUpperCase('tr-TR') })} placeholder="..." />
       </FormField>
 
-      <div className="mt-4 p-5 bg-[var(--primary-glow)] rounded-[2rem] border border-[var(--primary-glow)]">
+      <div className="mt-4 p-5 bg-[var(--primary-glow)] rounded-2xl border border-[var(--primary-glow)]">
         <div className="flex justify-between items-center mb-4 px-2">
           <label className="text-[var(--primary)] font-black uppercase tracking-widest text-[10px]">Kullanılacak Bileşen Listesi</label>
           <button type="button" className="btn btn-primary btn-sm px-4 rounded-xl shadow-lg" onClick={addBomItem}>
@@ -179,20 +180,16 @@ export const BomForm: React.FC<BomFormProps> = ({
 
         <div className="flex flex-col gap-3">
           {formData.items.map((item, idx: number) => (
-            <div key={idx} className="grid grid-cols-1 md:grid-cols-[2.5fr_1fr_1.5fr_auto] gap-3 items-center bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
+            <div key={idx} className="grid grid-cols-1 md:grid-cols-[2.5fr_1.5fr_2fr_auto] gap-4 items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
               <select required className="input-premium font-black text-xs h-10" value={item.itemId} onChange={e => updateBomItem(idx, 'itemId', Number(e.target.value))}>
                 <option value="">Ürün Seç...</option>
                 {itemsList.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name.toUpperCase()}</option>)}
               </select>
-              <input 
-                type="number" 
-                required 
-                step="1" 
-                min="1"
-                className="input-premium font-black tabular-nums h-10 text-center" 
+              <PremiumNumberInput 
                 value={item.quantity} 
-                onChange={e => updateBomItem(idx, 'quantity', Math.floor(Number(e.target.value)))} 
-                placeholder="Mkt" 
+                onChange={val => updateBomItem(idx, 'quantity', val)} 
+                min={0.0001}
+                className="h-12"
               />
               <input type="text" className="input-premium font-medium h-10 text-xs" value={item.description} onChange={e => updateBomItem(idx, 'description', e.target.value.toLocaleUpperCase('tr-TR'))} placeholder="İşlem notu..." />
               <button type="button" className="w-10 h-10 rounded-full flex items-center justify-center text-[var(--error)] bg-[var(--error-glow)] hover:bg-[var(--error)] hover:text-white transition-all" onClick={() => removeBomItem(idx)}>
@@ -213,7 +210,7 @@ export const BomForm: React.FC<BomFormProps> = ({
         <button type="submit" className="btn btn-primary btn-lg flex-1 shadow-2xl shadow-[var(--primary-glow)]">
           <FiCheck size={20} /> {editingId ? 'GÜNCELLEMELERİ KAYDET' : 'REÇETEYİ SİSTEME KAYDET'}
         </button>
-        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all" onClick={onCancel}>
+        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all" onClick={() => { clearCache(cacheKey); onCancel(); }}>
           İPTAL
         </button>
       </div>

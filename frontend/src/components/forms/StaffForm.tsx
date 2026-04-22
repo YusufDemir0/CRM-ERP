@@ -113,6 +113,7 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
             className="input-premium pl-12 font-black tabular-nums"
             value={formData.entryDate}
             onChange={(e) => setFormData(prev => ({ ...prev, entryDate: e.target.value }))}
+            min={new Date().toISOString().split('T')[0]}
           />
         </div>
       </FormField>

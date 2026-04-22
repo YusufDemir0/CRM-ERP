@@ -36,6 +36,9 @@ let AccountsService = class AccountsService {
             const cleanS = (0, sql_helper_1.getSafeSearchPattern)(cleanTerm);
             qb.andWhere('(acc.name LIKE :s OR acc.bankName LIKE :s OR acc.description LIKE :s OR acc.iban LIKE :s OR REPLACE(REPLACE(acc.iban, " ", ""), "TR", "") LIKE :cleanS)', { s, cleanS });
         }
+        if (query.state !== undefined) {
+            qb.andWhere('acc.state = :state', { state: query.state });
+        }
         const allowedSortCols = ['name', 'bankName', 'iban', 'criticalLimit', 'createdAt'];
         const sortField = allowedSortCols.includes(query.sortBy || '') ? query.sortBy : 'name';
         qb.orderBy(`acc.${sortField}`, query.sortOrder || 'ASC');

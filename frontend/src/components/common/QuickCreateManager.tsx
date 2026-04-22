@@ -91,7 +91,7 @@ export const QuickCreateManager: React.FC = () => {
       initialData: item.initialData,
       editingId: item.editingId,
       onSuccess: (data: unknown) => {
-        item.onSuccess(data as { data: { id: number; name?: string; code?: string; title?: string } });
+        item.onSuccess(data as import('../../store/useQuickCreateStore').QuickCreateResponse);
         close();
       },
       onCancel: () => {

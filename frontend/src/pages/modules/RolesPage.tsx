@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { rolesAPI } from '../../services/api';
 import { 
   FiEdit2, FiShield, FiPlus, FiCheckCircle, FiLock, 
-  FiActivity, FiGrid, FiX
+  FiActivity, FiGrid, FiX, FiFilter, FiArchive
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { DataTable, Column } from '../../components/common/DataTable';
@@ -14,25 +15,69 @@ import { queryKeys } from '../../services/queryKeys';
 
 export function RolesPage() {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const page = Number(searchParams.get('page')) || 1;
+  const searchTerm = searchParams.get('q') || '';
+  const filterTab = (searchParams.get('tab') as 'active' | 'passive' | 'all') || 'all';
+  const limit = Number(searchParams.get('limit')) || 100;
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDeferredValue(searchTerm);
-  const [filterTab, setFilterTab] = useState<'all' | 'active' | 'passive'>('all');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState({ name: '', permissionIds: [] as number[] });
 
-  // ────── QUERIES ──────
+  const updateParams = useCallback((newParams: Record<string, string | number | undefined>) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      Object.entries(newParams).forEach(([key, value]) => {
+        if (value === undefined || value === '' || (key === 'page' && value === 1)) {
+          next.delete(key);
+        } else {
+          next.set(key, String(value));
+        }
+      });
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
-  const { data: roles = [] } = useQuery({
-    queryKey: queryKeys.roles.all({ search: deferredSearch, filterTab }),
+  const setPage = (p: number) => updateParams({ page: p });
+  const setFilterTab = (tab: string) => updateParams({ tab, page: 1 });
+  const setSearchTerm = (q: string) => updateParams({ q, page: 1 });
+
+  const sort = {
+    key: searchParams.get('sortBy') || 'name',
+    order: (searchParams.get('sortOrder') as 'ASC' | 'DESC') || 'ASC'
+  };
+
+  const { data: rolesData, isLoading: loading } = useQuery({
+    queryKey: queryKeys.roles.all({ search: deferredSearch, filterTab, page, limit, sort }),
     queryFn: async ({ signal }) => {
       const state = filterTab === 'active' ? 1 : filterTab === 'passive' ? 0 : undefined;
-      const res = await rolesAPI.getAll({ limit: 100, search: deferredSearch, state }, { signal });
-      return res.data.data;
+      const res = await rolesAPI.getAll({ 
+        limit, page, search: deferredSearch, state,
+        sortBy: sort.key, sortOrder: sort.order
+      }, { signal });
+      return res.data;
     }
   });
+
+  const roles = rolesData?.data || [];
+  const paginationMeta = rolesData?.meta || { total: 0, page: 1, limit: 100, totalPages: 0 };
   
-  const { sortedData, sortConfigs, toggleSort } = useSort(roles);
+  const { sortedData, sortConfigs, toggleSort } = useSort<Role>(
+    roles, 
+    [{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }],
+    (configs) => {
+      if (configs.length > 0) {
+        updateParams({ 
+          sortBy: configs[0].key, 
+          sortOrder: configs[0].direction.toUpperCase(),
+          page: 1 
+        });
+      }
+    }
+  );
 
   const { data: allPermissions = [] } = useQuery({
     queryKey: ['permissions'],
@@ -101,7 +146,7 @@ export function RolesPage() {
         permissionIds: allPermissions
           .filter((p: Permission) => p.action === 'read')
           .map((p: Permission) => p.id) 
-      }));
+        }));
     } else if (type === 'clear') {
       setFormData(prev => ({ ...prev, permissionIds: [] }));
     }
@@ -154,8 +199,7 @@ export function RolesPage() {
           </div>
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">AKTİF YETKİ</span>
         </div>
-      ),
-      sortKey: 'permissions.length'
+      )
     },
     { 
       header: 'ERİŞİM DURUMU', 
@@ -172,7 +216,6 @@ export function RolesPage() {
 
   return (
     <div className="animate-in flex flex-col gap-8">
-      
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6">
         <div>
           <div className="inline-flex items-center gap-2 bg-danger/10 text-danger px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
@@ -186,18 +229,18 @@ export function RolesPage() {
         <div className="flex flex-wrap gap-4 items-center">
           <div className="flex bg-surface-container-low p-1 rounded-2xl border border-surface-container">
             {[
-              { id: 'all', label: 'Tümü' },
-              { id: 'active', label: 'Aktif' },
-              { id: 'passive', label: 'Pasif' }
+              { id: 'all', label: 'Tümü', icon: <FiFilter /> },
+              { id: 'active', label: 'Aktif', icon: <FiActivity /> },
+              { id: 'passive', label: 'Pasif', icon: <FiArchive /> }
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setFilterTab(tab.id as 'active' | 'passive' | 'all')}
-                className={`h-9 px-4 rounded-xl text-xs font-black transition-colors ${
+                onClick={() => setFilterTab(tab.id)}
+                className={`h-9 px-4 rounded-xl text-xs font-black flex items-center gap-2 transition-colors ${
                   filterTab === tab.id ? 'bg-white text-primary shadow-premium' : 'text-slate-400 hover:text-slate-600'
                 }`}
               >
-                {tab.label.toUpperCase()}
+                {tab.icon} {tab.label.toUpperCase()}
               </button>
             ))}
           </div>
@@ -213,6 +256,7 @@ export function RolesPage() {
         <DataTable<Role>
           data={sortedData}
           columns={columns}
+          isLoading={loading}
           sortConfigs={sortConfigs}
           onSort={toggleSort}
           getRowKey={(r) => r.id}
@@ -222,15 +266,17 @@ export function RolesPage() {
           onRestore={(r) => toggleState(r.id, 0)}
           getRowOpacity={(r) => r.state === 0 ? 0.5 : 1}
           
-          search={searchTerm}
-          onSearchChange={setSearchTerm}
+          total={paginationMeta.total}
+          page={page}
+          limit={limit}
+          onPageChange={setPage}
           placeholder="Rol adı ile ara..."
         />
       </div>
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white max-w-[1000px] w-full p-10 rounded-[2.5rem] shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300 relative max-h-[90vh] overflow-hidden">
+          <div className="bg-white max-w-[1000px] w-full p-6 rounded-2xl shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300 relative max-h-[90vh] overflow-hidden">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-black text-slate-900 tracking-tight">
                 {editingId ? 'Rol Revizyonu' : 'Yeni Güvenlik Profili'}
@@ -275,7 +321,7 @@ export function RolesPage() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6 rounded-[2rem] bg-slate-50 border border-slate-100">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6 rounded-2xl bg-slate-50 border border-slate-100">
                   {Object.keys(groupedPermissions).map(moduleName => (
                     <div key={moduleName} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-4">
                       <div className="flex justify-between items-center pb-3 border-b border-slate-50">

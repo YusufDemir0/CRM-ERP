@@ -37,7 +37,12 @@ let RolesService = class RolesService {
             qb.leftJoin('role.permissions', 'permissions');
             qb.where('(role.name LIKE :s OR permissions.name LIKE :s)', { s });
         }
-        qb.orderBy('role.createdAt', query.sortOrder || 'DESC');
+        if (query.state !== undefined) {
+            qb.andWhere('role.state = :state', { state: query.state });
+        }
+        const allowedSortCols = ['name', 'createdAt', 'state'];
+        const sortCol = allowedSortCols.includes(query.sortBy || '') ? query.sortBy : 'createdAt';
+        qb.orderBy(`role.${sortCol}`, query.sortOrder || 'DESC');
         qb.skip(query.skip).take(query.limit);
         const [idRows, total] = await qb.select('role.id').getManyAndCount();
         const ids = idRows.map(r => r.id);
@@ -46,7 +51,7 @@ let RolesService = class RolesService {
             data = await this.roleRepo.find({
                 where: { id: (0, typeorm_2.In)(ids) },
                 relations: ['permissions'],
-                order: { createdAt: query.sortOrder || 'DESC' },
+                order: { [sortCol]: query.sortOrder || 'DESC' },
             });
         }
         return {

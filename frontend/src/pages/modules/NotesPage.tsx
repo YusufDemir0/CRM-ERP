@@ -141,7 +141,7 @@ export default function NotesPage() {
       {/* 🟡 NOTES GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {notes.length === 0 && (
-          <div className="col-span-full text-center py-24 px-10 bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200 text-slate-400">
+          <div className="col-span-full text-center py-24 px-10 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400">
             <FiEdit2 size={48} className="mx-auto opacity-20 mb-4" />
             <h4 className="text-lg font-black mb-2">Görünüşe göre burası boş...</h4>
             <p className="text-sm font-bold">Hızlı bir not alarak hafızanı taze tutabilirsin.</p>
@@ -151,7 +151,7 @@ export default function NotesPage() {
         {notes.map(note => (
           <div 
             key={note.id} 
-            className={`animate-in group relative min-h-[260px] p-7 rounded-[2rem] flex flex-col transition-colors duration-300 hover:shadow-premium hover:-translate-y-1 ${
+            className={`animate-in group relative min-h-[260px] p-7 rounded-2xl flex flex-col transition-colors duration-300 hover:shadow-premium hover:-translate-y-1 ${
               note.isPinned ? 'ring-2 ring-primary ring-offset-2' : 'border border-slate-100 shadow-premium-sm'
             }`}
             style={{ backgroundColor: note.color || '#ffffff' }}
@@ -202,7 +202,7 @@ export default function NotesPage() {
       {/* 🟢 MODAL SECTION */}
       {isModalOpen && editingNote && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white max-w-[550px] w-full p-10 rounded-[3rem] shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300">
+          <div className="bg-white max-w-[550px] w-full p-6 rounded-2xl shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-black text-slate-900 tracking-tight">
                 {editingNote.id ? 'Notu Güncelle' : 'Hızlı Bir Not Al'}

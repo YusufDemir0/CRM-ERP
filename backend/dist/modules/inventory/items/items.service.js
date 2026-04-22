@@ -123,7 +123,8 @@ let ItemsService = class ItemsService {
             'createdAt': 'item.createdAt',
             'itemType.name': 'itemType.name',
             'provider.name': 'provider.name',
-            'state': 'item.state'
+            'state': 'item.state',
+            'totalStock': '(SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE item_id = item.id)'
         };
         const sortCol = sortFieldMap[query.sortBy || ''] || 'item.createdAt';
         qb.orderBy(sortCol, query.sortOrder || 'DESC');
@@ -135,7 +136,7 @@ let ItemsService = class ItemsService {
         };
     }
     async findOne(id) {
-        const item = await this.itemRepo.findOne({
+        const item = await this.transactionContext.manager.findOne(item_entity_1.Item, {
             where: { id },
             relations: ['itemType', 'itemCodeGroup', 'quantityType', 'provider', 'currency'],
         });
@@ -162,9 +163,22 @@ let ItemsService = class ItemsService {
         const item = manager.create(item_entity_1.Item, {
             ...dto,
             code,
+            movingAverageCost: new decimal_js_1.Decimal(0),
             createdBy: userId,
         });
-        return manager.save(item);
+        const savedItem = await manager.save(item);
+        const { Department } = await Promise.resolve().then(() => __importStar(require('../../departments/entities/department.entity')));
+        const departments = await manager.find(Department, { where: { state: 1 } });
+        for (const dept of departments) {
+            await manager.save(manager.create(stock_entity_1.Stock, {
+                itemId: savedItem.id,
+                departmentId: dept.id,
+                quantity: new decimal_js_1.Decimal(0),
+                reservedQuantity: new decimal_js_1.Decimal(0),
+                createdBy: userId
+            }));
+        }
+        return savedItem;
     }
     async update(id, dto, userId) {
         const item = await this.findOne(id);

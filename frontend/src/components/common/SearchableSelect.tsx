@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { FiSearch, FiChevronDown, FiX } from 'react-icons/fi';
 
 interface Option {
@@ -27,6 +28,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
 
   const selectedOption = options.find((o) => o.id === value);
 
@@ -44,64 +46,92 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     o.label.toLowerCase().includes(search.toLowerCase())
   );
 
+  const virtualizer = useVirtualizer({
+    count: filteredOptions.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 40,
+    overscan: 5,
+  });
+
   return (
     <div className={`form-group ${className}`} ref={containerRef}>
-      {label && <label>{label}</label>}
+      {label && <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">{label}</label>}
       <div className="relative">
         <div
-          className="flex items-center justify-between p-2 rounded-lg border border-[var(--border)] bg-white cursor-pointer hover:border-[var(--primary)] transition-colors"
+          className="flex items-center justify-between h-12 px-4 rounded-xl border-2 border-slate-100 bg-white cursor-pointer hover:border-primary/20 transition-all shadow-sm"
           onClick={() => setIsOpen(!isOpen)}
         >
-          <span className={selectedOption ? 'text-[var(--text-main)]' : 'text-[var(--text-muted)]'}>
+          <span className={`text-sm font-bold ${selectedOption ? 'text-slate-800' : 'text-slate-300'}`}>
             {selectedOption ? selectedOption.label : placeholder}
           </span>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             {selectedOption && (
-              <FiX
-                className="text-[var(--text-muted)] hover:text-[var(--error)]"
+              <button
+                className="w-6 h-6 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 flex items-center justify-center transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   onChange(null);
                 }}
-              />
+              >
+                <FiX size={14} />
+              </button>
             )}
-            <FiChevronDown className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            <FiChevronDown className={`text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180 text-primary' : ''}`} />
           </div>
         </div>
 
         {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[var(--border)] rounded-lg shadow-xl z-[100] overflow-hidden">
-            <div className="p-2 border-b border-[var(--border)] flex items-center gap-2 bg-slate-50">
-              <FiSearch className="text-[var(--text-muted)]" />
+          <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-premium z-[100] overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-3 border-b border-slate-50 flex items-center gap-3 bg-slate-50/50">
+              <FiSearch className="text-slate-400" />
               <input
                 autoFocus
                 type="text"
-                className="w-full bg-transparent border-none outline-none text-sm p-1"
-                placeholder="Ara..."
+                className="w-full bg-transparent border-none outline-none text-sm font-bold text-slate-700 placeholder:text-slate-300"
+                placeholder="Hızlıca arama yapın..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div className="max-h-60 overflow-y-auto">
-              {filteredOptions.length > 0 ? (
-                filteredOptions.map((option) => (
-                  <div
-                    key={option.id}
-                    className={`p-2 text-sm cursor-pointer hover:bg-[var(--primary-glow)] hover:text-[var(--primary)] transition-colors ${
-                      option.id === value ? 'bg-[var(--primary-glow)] text-[var(--primary)] font-bold' : ''
-                    }`}
-                    onClick={() => {
-                      onChange(option);
-                      setIsOpen(false);
-                      setSearch('');
-                    }}
-                  >
-                    {option.label}
-                  </div>
-                ))
-              ) : (
-                <div className="p-4 text-center text-[var(--text-muted)] text-sm">Sonuç bulunamadı</div>
-              )}
+            <div 
+              ref={parentRef}
+              className="max-h-72 overflow-y-auto"
+            >
+              <div
+                style={{
+                  height: `${virtualizer.getTotalSize()}px`,
+                  width: '100%',
+                  position: 'relative',
+                }}
+              >
+                {virtualizer.getVirtualItems().length > 0 ? (
+                  virtualizer.getVirtualItems().map((virtualRow) => {
+                    const option = filteredOptions[virtualRow.index];
+                    const isSelected = option.id === value;
+                    return (
+                      <div
+                        key={virtualRow.key}
+                        className={`absolute top-0 left-0 w-full px-4 flex items-center cursor-pointer transition-colors ${
+                          isSelected ? 'bg-primary/5 text-primary font-black' : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                        style={{
+                          height: `${virtualRow.size}px`,
+                          transform: `translateY(${virtualRow.start}px)`,
+                        }}
+                        onClick={() => {
+                          onChange(option);
+                          setIsOpen(false);
+                          setSearch('');
+                        }}
+                      >
+                        <span className="text-sm truncate">{option.label}</span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="p-8 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">Sonuç bulunamadı</div>
+                )}
+              </div>
             </div>
           </div>
         )}

@@ -79,8 +79,23 @@ export class SalesService {
     }
     if (query.status) qb.andWhere('sale.status = :status', { status: query.status });
     if (query.partyId) qb.andWhere('sale.partyId = :partyId', { partyId: query.partyId });
+    
+    const allowedSortMap: Record<string, string> = {
+      'code': 'sale.code',
+      'createdAt': 'sale.createdAt',
+      'grandTotal': 'sale.grandTotal',
+      'status': 'sale.status',
+      'party.name': 'party.name',
+      'saleType.name': 'saleType.name'
+    };
 
-    qb.orderBy(`sale.${query.sortBy || 'createdAt'}`, query.sortOrder || 'DESC');
+    const sortField = allowedSortMap[query.sortBy || ''] || 'sale.createdAt';
+    qb.orderBy(sortField, query.sortOrder || 'DESC');
+    
+    if (sortField !== 'sale.createdAt') {
+      qb.addOrderBy('sale.createdAt', 'DESC');
+    }
+
     qb.skip(query.skip).take(query.limit);
 
     const [data, total] = await qb.getManyAndCount();
@@ -91,8 +106,7 @@ export class SalesService {
   }
 
   async findOne(id: number): Promise<Sale> {
-    const repo = this.transactionContext.manager.getRepository(Sale);
-    const sale = await repo.findOne({
+    const sale = await this.transactionContext.manager.findOne(Sale, {
       where: { id },
       relations: ['party', 'saleType', 'currency', 'items', 'items.item'],
     });

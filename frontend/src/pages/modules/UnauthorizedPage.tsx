@@ -4,7 +4,7 @@ import { FiShield, FiArrowLeft } from 'react-icons/fi';
 
 const UnauthorizedPage = () => {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white text-center p-10">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-white text-center p-6">
       <div className="animate-in flex flex-col items-center gap-8 max-w-[500px]">
         <div className="w-[120px] h-[120px] rounded-[40px] bg-red-500/10 text-red-500 flex items-center justify-center text-6xl shadow-[0_20px_40px_rgba(0,0,0,0.3)]">
           <FiShield />

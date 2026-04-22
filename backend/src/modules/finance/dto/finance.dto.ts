@@ -60,3 +60,7 @@ export class TransactionsQueryDto extends PaginationDto {
   @IsOptional() @IsString() type?: string;
   @IsOptional() @IsString() status?: string;
 }
+
+export class AccountsQueryDto extends PaginationDto {
+  @IsOptional() @Type(() => Number) @IsNumber() state?: number;
+}

@@ -21,8 +21,19 @@ let CurrenciesService = class CurrenciesService {
     constructor(currencyRepo) {
         this.currencyRepo = currencyRepo;
     }
-    async findAll() {
-        return this.currencyRepo.find({ order: { isDefault: 'DESC', name: 'ASC' } });
+    async findAll(query) {
+        const qb = this.currencyRepo.createQueryBuilder('currency');
+        const allowedSortCols = ['code', 'name', 'symbol', 'exchangeRate', 'isDefault', 'createdAt'];
+        const sortCol = allowedSortCols.includes(query.sortBy || '') ? query.sortBy : 'isDefault';
+        const sortOrder = query.sortBy ? (query.sortOrder || 'ASC') : 'DESC';
+        qb.orderBy(`currency.${sortCol}`, sortOrder);
+        if (query.skip !== undefined)
+            qb.skip(query.skip).take(query.limit);
+        const [data, total] = await qb.getManyAndCount();
+        return {
+            data,
+            meta: { total, page: query.page || 1, limit: query.limit || 20, totalPages: Math.ceil(total / (query.limit || 20)) },
+        };
     }
     async findOne(id) {
         const curr = await this.currencyRepo.findOne({ where: { id } });

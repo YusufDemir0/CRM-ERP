@@ -24,7 +24,7 @@ export declare class ItemsController {
     removeQuantityType(id: number): Promise<void>;
     updateItemType(id: number, dto: UpdateItemTypeDto, userId: number): Promise<import("./entities/item-type.entity").ItemType>;
     updateCodeGroup(id: number, dto: UpdateItemCodeGroupDto, userId: number): Promise<import("./entities/item-code-group.entity").ItemCodeGroup>;
-    update(id: number, dto: UpdateItemDto, userId: number): Promise<void> | Promise<import("./entities/item.entity").Item>;
+    update(id: number, dto: UpdateItemDto, userId: number): Promise<import("./entities/item.entity").Item> | Promise<void>;
     removeItemType(id: number): Promise<void>;
     removeCodeGroup(id: number): Promise<void>;
     remove(id: number, userId: number): Promise<void>;

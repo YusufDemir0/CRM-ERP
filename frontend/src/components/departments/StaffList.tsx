@@ -70,7 +70,7 @@ export const StaffList: React.FC<StaffListProps> = ({ departmentId }) => {
 
       <div className="grid grid-cols-1 gap-3">
         {staff.length === 0 ? (
-          <div className="p-12 text-center border-2 border-dashed border-slate-100 rounded-3xl text-slate-300 font-bold">
+          <div className="p-8 text-center border-2 border-dashed border-slate-100 rounded-3xl text-slate-300 font-bold">
             Bu departmanda henüz personel bulunmuyor.
           </div>
         ) : (

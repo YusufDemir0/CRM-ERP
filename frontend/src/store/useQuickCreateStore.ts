@@ -14,19 +14,23 @@ export type QuickCreateType =
   | 'bom'
   | 'staff';
 
+export interface QuickCreateResponse<T = unknown> {
+  data: T & { id: number; name?: string; code?: string; title?: string };
+}
+
 export interface QuickCreateStackItem {
   id: string;
   type: QuickCreateType;
   editingId: number | null;
   initialData: Record<string, unknown>;
-  onSuccess: (data: unknown) => void;
+  onSuccess: (res: QuickCreateResponse) => void;
   onCancel: () => void;
 }
 
 export interface QuickCreateOptions {
   editingId?: number | null;
   initialData?: Record<string, unknown>;
-  onSuccess?: (data: unknown) => void;
+  onSuccess?: (res: QuickCreateResponse) => void;
   onCancel?: () => void;
 }
 

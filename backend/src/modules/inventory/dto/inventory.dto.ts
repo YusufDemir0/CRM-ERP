@@ -131,4 +131,5 @@ export class StocksQueryDto extends PaginationDto {
   @IsOptional() @Type(() => Number) @IsNumber() departmentId?: number;
   @IsOptional() @Type(() => Number) @IsNumber() itemId?: number;
   @IsOptional() @IsBooleanString() isCritical?: string;
+  @IsOptional() @Type(() => Number) @IsNumber() state?: number;
 }

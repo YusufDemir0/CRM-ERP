@@ -27,9 +27,14 @@ export default function PartiesPage() {
   const filterTab = (searchParams.get('tab') as 'active' | 'passive' | 'all') || 'active';
   const limit = Number(searchParams.get('limit')) || 20;
 
-  const deferredSearch = useDeferredValue(searchTerm);
-  const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'name', order: 'ASC' });
+  const sort = {
+    key: searchParams.get('sortBy') || 'name',
+    order: (searchParams.get('sortOrder') as 'ASC' | 'DESC') || 'ASC'
+  };
+
   const [filters] = useState<Record<string, unknown>>({});
+
+  const deferredSearch = useDeferredValue(searchTerm);
 
   const updateParams = useCallback((newParams: Record<string, string | number | undefined>) => {
     setSearchParams(prev => {
@@ -48,6 +53,7 @@ export default function PartiesPage() {
   const setPage = (p: number) => updateParams({ page: p });
   const setFilterTab = (tab: string) => updateParams({ tab, page: 1 });
   const setSearchTerm = (q: string) => updateParams({ q, page: 1 });
+  const setSort = (key: string, order: 'ASC' | 'DESC') => updateParams({ sortBy: key, sortOrder: order, page: 1 });
 
   const { data: partiesData, isLoading: loading } = useQuery({
     queryKey: queryKeys.parties.all({ page, limit, deferredSearch, filterTab, sort, filters }),
@@ -69,8 +75,7 @@ export default function PartiesPage() {
     [{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }],
     (configs) => {
       if (configs.length > 0) {
-        setSort({ key: configs[0].key, order: configs[0].direction.toUpperCase() as 'ASC' | 'DESC' });
-        setPage(1);
+        setSort(configs[0].key, configs[0].direction.toUpperCase() as 'ASC' | 'DESC');
       }
     }
   );

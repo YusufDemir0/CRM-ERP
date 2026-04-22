@@ -49,3 +49,6 @@ export declare class TransactionsQueryDto extends PaginationDto {
     type?: string;
     status?: string;
 }
+export declare class AccountsQueryDto extends PaginationDto {
+    state?: number;
+}

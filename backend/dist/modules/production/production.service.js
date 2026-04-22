@@ -58,7 +58,16 @@ let ProductionService = ProductionService_1 = class ProductionService {
         if (query.state !== undefined) {
             qb.andWhere('bom.state = :state', { state: query.state });
         }
-        qb.orderBy('bom.createdAt', 'DESC').skip(query.skip).take(query.limit);
+        const allowedSortMap = {
+            'name': 'bom.name',
+            'targetItemId': 'bom.targetItemId',
+            'description': 'bom.description',
+            'createdAt': 'bom.createdAt',
+            'itemCount': '(SELECT COUNT(*) FROM bom_items WHERE bom_id = bom.id)'
+        };
+        const sortField = allowedSortMap[query.sortBy || ''] || 'bom.createdAt';
+        qb.orderBy(sortField, query.sortOrder || 'DESC');
+        qb.skip(query.skip).take(query.limit);
         const [data, total] = await qb.getManyAndCount();
         return {
             data,
@@ -66,7 +75,7 @@ let ProductionService = ProductionService_1 = class ProductionService {
         };
     }
     async findOneBom(id) {
-        const bom = await this.bomRepo.findOne({
+        const bom = await this.transactionContext.manager.findOne(bom_entity_1.Bom, {
             where: { id },
             relations: ['items', 'items.item', 'targetItem'],
         });
@@ -183,7 +192,17 @@ let ProductionService = ProductionService_1 = class ProductionService {
         }
         if (query.status)
             qb.andWhere('po.status = :status', { status: query.status });
-        qb.orderBy('po.createdAt', 'DESC').skip(query.skip).take(query.limit);
+        const allowedSortMap = {
+            'code': 'po.code',
+            'bom.name': 'bom.name',
+            'plannedQuantity': 'po.plannedQuantity',
+            'startDate': 'po.startDate',
+            'status': 'po.status',
+            'createdAt': 'po.createdAt'
+        };
+        const sortField = allowedSortMap[query.sortBy || ''] || 'po.createdAt';
+        qb.orderBy(sortField, query.sortOrder || 'DESC');
+        qb.skip(query.skip).take(query.limit);
         const [data, total] = await qb.getManyAndCount();
         return {
             data,
@@ -191,7 +210,7 @@ let ProductionService = ProductionService_1 = class ProductionService {
         };
     }
     async findOneOrder(id) {
-        const po = await this.poRepo.findOne({
+        const po = await this.transactionContext.manager.findOne(production_order_entity_1.ProductionOrder, {
             where: { id },
             relations: ['bom', 'bom.items', 'bom.items.item', 'sourceDepartment', 'targetDepartment'],
         });
@@ -210,14 +229,18 @@ let ProductionService = ProductionService_1 = class ProductionService {
             code,
             bomId: dto.bomId,
             plannedQuantity: new decimal_js_1.Decimal(dto.plannedQuantity || 0),
-            producedQuantity: new decimal_js_1.Decimal(0),
-            wastageQuantity: new decimal_js_1.Decimal(0),
             sourceDepartmentId: dto.sourceDepartmentId || null,
             targetDepartmentId: dto.targetDepartmentId || null,
             startDate: dto.startDate,
             endDate: dto.endDate,
             notes: dto.notes,
-            status: 'draft',
+            status: dto.status || 'draft',
+            producedQuantity: new decimal_js_1.Decimal(dto.producedQuantity || 0),
+            wastageQuantity: new decimal_js_1.Decimal(dto.wastageQuantity || 0),
+            unitCost: new decimal_js_1.Decimal(0),
+            totalCost: new decimal_js_1.Decimal(0),
+            laborCost: new decimal_js_1.Decimal(0),
+            overheadCost: new decimal_js_1.Decimal(0),
             createdBy: userId,
         });
         const saved = await manager.save(po);
@@ -242,7 +265,7 @@ let ProductionService = ProductionService_1 = class ProductionService {
             const lockedPo = await manager.findOne(production_order_entity_1.ProductionOrder, {
                 where: { id },
                 lock: { mode: 'pessimistic_write' },
-                relations: ['bom', 'bom.items', 'bom.items.item']
+                relations: ['bom', 'bom.items', 'bom.items.item', 'bom.targetItem']
             });
             if (!lockedPo)
                 throw new common_1.NotFoundException('İş emri kilitlenemedi veya bulunamadı.');

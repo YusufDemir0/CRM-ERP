@@ -48,6 +48,7 @@ let DepartmentsService = class DepartmentsService {
         const allowedSortMap = {
             'name': 'dept.name',
             'abbreviation': 'dept.abbreviation',
+            'description': 'dept.description',
             'createdAt': 'dept.createdAt',
             'departmentType.name': 'type.name',
             'type.name': 'type.name',

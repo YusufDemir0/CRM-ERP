@@ -1,6 +1,7 @@
 
 import { parseTurkishDecimal } from '../../utils/number.helper';
 import { Item, Department } from '../../types';
+import { PremiumNumberInput } from '../common/PremiumNumberInput';
 
 interface StockAdjustmentFormData {
   itemId: string;
@@ -29,7 +30,7 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
 }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white max-w-[600px] w-full p-10 rounded-[2.5rem] shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300">
+      <div className="bg-white max-w-[600px] w-full p-6 rounded-2xl shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300">
         <div>
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">Manuel Stok Fişi</h2>
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">SAYIM VE DÜZELTME İŞLEMLERİ</p>
@@ -78,20 +79,10 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
 
           <div className="flex flex-col gap-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">MİKTAR</label>
-            <input 
-              type="number" 
-              step="0.0001" 
-              required 
-              className={`h-16 px-6 rounded-2xl border-2 font-black text-2xl text-center tabular-nums transition-colors outline-none ${
-                formData.type === 'in' 
-                  ? 'border-success/20 bg-success/5 text-success focus:border-success/40' 
-                  : 'border-danger/20 bg-danger/5 text-danger focus:border-danger/40'
-              }`}
-              value={formData.quantity === 0 ? '' : formData.quantity} 
-              onChange={e => {
-                const val = e.target.value;
-                onFormDataChange({...formData, quantity: val === '' ? 0 : parseTurkishDecimal(val)});
-              }} 
+            <PremiumNumberInput 
+              value={formData.quantity} 
+              onChange={val => onFormDataChange({...formData, quantity: val})} 
+              className="h-16"
             />
           </div>
 

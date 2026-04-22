@@ -2,6 +2,7 @@
 import { Sale } from '../../types';
 import { DataTable, Column } from '../common/DataTable';
 import { useMemo } from 'react';
+import { formatDisplayDate } from '../../utils/date.helper';
 
 import { PaginationMeta } from '../../types';
 
@@ -61,8 +62,10 @@ export const SalesTable: React.FC<SalesTableProps> = ({
       header: 'TARİH', 
       accessor: (s) => (
         <div className="flex flex-col">
-          <span className="font-bold text-slate-700">{new Date(s.createdAt).toLocaleDateString('tr-TR')}</span>
-          <span className="text-[10px] text-slate-400 font-black tracking-tighter uppercase">{new Date(s.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</span>
+          <span className="font-bold text-slate-700">{formatDisplayDate(s.createdAt)}</span>
+          <span className="text-[10px] text-slate-400 font-black tracking-tighter uppercase">
+            {new Date(s.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+          </span>
         </div>
       ),
       sortKey: 'createdAt'

@@ -86,6 +86,20 @@ export function ProductionPage() {
     onError: () => toast.error("İşlem başarısız")
   });
 
+  const resetForm = () => {
+    setEditingId(null);
+    setFormData({
+      bomId: '', plannedQuantity: 0, startDate: getLocalDateString(), endDate: '', 
+      notes: '', status: 'draft', producedQuantity: 0, wastageQuantity: 0,
+      sourceDepartmentId: '', targetDepartmentId: ''
+    });
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    resetForm();
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const currentOrder = orders.find((o: ProductionOrder) => o.id === editingId);
@@ -112,7 +126,9 @@ export function ProductionPage() {
       plannedQuantity: Number(formData.plannedQuantity),
       startDate: formData.startDate,
       endDate: formData.endDate || undefined,
-      notes: formData.notes
+      notes: formData.notes,
+      unitCost: "0",
+      totalCost: "0"
     };
     mutation.mutate({ id: editingId, data: payload });
   };
@@ -158,7 +174,7 @@ export function ProductionPage() {
       </div>
 
       <ProductionModal 
-        isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSubmit={handleSubmit}
+        isOpen={isModalOpen} onClose={handleCloseModal} onSubmit={handleSubmit}
         editingId={editingId} formData={formData} setFormData={setFormData}
         boms={boms} departments={departments}
       />

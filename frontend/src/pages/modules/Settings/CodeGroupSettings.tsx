@@ -63,7 +63,7 @@ export const CodeGroupSettings: React.FC<CodeGroupSettingsProps> = ({
         getRowOpacity={(g) => g.state === 0 ? 0.6 : 1}
       />
 
-      <div className="mt-10 p-8 rounded-[2rem] bg-slate-50 border-2 border-dashed border-slate-200 grid grid-cols-1 md:grid-cols-[1fr_150px_auto] gap-4 items-end">
+      <div className="mt-10 p-8 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 grid grid-cols-1 md:grid-cols-[1fr_150px_auto] gap-4 items-end">
         <div className="flex flex-col gap-2">
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">GRUP İSMİ</label>
           <input 

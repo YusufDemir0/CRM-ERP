@@ -61,7 +61,7 @@ export const SalesHeader: React.FC<SalesHeaderProps> = ({
       </div>
 
       {/* 🔍 SEARCH SECTION */}
-      <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-4 rounded-[2.5rem] shadow-premium border border-surface-container">
+      <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-4 rounded-2xl shadow-premium border border-surface-container">
         <div className="relative flex-1 group w-full">
           <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors text-lg" />
           <input 

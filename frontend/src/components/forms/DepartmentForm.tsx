@@ -176,7 +176,7 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
         <button type="submit" className="btn btn-primary btn-lg flex-1 shadow-2xl shadow-[var(--primary-glow)]">
           <FiCheck size={20} /> {editingId ? 'GÜNCELLEMELERİ KAYDET' : 'DEPARTMANI SİSTEME KAYDET'}
         </button>
-        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all" onClick={onCancel}>İPTAL</button>
+        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all" onClick={() => { clearCache(cacheKey); onCancel(); }}>İPTAL</button>
       </div>
     </form>
   );

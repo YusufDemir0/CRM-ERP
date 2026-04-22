@@ -1,10 +1,29 @@
+import React, { useEffect } from 'react';
 import { useLoaderStore, selectIsLoading, selectMessage } from '../store/useLoaderStore';
 
-const GlobalLoader: React.FC = () => {
-  const visible = useLoaderStore(selectIsLoading);
-  const message = useLoaderStore(selectMessage);
+interface GlobalLoaderProps {
+  mode?: 'render' | 'trigger';
+  message?: string;
+}
 
+const GlobalLoader: React.FC<GlobalLoaderProps> = ({ mode = 'render', message: propMessage }) => {
+  const show = useLoaderStore(s => s.show);
+  const hide = useLoaderStore(s => s.hide);
+
+  useEffect(() => {
+    if (mode === 'trigger') {
+      show(propMessage);
+      return () => hide();
+    }
+  }, [mode, propMessage, show, hide]);
+
+  const visible = useLoaderStore(selectIsLoading);
+  const storeMessage = useLoaderStore(selectMessage);
+
+  if (mode === 'trigger') return null;
   if (!visible) return null;
+
+  const message = propMessage || storeMessage || 'İŞLEM YAPILIYOR...';
 
   return (
     <div 

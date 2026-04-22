@@ -53,7 +53,9 @@ let LogsService = LogsService_1 = class LogsService {
         if (query.module) {
             qb.andWhere('log.module = :module', { module: query.module });
         }
-        qb.orderBy(`log.${query.sortBy || 'createdAt'}`, query.sortOrder || 'DESC');
+        const allowedSortCols = ['createdAt', 'tag', 'username', 'action', 'module'];
+        const sortCol = allowedSortCols.includes(query.sortBy || '') ? query.sortBy : 'createdAt';
+        qb.orderBy(`log.${sortCol}`, query.sortOrder || 'DESC');
         qb.skip(query.skip).take(query.limit);
         const [data, total] = await qb.getManyAndCount();
         return {

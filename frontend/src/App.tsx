@@ -57,7 +57,7 @@ export default function App() {
         <AuthProvider>
           <BrowserRouter>
             <GlobalLoader />
-            <Suspense fallback={<GlobalLoader />}>
+            <Suspense fallback={<GlobalLoader mode="trigger" message="SAYFA YÜKLENİYOR..." />}>
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/unauthorized" element={<UnauthorizedPage />} />

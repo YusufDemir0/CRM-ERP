@@ -257,7 +257,7 @@ export const UserForm: React.FC<UserFormProps> = ({
           </FormField>
         </div>
 
-        <div className="bg-[var(--primary-glow)] p-6 rounded-[2rem] border border-[var(--primary-glow)] shadow-inner flex flex-col gap-4">
+        <div className="bg-[var(--primary-glow)] p-6 rounded-2xl border border-[var(--primary-glow)] shadow-inner flex flex-col gap-4">
           <label className="text-[10px] text-[var(--primary)] font-black uppercase tracking-widest text-center">Erişim Rolü Atama</label>
           <div className="flex flex-col gap-2 overflow-y-auto pr-1">
             {availableRoles.map((r) => (
@@ -286,7 +286,7 @@ export const UserForm: React.FC<UserFormProps> = ({
           {isSubmitting ? <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" /> : <FiCheck size={20} />} 
           {editingId ? 'GÜNCELLEMELERİ KAYDET' : 'YENİ PERSONELİ SİSTEME KAYDET'}
         </button>
-        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all" onClick={onCancel} disabled={isSubmitting}>
+        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all" onClick={() => { clearCache('user'); onCancel(); }} disabled={isSubmitting}>
           İPTAL
         </button>
       </div>

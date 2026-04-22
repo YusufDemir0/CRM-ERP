@@ -93,7 +93,8 @@ export class ItemsService {
       'createdAt': 'item.createdAt',
       'itemType.name': 'itemType.name',
       'provider.name': 'provider.name',
-      'state': 'item.state'
+      'state': 'item.state',
+      'totalStock': '(SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE item_id = item.id)'
     };
 
     const sortCol = sortFieldMap[query.sortBy || ''] || 'item.createdAt';
@@ -108,7 +109,7 @@ export class ItemsService {
   }
 
   async findOne(id: number): Promise<Item> {
-    const item = await this.itemRepo.findOne({
+    const item = await this.transactionContext.manager.findOne(Item, {
       where: { id },
       relations: ['itemType', 'itemCodeGroup', 'quantityType', 'provider', 'currency'],
     });
@@ -139,10 +140,27 @@ export class ItemsService {
     const item = manager.create(Item, {
       ...dto,
       code,
+      movingAverageCost: new Decimal(0),
       createdBy: userId,
     });
 
-    return manager.save(item);
+    const savedItem = await manager.save(item);
+
+    // [REQ] Auto-create stock records for all active departments
+    const { Department } = await import('../../departments/entities/department.entity');
+    const departments = await manager.find(Department, { where: { state: 1 } });
+    
+    for (const dept of departments) {
+      await manager.save(manager.create(Stock, {
+        itemId: savedItem.id,
+        departmentId: dept.id,
+        quantity: new Decimal(0),
+        reservedQuantity: new Decimal(0),
+        createdBy: userId
+      }));
+    }
+
+    return savedItem;
   }
 
   async update(id: number, dto: UpdateItemDto, userId?: number): Promise<Item> {

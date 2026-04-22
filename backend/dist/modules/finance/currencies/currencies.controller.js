@@ -17,11 +17,12 @@ const common_1 = require("@nestjs/common");
 const currencies_service_1 = require("./currencies.service");
 const finance_dto_1 = require("../dto/finance.dto");
 const current_user_decorator_1 = require("../../../common/decorators/current-user.decorator");
+const pagination_dto_1 = require("../../../common/dto/pagination.dto");
 let CurrenciesController = class CurrenciesController {
     constructor(currenciesService) {
         this.currenciesService = currenciesService;
     }
-    findAll() { return this.currenciesService.findAll(); }
+    findAll(query) { return this.currenciesService.findAll(query); }
     getDefault() { return this.currenciesService.getDefault(); }
     findOne(id) { return this.currenciesService.findOne(id); }
     create(dto, userId) { return this.currenciesService.create(dto, userId); }
@@ -38,8 +39,9 @@ let CurrenciesController = class CurrenciesController {
 exports.CurrenciesController = CurrenciesController;
 __decorate([
     (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [pagination_dto_1.PaginationDto]),
     __metadata("design:returntype", void 0)
 ], CurrenciesController.prototype, "findAll", null);
 __decorate([

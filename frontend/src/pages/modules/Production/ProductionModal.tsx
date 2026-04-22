@@ -1,6 +1,7 @@
 
 import { FiX } from 'react-icons/fi';
 import { Bom, Department, ProductionOrderFormData } from '../../../types';
+import { PremiumNumberInput } from '../../../components/common/PremiumNumberInput';
 
 interface ProductionModalProps {
   isOpen: boolean;
@@ -20,7 +21,7 @@ export const ProductionModal: React.FC<ProductionModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white max-w-[800px] w-full p-10 rounded-[2.5rem] shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white max-w-[800px] w-full p-6 rounded-2xl shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">
             {editingId ? 'İş Emri Detayları' : 'Üretim Planı Oluştur'}
@@ -52,18 +53,17 @@ export const ProductionModal: React.FC<ProductionModalProps> = ({
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">PLANLANAN ADET</label>
-              <input 
-                type="number" 
-                required 
+              <PremiumNumberInput 
                 value={formData.plannedQuantity} 
-                onChange={e => setFormData({...formData, plannedQuantity: e.target.value})} 
-                className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-black text-xl text-primary focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors" 
+                onChange={val => setFormData({...formData, plannedQuantity: val})} 
+                min={1}
+                className="h-14"
               />
             </div>
           </div>
 
           {editingId && (
-            <div className={`p-8 rounded-[2rem] border-2 border-dashed flex flex-col gap-6 ${
+            <div className={`p-8 rounded-2xl border-2 border-dashed flex flex-col gap-6 ${
               formData.status === 'completed' ? 'bg-success/5 border-success/20' : 'bg-slate-50 border-slate-100'
             }`}>
               <div className="flex items-center justify-between">
@@ -90,20 +90,18 @@ export const ProductionModal: React.FC<ProductionModalProps> = ({
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">ÜRETİLEN MİKTAR</label>
-                  <input 
-                    type="number" 
+                  <PremiumNumberInput 
                     value={formData.producedQuantity} 
-                    onChange={e => setFormData({...formData, producedQuantity: e.target.value})} 
-                    className="h-12 px-4 rounded-xl border border-slate-100 bg-white font-black text-success focus:ring-2 focus:ring-success/20 outline-none" 
+                    onChange={val => setFormData({...formData, producedQuantity: val})} 
+                    className="h-12"
                   />
                 </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">FİRE MİKTARI</label>
-                  <input 
-                    type="number" 
+                  <PremiumNumberInput 
                     value={formData.wastageQuantity} 
-                    onChange={e => setFormData({...formData, wastageQuantity: e.target.value})} 
-                    className="h-12 px-4 rounded-xl border border-slate-100 bg-white font-black text-danger focus:ring-2 focus:ring-danger/20 outline-none" 
+                    onChange={val => setFormData({...formData, wastageQuantity: val})} 
+                    className="h-12"
                   />
                 </div>
               </div>
@@ -147,6 +145,7 @@ export const ProductionModal: React.FC<ProductionModalProps> = ({
                 required 
                 value={formData.startDate} 
                 onChange={e => setFormData({...formData, startDate: e.target.value})} 
+                min={new Date().toISOString().split('T')[0]}
                 className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors" 
               />
             </div>
@@ -156,6 +155,7 @@ export const ProductionModal: React.FC<ProductionModalProps> = ({
                 type="date" 
                 value={formData.endDate} 
                 onChange={e => setFormData({...formData, endDate: e.target.value})} 
+                min={formData.startDate || new Date().toISOString().split('T')[0]}
                 className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors" 
               />
             </div>

@@ -4,7 +4,7 @@ import { CreateCurrencyDto, UpdateCurrencyDto } from '../dto/finance.dto';
 export declare class CurrenciesService {
     private currencyRepo;
     constructor(currencyRepo: Repository<Currency>);
-    findAll(): Promise<Currency[]>;
+    findAll(query: any): Promise<any>;
     findOne(id: number): Promise<Currency>;
     create(dto: CreateCurrencyDto, userId?: number): Promise<Currency>;
     update(id: number, dto: UpdateCurrencyDto, userId?: number): Promise<Currency>;

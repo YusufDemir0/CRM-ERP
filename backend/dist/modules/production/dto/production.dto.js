@@ -16,6 +16,12 @@ const pagination_dto_1 = require("../../../common/dto/pagination.dto");
 class BomQueryDto extends pagination_dto_1.PaginationDto {
 }
 exports.BomQueryDto = BomQueryDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], BomQueryDto.prototype, "state", void 0);
 class ProductionOrderQueryDto extends pagination_dto_1.PaginationDto {
 }
 exports.ProductionOrderQueryDto = ProductionOrderQueryDto;
@@ -114,8 +120,10 @@ __decorate([
     __metadata("design:type", Number)
 ], CreateProductionOrderDto.prototype, "bomId", void 0);
 __decorate([
-    (0, class_validator_1.IsNotEmpty)(),
-    __metadata("design:type", Object)
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(1),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
 ], CreateProductionOrderDto.prototype, "plannedQuantity", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -146,20 +154,61 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateProductionOrderDto.prototype, "notes", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(['draft', 'planned', 'in_progress', 'completed', 'cancelled']),
+    __metadata("design:type", String)
+], CreateProductionOrderDto.prototype, "status", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], CreateProductionOrderDto.prototype, "producedQuantity", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], CreateProductionOrderDto.prototype, "wastageQuantity", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateProductionOrderDto.prototype, "unitCost", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateProductionOrderDto.prototype, "totalCost", void 0);
 class UpdateProductionOrderDto {
 }
 exports.UpdateProductionOrderDto = UpdateProductionOrderDto;
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    __metadata("design:type", Object)
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], UpdateProductionOrderDto.prototype, "bomId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(1),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
 ], UpdateProductionOrderDto.prototype, "plannedQuantity", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    __metadata("design:type", Object)
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
 ], UpdateProductionOrderDto.prototype, "producedQuantity", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    __metadata("design:type", Object)
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
 ], UpdateProductionOrderDto.prototype, "wastageQuantity", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -182,11 +231,15 @@ __decorate([
 ], UpdateProductionOrderDto.prototype, "status", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    __metadata("design:type", Object)
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
 ], UpdateProductionOrderDto.prototype, "laborCost", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    __metadata("design:type", Object)
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
 ], UpdateProductionOrderDto.prototype, "overheadCost", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),

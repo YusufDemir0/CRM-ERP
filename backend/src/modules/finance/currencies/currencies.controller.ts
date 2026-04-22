@@ -1,14 +1,15 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
 import { CurrenciesService } from './currencies.service';
 import { CreateCurrencyDto, UpdateCurrencyDto } from '../dto/finance.dto';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { PaginationDto } from '../../../common/dto/pagination.dto';
 
 @Controller('currencies')
 export class CurrenciesController {
   constructor(private readonly currenciesService: CurrenciesService) {}
 
   @Get()
-  findAll() { return this.currenciesService.findAll(); }
+  findAll(@Query() query: PaginationDto) { return this.currenciesService.findAll(query); }
 
   @Get('default')
   getDefault() { return this.currenciesService.getDefault(); }

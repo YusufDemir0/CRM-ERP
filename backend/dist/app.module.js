@@ -45,78 +45,33 @@ const webhooks_module_1 = require("./modules/webhooks/webhooks.module");
 const staff_module_1 = require("./modules/staff/staff.module");
 let AppModule = class AppModule {
     configure(consumer) {
-        consumer
-            .apply(csrf_middleware_1.CsrfMiddleware)
-            .forRoutes('*');
+        consumer.apply(csrf_middleware_1.CsrfMiddleware).forRoutes('*');
     }
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            throttler_1.ThrottlerModule.forRoot([{
-                    ttl: 60000,
-                    limit: 100,
-                }]),
-            nestjs_cls_1.ClsModule.forRoot({
-                global: true,
-                middleware: { mount: true },
-            }),
-            config_1.ConfigModule.forRoot({
-                isGlobal: true,
-                load: [database_config_1.default, jwt_config_1.default],
-                envFilePath: '.env',
-            }),
+            throttler_1.ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+            nestjs_cls_1.ClsModule.forRoot({ global: true, middleware: { mount: true } }),
+            config_1.ConfigModule.forRoot({ isGlobal: true, load: [database_config_1.default, jwt_config_1.default], envFilePath: '.env' }),
             typeorm_1.TypeOrmModule.forRootAsync({
                 imports: [config_1.ConfigModule],
                 inject: [config_1.ConfigService],
-                useFactory: (configService) => ({
-                    ...configService.get('database'),
-                }),
+                useFactory: (configService) => ({ ...configService.get('database') }),
             }),
             cache_manager_1.CacheModule.register({ isGlobal: true, ttl: 60000 }),
-            auth_module_1.AuthModule,
-            users_module_1.UsersModule,
-            roles_module_1.RolesModule,
-            departments_module_1.DepartmentsModule,
-            parties_module_1.PartiesModule,
-            inventory_module_1.InventoryModule,
-            sales_module_1.SalesModule,
-            finance_module_1.FinanceModule,
-            production_module_1.ProductionModule,
-            dashboard_module_1.DashboardModule,
-            settings_module_1.SettingsModule,
-            logs_module_1.LogsModule,
-            notes_module_1.NotesModule,
-            webhooks_module_1.WebhooksModule,
-            staff_module_1.StaffModule,
-            common_module_1.CommonModule,
+            auth_module_1.AuthModule, users_module_1.UsersModule, roles_module_1.RolesModule, departments_module_1.DepartmentsModule, parties_module_1.PartiesModule, inventory_module_1.InventoryModule,
+            sales_module_1.SalesModule, finance_module_1.FinanceModule, production_module_1.ProductionModule, dashboard_module_1.DashboardModule, settings_module_1.SettingsModule,
+            logs_module_1.LogsModule, notes_module_1.NotesModule, webhooks_module_1.WebhooksModule, staff_module_1.StaffModule, common_module_1.CommonModule,
         ],
         providers: [
-            {
-                provide: core_1.APP_INTERCEPTOR,
-                useClass: audit_interceptor_1.AuditInterceptor,
-            },
-            {
-                provide: core_1.APP_INTERCEPTOR,
-                useClass: logs_interceptor_1.LogsInterceptor,
-            },
-            {
-                provide: core_1.APP_GUARD,
-                useClass: throttler_proxy_guard_1.ThrottlerProxyGuard,
-            },
-            {
-                provide: core_1.APP_GUARD,
-                useClass: csrf_guard_1.CsrfGuard,
-            },
-            {
-                provide: core_1.APP_GUARD,
-                useClass: jwt_auth_guard_1.JwtAuthGuard,
-            },
-            {
-                provide: core_1.APP_GUARD,
-                useClass: permissions_guard_1.PermissionsGuard,
-            },
+            { provide: core_1.APP_INTERCEPTOR, useClass: audit_interceptor_1.AuditInterceptor },
+            { provide: core_1.APP_INTERCEPTOR, useClass: logs_interceptor_1.LogsInterceptor },
+            { provide: core_1.APP_GUARD, useClass: throttler_proxy_guard_1.ThrottlerProxyGuard },
+            { provide: core_1.APP_GUARD, useClass: csrf_guard_1.CsrfGuard },
+            { provide: core_1.APP_GUARD, useClass: jwt_auth_guard_1.JwtAuthGuard },
+            { provide: core_1.APP_GUARD, useClass: permissions_guard_1.PermissionsGuard },
             audit_subscriber_1.AuditSubscriber,
         ],
     })

@@ -42,8 +42,8 @@ export default function SettingsPage() {
   const { data: currencies = [], isLoading: currenciesLoading } = useQuery({
     queryKey: queryKeys.currencies.all,
     queryFn: async ({ signal }) => {
-      const res = await currenciesAPI.getAll(undefined, { signal });
-      return res.data || [];
+      const res = await currenciesAPI.getAll({ limit: 500 }, { signal });
+      return res.data.data || [];
     }
   });
 
@@ -225,10 +225,10 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-10 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 items-start">
         
         {/* 🟠 SIDEBAR NAVIGATION */}
-        <div className="bg-white p-3 rounded-[2rem] border border-slate-100 shadow-premium flex flex-col gap-1.5">
+        <div className="bg-white p-3 rounded-2xl border border-slate-100 shadow-premium flex flex-col gap-1.5">
           {tabs.map((tab) => (
             <button 
               key={tab.id}
@@ -245,7 +245,7 @@ export default function SettingsPage() {
         </div>
 
         {/* 🟡 CONTENT AREA */}
-        <div className="bg-white p-8 sm:p-12 rounded-[2.5rem] border border-slate-100 shadow-premium min-h-[600px]">
+        <div className="bg-white p-8 sm:p-8 rounded-2xl border border-slate-100 shadow-premium min-h-[600px]">
           
           {activeTab === 'general' && (
             <GeneralSettings 

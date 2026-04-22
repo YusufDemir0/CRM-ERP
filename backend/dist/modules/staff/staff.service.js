@@ -37,6 +37,9 @@ let StaffService = class StaffService {
         if (query.departmentId) {
             qb.andWhere('staff.departmentId = :departmentId', { departmentId: query.departmentId });
         }
+        if (query.state !== undefined) {
+            qb.andWhere('staff.state = :state', { state: query.state });
+        }
         const page = query.page || 1;
         const limit = query.limit || 20;
         const skip = (page - 1) * limit;

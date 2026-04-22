@@ -28,18 +28,18 @@ export class TransactionsService {
   async findAll(query: PaginationDto & { partyId?: number; type?: string; status?: string }): Promise<PaginatedResult<Transaction>> {
     const qb = this.txRepo.createQueryBuilder('tx')
       .leftJoinAndSelect('tx.party', 'party')
-      .leftJoinAndSelect('tx.commercialAccount', 'account')
+      .leftJoinAndSelect('tx.commercialAccount', 'commercialAccount')
       .leftJoinAndSelect('tx.currency', 'currency');
 
     if (query.search) {
       const s = getSafeSearchPattern(query.search);
-      qb.andWhere('(tx.code LIKE :s OR party.name LIKE :s OR tx.description LIKE :s OR account.name LIKE :s OR account.bankName LIKE :s)', { s });
+      qb.andWhere('(tx.code LIKE :s OR party.name LIKE :s OR tx.description LIKE :s OR commercialAccount.name LIKE :s OR commercialAccount.bankName LIKE :s)', { s });
     }
     if (query.partyId) qb.andWhere('tx.partyId = :partyId', { partyId: query.partyId });
     if (query.type) qb.andWhere('tx.type = :type', { type: query.type });
     if (query.status) qb.andWhere('tx.status = :status', { status: query.status });
 
-    const allowedSortCols = ['date', 'amount', 'createdAt', 'code', 'party.name', 'account.name'];
+    const allowedSortCols = ['date', 'amount', 'createdAt', 'code', 'party.name', 'commercialAccount.name', 'status'];
     const sortField = allowedSortCols.includes(query.sortBy || '') ? query.sortBy! : 'date';
     
     const finalSortField = sortField.includes('.') ? sortField : `tx.${sortField}`;
@@ -58,7 +58,7 @@ export class TransactionsService {
   }
 
   async findOne(id: number): Promise<Transaction> {
-    const tx = await this.txRepo.findOne({
+    const tx = await this.transactionContext.manager.findOne(Transaction, {
       where: { id },
       relations: ['party', 'commercialAccount', 'currency'],
     });

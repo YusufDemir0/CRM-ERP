@@ -16,7 +16,6 @@ exports.AccountsController = void 0;
 const common_1 = require("@nestjs/common");
 const accounts_service_1 = require("./accounts.service");
 const finance_dto_1 = require("../dto/finance.dto");
-const pagination_dto_1 = require("../../../common/dto/pagination.dto");
 const current_user_decorator_1 = require("../../../common/decorators/current-user.decorator");
 let AccountsController = class AccountsController {
     constructor(accService) {
@@ -36,7 +35,7 @@ __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [pagination_dto_1.PaginationDto]),
+    __metadata("design:paramtypes", [finance_dto_1.AccountsQueryDto]),
     __metadata("design:returntype", void 0)
 ], AccountsController.prototype, "findAll", null);
 __decorate([

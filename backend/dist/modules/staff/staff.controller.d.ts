@@ -13,6 +13,7 @@ export declare class StaffController {
         departmentId?: number;
         page?: number;
         limit?: number;
+        state?: number;
     }): Promise<{
         data: import("./entities/staff.entity").Staff[];
         meta: {

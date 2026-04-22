@@ -65,37 +65,37 @@ let UsersService = class UsersService {
         this.transactionContext = transactionContext;
     }
     async findAll(query) {
-        const qb = this.userRepo.createQueryBuilder('user');
+        const qb = this.userRepo.createQueryBuilder('user')
+            .leftJoinAndSelect('user.department', 'department')
+            .leftJoinAndSelect('user.roles', 'roles')
+            .select([
+            'user.id', 'user.username', 'user.fullName', 'user.email',
+            'user.phone', 'user.departmentId', 'user.state', 'user.createdAt',
+            'department.id', 'department.name',
+            'roles.id', 'roles.name',
+        ]);
         if (query.search) {
             const searchPattern = (0, sql_helper_1.getSafeSearchPattern)(query.search);
             if (searchPattern) {
-                qb.leftJoin('user.department', 'dept_filter');
-                qb.leftJoin('user.roles', 'role_filter');
-                qb.where('(user.fullName LIKE :search OR user.username LIKE :search OR user.email LIKE :search OR dept_filter.name LIKE :search OR role_filter.name LIKE :search)', { search: searchPattern });
+                qb.where('(user.fullName LIKE :search OR user.username LIKE :search OR user.email LIKE :search OR department.name LIKE :search OR roles.name LIKE :search)', { search: searchPattern });
             }
         }
         if (query.state !== undefined) {
             qb.andWhere('user.state = :state', { state: query.state });
         }
-        qb.orderBy(`user.${query.sortBy || 'createdAt'}`, query.sortOrder || 'DESC');
+        const sortFieldMap = {
+            'fullName': 'user.fullName',
+            'username': 'user.username',
+            'email': 'user.email',
+            'createdAt': 'user.createdAt',
+            'department.name': 'department.name',
+            'roles.name': 'roles.name'
+        };
+        const allowedSortCols = ['fullName', 'username', 'email', 'createdAt', 'department.name', 'roles.name'];
+        const sortCol = allowedSortCols.includes(query.sortBy || '') ? sortFieldMap[query.sortBy] : 'user.createdAt';
+        qb.orderBy(sortCol, query.sortOrder || 'DESC');
         qb.skip(query.skip).take(query.limit);
-        const [idRows, total] = await qb.select('user.id').getManyAndCount();
-        const ids = idRows.map((r) => r.id);
-        let data = [];
-        if (ids.length > 0) {
-            data = await this.userRepo.createQueryBuilder('user')
-                .leftJoinAndSelect('user.department', 'department')
-                .leftJoinAndSelect('user.roles', 'roles')
-                .select([
-                'user.id', 'user.username', 'user.fullName', 'user.email',
-                'user.phone', 'user.departmentId', 'user.state', 'user.createdAt',
-                'department.id', 'department.name',
-                'roles.id', 'roles.name',
-            ])
-                .where('user.id IN (:...ids)', { ids })
-                .orderBy(`user.${query.sortBy || 'createdAt'}`, query.sortOrder || 'DESC')
-                .getMany();
-        }
+        const [data, total] = await qb.getManyAndCount();
         return {
             data,
             meta: {

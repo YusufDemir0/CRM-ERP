@@ -49,6 +49,10 @@ export class StocksService {
       qb.andWhere('(item.name LIKE :s OR item.code LIKE :s)', { s });
     }
 
+    if (query.state !== undefined) {
+      qb.andWhere('item.state = :state', { state: query.state });
+    }
+
     if (query.isCritical === 'true') {
       qb.andWhere('stock.quantity <= item.criticalLimit');
       qb.andWhere('item.criticalLimit > 0');
@@ -112,9 +116,11 @@ export class StocksService {
   }
 
   private validateStock(itemId: number, deptId: number, currentQty: Decimal, delta: Decimal) {
-    if (currentQty.lt(delta)) {
+    const margin = new Decimal(-100);
+    const after = currentQty.sub(delta);
+    if (after.lt(margin)) {
       throw new BadRequestException(
-        `Stok negatife düşemez! (Ürün ID: ${itemId}, Depo ID: ${deptId}, Mevcut: ${currentQty.toString()}, Talep Edilen: ${delta.toString()})`
+        `Yetersiz stok! En fazla -100 birime kadar izin verilmektedir. (Ürün ID: ${itemId}, Depo ID: ${deptId}, Mevcut: ${currentQty.toString()}, Talep: ${delta.toString()}, Kalan: ${after.toString()})`
       );
     }
   }
@@ -353,12 +359,16 @@ export class StocksService {
       const qty = reducedItems.get(itemId)!;
       const stock = stockMap.get(itemId);
 
-      if (!stock || new Decimal(stock.quantity).lt(qty)) {
-        throw new BadRequestException(`Sevkiyat için yetersiz fiziksel stok. Ürün ID: ${itemId}`);
+      if (!stock) {
+        throw new BadRequestException(`Stok kaydı bulunamadı. Ürün ID: ${itemId}`);
       }
 
       const quantityBefore = new Decimal(stock.quantity);
       const quantityAfter = quantityBefore.sub(qty);
+
+      if (quantityAfter.lt(-100)) {
+        throw new BadRequestException(`Sevkiyat için yetersiz stok limitleri aşıldı (-100 sınırı). Ürün ID: ${itemId}`);
+      }
 
       stock.quantity = quantityAfter;
       stock.reservedQuantity = Decimal.max(0, new Decimal(stock.reservedQuantity || 0).sub(qty));
@@ -407,7 +417,7 @@ export class StocksService {
 
     if (!stock) {
       stock = manager.create(Stock, {
-        itemId, departmentId, quantity: new Decimal(0), createdBy: userId
+        itemId, departmentId, quantity: new Decimal(0), reservedQuantity: new Decimal(0), createdBy: userId
       });
       stock = await manager.save(stock);
       stock = await manager.findOne(Stock, { where: { id: stock.id }, lock: { mode: 'pessimistic_write' } });
@@ -461,7 +471,7 @@ export class StocksService {
 
     if (!stock) {
       stock = manager.create(Stock, {
-        itemId: dto.itemId, departmentId: dto.departmentId, quantity: new Decimal(0), createdBy: userId,
+        itemId: dto.itemId, departmentId: dto.departmentId, quantity: new Decimal(0), reservedQuantity: new Decimal(0), createdBy: userId,
       });
       stock = await manager.save(stock);
     }
@@ -472,10 +482,10 @@ export class StocksService {
     if (dto.type === 'in') {
       quantityAfter = FinanceHelper.add(quantityBefore, qty);
     } else {
-      if (quantityBefore.lt(qty)) {
-        throw new BadRequestException(`Yetersiz stok. Mevcut: ${quantityBefore.toString()}`);
-      }
       quantityAfter = FinanceHelper.sub(quantityBefore, qty);
+      if (quantityAfter.lt(-100)) {
+        throw new BadRequestException(`Yetersiz stok limitleri aşıldı (-100 sınırı). Mevcut: ${quantityBefore.toString()}`);
+      }
     }
 
     stock.quantity = quantityAfter;
@@ -562,7 +572,7 @@ export class StocksService {
 
       if (!s) {
         s = manager.create(Stock, { 
-          itemId: dto.itemId, departmentId: deptId, quantity: new Decimal(0), createdBy: userId 
+          itemId: dto.itemId, departmentId: deptId, quantity: new Decimal(0), reservedQuantity: new Decimal(0), createdBy: userId 
         });
         s = await manager.save(s);
         s = await manager.findOne(Stock, {
@@ -577,13 +587,13 @@ export class StocksService {
     const sourceStock = stocks[dto.fromDepartmentId];
     const targetStock = stocks[dto.toDepartmentId];
 
-    if (new Decimal(sourceStock.quantity).lt(dto.quantity)) {
-      throw new BadRequestException(`Kaynak depoda yeterli stok bulunmuyor.`);
-    }
-
     const qty = new Decimal(dto.quantity);
     const sourceQtyBefore = new Decimal(sourceStock.quantity);
     const sourceQtyAfter = FinanceHelper.sub(sourceQtyBefore, qty);
+    
+    if (sourceQtyAfter.lt(-100)) {
+      throw new BadRequestException(`Kaynak depoda yeterli stok limiti bulunmuyor (-100 sınırı).`);
+    }
     const targetQtyBefore = new Decimal(targetStock.quantity);
     const targetQtyAfter = FinanceHelper.add(targetQtyBefore, qty);
 
@@ -688,8 +698,8 @@ export class StocksService {
       const quantityBefore = new Decimal(stock.quantity);
       const quantityAfter = quantityBefore.add(change.totalDelta);
 
-      if (quantityAfter.lt(0)) {
-        throw new BadRequestException(`İşlem geri alınırken stok yetersiz kalıyor.`);
+      if (quantityAfter.lt(-100)) {
+        throw new BadRequestException(`İşlem geri alınırken stok limitleri yetersiz kalıyor (-100 sınırı).`);
       }
 
       stock.quantity = quantityAfter;
@@ -701,6 +711,8 @@ export class StocksService {
         quantity: change.totalDelta.abs(),
         quantityBefore,
         quantityAfter,
+        unitCost: new Decimal(0),
+        totalCost: new Decimal(0),
         type: change.totalDelta.gt(0) ? 'in' : 'out',
         referenceType: 'revert',
         referenceId: referenceId,

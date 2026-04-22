@@ -98,7 +98,7 @@ let PartiesService = class PartiesService {
         if (query.state !== undefined) {
             qb.andWhere('party.state = :state', { state: query.state });
         }
-        const allowedSortCols = ['name', 'balance', 'creditLimit', 'createdAt'];
+        const allowedSortCols = ['name', 'balance', 'creditLimit', 'createdAt', 'taxNumber', 'phone1'];
         const sortCol = allowedSortCols.includes(query.sortBy || '') ? query.sortBy : 'name';
         qb.orderBy(`party.${sortCol}`, query.sortOrder || 'ASC');
         qb.skip(query.skip).take(query.limit);
@@ -133,7 +133,7 @@ let PartiesService = class PartiesService {
                 console.warn('Default currency not found, setting to null');
             }
         }
-        const party = this.partyRepo.create({ ...dto, createdBy: userId });
+        const party = this.partyRepo.create({ ...dto, balance: new decimal_js_1.Decimal(0), createdBy: userId });
         return this.partyRepo.save(party);
     }
     async update(id, dto, userId) {

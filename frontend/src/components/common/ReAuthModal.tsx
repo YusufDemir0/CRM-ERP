@@ -23,7 +23,7 @@ export const ReAuthModal: React.FC = () => {
     try {
       await login(user.username, password);
       setPassword('');
-    } catch (err: any) {
+    } catch (err) {
       setError('Hatalı şifre. Lütfen tekrar deneyiniz.');
     } finally {
       setLoading(false);
@@ -35,8 +35,8 @@ export const ReAuthModal: React.FC = () => {
       {/* Heavy Backdrop */}
       <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" />
       
-      <div className="relative w-full max-w-md bg-white rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
-        <div className="p-8 sm:p-10">
+      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+        <div className="p-8 sm:p-6">
           <div className="flex flex-col items-center text-center mb-8">
             <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 mb-6 animate-bounce">
               <FiLock size={32} />
