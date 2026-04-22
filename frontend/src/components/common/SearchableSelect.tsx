@@ -15,6 +15,7 @@ interface SearchableSelectProps {
   placeholder?: string;
   label?: string;
   className?: string;
+  required?: boolean;
 }
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -24,13 +25,17 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   placeholder = 'Seçiniz...',
   label,
   className = '',
+  required,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const parentRef = useRef<HTMLDivElement>(null);
 
-  const selectedOption = options.find((o) => o.id === value);
+  const selectedOption = useMemo(() => 
+    options.find((o) => String(o.id) === String(value)),
+    [options, value]
+  );
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -55,7 +60,11 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
   return (
     <div className={`form-group ${className}`} ref={containerRef}>
-      {label && <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">{label}</label>}
+      {label && (
+        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">
+          {label} {required && <span className="text-red-500 ml-0.5">*</span>}
+        </label>
+      )}
       <div className="relative">
         <div
           className="flex items-center justify-between h-12 px-4 rounded-xl border-2 border-slate-100 bg-white cursor-pointer hover:border-primary/20 transition-all shadow-sm"
@@ -107,7 +116,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                 {virtualizer.getVirtualItems().length > 0 ? (
                   virtualizer.getVirtualItems().map((virtualRow) => {
                     const option = filteredOptions[virtualRow.index];
-                    const isSelected = option.id === value;
+                    const isSelected = String(option.id) === String(value);
                     return (
                       <div
                         key={virtualRow.key}
