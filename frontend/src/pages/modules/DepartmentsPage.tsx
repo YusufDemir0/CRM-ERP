@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { departmentsAPI } from '../../services/api';
 import { 
@@ -18,14 +19,41 @@ import { StaffList } from '../../components/departments/StaffList';
 
 export default function DepartmentsPage() {
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const page = Number(searchParams.get('page')) || 1;
+  const searchTerm = searchParams.get('q') || '';
+  const filterTab = (searchParams.get('tab') as 'active' | 'passive' | 'all') || 'active';
+  const limit = Number(searchParams.get('limit')) || 20;
+
   const deferredSearch = useDeferredValue(searchTerm);
-  const [filterTab, setFilterTab] = useState<'active' | 'passive' | 'all'>('active');
   const { openCreate } = useQuickCreateStore();
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
-  const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'name', order: 'ASC' });
+  
+  const sort = {
+    key: searchParams.get('sortBy') || 'name',
+    order: (searchParams.get('sortOrder') as 'ASC' | 'DESC') || 'ASC'
+  };
+
   const [viewingDepartment, setViewingDepartment] = useState<Department | null>(null);
+
+  const updateParams = useCallback((newParams: Record<string, string | number | undefined>) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      Object.entries(newParams).forEach(([key, value]) => {
+        if (value === undefined || value === '' || (key === 'page' && value === 1)) {
+          next.delete(key);
+        } else {
+          next.set(key, String(value));
+        }
+      });
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const setPage = (p: number) => updateParams({ page: p });
+  const setFilterTab = (tab: string) => updateParams({ tab, page: 1 });
+  const setSearchTerm = (q: string) => updateParams({ q, page: 1 });
+  const setSort = (key: string, order: 'ASC' | 'DESC') => updateParams({ sortBy: key, sortOrder: order, page: 1 });
 
   const { data: departmentsData, isLoading: loading } = useQuery({
     queryKey: queryKeys.departments.all({ page, limit, deferredSearch, filterTab, sort }),
@@ -40,24 +68,20 @@ export default function DepartmentsPage() {
   });
 
   const departments: Department[] = departmentsData?.data || [];
+  const paginationMeta = departmentsData?.meta || { total: 0, page: 1, limit: 20, totalPages: 0 };
 
   const { sortedData, sortConfigs, toggleSort } = useSort<Department>(
     departments, 
     [{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }],
     (configs) => {
       if (configs.length > 0) {
-        setSort({ 
-          key: configs[0].key, 
-          order: configs[0].direction.toUpperCase() as 'ASC' | 'DESC' 
-        });
-        setPage(1);
+        setSort(
+          configs[0].key, 
+          configs[0].direction.toUpperCase() as 'ASC' | 'DESC' 
+        );
       }
     }
   );
-
-  // Search Debounce
-
-  const paginationMeta = departmentsData?.meta || { total: 0, page: 1, limit: 20, totalPages: 0 };
 
   const mutation = useMutation({
     mutationFn: ({ id, state }: { id: number; state: number }) => departmentsAPI.toggleState(id, state),
@@ -138,7 +162,8 @@ export default function DepartmentsPage() {
     },
     { 
       header: 'AÇIKLAMA', 
-      accessor: (d) => <span className="text-xs text-slate-400 font-medium italic tabular-nums line-clamp-1">{d.description || 'NOT BELİRTİLMEMİŞ'}</span>
+      accessor: (d) => <span className="text-xs text-slate-400 font-medium italic tabular-nums line-clamp-1">{d.description || 'NOT BELİRTİLMEMİŞ'}</span>,
+      sortKey: 'description'
     }
   ];
 
@@ -161,9 +186,8 @@ export default function DepartmentsPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Dept Info */}
           <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-premium">
+            <div className="bg-white border border-slate-100 rounded-2xl p-8 shadow-premium">
               <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-6">DEPARTMAN BİLGİLERİ</h3>
               <div className="space-y-4">
                 <div>
@@ -193,9 +217,8 @@ export default function DepartmentsPage() {
             </div>
           </div>
 
-          {/* Staff List */}
           <div className="lg:col-span-2">
-            <div className="bg-white border border-slate-100 rounded-[2.5rem] p-8 shadow-premium min-h-[400px]">
+            <div className="bg-white border border-slate-100 rounded-2xl p-8 shadow-premium min-h-[400px]">
               <StaffList departmentId={viewingDepartment.id} />
             </div>
           </div>
@@ -206,8 +229,6 @@ export default function DepartmentsPage() {
 
   return (
     <div className="animate-in flex flex-col gap-8">
-      
-      {/* 🔴 HEADER SECTION */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6">
         <div>
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
@@ -227,7 +248,7 @@ export default function DepartmentsPage() {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => { setFilterTab(tab.id as 'active' | 'passive' | 'all'); setPage(1); }}
+                onClick={() => setFilterTab(tab.id)}
                 className={`h-9 px-4 rounded-xl text-xs font-black flex items-center gap-2 transition-colors ${
                   filterTab === tab.id ? 'bg-white text-primary shadow-premium' : 'text-slate-400 hover:text-slate-600'
                 }`}
@@ -267,9 +288,8 @@ export default function DepartmentsPage() {
           )}
           getRowOpacity={(d) => d.state === 0 ? 0.5 : 1}
           
-          // Integrated Search & Pagination
           search={searchTerm}
-          onSearchChange={(val) => { setSearchTerm(val); setPage(1); }}
+          onSearchChange={(val) => setSearchTerm(val)}
           total={paginationMeta.total}
           page={page}
           limit={limit}

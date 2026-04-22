@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersAPI, departmentsAPI, rolesAPI } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -17,21 +17,43 @@ import { UserPermissionsModal } from './users/components/UserPermissionsModal';
 
 export default function UsersPage() {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const page = Number(searchParams.get('page')) || 1;
+  const searchTerm = searchParams.get('q') || '';
+  const filterTab = (searchParams.get('tab') as 'active' | 'passive' | 'all') || 'active';
+  const limit = Number(searchParams.get('limit')) || 20;
+
+  const deferredSearch = useDeferredValue(searchTerm);
+  const { openCreate } = useQuickCreateStore();
+
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [selectedUserForPerms, setSelectedUserForPerms] = useState<User | null>(null);
   const [userSpecificPerms, setUserSpecificPerms] = useState<{ permissionId: number; effect: 'allow' | 'deny'; scopeType: 'global' | 'department' }[]>([]);
 
-  const location = useLocation();
-  const queryParams = new URLSearchParams(location.search);
-  const initialFilter = queryParams.get('filter') === 'passive' ? 'passive' : 'active';
+  const sort = {
+    key: searchParams.get('sortBy') || 'fullName',
+    order: (searchParams.get('sortOrder') as 'ASC' | 'DESC') || 'ASC'
+  };
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const deferredSearch = useDeferredValue(searchTerm);
-  const [filterTab, setFilterTab] = useState<'active' | 'passive'>(initialFilter);
+  const updateParams = useCallback((newParams: Record<string, string | number | undefined>) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      Object.entries(newParams).forEach(([key, value]) => {
+        if (value === undefined || value === '' || (key === 'page' && value === 1)) {
+          next.delete(key);
+        } else {
+          next.set(key, String(value));
+        }
+      });
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
 
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
-  const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'fullName', order: 'ASC' });
+  const setPage = (p: number) => updateParams({ page: p });
+  const setFilterTab = (tab: string) => updateParams({ tab, page: 1 });
+  const setSearchTerm = (q: string) => updateParams({ q, page: 1 });
+  const setSort = (key: string, order: 'ASC' | 'DESC') => updateParams({ sortBy: key, sortOrder: order, page: 1 });
 
   // ────── QUERIES ──────
 
@@ -39,17 +61,16 @@ export default function UsersPage() {
     queryKey: queryKeys.users.all({
       page,
       limit,
-      search: deferredSearch,
-      state: filterTab === 'active' ? 1 : 0,
-      sortBy: sort.key,
-      sortOrder: sort.order
+      deferredSearch,
+      filterTab,
+      sort
     }),
     queryFn: async ({ signal }) => {
       const res = await usersAPI.getAll({
         page,
         limit,
         search: deferredSearch,
-        state: filterTab === 'active' ? 1 : 0,
+        state: filterTab === 'all' ? undefined : (filterTab === 'active' ? 1 : 0),
         sortBy: sort.key,
         sortOrder: sort.order
       }, { signal });
@@ -73,32 +94,19 @@ export default function UsersPage() {
     [{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }],
     (configs) => {
       if (configs.length > 0) {
-        setSort({ 
-          key: configs[0].key, 
-          order: configs[0].direction.toUpperCase() as 'ASC' | 'DESC' 
-        });
-        setPage(1); // FE-01: Reset page on sort change
+        setSort(
+          configs[0].key, 
+          configs[0].direction.toUpperCase() as 'ASC' | 'DESC' 
+        );
       }
     }
   );
 
-  // Update filter if location changes
-  useEffect(() => {
-    const f = queryParams.get('filter');
-    if (f === 'active' || f === 'passive') {
-      setFilterTab(f);
-    }
-  }, [location.search]);
-
-
-  // FE-08: Empty Page Trap Fix
   useEffect(() => {
     if (!loading && users.length === 0 && paginationMeta.total > 0 && page > 1) {
-      setPage(prev => Math.max(1, prev - 1));
+      setPage(Math.max(1, page - 1));
     }
   }, [users.length, loading, page, paginationMeta.total]);
-
-  const { openCreate } = useQuickCreateStore();
 
   const handleFormSubmit = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.users.all({}) });
@@ -198,7 +206,8 @@ export default function UsersPage() {
             <span key={r.id} className="text-[10px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded-md uppercase tracking-widest">{r.name}</span>
           )) : <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">ROLSÜZ</span>}
         </div>
-      )
+      ),
+      sortKey: 'roles.name'
     },
     { 
       header: 'İLETİŞİM', 
@@ -218,7 +227,6 @@ export default function UsersPage() {
   return (
     <div className="animate-in flex flex-col gap-8">
       
-      {/* 🔴 HEADER SECTION */}
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6">
         <div>
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
@@ -233,11 +241,12 @@ export default function UsersPage() {
           <div className="flex bg-surface-container-low p-1 rounded-2xl border border-surface-container">
             {[
               { id: 'active', label: 'Aktif', icon: <FiActivity /> },
-              { id: 'passive', label: 'Erişime Kapalı', icon: <FiArchive /> }
+              { id: 'passive', label: 'Erişime Kapalı', icon: <FiArchive /> },
+              { id: 'all', label: 'Tümü', icon: <FiFilter /> }
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => { setFilterTab(tab.id as 'active' | 'passive'); setPage(1); }}
+                onClick={() => setFilterTab(tab.id)}
                 className={`h-9 px-4 rounded-xl text-xs font-black flex items-center gap-2 transition-colors ${
                   filterTab === tab.id ? 'bg-white text-primary shadow-premium' : 'text-slate-400 hover:text-slate-600'
                 }`}
@@ -273,9 +282,8 @@ export default function UsersPage() {
             </button>
           )}
           
-          // Integrated Search & Pagination
           search={searchTerm}
-          onSearchChange={(val) => { setSearchTerm(val); setPage(1); }}
+          onSearchChange={(val) => setSearchTerm(val)}
           total={paginationMeta.total}
           page={page}
           limit={limit}

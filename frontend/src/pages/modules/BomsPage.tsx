@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { bomsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -14,14 +15,35 @@ import { useSort } from '../../hooks/useSort';
 import { useDebounce } from '../../hooks/useDebounce';
 import { queryKeys } from '../../services/queryKeys';
 
+
 export function BomsPage() {
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearch = useDebounce(searchTerm, 500);
-  const [filterTab, setFilterTab] = useState<'active' | 'passive' | 'all'>('active');
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const page = Number(searchParams.get('page')) || 1;
+  const searchTerm = searchParams.get('q') || '';
+  const filterTab = (searchParams.get('tab') as 'active' | 'passive' | 'all') || 'active';
+  const limit = Number(searchParams.get('limit')) || 20;
 
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const updateParams = (newParams: Record<string, string | number | undefined>) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      Object.entries(newParams).forEach(([key, value]) => {
+        if (value === undefined || value === '' || (key === 'page' && value === 1)) {
+          next.delete(key);
+        } else {
+          next.set(key, String(value));
+        }
+      });
+      return next;
+    }, { replace: true });
+  };
+
+  const setPage = (p: number) => updateParams({ page: p });
+  const setFilterTab = (tab: string) => updateParams({ tab, page: 1 });
+  const setSearchTerm = (q: string) => updateParams({ q, page: 1 });
+
+  const debouncedSearch = useDebounce(searchTerm, 500);
   const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'name', order: 'ASC' });
 
   const { data: bomsData, isLoading: loading } = useQuery({
@@ -140,11 +162,12 @@ export function BomsPage() {
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">KALEM</span>
         </div>
       ),
-      sortKey: 'items'
+      sortKey: 'itemCount'
     },
     { 
       header: 'AÇIKLAMA', 
-      accessor: (b) => <span className="text-xs text-slate-400 font-medium italic">{b.description || 'NOT BELİRTİLMEMİŞ'}</span>
+      accessor: (b) => <span className="text-xs text-slate-400 font-medium italic">{b.description || 'NOT BELİRTİLMEMİŞ'}</span>,
+      sortKey: 'description'
     }
   ];
 
@@ -206,7 +229,7 @@ export function BomsPage() {
         // Integrated Search & Pagination
         search={searchTerm}
         onSearchChange={(val) => { setSearchTerm(val); setPage(1); }}
-        total={paginationMeta.total}
+        total={paginationMeta?.total || 0}
         page={page}
         limit={limit}
         onPageChange={setPage}

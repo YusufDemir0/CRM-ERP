@@ -47,6 +47,7 @@ export class DepartmentsService {
     const allowedSortMap: Record<string, string> = {
       'name': 'dept.name',
       'abbreviation': 'dept.abbreviation',
+      'description': 'dept.description',
       'createdAt': 'dept.createdAt',
       'departmentType.name': 'type.name',
       'type.name': 'type.name',

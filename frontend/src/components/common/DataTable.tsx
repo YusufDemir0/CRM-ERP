@@ -1,7 +1,49 @@
-import { useMemo, useRef, useEffect, memo, ReactNode, ReactElement } from 'react';
-import { useVirtualizer, VirtualItem } from '@tanstack/react-virtual';
-import { SortableHeader } from './SortableHeader';
-import { FiEdit2, FiTrash2, FiArchive, FiRefreshCw, FiStar, FiCopy, FiInfo, FiSearch, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { useMemo, useRef, memo, ReactNode, ReactElement } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { 
+  useReactTable, 
+  getCoreRowModel, 
+  flexRender, 
+  ColumnDef,
+  SortingState,
+  PaginationState,
+} from '@tanstack/react-table';
+import { 
+  FiEdit2, FiTrash2, FiArchive, FiRefreshCw, FiStar, FiCopy, 
+  FiInfo, FiSearch, FiChevronLeft, FiChevronRight, FiArrowUp, FiArrowDown 
+} from 'react-icons/fi';
+export interface ActionButtonProps {
+  icon: ReactNode;
+  onClick: () => void;
+  tooltip?: string;
+  variant?: 'primary' | 'secondary' | 'danger';
+  disabled?: boolean;
+}
+
+export const ActionButton = ({ 
+  icon, 
+  onClick, 
+  tooltip, 
+  variant = 'secondary',
+  disabled = false
+}: ActionButtonProps) => {
+  const variants = {
+    primary: 'hover:bg-primary/10 text-slate-400 hover:text-primary',
+    secondary: 'hover:bg-slate-100 text-slate-400 hover:text-slate-600',
+    danger: 'hover:bg-red-50 text-slate-400 hover:text-red-500'
+  };
+
+  return (
+    <button 
+      className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${variants[variant]} disabled:opacity-30`}
+      onClick={(e) => { e.stopPropagation(); onClick(); }} 
+      title={tooltip}
+      disabled={disabled}
+    >
+      {icon}
+    </button>
+  );
+};
 
 export interface Column<T> {
   header: string;
@@ -42,7 +84,7 @@ interface DataTableProps<T> {
   getRowKey: (item: T) => string | number;
   getRowOpacity?: (item: T) => number;
   isPinned?: (item: T) => boolean;
-  hasState?: (item: T) => boolean; // true if active, false if passive
+  hasState?: (item: T) => boolean;
   customIcons?: {
     edit?: (item: T) => ReactNode;
     delete?: (item: T) => ReactNode;
@@ -56,112 +98,6 @@ interface DataTableProps<T> {
   containerHeight?: number;
 }
 
-// FE-08: Extracted Memoized Row for Performance
-const DataTableRow = memo(<T,>({
-  item,
-  columns,
-  onEdit,
-  onDelete,
-  onArchive,
-  onRestore,
-  onClone,
-  onTogglePin,
-  renderExtraActions,
-  getRowKey,
-  getRowOpacity,
-  isPinned,
-  hasState,
-  customIcons,
-}: Omit<DataTableProps<T>, 'data' | 'isLoading' | 'sortConfigs' | 'onSort' | 'total' | 'page' | 'limit' | 'onPageChange' | 'search' | 'onSearchChange'> & { item: T }) => {
-  const isActive = hasState ? hasState(item) : true;
-  const opacity = getRowOpacity ? getRowOpacity(item) : (isActive ? 1 : 0.6);
-  const pinned = isPinned?.(item);
-
-  return (
-    <tr 
-      style={{ opacity }}
-      className="group hover:bg-white transition-colors duration-150 border-b border-slate-50 last:border-0"
-    >
-      {columns.map((col, idx) => (
-        <td key={idx} className={`${col.className || ''} py-4 px-6 first:pl-10 text-sm font-medium text-slate-600`}>
-          <div className="flex items-center">
-            {typeof col.accessor === 'function' 
-              ? col.accessor(item) 
-              : String(item[col.accessor as keyof T] || '—')}
-          </div>
-        </td>
-      ))}
-      
-      {(onEdit || onDelete || onArchive || onRestore || onTogglePin || onClone || renderExtraActions) && (
-        <td className="py-4 px-10 text-right">
-          <div className="flex gap-1.5 justify-end scale-90 origin-right transition-transform group-hover:scale-100">
-            {renderExtraActions && renderExtraActions(item)}
-            
-            {onTogglePin && (
-              <button 
-                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${pinned ? 'bg-amber-50 text-amber-500' : 'hover:bg-slate-100 text-slate-300 hover:text-slate-500'}`}
-                onClick={() => onTogglePin(item)}
-              >
-                <FiStar fill={pinned ? 'currentColor' : 'none'} size={14} />
-              </button>
-            )}
-
-            {onEdit && (
-              <button 
-                className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-slate-100 text-slate-400 hover:text-primary"
-                onClick={() => onEdit(item)} 
-                title="Düzenle"
-              >
-                {customIcons?.edit ? customIcons.edit(item) : <FiEdit2 size={14} />}
-              </button>
-            )}
-
-            {onClone && (
-              <button 
-                className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-slate-100 text-slate-400 hover:text-indigo-500"
-                onClick={() => onClone(item)} 
-                title="Kopyala"
-              >
-                {customIcons?.clone ? customIcons.clone(item) : <FiCopy size={14} />}
-              </button>
-            )}
-
-            {onRestore && (!hasState || !isActive) && (
-              <button 
-                className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-green-50 text-slate-400 hover:text-green-500"
-                onClick={() => onRestore(item)} 
-                title="Geri Yükle"
-              >
-                {customIcons?.restore ? customIcons.restore(item) : <FiRefreshCw size={14} />}
-              </button>
-            )}
-
-            {onArchive && (hasState ? isActive : true) && (
-              <button 
-                className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-red-50 text-slate-400 hover:text-red-500"
-                onClick={() => onArchive(item)} 
-                title="İşlemi Sonlandır"
-              >
-                {customIcons?.archive ? customIcons.archive(item) : <FiArchive size={14} />}
-              </button>
-            )}
-
-            {onDelete && (
-              <button 
-                className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-red-50 text-slate-400 hover:text-red-500"
-                onClick={() => onDelete(item)} 
-                title="Sil"
-              >
-                {customIcons?.delete ? customIcons.delete(item) : <FiTrash2 size={14} />}
-              </button>
-            )}
-          </div>
-        </td>
-      )}
-    </tr>
-  );
-}) as <T,>(props: Omit<DataTableProps<T>, 'data' | 'isLoading' | 'sortConfigs' | 'onSort' | 'total' | 'page' | 'limit' | 'onPageChange' | 'search' | 'onSearchChange'> & { item: T }) => ReactElement;
-
 const DataTableInner = <T,>({
   data,
   columns,
@@ -169,62 +105,148 @@ const DataTableInner = <T,>({
   sortConfigs,
   onSort,
   total,
-  page,
+  page = 1,
   limit = 20,
   onPageChange,
   search,
   onSearchChange,
   placeholder = "Hızlı arama yapın...",
   virtualized,
-  rowHeight: propRowHeight,
-  containerHeight: propContainerHeight,
+  rowHeight = 60,
+  containerHeight = 600,
+  getRowKey,
   ...rowProps
 }: DataTableProps<T>) => {
-  // FE-08: Memoize header to avoid unnecessary calculations
-  const hasActions = !!(rowProps.onEdit || rowProps.onDelete || rowProps.onArchive || rowProps.onRestore || rowProps.onTogglePin || rowProps.onClone || rowProps.renderExtraActions);
 
-  const tableHeader = useMemo(() => (
-    <thead>
-      <tr className="bg-slate-50/50">
-        {columns.map((col, idx) => (
-          col.sortKey && onSort && sortConfigs ? (
-            <SortableHeader
-              key={idx}
-              label={col.header}
-              sortKey={col.sortKey}
-              sortConfigs={sortConfigs}
-              onSort={onSort}
-              className={`${col.className || ''} py-5 px-6 first:pl-10`}
-            />
-          ) : (
-            <th 
-              key={idx} 
-              className={`${col.className || ''} py-5 px-6 first:pl-10 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100`}
-            >
-              {col.header}
-            </th>
-          )
-        ))}
-        {hasActions && (
-          <th className="py-5 px-10 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
-            İŞLEMLER
-          </th>
-        )}
-      </tr>
-    </thead>
-  ), [columns, sortConfigs, onSort, hasActions]);
+  // Build a lookup map from sortConfigs for quick access
+  const sortMap = useMemo(() => {
+    const map: Record<string, 'asc' | 'desc'> = {};
+    sortConfigs?.forEach(s => { map[s.key] = s.direction; });
+    return map;
+  }, [sortConfigs]);
 
-  const totalPages = total ? Math.ceil(total / limit) : 1;
+  const sorting: SortingState = useMemo(() => 
+    sortConfigs?.map(s => ({ id: s.key, desc: s.direction === 'desc' })) || [],
+    [sortConfigs]
+  );
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const containerHeight = propContainerHeight || 600;
+  const pagination: PaginationState = {
+    pageIndex: page - 1,
+    pageSize: limit,
+  };
 
-  const rowVirtualizer = useVirtualizer({
-    count: data.length,
-    getScrollElement: () => containerRef.current,
-    estimateSize: () => propRowHeight || 60,
+  const tableColumns = useMemo<ColumnDef<T>[]>(() => {
+    const cols: ColumnDef<T>[] = columns.map((col, idx) => ({
+      id: col.sortKey || `col_${idx}`,
+      header: col.header,
+      cell: (info) => {
+        const item = info.row.original;
+        return typeof col.accessor === 'function' 
+          ? col.accessor(item) 
+          : String(item[col.accessor as keyof T] || '—');
+      },
+      enableSorting: !!col.sortKey,
+      meta: { className: col.className, sortKey: col.sortKey },
+    }));
+
+    // Action Column
+    const hasActions = !!(rowProps.onEdit || rowProps.onDelete || rowProps.onArchive || rowProps.onRestore || rowProps.onTogglePin || rowProps.onClone || rowProps.renderExtraActions);
+    if (hasActions) {
+      cols.push({
+        id: 'actions',
+        header: 'İŞLEMLER',
+        cell: (info) => {
+          const item = info.row.original;
+          const isActive = rowProps.hasState ? rowProps.hasState(item) : true;
+          const pinned = rowProps.isPinned?.(item);
+
+          return (
+            <div className="flex gap-1.5 justify-end scale-90 origin-right transition-transform group-hover:scale-100">
+              {rowProps.renderExtraActions && rowProps.renderExtraActions(item)}
+              
+              {rowProps.onTogglePin && (
+                <button 
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${pinned ? 'bg-amber-50 text-amber-500' : 'hover:bg-slate-100 text-slate-300 hover:text-slate-500'}`}
+                  onClick={() => rowProps.onTogglePin!(item)}
+                >
+                  <FiStar fill={pinned ? 'currentColor' : 'none'} size={14} />
+                </button>
+              )}
+
+              {rowProps.onEdit && (
+                <button 
+                  className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-slate-100 text-slate-400 hover:text-primary"
+                  onClick={() => rowProps.onEdit!(item)} 
+                  title="Düzenle"
+                >
+                  {rowProps.customIcons?.edit ? rowProps.customIcons.edit(item) : <FiEdit2 size={14} />}
+                </button>
+              )}
+
+              {rowProps.onRestore && (!rowProps.hasState || !isActive) && (
+                <button 
+                  className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-green-50 text-slate-400 hover:text-green-500"
+                  onClick={() => rowProps.onRestore!(item)} 
+                  title="Geri Yükle"
+                >
+                  {rowProps.customIcons?.restore ? rowProps.customIcons.restore(item) : <FiRefreshCw size={14} />}
+                </button>
+              )}
+
+              {rowProps.onArchive && (rowProps.hasState ? isActive : true) && (
+                <button 
+                  className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-red-50 text-slate-400 hover:text-red-500"
+                  onClick={() => rowProps.onArchive!(item)} 
+                  title="Arşivle"
+                >
+                  {rowProps.customIcons?.archive ? rowProps.customIcons.archive(item) : <FiArchive size={14} />}
+                </button>
+              )}
+
+              {rowProps.onDelete && (
+                <button 
+                  className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-red-50 text-slate-400 hover:text-red-500"
+                  onClick={() => rowProps.onDelete!(item)} 
+                  title="Sil"
+                >
+                  {rowProps.customIcons?.delete ? rowProps.customIcons.delete(item) : <FiTrash2 size={14} />}
+                </button>
+              )}
+            </div>
+          );
+        },
+        enableSorting: false,
+        meta: { className: 'text-right px-10' },
+      });
+    }
+
+    return cols;
+  }, [columns, rowProps]);
+
+  const table = useReactTable({
+    data,
+    columns: tableColumns,
+    state: {
+      sorting,
+      pagination,
+    },
+    onSortingChange: () => {}, // We handle sorting ourselves via direct onClick
+    getCoreRowModel: getCoreRowModel(),
+    manualSorting: true,
+    manualPagination: true,
+  });
+
+  const { rows } = table.getRowModel();
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => rowHeight,
     overscan: 5,
   });
+
+  const totalPages = total ? Math.ceil(total / limit) : 1;
 
   return (
     <div className="bg-white border border-slate-100 shadow-premium rounded-2xl overflow-hidden animate-in">
@@ -244,95 +266,110 @@ const DataTableInner = <T,>({
       )}
 
       <div 
-        ref={containerRef}
-        className="overflow-auto"
-        style={{ maxHeight: virtualized ? `${containerHeight}px` : 'none', minHeight: '400px' }}
+        ref={parentRef}
+        className="overflow-auto custom-scrollbar"
+        style={{ height: virtualized ? `${containerHeight}px` : 'auto', minHeight: '400px' }}
       >
-        {isLoading ? (
-          <table className="w-full border-separate border-spacing-0">
-            {tableHeader}
-            <tbody>
-              {[...Array(5)].map((_, i) => (
-                <tr key={i} className="animate-pulse border-b border-slate-50 last:border-0">
+        <table className="w-full border-separate border-spacing-0">
+          <thead>
+            {table.getHeaderGroups().map(headerGroup => (
+              <tr key={headerGroup.id} className="bg-slate-50/50">
+                {headerGroup.headers.map(header => {
+                  const meta = header.column.columnDef.meta as { className?: string; sortKey?: string } | undefined;
+                  const sortKey = meta?.sortKey;
+                  const currentDir = sortKey ? sortMap[sortKey] : undefined;
+                  const isSortable = !!sortKey && !!onSort;
+                  return (
+                    <th 
+                      key={header.id} 
+                      className={`${meta?.className || ''} py-5 px-6 first:pl-10 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 ${isSortable ? 'cursor-pointer select-none hover:text-primary' : ''} transition-colors`}
+                      onClick={isSortable ? () => onSort!(sortKey!, false) : undefined}
+                    >
+                      <div className="flex items-center gap-2">
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {currentDir === 'asc' && <FiArrowUp className="text-primary" />}
+                        {currentDir === 'desc' && <FiArrowDown className="text-primary" />}
+                      </div>
+                    </th>
+                  );
+                })}
+              </tr>
+            ))}
+          </thead>
+          
+          <tbody className="divide-y divide-slate-50 relative">
+            {isLoading ? (
+              [...Array(5)].map((_, i) => (
+                <tr key={i} className="animate-pulse">
                   {columns.map((_, idx) => (
                     <td key={idx} className="py-4 px-6 first:pl-10">
-                      <div className="h-4 bg-slate-100 rounded-md skeleton w-full max-w-[120px]" />
+                      <div className="h-4 bg-slate-100 rounded-md w-24" />
                     </td>
                   ))}
-                  {hasActions && (
-                    <td className="py-4 px-10 text-right">
-                      <div className="flex gap-2 justify-end">
-                        <div className="w-8 h-8 bg-slate-100 rounded-lg skeleton" />
-                        <div className="w-8 h-8 bg-slate-100 rounded-lg skeleton" />
-                      </div>
-                    </td>
-                  )}
+                  <td className="py-4 px-10"><div className="h-4 bg-slate-100 rounded-md w-12 ml-auto" /></td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <table className="w-full border-separate border-spacing-0">
-            {tableHeader}
-            <tbody className="divide-y divide-slate-50">
-              {data.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length + 1} className="py-32 px-10 text-center">
-                    <div className="flex flex-col items-center gap-4 opacity-30 grayscale scale-90 transition-colors hover:grayscale-0 hover:scale-100">
-                      <div className="w-16 h-16 bg-slate-100 rounded-3xl flex items-center justify-center text-slate-400">
-                        <FiInfo size={32} />
-                      </div>
-                      <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Henüz bir kayıt bulunamadı.</span>
-                    </div>
-                  </td>
+              ))
+            ) : rows.length === 0 ? (
+              <tr>
+                <td colSpan={table.getAllColumns().length} className="py-32 text-center">
+                  <div className="flex flex-col items-center gap-4 opacity-30">
+                    <FiInfo size={32} />
+                    <span className="text-xs font-black uppercase tracking-widest">Henüz bir kayıt bulunamadı.</span>
+                  </div>
+                </td>
+              </tr>
+            ) : virtualized ? (
+              <>
+                <tr style={{ height: `${virtualizer.getVirtualItems()[0]?.start ?? 0}px` }} />
+                {virtualizer.getVirtualItems().map(virtualRow => {
+                  const row = rows[virtualRow.index];
+                  return (
+                    <tr
+                      key={row.id}
+                      className="group hover:bg-slate-50/50 transition-colors"
+                      style={{ height: `${virtualRow.size}px` }}
+                    >
+                      {row.getVisibleCells().map(cell => {
+                        const meta = cell.column.columnDef.meta as { className?: string } | undefined;
+                        return (
+                          <td key={cell.id} className={`${meta?.className || ''} py-4 px-6 first:pl-10 text-sm font-medium text-slate-600`}>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+                <tr style={{ height: `${virtualizer.getTotalSize() - (virtualizer.getVirtualItems()[virtualizer.getVirtualItems().length - 1]?.end ?? 0)}px` }} />
+              </>
+            ) : (
+              rows.map(row => (
+                <tr key={row.id} className="group hover:bg-slate-50/50 transition-colors">
+                  {row.getVisibleCells().map(cell => {
+                    const meta = cell.column.columnDef.meta as { className?: string } | undefined;
+                    return (
+                      <td key={cell.id} className={`${meta?.className || ''} py-4 px-6 first:pl-10 text-sm font-medium text-slate-600`}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    );
+                  })}
                 </tr>
-              ) : (
-                virtualized && data.length >= 30 ? (
-                  <>
-                    {rowVirtualizer.getVirtualItems().length > 0 && rowVirtualizer.getVirtualItems()[0].start > 0 && (
-                      <tr><td colSpan={columns.length + 1} style={{ height: `${rowVirtualizer.getVirtualItems()[0].start}px` }} /></tr>
-                    )}
-                    {rowVirtualizer.getVirtualItems().map((virtualRow: VirtualItem) => {
-                      const item = data[virtualRow.index];
-                      return (
-                        <DataTableRow
-                          key={rowProps.getRowKey(item)}
-                          item={item}
-                          columns={columns}
-                          {...rowProps}
-                        />
-                      );
-                    })}
-                    {rowVirtualizer.getVirtualItems().length > 0 && rowVirtualizer.getTotalSize() - rowVirtualizer.getVirtualItems()[rowVirtualizer.getVirtualItems().length - 1].end > 0 && (
-                      <tr><td colSpan={columns.length + 1} style={{ height: `${rowVirtualizer.getTotalSize() - rowVirtualizer.getVirtualItems()[rowVirtualizer.getVirtualItems().length - 1].end}px` }} /></tr>
-                    )}
-                  </>
-                ) : (
-                  data.map((item) => (
-                    <DataTableRow
-                      key={rowProps.getRowKey(item)}
-                      item={item}
-                      columns={columns}
-                      {...rowProps}
-                    />
-                  ))
-                )
-              )}
-            </tbody>
-          </table>
-        )}
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
-      {total && onPageChange && page && total > limit && (
+      {total && onPageChange && total > limit && (
         <div className="p-6 bg-slate-50/50 border-t border-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.15em]">
+          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
             Toplam <span className="text-slate-800">{total}</span> kayıttan <span className="text-slate-800">{(page - 1) * limit + 1}–{Math.min(page * limit, total)}</span> gösteriliyor
           </div>
           <div className="flex items-center gap-2">
             <button 
               disabled={page <= 1}
               onClick={() => onPageChange(page - 1)}
-              className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/20 disabled:opacity-30 disabled:hover:text-slate-400 disabled:hover:border-slate-100 transition-colors"
+              className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary disabled:opacity-30 transition-colors"
             >
               <FiChevronLeft />
             </button>
@@ -342,7 +379,7 @@ const DataTableInner = <T,>({
             <button 
               disabled={page >= totalPages}
               onClick={() => onPageChange(page + 1)}
-              className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary/20 disabled:opacity-30 disabled:hover:text-slate-400 disabled:hover:border-slate-100 transition-colors"
+              className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary disabled:opacity-30 transition-colors"
             >
               <FiChevronRight />
             </button>

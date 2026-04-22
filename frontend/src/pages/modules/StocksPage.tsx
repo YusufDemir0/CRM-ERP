@@ -1,17 +1,17 @@
-import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { stocksAPI, itemsAPI, departmentsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { 
   FiX, FiRepeat, FiSearch, FiArrowRight, FiPlus, 
-  FiFilter, FiPackage, FiHome, FiActivity, FiAlertTriangle
+  FiFilter, FiPackage, FiHome, FiActivity, FiAlertTriangle, FiArchive
 } from 'react-icons/fi';
 import { StockAdjustmentModal } from '../../components/modals/StockAdjustmentModal';
 import { StockTransferModal } from '../../components/modals/StockTransferModal';
 import { StockMovementsModal } from '../../components/modals/StockMovementsModal';
 import { Stock, Item, Department, StockMovement, StockAdjustmentDto, StockTransferDto } from '../../types';
-import { DataTable, Column } from '../../components/common/DataTable';
+import { DataTable, Column, ActionButton } from '../../components/common/DataTable';
 import { Decimal } from 'decimal.js';
 import { useSort } from '../../hooks/useSort';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -20,19 +20,42 @@ import { queryKeys } from '../../services/queryKeys';
 export function StocksPage() {
   const queryClient = useQueryClient();
   const location = useLocation();
-  const queryParams = new URLSearchParams(location.search);
-  const initialFilter = queryParams.get('filter') === 'critical' ? 'critical' : 'all';
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const page = Number(searchParams.get('page')) || 1;
+  const searchTerm = searchParams.get('q') || '';
+  const filterTab = (searchParams.get('tab') as 'active' | 'passive' | 'all' | 'critical') || 'all';
+  const limit = Number(searchParams.get('limit')) || 20;
 
-  const [filterTab, setFilterTab] = useState<'all' | 'critical'>(initialFilter);
-  const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 500);
 
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
-  const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'quantity', order: 'ASC' });
-  const [filters, setFilters] = useState<Record<string, unknown>>({});
+  const sort = {
+    key: searchParams.get('sortBy') || 'quantity',
+    order: (searchParams.get('sortOrder') as 'ASC' | 'DESC') || 'DESC'
+  };
+
+  const [filters] = useState<Record<string, unknown>>({});
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const updateParams = useCallback((newParams: Record<string, string | number | undefined>) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      Object.entries(newParams).forEach(([key, value]) => {
+        if (value === undefined || value === '' || (key === 'page' && value === 1)) {
+          next.delete(key);
+        } else {
+          next.set(key, String(value));
+        }
+      });
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const setPage = (p: number) => updateParams({ page: p });
+  const setFilterTab = (tab: string) => updateParams({ tab, page: 1 });
+  const setSearchTerm = (q: string) => updateParams({ q, page: 1 });
+  const setSort = (key: string, order: 'ASC' | 'DESC') => updateParams({ sortBy: key, sortOrder: order, page: 1 });
   const [formData, setFormData] = useState({
     itemId: '',
     departmentId: '',
@@ -59,7 +82,9 @@ export function StocksPage() {
     queryKey: queryKeys.stocks.all({ page, limit, search: debouncedSearch, filterTab, sort, filters }),
     queryFn: async ({ signal }) => {
       const res = await stocksAPI.getAll({
-        page, limit, search: debouncedSearch, isCritical: filterTab === 'critical' ? 1 : undefined,
+        page, limit, search: debouncedSearch, 
+        isCritical: filterTab === 'critical' ? 1 : undefined,
+        state: filterTab === 'all' || filterTab === 'critical' ? undefined : (filterTab === 'active' ? 1 : 0),
         sortBy: sort.key, sortOrder: sort.order, ...filters
       }, { signal });
       return res.data;
@@ -90,11 +115,10 @@ export function StocksPage() {
     [{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }],
     (configs) => {
       if (configs.length > 0) {
-        setSort({ 
-          key: configs[0].key, 
-          order: configs[0].direction.toUpperCase() as 'ASC' | 'DESC' 
-        });
-        setPage(1); // FE-01: Reset page on sort change
+        setSort(
+          configs[0].key, 
+          configs[0].direction.toUpperCase() as 'ASC' | 'DESC' 
+        );
       }
     }
   );
@@ -109,109 +133,40 @@ export function StocksPage() {
   });
 
 
-  useEffect(() => {
-    const f = queryParams.get('filter');
-    if (f === 'critical') setFilterTab('critical');
-    else setFilterTab('all');
-  }, [location.search]);
+  // Removed redundant useEffect as searchParams handles initialization
+
+  const handleCloseAdjustment = () => {
+    setIsModalOpen(false);
+    setFormData({ itemId: '', departmentId: '', quantity: 0, type: 'in', description: '' });
+  };
+
+  const handleCloseTransfer = () => {
+    setIsTransferModalOpen(false);
+    setTransferData({ itemId: '', fromDepartmentId: '', toDepartmentId: '', quantity: 0, description: '' });
+  };
 
   const adjustMutation = useMutation({
     mutationFn: (data: StockAdjustmentDto) => stocksAPI.adjust(data),
-    onMutate: async (newAdjustment) => {
-      // FE-18: Optimistic Update Implementation
-      await queryClient.cancelQueries({ queryKey: queryKeys.stocks.all({}) });
-
-      const previousStocks = queryClient.getQueriesData({ queryKey: queryKeys.stocks.all({}) });
-
-      queryClient.setQueriesData(
-        { queryKey: queryKeys.stocks.all({}) },
-        (old: { data: Stock[] } | undefined) => {
-          if (!old?.data) return old;
-          return {
-            ...old,
-            data: old.data.map((s: Stock) => {
-              if (s.item?.id === Number(newAdjustment.itemId) && s.department?.id === Number(newAdjustment.departmentId)) {
-                const currentQty = new Decimal(s.quantity || 0);
-                const adjQty = new Decimal((newAdjustment as StockAdjustmentDto).quantity || 0);
-                const nextQty = newAdjustment.type === 'in' ? currentQty.add(adjQty) : currentQty.sub(adjQty);
-                return { ...s, quantity: nextQty.toNumber() };
-              }
-              return s;
-            })
-          };
-        }
-      );
-
-      return { previousStocks };
-    },
-    onError: (err, variables, context) => {
-      if (context?.previousStocks) {
-        context.previousStocks.forEach(([queryKey, oldData]) => {
-          queryClient.setQueryData(queryKey, oldData);
-        });
-      }
-      toast.error("Hata oluştu.");
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.stocks.all({}) });
-    },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocks.all({}) });
       setIsModalOpen(false);
       toast.success("Stok işlemi başarıyla kaydedildi.");
     },
+    onError: () => {
+      toast.error("Hata oluştu.");
+    }
   });
 
   const transferMutation = useMutation({
     mutationFn: (data: StockTransferDto) => stocksAPI.transfer(data),
-    onMutate: async (newTransfer) => {
-      // FE-18: Optimistic Update Implementation
-      await queryClient.cancelQueries({ queryKey: queryKeys.stocks.all({}) });
-
-      const previousStocks = queryClient.getQueriesData({ queryKey: queryKeys.stocks.all({}) });
-
-      queryClient.setQueriesData(
-        { queryKey: queryKeys.stocks.all({}) },
-        (old: { data: Stock[] } | undefined) => {
-          if (!old?.data) return old;
-          return {
-            ...old,
-            data: old.data.map((s: Stock) => {
-              const itemId = Number(newTransfer.itemId);
-              const fromId = Number(newTransfer.fromDepartmentId);
-              const toId = Number(newTransfer.toDepartmentId);
-              const qty = new Decimal((newTransfer as StockTransferDto).quantity || 0);
-
-              if (s.item?.id === itemId) {
-                if (s.department?.id === fromId) {
-                  return { ...s, quantity: new Decimal(s.quantity || 0).sub(qty).toNumber() };
-                }
-                if (s.department?.id === toId) {
-                  return { ...s, quantity: new Decimal(s.quantity || 0).add(qty).toNumber() };
-                }
-              }
-              return s;
-            })
-          };
-        }
-      );
-
-      return { previousStocks };
-    },
-    onError: (err, variables, context) => {
-      if (context?.previousStocks) {
-        context.previousStocks.forEach(([queryKey, oldData]) => {
-          queryClient.setQueryData(queryKey, oldData);
-        });
-      }
-      toast.error("Hata oluştu.");
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.stocks.all({}) });
-    },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stocks.all({}) });
       setIsTransferModalOpen(false);
       toast.success("Transfer işlemi tamamlandı.");
     },
+    onError: () => {
+      toast.error("Hata oluştu.");
+    }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -285,13 +240,20 @@ export function StocksPage() {
       accessor: (s) => {
         const quantity = new Decimal(s.quantity || 0);
         const itemCriticalLimit = new Decimal(s.item?.criticalLimit || 0);
-        const isCritical = !itemCriticalLimit.isZero() && quantity.lte(itemCriticalLimit);
+        const isCritical = !itemCriticalLimit.isZero() && quantity.lte(itemCriticalLimit) && quantity.gt(0);
+        const isNegative = quantity.lt(0);
+
         return (
           <div className="text-right flex flex-col items-end">
-            <span className={`tabular-nums font-black text-base tracking-tighter ${isCritical ? 'text-danger' : 'text-on-surface'}`}>
+            <span className={`tabular-nums font-black text-base tracking-tighter ${isNegative ? 'text-red-600' : (isCritical ? 'text-danger' : 'text-on-surface')}`}>
               {quantity.toNumber().toLocaleString('tr-TR')} {s.item?.quantityType?.abbreviation || 'ADET'}
             </span>
-            {isCritical && (
+            {isNegative && (
+              <span className="text-[9px] font-black text-red-600 bg-red-50 px-2 py-0.5 rounded-full uppercase tracking-widest flex items-center gap-1 mt-0.5 animate-pulse">
+                <FiAlertTriangle size={10} /> EKSİ STOK
+              </span>
+            )}
+            {isCritical && !isNegative && (
               <span className="text-[9px] font-black text-danger uppercase tracking-widest flex items-center gap-1 mt-0.5">
                 <FiAlertTriangle size={10} /> KRİTİK SEVİYE
               </span>
@@ -307,8 +269,17 @@ export function StocksPage() {
       accessor: (s) => {
         const quantity = new Decimal(s.quantity || 0);
         const itemCriticalLimit = new Decimal(s.item?.criticalLimit || 0);
-        const isCritical = !itemCriticalLimit.isZero() && quantity.lte(itemCriticalLimit);
+        const isCritical = !itemCriticalLimit.isZero() && quantity.lte(itemCriticalLimit) && quantity.gt(0);
+        const isNegative = quantity.lt(0);
         
+        if (isNegative) {
+          return (
+            <span className="text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest bg-red-600 text-white shadow-sm">
+              STOK AÇIĞI
+            </span>
+          );
+        }
+
         return (
           <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest ${
             isCritical ? 'bg-danger/10 text-danger' : 'bg-success/10 text-success'
@@ -316,7 +287,27 @@ export function StocksPage() {
             {isCritical ? 'ACİL TEDARİK' : 'STOK YETERLİ'}
           </span>
         );
-      }
+      },
+      sortKey: 'quantity'
+    },
+    {
+      header: 'İŞLEMLER',
+      accessor: (s) => (
+        <div className="flex items-center gap-2">
+          <ActionButton
+            icon={<FiActivity />}
+            onClick={() => fetchMovements(s)}
+            tooltip="Hareket Kayıtları"
+            variant="secondary"
+          />
+          <ActionButton
+            icon={<FiArrowRight />}
+            onClick={() => window.location.href = `/items?id=${s.itemId}`}
+            tooltip="Ürün Detayı"
+            variant="primary"
+          />
+        </div>
+      )
     }
   ];
 
@@ -337,12 +328,14 @@ export function StocksPage() {
         <div className="flex flex-wrap gap-4 items-center">
           <div className="flex bg-surface-container-low p-1 rounded-2xl border border-surface-container">
             {[
-              { id: 'all', label: 'Tüm Liste', icon: <FiPackage /> },
-              { id: 'critical', label: 'Kritik Stok', icon: <FiAlertTriangle /> }
+              { id: 'all', label: 'Tümü', icon: <FiFilter /> },
+              { id: 'active', label: 'Aktif', icon: <FiActivity /> },
+              { id: 'passive', label: 'Arşiv', icon: <FiArchive /> },
+              { id: 'critical', label: 'Kritik', icon: <FiAlertTriangle /> }
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => { setFilterTab(tab.id as 'all' | 'critical'); setPage(1); }}
+                onClick={() => { setFilterTab(tab.id as 'active' | 'passive' | 'all' | 'critical'); setPage(1); }}
                 className={`h-9 px-4 rounded-xl text-xs font-black flex items-center gap-2 transition-colors ${
                   filterTab === tab.id 
                     ? (tab.id === 'critical' ? 'bg-danger text-white' : 'bg-white text-primary shadow-premium') 
@@ -395,7 +388,7 @@ export function StocksPage() {
           formData={formData}
           onFormDataChange={setFormData}
           onSubmit={handleSubmit}
-          onClose={() => setIsModalOpen(false)}
+          onClose={handleCloseAdjustment}
         />
       )}
 
@@ -406,7 +399,7 @@ export function StocksPage() {
           transferData={transferData}
           onTransferDataChange={setTransferData}
           onSubmit={handleTransferSubmit}
-          onClose={() => setIsTransferModalOpen(false)}
+          onClose={handleCloseTransfer}
         />
       )}
 

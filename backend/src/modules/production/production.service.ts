@@ -56,7 +56,18 @@ export class ProductionService {
       qb.andWhere('bom.state = :state', { state: query.state });
     }
 
-    qb.orderBy('bom.createdAt', 'DESC').skip(query.skip).take(query.limit);
+    const allowedSortMap: Record<string, string> = {
+      'name': 'bom.name',
+      'targetItemId': 'bom.targetItemId',
+      'description': 'bom.description',
+      'createdAt': 'bom.createdAt',
+      'itemCount': '(SELECT COUNT(*) FROM bom_items WHERE bom_id = bom.id)'
+    };
+
+    const sortField = allowedSortMap[query.sortBy || ''] || 'bom.createdAt';
+    qb.orderBy(sortField, query.sortOrder || 'DESC');
+    
+    qb.skip(query.skip).take(query.limit);
     const [data, total] = await qb.getManyAndCount();
     return {
       data,
@@ -65,7 +76,7 @@ export class ProductionService {
   }
 
   async findOneBom(id: number): Promise<Bom> {
-    const bom = await this.bomRepo.findOne({
+    const bom = await this.transactionContext.manager.findOne(Bom, {
       where: { id },
       relations:['items', 'items.item', 'targetItem'],
     });
@@ -203,7 +214,19 @@ export class ProductionService {
     }
     if (query.status) qb.andWhere('po.status = :status', { status: query.status });
 
-    qb.orderBy('po.createdAt', 'DESC').skip(query.skip).take(query.limit);
+    const allowedSortMap: Record<string, string> = {
+      'code': 'po.code',
+      'bom.name': 'bom.name',
+      'plannedQuantity': 'po.plannedQuantity',
+      'startDate': 'po.startDate',
+      'status': 'po.status',
+      'createdAt': 'po.createdAt'
+    };
+
+    const sortField = allowedSortMap[query.sortBy || ''] || 'po.createdAt';
+    qb.orderBy(sortField, query.sortOrder || 'DESC');
+
+    qb.skip(query.skip).take(query.limit);
     const [data, total] = await qb.getManyAndCount();
     return {
       data,
@@ -212,7 +235,7 @@ export class ProductionService {
   }
 
   async findOneOrder(id: number): Promise<ProductionOrder> {
-    const po = await this.poRepo.findOne({
+    const po = await this.transactionContext.manager.findOne(ProductionOrder, {
       where: { id },
       relations:['bom', 'bom.items', 'bom.items.item', 'sourceDepartment', 'targetDepartment'],
     });
@@ -235,14 +258,18 @@ export class ProductionService {
       code,
       bomId: dto.bomId,
       plannedQuantity: new Decimal(dto.plannedQuantity || 0),
-      producedQuantity: new Decimal(0),
-      wastageQuantity: new Decimal(0),
       sourceDepartmentId: dto.sourceDepartmentId || null,
       targetDepartmentId: dto.targetDepartmentId || null,
       startDate: dto.startDate,
       endDate: dto.endDate,
       notes: dto.notes,
-      status: 'draft',
+      status: (dto.status as ProductionOrder['status']) || 'draft',
+      producedQuantity: new Decimal(dto.producedQuantity || 0),
+      wastageQuantity: new Decimal(dto.wastageQuantity || 0),
+      unitCost: new Decimal(0),
+      totalCost: new Decimal(0),
+      laborCost: new Decimal(0),
+      overheadCost: new Decimal(0),
       createdBy: userId,
     });
 
@@ -271,7 +298,7 @@ export class ProductionService {
       const lockedPo = await manager.findOne(ProductionOrder, {
         where: { id },
         lock: { mode: 'pessimistic_write' },
-        relations: ['bom', 'bom.items', 'bom.items.item']
+        relations: ['bom', 'bom.items', 'bom.items.item', 'bom.targetItem']
       });
       if (!lockedPo) throw new NotFoundException('İş emri kilitlenemedi veya bulunamadı.');
       if (lockedPo.status === 'completed') throw new BadRequestException('Bu iş emri bir başka işlem tarafından zaten tamamlanmış.');
