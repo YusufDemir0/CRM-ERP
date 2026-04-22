@@ -48,6 +48,12 @@ export const ItemHeader: React.FC<ItemHeaderProps> = ({
           ))}
         </div>
         <button 
+          className="btn bg-emerald-600 hover:bg-emerald-700 text-white h-11 px-6 shadow-lg shadow-emerald-200 flex items-center gap-2 font-bold" 
+          onClick={() => alert('Excel ile ürün yükleme özelliği yakında eklenecektir.')}
+        >
+          <FiLayers size={18} /> Excel ile Ürün Ekle
+        </button>
+        <button 
           className="btn btn-primary h-11 px-6 shadow-lg shadow-primary/20 flex items-center gap-2 font-bold" 
           onClick={() => openCreate('item', { onSuccess: handleFormSuccess })}
         >
