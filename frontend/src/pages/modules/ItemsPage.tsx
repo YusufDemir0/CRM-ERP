@@ -95,14 +95,24 @@ export default function ItemsPage() {
   const toggleMutation = useMutation({
     mutationFn: ({ id, state }: { id: number; state: number }) => itemsAPI.toggleState(id, state),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.items.all({}) });
+      queryClient.invalidateQueries({ queryKey: ['items', 'list'] });
       toast.success("Durum güncellendi");
     },
     onError: () => toast.error("Hata oluştu")
   });
 
-  const handleFormSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.items.all({}) });
+  const handleFormSuccess = (data: any) => {
+    // 🔥 Hem manuel cache güncellemesi yap hem de tüm listeyi geçersiz kıl
+    if (data && data.id) {
+      queryClient.setQueriesData({ queryKey: ['items', 'list'] }, (old: any) => {
+        if (!old || !old.data) return old;
+        return {
+          ...old,
+          data: old.data.map((item: any) => item.id === data.id ? { ...item, ...data } : item)
+        };
+      });
+    }
+    queryClient.invalidateQueries({ queryKey: ['items', 'list'] });
     toast.success("İşlem başarıyla tamamlandı.");
   };
 
