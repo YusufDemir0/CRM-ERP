@@ -9,6 +9,7 @@ import { PhoneInput } from '../../../components/common/PhoneInput';
 import { FormField } from '../../../components/common/FormField';
 import { useTurkiyeCities, useTurkiyeDistricts } from '../../../hooks/useTurkiyeApi';
 import { useQuickCreateStore } from '../../../store/useQuickCreateStore';
+import { Party } from '../../../types';
 
 export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted }) => {
   const store = useSalesWizardStore();
@@ -123,10 +124,11 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
                 onClick={() => openCreate('party', { 
                   onSuccess: (res: unknown) => {
                     refreshLookups();
-                    const response = res as { data?: any } | any; // Internal cast for extraction
+                    // 🛡️ API result could be { data: Party } or just Party depending on axios interceptor
+                    const response = res as { data?: Party } & Party;
                     const newParty = response?.data ? response.data : response;
-                    if (newParty && newParty.id) {
-                      store.setCustomer(newParty);
+                    if (newParty && typeof newParty === 'object' && 'id' in newParty) {
+                      store.setCustomer(newParty as Party);
                     }
                   }
                 })}
