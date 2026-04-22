@@ -163,41 +163,38 @@ export class ItemsService {
     return savedItem;
   }
 
+  @Transactional()
   async update(id: number, dto: UpdateItemDto, userId?: number): Promise<Item> {
     const item = await this.findOne(id);
 
-    if (dto.code && dto.code !== item.code) {
-      const existing = await this.itemRepo.findOne({ where: { code: dto.code } });
-      if (existing && existing.id !== id) {
-        throw new BadRequestException(`'${dto.code}' kodlu bir ürün zaten mevcut.`);
-      }
-    }
+    // Direct update to ensure database commit
+    const updateData: any = {
+      updatedBy: userId || null
+    };
 
-    if (dto.name !== undefined) item.name = dto.name;
-    if (dto.itemTypeId !== undefined) item.itemTypeId = dto.itemTypeId;
-    if (dto.itemCodeGroupId !== undefined) item.itemCodeGroupId = dto.itemCodeGroupId;
-    if (dto.code !== undefined) item.code = dto.code;
-    if (dto.code1 !== undefined) item.code1 = dto.code1;
-    if (dto.code2 !== undefined) item.code2 = dto.code2;
-    if (dto.image !== undefined) item.image = dto.image;
-    if (dto.currencyId !== undefined) item.currencyId = dto.currencyId;
-    if (dto.quantityTypeId !== undefined) item.quantityTypeId = dto.quantityTypeId;
-    if (dto.description !== undefined) item.description = dto.description;
-    if (dto.notes !== undefined) item.notes = dto.notes;
-    if (dto.providerId !== undefined) item.providerId = dto.providerId;
+    if (dto.name !== undefined) updateData.name = dto.name;
+    if (dto.itemTypeId !== undefined) updateData.itemTypeId = dto.itemTypeId;
+    if (dto.itemCodeGroupId !== undefined) updateData.itemCodeGroupId = dto.itemCodeGroupId;
+    if (dto.code !== undefined) updateData.code = dto.code;
+    if (dto.code1 !== undefined) updateData.code1 = dto.code1;
+    if (dto.code2 !== undefined) updateData.code2 = dto.code2;
+    if (dto.image !== undefined) updateData.image = dto.image;
+    if (dto.currencyId !== undefined) updateData.currencyId = dto.currencyId;
+    if (dto.quantityTypeId !== undefined) updateData.quantityTypeId = dto.quantityTypeId;
+    if (dto.description !== undefined) updateData.description = dto.description;
+    if (dto.notes !== undefined) updateData.notes = dto.notes;
+    if (dto.providerId !== undefined) updateData.providerId = dto.providerId;
+    if (dto.state !== undefined) updateData.state = dto.state;
+    if (dto.criticalLimit !== undefined) updateData.criticalLimit = dto.criticalLimit;
+    if (dto.purchasePrice !== undefined) updateData.purchasePrice = dto.purchasePrice;
+    if (dto.salePrice !== undefined) updateData.salePrice = dto.salePrice;
+    if (dto.netPrice !== undefined) updateData.netPrice = dto.netPrice;
+    if (dto.kdv !== undefined) updateData.kdv = dto.kdv;
 
-    if (dto.state !== undefined) {
-      item.state = dto.state;
-    }
-
-    if (dto.criticalLimit !== undefined) item.criticalLimit = dto.criticalLimit;
-    if (dto.purchasePrice !== undefined) item.purchasePrice = dto.purchasePrice;
-    if (dto.salePrice !== undefined) item.salePrice = dto.salePrice;
-    if (dto.netPrice !== undefined) item.netPrice = dto.netPrice;
-    if (dto.kdv !== undefined) item.kdv = dto.kdv;
-
-    item.updatedBy = userId || null;
-    return this.itemRepo.save(item);
+    await this.itemRepo.update(id, updateData);
+    
+    // Return updated item with all relations
+    return this.findOne(id);
   }
 
   async softDelete(id: number, currentUserId?: number): Promise<void> {
@@ -253,6 +250,7 @@ export class ItemsService {
     if (dto.name !== undefined) type.name = dto.name;
     if (dto.abbreviation !== undefined) type.abbreviation = dto.abbreviation;
     if (dto.state !== undefined) type.state = dto.state;
+    if (dto.isExcludedFromBom !== undefined) type.isExcludedFromBom = dto.isExcludedFromBom;
 
     type.updatedBy = userId || null;
     return this.itemTypeRepo.save(type);
