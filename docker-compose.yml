@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: ermay-db
+    restart: always
+    environment:
+      MYSQL_DATABASE: benyaptim
+      MYSQL_ROOT_PASSWORD: 1754
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p1754"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ermay-backend
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USERNAME=root
+      - DB_PASSWORD=1754
+      - DB_DATABASE=benyaptim
+      - JWT_SECRET=erp-super-secret-key-change-in-production-2024
+      - JWT_EXPIRES_IN=24h
+      - APP_PORT=5143
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "5143:5143"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ermay-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:

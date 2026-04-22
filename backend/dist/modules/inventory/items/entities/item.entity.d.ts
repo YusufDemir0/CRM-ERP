@@ -21,6 +21,7 @@ export declare class Item extends BaseEntity {
     currencyId: number | null;
     quantityTypeId: number;
     kdv: Decimal;
+    totalStock: Decimal;
     description: string | null;
     notes: string | null;
     itemType: ItemType;

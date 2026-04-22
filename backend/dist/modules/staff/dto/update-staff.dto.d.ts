@@ -5,4 +5,6 @@ export declare class UpdateStaffDto {
     entryDate?: string;
     departmentId?: number;
     isActive?: boolean;
+    state?: number;
+    tckn?: string;
 }

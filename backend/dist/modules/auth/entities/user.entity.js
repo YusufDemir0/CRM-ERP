@@ -58,6 +58,14 @@ __decorate([
     __metadata("design:type", Object)
 ], User.prototype, "lockedUntil", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'entry_date', type: 'date', nullable: true }),
+    __metadata("design:type", Object)
+], User.prototype, "entryDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'last_deactivation_date', type: 'date', nullable: true }),
+    __metadata("design:type", Object)
+], User.prototype, "lastDeactivationDate", void 0);
+__decorate([
     (0, typeorm_1.Column)({ name: 'token_version', type: 'int', default: 1 }),
     __metadata("design:type", Number)
 ], User.prototype, "tokenVersion", void 0);

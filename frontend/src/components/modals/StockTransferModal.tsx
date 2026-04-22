@@ -2,6 +2,7 @@
 import { FiRepeat } from 'react-icons/fi';
 import { Item, Department } from '../../types';
 import { PremiumNumberInput } from '../common/PremiumNumberInput';
+import { SearchableSelect } from '../common/SearchableSelect';
 
 interface StockTransferFormData {
   itemId: string;
@@ -42,18 +43,14 @@ export const StockTransferModal: React.FC<StockTransferModalProps> = ({
         </div>
 
         <form onSubmit={onSubmit} className="flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">TRANSFER EDİLECEK ÜRÜN</label>
-            <select 
-              required 
-              value={transferData.itemId} 
-              onChange={e => onTransferDataChange({...transferData, itemId: e.target.value})}
-              className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-amber-500/20 transition-colors cursor-pointer"
-            >
-              <option value="">LÜTFEN SEÇİNİZ...</option>
-              {items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}
-            </select>
-          </div>
+          <SearchableSelect 
+            label="TRANSFER EDİLECEK ÜRÜN"
+            required
+            placeholder="LÜTFEN SEÇİNİZ..."
+            options={items.map(i => ({ id: i.id, label: `${i.code} - ${i.name}` }))}
+            value={transferData.itemId}
+            onChange={(opt) => onTransferDataChange({...transferData, itemId: opt ? String(opt.id) : ''})}
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 rounded-3xl bg-slate-50/50 border border-slate-100 border-dashed">
             <div className="flex flex-col gap-2">

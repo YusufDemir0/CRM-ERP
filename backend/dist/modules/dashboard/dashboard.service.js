@@ -26,63 +26,60 @@ const transaction_entity_1 = require("../finance/transactions/entities/transacti
 const department_entity_1 = require("../departments/entities/department.entity");
 const class_transformer_1 = require("class-transformer");
 const dashboard_summary_dto_1 = require("./dto/dashboard-summary.dto");
-const decimal_js_1 = require("decimal.js");
+const sale_entity_1 = require("../sales/entities/sale.entity");
 const dayjs_1 = __importDefault(require("dayjs"));
 let DashboardService = class DashboardService {
-    constructor(userRepo, partyRepo, itemRepo, txRepo, deptRepo) {
+    constructor(userRepo, partyRepo, itemRepo, txRepo, deptRepo, saleRepo) {
         this.userRepo = userRepo;
         this.partyRepo = partyRepo;
         this.itemRepo = itemRepo;
         this.txRepo = txRepo;
         this.deptRepo = deptRepo;
+        this.saleRepo = saleRepo;
     }
     async getSummary() {
         const now = (0, dayjs_1.default)();
         const todayStr = now.format('YYYY-MM-DD');
-        const thisMonthStart = now.startOf('month').format('YYYY-MM-DD');
-        const thisMonthEnd = now.endOf('month').format('YYYY-MM-DD');
-        const lastMonthStart = now.subtract(1, 'month').startOf('month').format('YYYY-MM-DD');
-        const lastMonthEnd = now.subtract(1, 'month').endOf('month').format('YYYY-MM-DD');
-        const [totalUsers, totalParties, totalItems, todayTransactions, thisMonthTransactions, lastMonthTransactions, recentActions] = await Promise.all([
+        const thisMonthStart = now.startOf('month').toDate();
+        const thisMonthEnd = now.toDate();
+        const lastMonthStart = now.subtract(1, 'month').startOf('month').toDate();
+        const lastMonthEnd = now.subtract(1, 'month').toDate();
+        const [totalUsers, totalParties, totalItems, thisMonthStats, lastMonthStats, recentActions] = await Promise.all([
             this.userRepo.count({ where: { state: 1 } }),
             this.partyRepo.count({ where: { state: 1 } }),
             this.itemRepo.count({ where: { state: 1 } }),
-            this.txRepo.find({
-                where: { date: todayStr, type: 'in', status: 'completed' },
-                select: ['amount', 'exchangeRate']
-            }),
-            this.txRepo.find({
-                where: { date: (0, typeorm_2.Between)(thisMonthStart, thisMonthEnd), type: 'in', status: 'completed' },
-                select: ['amount', 'exchangeRate']
-            }),
-            this.txRepo.find({
-                where: { date: (0, typeorm_2.Between)(lastMonthStart, lastMonthEnd), type: 'in', status: 'completed' },
-                select: ['amount', 'exchangeRate']
-            }),
+            this.saleRepo.createQueryBuilder('sale')
+                .select("SUM(sale.grandTotal * sale.exchangeRate - sale.kdv * sale.exchangeRate)", "revenue")
+                .addSelect("COUNT(*)", "count")
+                .where("sale.createdAt BETWEEN :start AND :end", { start: thisMonthStart, end: thisMonthEnd })
+                .andWhere("sale.status != 'cancelled'")
+                .getRawOne(),
+            this.saleRepo.createQueryBuilder('sale')
+                .select("SUM(sale.grandTotal * sale.exchangeRate - sale.kdv * sale.exchangeRate)", "revenue")
+                .addSelect("COUNT(*)", "count")
+                .where("sale.createdAt BETWEEN :start AND :end", { start: lastMonthStart, end: lastMonthEnd })
+                .andWhere("sale.status != 'cancelled'")
+                .getRawOne(),
             this.txRepo.find({
                 relations: ['party'],
                 order: { createdAt: 'DESC' },
                 take: 10
             })
         ]);
-        const sumTL = (txs) => txs.reduce((sum, tx) => sum.plus(new decimal_js_1.Decimal(tx.amount || 0).mul(new decimal_js_1.Decimal(tx.exchangeRate || 1))), new decimal_js_1.Decimal(0));
-        const todaySales = sumTL(todayTransactions);
-        const thisMonthRevenue = sumTL(thisMonthTransactions);
-        const lastMonthRevenue = sumTL(lastMonthTransactions);
         return (0, class_transformer_1.plainToInstance)(dashboard_summary_dto_1.DashboardSummaryDto, {
             totalUsers,
             totalParties,
             totalItems,
-            todaySales: todaySales.toString(),
+            todaySales: 0,
             thisMonth: {
-                revenue: thisMonthRevenue.toString(),
-                count: thisMonthTransactions.length,
-                profit: thisMonthRevenue.mul(0.20).toString()
+                revenue: thisMonthStats.revenue,
+                count: thisMonthStats.count,
+                profit: 0
             },
             lastMonth: {
-                revenue: lastMonthRevenue.toString(),
-                count: lastMonthTransactions.length,
-                profit: lastMonthRevenue.mul(0.20).toString()
+                revenue: lastMonthStats.revenue,
+                count: lastMonthStats.count,
+                profit: 0
             },
             recentActions: recentActions.map(tx => ({
                 id: tx.id,
@@ -105,7 +102,9 @@ exports.DashboardService = DashboardService = __decorate([
     __param(2, (0, typeorm_1.InjectRepository)(item_entity_1.Item)),
     __param(3, (0, typeorm_1.InjectRepository)(transaction_entity_1.Transaction)),
     __param(4, (0, typeorm_1.InjectRepository)(department_entity_1.Department)),
+    __param(5, (0, typeorm_1.InjectRepository)(sale_entity_1.Sale)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

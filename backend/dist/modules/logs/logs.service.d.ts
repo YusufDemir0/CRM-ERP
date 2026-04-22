@@ -28,4 +28,7 @@ export declare class LogsService implements OnModuleInit, OnModuleDestroy {
     }>;
     logActivity(data: Partial<SystemLog>): void;
     addLog(data: Partial<SystemLog>): Promise<SystemLog>;
+    getNotifications(limit?: number): Promise<SystemLog[]>;
+    markAsRead(id: number): Promise<void>;
+    markAllAsRead(): Promise<void>;
 }

@@ -112,6 +112,11 @@ export class ProductionService {
     const savedBom = await manager.save(bom);
     
     const groupedItems = dto.items.reduce((acc, current) => {
+      // 🔥 CRITICAL: Prevent self-referencing items in BOM to avoid infinite recursion
+      if (dto.targetItemId && Number(current.itemId) === Number(dto.targetItemId)) {
+        throw new BadRequestException('Üretilecek ürünün kendisi, reçete içeriğinde (hammadde olarak) yer alamaz!');
+      }
+
       const existing = acc.find(i => i.itemId === current.itemId);
       if (existing) {
         existing.quantity = FH.add(existing.quantity, current.quantity);
@@ -170,6 +175,12 @@ export class ProductionService {
       const savedNew = await manager.save(newBom);
       
       for (const itemDto of dto.items) {
+        // 🔥 CRITICAL: Prevent self-referencing items in BOM to avoid infinite recursion
+        const targetId = dto.targetItemId ?? bom.targetItemId;
+        if (targetId && Number(itemDto.itemId) === Number(targetId)) {
+          throw new BadRequestException('Üretilecek ürünün kendisi, reçete içeriğinde (hammadde olarak) yer alamaz!');
+        }
+
         await manager.save(manager.create(BomItem, {
           bomId: savedNew.id,
           itemId: itemDto.itemId,

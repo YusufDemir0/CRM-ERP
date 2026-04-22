@@ -5,4 +5,5 @@ export declare class CreateStaffDto {
     entryDate?: string;
     departmentId: number;
     isActive?: boolean;
+    tckn?: string;
 }

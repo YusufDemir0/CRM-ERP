@@ -12,6 +12,8 @@ export declare class Staff {
     lastName: string;
     phone: string;
     entryDate: string;
+    lastDeactivationDate: string | null;
+    tckn: string | null;
     departmentId: number;
     isActive: boolean;
     department: Department;

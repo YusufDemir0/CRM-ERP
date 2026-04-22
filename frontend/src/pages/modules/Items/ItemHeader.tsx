@@ -7,7 +7,7 @@ interface ItemHeaderProps {
   setFilterTab: (tab: 'active' | 'passive' | 'all' | 'critical') => void;
   setPage: (page: number) => void;
   openCreate: (type: QuickCreateType, options: QuickCreateOptions) => void;
-  handleFormSuccess: () => void;
+  handleFormSuccess: (data?: any) => void;
 }
 
 export const ItemHeader: React.FC<ItemHeaderProps> = ({

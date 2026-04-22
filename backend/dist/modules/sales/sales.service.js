@@ -358,7 +358,7 @@ let SalesService = SalesService_1 = class SalesService {
     }
     async approveSale(saleId, dto, userId) {
         const manager = this.transactionContext.manager;
-        const sale = await manager.findOne(sale_entity_1.Sale, { where: { id: saleId }, relations: ['items'] });
+        const sale = await manager.findOne(sale_entity_1.Sale, { where: { id: saleId }, relations: ['items'], lock: { mode: 'pessimistic_write' } });
         if (!sale)
             throw new common_1.NotFoundException('Satış bulunamadı');
         if (sale.status !== 'draft')
@@ -513,7 +513,7 @@ let SalesService = SalesService_1 = class SalesService {
     }
     async shipSale(saleId, dto, userId) {
         const manager = this.transactionContext.manager;
-        const sale = await manager.findOne(sale_entity_1.Sale, { where: { id: saleId }, relations: ['items'] });
+        const sale = await manager.findOne(sale_entity_1.Sale, { where: { id: saleId }, relations: ['items'], lock: { mode: 'pessimistic_write' } });
         if (!sale)
             throw new common_1.NotFoundException('Satış bulunamadı');
         if (sale.status !== 'approved' && sale.status !== 'shipped') {

@@ -40,27 +40,28 @@ export class DashboardService {
       totalUsers,
       totalParties,
       totalItems,
-      thisMonthSales,
-      lastMonthSales,
+      thisMonthStats,
+      lastMonthStats,
       recentActions
     ] = await Promise.all([
       this.userRepo.count({ where: { state: 1 } }),
       this.partyRepo.count({ where: { state: 1 } }),
       this.itemRepo.count({ where: { state: 1 } }),
       
-      // Bu Ayın Satışları (Bugüne kadar)
-      this.saleRepo.find({
-        where: { 
-          createdAt: Between(thisMonthStart, thisMonthEnd)
-        }
-      }),
+      // 🔥 HIGH PERFORMANCE: Use SQL aggregates instead of loading all entities into memory
+      this.saleRepo.createQueryBuilder('sale')
+        .select("SUM(sale.grandTotal * sale.exchangeRate - sale.kdv * sale.exchangeRate)", "revenue")
+        .addSelect("COUNT(*)", "count")
+        .where("sale.createdAt BETWEEN :start AND :end", { start: thisMonthStart, end: thisMonthEnd })
+        .andWhere("sale.status != 'cancelled'")
+        .getRawOne(),
 
-      // Geçen Ayın Satışları (Aynı döneme kadar - PMTD)
-      this.saleRepo.find({
-        where: { 
-          createdAt: Between(lastMonthStart, lastMonthEnd)
-        }
-      }),
+      this.saleRepo.createQueryBuilder('sale')
+        .select("SUM(sale.grandTotal * sale.exchangeRate - sale.kdv * sale.exchangeRate)", "revenue")
+        .addSelect("COUNT(*)", "count")
+        .where("sale.createdAt BETWEEN :start AND :end", { start: lastMonthStart, end: lastMonthEnd })
+        .andWhere("sale.status != 'cancelled'")
+        .getRawOne(),
 
       // Son İşlemler
       this.txRepo.find({
@@ -69,30 +70,6 @@ export class DashboardService {
         take: 10
       })
     ]);
-
-    const calculateStats = (sales: Sale[]) => {
-      let revenue = new Decimal(0);
-      let count = 0;
-
-      sales.forEach(sale => {
-        // İptal edilen satışlar ciroya ve adede dahil edilmez
-        if (sale.status === 'cancelled') return;
-        
-        count++;
-        const rate = new Decimal(sale.exchangeRate || 1);
-        // "Net Satış" (KDV hariç, İndirimler düşülmüş tutar)
-        const netSale = new Decimal(sale.grandTotal || 0).minus(sale.kdv || 0);
-        revenue = revenue.plus(netSale.mul(rate));
-      });
-
-      return {
-        revenue: revenue.toDecimalPlaces(2).toNumber(),
-        count: count
-      };
-    };
-
-    const thisMonthStats = calculateStats(thisMonthSales);
-    const lastMonthStats = calculateStats(lastMonthSales);
     
     return plainToInstance(DashboardSummaryDto, {
       totalUsers,

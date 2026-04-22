@@ -49,4 +49,10 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Boolean)
 ], CreateStaffDto.prototype, "isActive", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.MaxLength)(11),
+    __metadata("design:type", String)
+], CreateStaffDto.prototype, "tckn", void 0);
 //# sourceMappingURL=create-staff.dto.js.map

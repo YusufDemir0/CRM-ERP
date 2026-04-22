@@ -39,11 +39,13 @@ export declare class UpdateItemDto {
 export declare class CreateItemTypeDto {
     name: string;
     abbreviation: string;
+    isExcludedFromBom?: boolean;
 }
 export declare class UpdateItemTypeDto {
     name?: string;
     abbreviation?: string;
     state?: number;
+    isExcludedFromBom?: boolean;
 }
 export declare class CreateQuantityTypeDto {
     name: string;

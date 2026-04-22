@@ -24,10 +24,12 @@ let Item = class Item extends base_entity_1.BaseEntity {
 };
 exports.Item = Item;
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ type: 'varchar', length: 150 }),
     __metadata("design:type", String)
 ], Item.prototype, "name", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'item_type_id', type: 'bigint' }),
     __metadata("design:type", Number)
 ], Item.prototype, "itemTypeId", void 0);
@@ -36,6 +38,7 @@ __decorate([
     __metadata("design:type", Object)
 ], Item.prototype, "itemCodeGroupId", void 0);
 __decorate([
+    (0, typeorm_1.Index)({ unique: true }),
     (0, typeorm_1.Column)({ name: 'code', type: 'varchar', length: 50 }),
     __metadata("design:type", String)
 ], Item.prototype, "code", void 0);
@@ -77,6 +80,7 @@ __decorate([
     __metadata("design:type", Object)
 ], Item.prototype, "netPrice", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'currency_id', type: 'bigint', nullable: true }),
     __metadata("design:type", Object)
 ], Item.prototype, "currencyId", void 0);
@@ -89,6 +93,11 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'decimal', precision: 5, scale: 2, default: 20, transformer: new decimal_transformer_1.DecimalTransformer() }),
     __metadata("design:type", decimal_js_1.Decimal)
 ], Item.prototype, "kdv", void 0);
+__decorate([
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'total_stock', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
+], Item.prototype, "totalStock", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", Object)
@@ -108,6 +117,7 @@ __decorate([
     __metadata("design:type", item_code_group_entity_1.ItemCodeGroup)
 ], Item.prototype, "itemCodeGroup", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'provider_id', type: 'bigint', nullable: true }),
     __metadata("design:type", Object)
 ], Item.prototype, "providerId", void 0);

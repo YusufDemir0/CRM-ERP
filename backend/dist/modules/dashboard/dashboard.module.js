@@ -16,13 +16,14 @@ const party_entity_1 = require("../parties/entities/party.entity");
 const item_entity_1 = require("../inventory/items/entities/item.entity");
 const transaction_entity_1 = require("../finance/transactions/entities/transaction.entity");
 const department_entity_1 = require("../departments/entities/department.entity");
+const sale_entity_1 = require("../sales/entities/sale.entity");
 let DashboardModule = class DashboardModule {
 };
 exports.DashboardModule = DashboardModule;
 exports.DashboardModule = DashboardModule = __decorate([
     (0, common_1.Module)({
         imports: [
-            typeorm_1.TypeOrmModule.forFeature([user_entity_1.User, party_entity_1.Party, item_entity_1.Item, transaction_entity_1.Transaction, department_entity_1.Department]),
+            typeorm_1.TypeOrmModule.forFeature([user_entity_1.User, party_entity_1.Party, item_entity_1.Item, transaction_entity_1.Transaction, department_entity_1.Department, sale_entity_1.Sale]),
         ],
         controllers: [dashboard_controller_1.DashboardController],
         providers: [dashboard_service_1.DashboardService],

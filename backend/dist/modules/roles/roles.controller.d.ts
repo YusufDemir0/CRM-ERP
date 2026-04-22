@@ -20,4 +20,8 @@ export declare class RolesController {
     removeRole(dto: AssignRoleDto): Promise<void>;
     setUserPermission(dto: SetUserPermissionDto, userId: number): Promise<import("../auth/entities/user-permission.entity").UserPermission>;
     getUserPermissions(userId: number): Promise<import("../auth/entities/user-permission.entity").UserPermission[]>;
+    removeUserPermission(dto: {
+        userId: number;
+        permissionId: number;
+    }): Promise<void>;
 }

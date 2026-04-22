@@ -10,6 +10,7 @@ export declare class PartiesService {
     constructor(partyRepo: Repository<Party>, currenciesService: CurrenciesService);
     findAll(query: PaginationDto & {
         type?: string;
+        departmentId?: number;
     }): Promise<PaginatedResult<Party>>;
     findOne(id: number): Promise<Party>;
     create(dto: CreatePartyDto, userId?: number): Promise<Party>;

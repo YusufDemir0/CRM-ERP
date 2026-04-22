@@ -12,6 +12,8 @@ export declare class User extends BaseEntity {
     department: Department;
     failedLoginAttempts: number;
     lockedUntil: Date | null;
+    entryDate: string | null;
+    lastDeactivationDate: string | null;
     tokenVersion: number;
     roles: Role[];
     userPermissions: UserPermission[];

@@ -24,6 +24,15 @@ let LogsController = class LogsController {
     async findAll(query) {
         return this.logsService.findAll(query);
     }
+    async getNotifications() {
+        return this.logsService.getNotifications();
+    }
+    async markAsRead(id) {
+        return this.logsService.markAsRead(id);
+    }
+    async markAllAsRead() {
+        return this.logsService.markAllAsRead();
+    }
 };
 exports.LogsController = LogsController;
 __decorate([
@@ -34,6 +43,25 @@ __decorate([
     __metadata("design:paramtypes", [logs_query_dto_1.LogsQueryDto]),
     __metadata("design:returntype", Promise)
 ], LogsController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('notifications'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], LogsController.prototype, "getNotifications", null);
+__decorate([
+    (0, common_1.Post)('notifications/:id/read'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", Promise)
+], LogsController.prototype, "markAsRead", null);
+__decorate([
+    (0, common_1.Post)('notifications/read-all'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], LogsController.prototype, "markAllAsRead", null);
 exports.LogsController = LogsController = __decorate([
     (0, common_1.Controller)('logs'),
     __metadata("design:paramtypes", [logs_service_1.LogsService])

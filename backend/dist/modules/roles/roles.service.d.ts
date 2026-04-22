@@ -24,6 +24,10 @@ export declare class RolesService {
     removeRole(dto: AssignRoleDto): Promise<void>;
     setUserPermission(dto: SetUserPermissionDto, currentUserId?: number): Promise<UserPermission>;
     getUserPermissions(userId: number): Promise<UserPermission[]>;
+    removeUserPermission(dto: {
+        userId: number;
+        permissionId: number;
+    }): Promise<void>;
     getStatus(): Promise<{
         active: number;
         passive: number;

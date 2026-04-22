@@ -35,4 +35,5 @@ import { PaginationDto } from '../../../common/dto/pagination.dto';
 export declare class PartiesQueryDto extends PaginationDto {
     type?: string;
     state?: number;
+    departmentId?: number;
 }

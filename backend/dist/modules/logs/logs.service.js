@@ -75,6 +75,19 @@ let LogsService = LogsService_1 = class LogsService {
         const log = this.logRepository.create(data);
         return this.logRepository.save(log);
     }
+    async getNotifications(limit = 20) {
+        return this.logRepository.find({
+            where: { isDeleted: false },
+            order: { createdAt: 'DESC' },
+            take: limit
+        });
+    }
+    async markAsRead(id) {
+        await this.logRepository.update(id, { isDeleted: true });
+    }
+    async markAllAsRead() {
+        await this.logRepository.update({ isDeleted: false }, { isDeleted: true });
+    }
 };
 exports.LogsService = LogsService;
 exports.LogsService = LogsService = LogsService_1 = __decorate([

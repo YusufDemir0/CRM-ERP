@@ -2,6 +2,7 @@
 import { parseTurkishDecimal } from '../../utils/number.helper';
 import { Item, Department } from '../../types';
 import { PremiumNumberInput } from '../common/PremiumNumberInput';
+import { SearchableSelect } from '../common/SearchableSelect';
 
 interface StockAdjustmentFormData {
   itemId: string;
@@ -64,18 +65,14 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">İŞLEM YAPILACAK ÜRÜN</label>
-            <select 
-              required 
-              value={formData.itemId} 
-              onChange={e => onFormDataChange({...formData, itemId: e.target.value})}
-              className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors cursor-pointer"
-            >
-              <option value="">ÜRÜN SEÇİNİZ...</option>
-              {items.map(i => <option key={i.id} value={i.id}>{i.code} - {i.name}</option>)}
-            </select>
-          </div>
+          <SearchableSelect 
+            label="İŞLEM YAPILACAK ÜRÜN"
+            required
+            placeholder="ÜRÜN SEÇİNİZ..."
+            options={items.map(i => ({ id: i.id, label: `${i.code} - ${i.name}` }))}
+            value={formData.itemId}
+            onChange={(opt) => onFormDataChange({...formData, itemId: opt ? String(opt.id) : ''})}
+          />
 
           <div className="flex flex-col gap-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">MİKTAR</label>

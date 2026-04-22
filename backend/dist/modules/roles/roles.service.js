@@ -167,6 +167,9 @@ let RolesService = class RolesService {
             relations: ['permission'],
         });
     }
+    async removeUserPermission(dto) {
+        await this.userPermRepo.delete({ userId: dto.userId, permissionId: dto.permissionId });
+    }
     async getStatus() {
         const [active, passive] = await Promise.all([
             this.roleRepo.count({ where: { state: 1 } }),

@@ -93,7 +93,7 @@ let ItemsService = class ItemsService {
         if (query.state !== undefined)
             qb.andWhere('item.state = :state', { state: query.state });
         if (query.critical === 'true') {
-            qb.andWhere('(SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE item_id = item.id) < item.criticalLimit');
+            qb.andWhere('item.totalStock < item.criticalLimit');
             qb.andWhere('item.criticalLimit > 0');
         }
         const itemFilterMap = {
@@ -124,7 +124,7 @@ let ItemsService = class ItemsService {
             'itemType.name': 'itemType.name',
             'provider.name': 'provider.name',
             'state': 'item.state',
-            'totalStock': '(SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE item_id = item.id)'
+            'totalStock': 'item.totalStock'
         };
         const sortCol = sortFieldMap[query.sortBy || ''] || 'item.createdAt';
         qb.orderBy(sortCol, query.sortOrder || 'DESC');
@@ -182,51 +182,47 @@ let ItemsService = class ItemsService {
     }
     async update(id, dto, userId) {
         const item = await this.findOne(id);
-        if (dto.code && dto.code !== item.code) {
-            const existing = await this.itemRepo.findOne({ where: { code: dto.code } });
-            if (existing && existing.id !== id) {
-                throw new common_1.BadRequestException(`'${dto.code}' kodlu bir ürün zaten mevcut.`);
-            }
-        }
+        const updateData = {
+            updatedBy: userId || null
+        };
         if (dto.name !== undefined)
-            item.name = dto.name;
+            updateData.name = dto.name;
         if (dto.itemTypeId !== undefined)
-            item.itemTypeId = dto.itemTypeId;
+            updateData.itemTypeId = dto.itemTypeId;
         if (dto.itemCodeGroupId !== undefined)
-            item.itemCodeGroupId = dto.itemCodeGroupId;
+            updateData.itemCodeGroupId = dto.itemCodeGroupId;
         if (dto.code !== undefined)
-            item.code = dto.code;
+            updateData.code = dto.code;
         if (dto.code1 !== undefined)
-            item.code1 = dto.code1;
+            updateData.code1 = dto.code1;
         if (dto.code2 !== undefined)
-            item.code2 = dto.code2;
+            updateData.code2 = dto.code2;
         if (dto.image !== undefined)
-            item.image = dto.image;
+            updateData.image = dto.image;
         if (dto.currencyId !== undefined)
-            item.currencyId = dto.currencyId;
+            updateData.currencyId = dto.currencyId;
         if (dto.quantityTypeId !== undefined)
-            item.quantityTypeId = dto.quantityTypeId;
+            updateData.quantityTypeId = dto.quantityTypeId;
         if (dto.description !== undefined)
-            item.description = dto.description;
+            updateData.description = dto.description;
         if (dto.notes !== undefined)
-            item.notes = dto.notes;
+            updateData.notes = dto.notes;
         if (dto.providerId !== undefined)
-            item.providerId = dto.providerId;
-        if (dto.state !== undefined) {
-            item.state = dto.state;
-        }
+            updateData.providerId = dto.providerId;
+        if (dto.state !== undefined)
+            updateData.state = dto.state;
         if (dto.criticalLimit !== undefined)
-            item.criticalLimit = dto.criticalLimit;
+            updateData.criticalLimit = dto.criticalLimit;
         if (dto.purchasePrice !== undefined)
-            item.purchasePrice = dto.purchasePrice;
+            updateData.purchasePrice = dto.purchasePrice;
         if (dto.salePrice !== undefined)
-            item.salePrice = dto.salePrice;
+            updateData.salePrice = dto.salePrice;
         if (dto.netPrice !== undefined)
-            item.netPrice = dto.netPrice;
+            updateData.netPrice = dto.netPrice;
         if (dto.kdv !== undefined)
-            item.kdv = dto.kdv;
-        item.updatedBy = userId || null;
-        return this.itemRepo.save(item);
+            updateData.kdv = dto.kdv;
+        await this.itemRepo.update(id, updateData);
+        return this.findOne(id);
     }
     async softDelete(id, currentUserId) {
         const item = await this.findOne(id);
@@ -272,6 +268,8 @@ let ItemsService = class ItemsService {
             type.abbreviation = dto.abbreviation;
         if (dto.state !== undefined)
             type.state = dto.state;
+        if (dto.isExcludedFromBom !== undefined)
+            type.isExcludedFromBom = dto.isExcludedFromBom;
         type.updatedBy = userId || null;
         return this.itemTypeRepo.save(type);
     }
@@ -364,6 +362,12 @@ __decorate([
     __metadata("design:paramtypes", [inventory_dto_1.CreateItemDto, Number]),
     __metadata("design:returntype", Promise)
 ], ItemsService.prototype, "create", null);
+__decorate([
+    (0, transactional_decorator_1.Transactional)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number, inventory_dto_1.UpdateItemDto, Number]),
+    __metadata("design:returntype", Promise)
+], ItemsService.prototype, "update", null);
 exports.ItemsService = ItemsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(item_entity_1.Item)),

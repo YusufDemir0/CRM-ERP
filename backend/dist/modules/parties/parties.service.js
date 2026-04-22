@@ -61,6 +61,9 @@ let PartiesService = class PartiesService {
     async findAll(query) {
         const qb = this.partyRepo.createQueryBuilder('party')
             .leftJoinAndSelect('party.currency', 'currency');
+        if (query.departmentId) {
+            qb.innerJoin('users', 'u', 'u.id = party.createdBy AND u.department_id = :departmentId', { departmentId: query.departmentId });
+        }
         if (query.search) {
             const searchPattern = (0, sql_helper_1.getSafeSearchPattern)(query.search);
             if (searchPattern) {

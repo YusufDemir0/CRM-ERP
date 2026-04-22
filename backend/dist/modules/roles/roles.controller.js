@@ -59,6 +59,9 @@ let RolesController = class RolesController {
     getUserPermissions(userId) {
         return this.rolesService.getUserPermissions(userId);
     }
+    removeUserPermission(dto) {
+        return this.rolesService.removeUserPermission(dto);
+    }
 };
 exports.RolesController = RolesController;
 __decorate([
@@ -161,6 +164,14 @@ __decorate([
     __metadata("design:paramtypes", [Number]),
     __metadata("design:returntype", void 0)
 ], RolesController.prototype, "getUserPermissions", null);
+__decorate([
+    (0, common_1.Delete)('user-permissions'),
+    (0, permissions_decorator_1.RequirePermissions)('yetki_atama'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], RolesController.prototype, "removeUserPermission", null);
 exports.RolesController = RolesController = __decorate([
     (0, common_1.Controller)('roles'),
     __metadata("design:paramtypes", [roles_service_1.RolesService])

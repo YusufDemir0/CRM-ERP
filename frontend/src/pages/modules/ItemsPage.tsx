@@ -101,7 +101,7 @@ export default function ItemsPage() {
     onError: () => toast.error("Hata oluştu")
   });
 
-  const handleFormSuccess = (data: any) => {
+  const handleFormSuccess = (data?: any) => {
     // 🔥 Hem manuel cache güncellemesi yap hem de tüm listeyi geçersiz kıl
     if (data && data.id) {
       queryClient.setQueriesData({ queryKey: ['items', 'list'] }, (old: any) => {

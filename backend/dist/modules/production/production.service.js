@@ -105,6 +105,9 @@ let ProductionService = ProductionService_1 = class ProductionService {
         });
         const savedBom = await manager.save(bom);
         const groupedItems = dto.items.reduce((acc, current) => {
+            if (dto.targetItemId && Number(current.itemId) === Number(dto.targetItemId)) {
+                throw new common_1.BadRequestException('Üretilecek ürünün kendisi, reçete içeriğinde (hammadde olarak) yer alamaz!');
+            }
             const existing = acc.find(i => i.itemId === current.itemId);
             if (existing) {
                 existing.quantity = finance_helper_1.FinanceHelper.add(existing.quantity, current.quantity);
@@ -158,6 +161,10 @@ let ProductionService = ProductionService_1 = class ProductionService {
             });
             const savedNew = await manager.save(newBom);
             for (const itemDto of dto.items) {
+                const targetId = dto.targetItemId ?? bom.targetItemId;
+                if (targetId && Number(itemDto.itemId) === Number(targetId)) {
+                    throw new common_1.BadRequestException('Üretilecek ürünün kendisi, reçete içeriğinde (hammadde olarak) yer alamaz!');
+                }
                 await manager.save(manager.create(bom_item_entity_1.BomItem, {
                     bomId: savedNew.id,
                     itemId: itemDto.itemId,

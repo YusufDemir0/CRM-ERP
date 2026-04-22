@@ -66,6 +66,15 @@ let StaffService = class StaffService {
     }
     async update(id, updateStaffDto, userId) {
         const staff = await this.findOne(id);
+        if (updateStaffDto.state !== undefined && staff.state !== updateStaffDto.state) {
+            const today = new Date().toISOString().split('T')[0];
+            if (updateStaffDto.state === 0) {
+                staff.lastDeactivationDate = today;
+            }
+            else if (updateStaffDto.state === 1) {
+                staff.entryDate = today;
+            }
+        }
         Object.assign(staff, {
             ...updateStaffDto,
             updatedBy: userId,
@@ -82,6 +91,13 @@ let StaffService = class StaffService {
         const staff = await this.findOne(id);
         staff.isActive = !staff.isActive;
         staff.state = staff.isActive ? 1 : 0;
+        const today = new Date().toISOString().split('T')[0];
+        if (staff.state === 0) {
+            staff.lastDeactivationDate = today;
+        }
+        else {
+            staff.entryDate = today;
+        }
         staff.updatedBy = userId;
         return await this.staffRepository.save(staff);
     }

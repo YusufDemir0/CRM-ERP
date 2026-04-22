@@ -185,6 +185,13 @@ let UsersService = class UsersService {
         if (dto.state !== undefined && user.state !== dto.state) {
             user.state = dto.state;
             user.tokenVersion += 1;
+            const today = new Date().toISOString().split('T')[0];
+            if (dto.state === 0) {
+                user.lastDeactivationDate = today;
+            }
+            else if (dto.state === 1) {
+                user.entryDate = today;
+            }
         }
         user.updatedBy = currentUserId || null;
         const savedUser = await this.userRepo.save(user);

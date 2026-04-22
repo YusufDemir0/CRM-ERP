@@ -23,6 +23,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 20 }),
     __metadata("design:type", String)
 ], ItemType.prototype, "abbreviation", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'is_excluded_from_bom', type: 'boolean', default: false }),
+    __metadata("design:type", Boolean)
+], ItemType.prototype, "isExcludedFromBom", void 0);
 exports.ItemType = ItemType = __decorate([
     (0, typeorm_1.Entity)('item_types')
 ], ItemType);

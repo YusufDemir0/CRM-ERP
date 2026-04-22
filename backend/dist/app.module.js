@@ -27,6 +27,7 @@ const permissions_guard_1 = require("./common/guards/permissions.guard");
 const csrf_guard_1 = require("./common/guards/csrf.guard");
 const csrf_middleware_1 = require("./common/middleware/csrf.middleware");
 const audit_subscriber_1 = require("./common/subscribers/audit.subscriber");
+const stock_subscriber_1 = require("./modules/inventory/stocks/subscribers/stock.subscriber");
 const common_module_1 = require("./common/common.module");
 const auth_module_1 = require("./modules/auth/auth.module");
 const users_module_1 = require("./modules/users/users.module");
@@ -73,6 +74,7 @@ exports.AppModule = AppModule = __decorate([
             { provide: core_1.APP_GUARD, useClass: jwt_auth_guard_1.JwtAuthGuard },
             { provide: core_1.APP_GUARD, useClass: permissions_guard_1.PermissionsGuard },
             audit_subscriber_1.AuditSubscriber,
+            stock_subscriber_1.StockSubscriber,
         ],
     })
 ], AppModule);

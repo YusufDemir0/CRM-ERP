@@ -58,6 +58,10 @@ __decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at', type: 'timestamp' }),
     __metadata("design:type", Date)
 ], SystemLog.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'is_deleted', type: 'boolean', default: false }),
+    __metadata("design:type", Boolean)
+], SystemLog.prototype, "isDeleted", void 0);
 exports.SystemLog = SystemLog = __decorate([
     (0, typeorm_1.Entity)('system_logs')
 ], SystemLog);

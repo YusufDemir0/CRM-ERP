@@ -61,6 +61,14 @@ __decorate([
     __metadata("design:type", String)
 ], Staff.prototype, "entryDate", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'last_deactivation_date', type: 'date', nullable: true }),
+    __metadata("design:type", Object)
+], Staff.prototype, "lastDeactivationDate", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 11, nullable: true }),
+    __metadata("design:type", Object)
+], Staff.prototype, "tckn", void 0);
+__decorate([
     (0, typeorm_1.Column)({ name: 'department_id', type: 'bigint' }),
     __metadata("design:type", Number)
 ], Staff.prototype, "departmentId", void 0);

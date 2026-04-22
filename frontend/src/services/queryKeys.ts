@@ -41,6 +41,7 @@ export const queryKeys = {
   },
   currencies: {
     all: ['currencies'] as const,
+    allWithParams: (params: QueryParams) => ['currencies', 'list', params] as const,
   },
   boms: {
     all: (params: QueryParams) => ['boms', 'list', params] as const,

@@ -12,4 +12,7 @@ export declare class LogsController {
             totalPages: number;
         };
     }>;
+    getNotifications(): Promise<import("./entities/log.entity").SystemLog[]>;
+    markAsRead(id: number): Promise<void>;
+    markAllAsRead(): Promise<void>;
 }

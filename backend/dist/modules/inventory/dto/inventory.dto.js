@@ -212,6 +212,11 @@ __decorate([
     (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateItemTypeDto.prototype, "abbreviation", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], CreateItemTypeDto.prototype, "isExcludedFromBom", void 0);
 class UpdateItemTypeDto {
 }
 exports.UpdateItemTypeDto = UpdateItemTypeDto;
@@ -232,6 +237,11 @@ __decorate([
     (0, class_transformer_1.Type)(() => Number),
     __metadata("design:type", Number)
 ], UpdateItemTypeDto.prototype, "state", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], UpdateItemTypeDto.prototype, "isExcludedFromBom", void 0);
 class CreateQuantityTypeDto {
 }
 exports.CreateQuantityTypeDto = CreateQuantityTypeDto;

@@ -9,4 +9,5 @@ export declare class SystemLog {
     details: string;
     ipAddress: string;
     createdAt: Date;
+    isDeleted: boolean;
 }
