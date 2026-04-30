@@ -1,17 +1,13 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SystemLog } from './entities/log.entity';
-import { Subject, Subscription } from 'rxjs';
-import { bufferTime, filter } from 'rxjs/operators';
 import { getSafeSearchPattern } from '../../common/utils/sql.helper';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
-export class LogsService implements OnModuleInit, OnModuleDestroy {
+export class LogsService implements OnModuleInit {
   private readonly logger = new Logger('SystemAudit');
-  private readonly logSubject = new Subject<Partial<SystemLog>>();
-  private logSubscription: Subscription;
   private readonly dbLoggingEnabled: boolean;
 
   constructor(
@@ -24,33 +20,9 @@ export class LogsService implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit() {
     this.logger.log(`LogsService initialized. DB Logging: ${this.dbLoggingEnabled}`);
-    
-    if (this.dbLoggingEnabled) {
-      // PERF-02: Batch logs with safety limit (1000 logs or 5 seconds)
-      this.logSubscription = this.logSubject.pipe(
-        bufferTime(5000, undefined, 1000), 
-        filter(logs => logs.length > 0)
-      ).subscribe(async (logs) => {
-        try {
-          const entities = this.logRepository.create(logs);
-          await this.logRepository.save(entities);
-        } catch (err) {
-          // Fallback to standard logger if DB fails
-          this.logger.error(`Failed to save batched logs to DB: ${err.message}`);
-        }
-      });
-    }
-  }
-
-  onModuleDestroy() {
-    if (this.logSubscription) {
-      this.logSubscription.unsubscribe();
-    }
   }
 
   async findAll(query: { search?: string; module?: string; sortBy?: string; sortOrder?: 'ASC' | 'DESC'; skip?: number; limit?: number; page?: number }): Promise<{ data: SystemLog[], meta: { total: number, page: number, limit: number, totalPages: number } }> {
-    // Note: If DB logging is disabled, this will return empty or stale data. 
-    // This maintains UI compatibility while allowing RDBMS offloading.
     const qb = this.logRepository.createQueryBuilder('log');
 
     if (query.search) {
@@ -80,11 +52,6 @@ export class LogsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  /**
-   * Primary entry point for logging. 
-   * Always writes to Stdout (JSON) for ELK/Loki.
-   * Optionally writes to DB for UI visibility.
-   */
   logActivity(data: Partial<SystemLog>) {
     // 1. Always Stdout (Enterprise Standard)
     const logPayload = {
@@ -92,16 +59,22 @@ export class LogsService implements OnModuleInit, OnModuleDestroy {
       ...data,
     };
     this.logger.log(JSON.stringify(logPayload));
-
-    // 2. Conditional DB (UI Compatibility)
-    if (this.dbLoggingEnabled) {
-      this.logSubject.next(data);
-    }
   }
 
   async addLog(data: Partial<SystemLog>): Promise<SystemLog | null> {
+    // Print to stdout immediately
     this.logActivity(data);
-    return null; // Interface consistency
+    
+    // Write to DB instantly to prevent crash data loss
+    if (this.dbLoggingEnabled) {
+      try {
+        const entity = this.logRepository.create(data);
+        return await this.logRepository.save(entity);
+      } catch (err) {
+        this.logger.error(`Failed to save log to DB: ${err.message}`);
+      }
+    }
+    return null;
   }
 
   async getNotifications(limit: number = 20): Promise<SystemLog[]> {

@@ -53,26 +53,17 @@ export class LogsInterceptor implements NestInterceptor {
     );
   }
 
-  private sanitizeBody(body: unknown, depth = 0): unknown {
-    if (depth > 4) return '[NESTED_CONTENT_TRUNCATED]';
+  private sanitizeBody(body: unknown): unknown {
     if (!body || typeof body !== 'object') return body;
+    if (Array.isArray(body)) return '[ARRAY_CONTENT_HIDDEN]';
 
-    if (Array.isArray(body)) {
-      return body.map(item => this.sanitizeBody(item, depth + 1));
-    }
-
-    const sanitized: Record<string, unknown> = {};
+    // Shallow sanitization for performance (O(N) operation, no recursion)
+    const sanitized = { ...body } as Record<string, unknown>;
     const sensitiveKeys = ['password', 'token', 'secret', 'hash', 'iban', 'cc_', 'cvv', 'tax_number', 'tc_no'];
 
-    for (const [key, value] of Object.entries(body)) {
-      const isSensitive = sensitiveKeys.some(s => key.toLowerCase().includes(s));
-      
-      if (isSensitive) {
+    for (const key of Object.keys(sanitized)) {
+      if (sensitiveKeys.some(s => key.toLowerCase().includes(s))) {
         sanitized[key] = '********';
-      } else if (value && typeof value === 'object') {
-        sanitized[key] = this.sanitizeBody(value, depth + 1);
-      } else {
-        sanitized[key] = value;
       }
     }
     return sanitized;
