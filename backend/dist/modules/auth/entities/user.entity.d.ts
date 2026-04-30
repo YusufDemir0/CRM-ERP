@@ -5,6 +5,7 @@ import { UserPermission } from './user-permission.entity';
 export declare class User extends BaseEntity {
     username: string;
     passwordHash: string;
+    refreshTokenHash: string | null;
     fullName: string;
     email: string;
     phone: string | null;

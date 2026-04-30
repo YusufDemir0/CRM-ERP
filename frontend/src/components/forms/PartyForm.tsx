@@ -141,13 +141,16 @@ export const PartyForm: React.FC<PartyFormProps> = ({
       </FormField>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <FormField label="Cari Kategori">
-          <select required className="input-premium font-black" {...register('type')}>
-            <option value="customer">MÜŞTERİ</option>
-            <option value="provider">TEDARİKÇİ</option>
-            <option value="both">HEM MÜŞTERİ HEM TEDARİKÇİ</option>
-          </select>
-        </FormField>
+        <FormField
+        label="Cari Tipi"
+        error={errors.type?.message}
+        required
+      >
+        <select {...register('type')} className="form-input">
+          <option value="customer">Müşteri</option>
+          <option value="supplier">Tedarikçi</option>
+        </select>
+      </FormField>
         <div className="grid grid-cols-2 gap-3">
           <FormField label={getTaxLabel()}>
             <input 

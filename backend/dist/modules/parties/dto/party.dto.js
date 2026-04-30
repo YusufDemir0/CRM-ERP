@@ -16,7 +16,7 @@ class CreatePartyDto {
 }
 exports.CreatePartyDto = CreatePartyDto;
 __decorate([
-    (0, class_validator_1.IsEnum)(['customer', 'provider', 'both']),
+    (0, class_validator_1.IsEnum)(['customer', 'supplier']),
     __metadata("design:type", String)
 ], CreatePartyDto.prototype, "type", void 0);
 __decorate([
@@ -94,7 +94,7 @@ class UpdatePartyDto {
 exports.UpdatePartyDto = UpdatePartyDto;
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEnum)(['customer', 'provider', 'both']),
+    (0, class_validator_1.IsEnum)(['customer', 'supplier']),
     __metadata("design:type", String)
 ], UpdatePartyDto.prototype, "type", void 0);
 __decorate([

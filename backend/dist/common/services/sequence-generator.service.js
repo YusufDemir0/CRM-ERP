@@ -22,20 +22,45 @@ let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGenera
         this.dataSource = dataSource;
         this.logger = new common_1.Logger(SequenceGeneratorService_1.name);
     }
-    async getNextNumber(manager, table, idField, idValue) {
-        await manager.query(`INSERT INTO ${table} (${idField}, current_number) 
-       VALUES (?, 1) 
-       ON DUPLICATE KEY UPDATE current_number = LAST_INSERT_ID(current_number + 1)`, [idValue]);
-        const [row] = await manager.query('SELECT LAST_INSERT_ID() as id');
-        return Number(row[0]?.id || row.id);
+    async getNextNumber(table, idField, idValue) {
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+        try {
+            let [row] = await queryRunner.query(`SELECT current_number as id FROM ${table} WHERE ${idField} = ? FOR UPDATE`, [idValue]);
+            let current = 1;
+            if (!row) {
+                try {
+                    await queryRunner.query(`INSERT INTO ${table} (${idField}, current_number) VALUES (?, ?)`, [idValue, 1]);
+                }
+                catch (insertErr) {
+                    [row] = await queryRunner.query(`SELECT current_number as id FROM ${table} WHERE ${idField} = ? FOR UPDATE`, [idValue]);
+                    current = Number(row.id) + 1;
+                    await queryRunner.query(`UPDATE ${table} SET current_number = ? WHERE ${idField} = ?`, [current, idValue]);
+                }
+            }
+            else {
+                current = Number(row.id) + 1;
+                await queryRunner.query(`UPDATE ${table} SET current_number = ? WHERE ${idField} = ?`, [current, idValue]);
+            }
+            await queryRunner.commitTransaction();
+            return current;
+        }
+        catch (err) {
+            await queryRunner.rollbackTransaction();
+            this.logger.error(`Error generating sequence for ${table} (${idField}=${idValue}): ${err.message}`);
+            throw err;
+        }
+        finally {
+            await queryRunner.release();
+        }
     }
     async generateItemCode(manager = this.transactionContext.manager, itemCodeGroupId) {
         const codeGroup = await manager.findOne(item_code_group_entity_1.ItemCodeGroup, { where: { id: itemCodeGroupId } });
         if (!codeGroup)
             throw new common_1.NotFoundException(`Item code group bulunamadı: ${itemCodeGroupId}`);
-        const currentNumber = await this.getNextNumber(manager, 'item_code_sequences', 'item_code_group_id', itemCodeGroupId);
+        const currentNumber = await this.getNextNumber('item_code_sequences', 'item_code_group_id', itemCodeGroupId);
         const code = `${codeGroup.prefix}-${String(currentNumber).padStart(3, '0')}`;
-        this.logger.debug(`Generated item code: ${code}`);
         return code;
     }
     async generateSaleCode(manager = this.transactionContext.manager, departmentId) {
@@ -43,22 +68,19 @@ let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGenera
         if (!department)
             throw new common_1.NotFoundException(`Departman bulunamadı: ${departmentId}`);
         const deptPrefix = (department.abbreviation || 'GEN').toUpperCase();
-        const finalPrefix = `S-${deptPrefix}`;
-        const currentNumber = await this.getNextNumber(manager, 'sale_sequences', 'department_id', departmentId);
-        const code = `${finalPrefix}-${String(currentNumber).padStart(3, '0')}`;
-        this.logger.debug(`Generated sale code: ${code}`);
+        const finalPrefix = `M${deptPrefix}`;
+        const currentNumber = await this.getNextNumber('sale_sequences', 'department_id', departmentId);
+        const code = `${finalPrefix}${String(currentNumber).padStart(5, '0')}`;
         return code;
     }
     async generateProductionCode(manager = this.transactionContext.manager, prefix = 'URT') {
-        const currentNumber = await this.getNextNumber(manager, 'production_sequences', 'prefix', prefix);
+        const currentNumber = await this.getNextNumber('production_sequences', 'prefix', prefix);
         const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
-        this.logger.debug(`Generated production code: ${code}`);
         return code;
     }
     async generateTransactionCode(manager = this.transactionContext.manager, prefix) {
-        const currentNumber = await this.getNextNumber(manager, 'transaction_sequences', 'prefix', prefix);
+        const currentNumber = await this.getNextNumber('transaction_sequences', 'prefix', prefix);
         const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
-        this.logger.debug(`Generated transaction code: ${code}`);
         return code;
     }
 };

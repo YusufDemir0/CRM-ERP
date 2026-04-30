@@ -42,26 +42,16 @@ let LogsInterceptor = LogsInterceptor_1 = class LogsInterceptor {
             return (0, rxjs_1.throwError)(() => err);
         }));
     }
-    sanitizeBody(body, depth = 0) {
-        if (depth > 4)
-            return '[NESTED_CONTENT_TRUNCATED]';
+    sanitizeBody(body) {
         if (!body || typeof body !== 'object')
             return body;
-        if (Array.isArray(body)) {
-            return body.map(item => this.sanitizeBody(item, depth + 1));
-        }
-        const sanitized = {};
+        if (Array.isArray(body))
+            return '[ARRAY_CONTENT_HIDDEN]';
+        const sanitized = { ...body };
         const sensitiveKeys = ['password', 'token', 'secret', 'hash', 'iban', 'cc_', 'cvv', 'tax_number', 'tc_no'];
-        for (const [key, value] of Object.entries(body)) {
-            const isSensitive = sensitiveKeys.some(s => key.toLowerCase().includes(s));
-            if (isSensitive) {
+        for (const key of Object.keys(sanitized)) {
+            if (sensitiveKeys.some(s => key.toLowerCase().includes(s))) {
                 sanitized[key] = '********';
-            }
-            else if (value && typeof value === 'object') {
-                sanitized[key] = this.sanitizeBody(value, depth + 1);
-            }
-            else {
-                sanitized[key] = value;
             }
         }
         return sanitized;
@@ -79,14 +69,15 @@ let LogsInterceptor = LogsInterceptor_1 = class LogsInterceptor {
             }
             let responseMsg = 'OK';
             if (status === 'ERROR') {
-                responseMsg = responseData?.message || responseData?.response?.message || String(responseData);
+                const errObj = responseData;
+                responseMsg = errObj?.message || errObj?.response?.message || String(responseData);
                 if (responseMsg.length > 1000)
                     responseMsg = responseMsg.substring(0, 1000) + '...';
             }
             await this.logsService.addLog({
-                userId: user?.id || user?.sub,
-                username: user?.username || 'SYSTEM',
-                fullName: user?.fullName || user?.full_name || '',
+                userId: Number(user?.id || user?.sub || 0),
+                username: String(user?.username || 'SYSTEM'),
+                fullName: String(user?.fullName || user?.full_name || ''),
                 action: `${method} ${url}`,
                 module: (url.replace(/^\/api\//, '').split('/')[0] || 'SYSTEM').toUpperCase(),
                 tag: status,

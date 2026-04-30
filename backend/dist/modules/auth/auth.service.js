@@ -44,6 +44,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var AuthService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
@@ -56,13 +57,19 @@ const user_role_entity_1 = require("./entities/user-role.entity");
 const role_permission_entity_1 = require("./entities/role-permission.entity");
 const user_permission_entity_1 = require("./entities/user-permission.entity");
 const record_state_enum_1 = require("../../common/enums/record-state.enum");
-let AuthService = class AuthService {
+let AuthService = AuthService_1 = class AuthService {
     constructor(userRepo, userRoleRepo, rolePermRepo, userPermRepo, jwtService) {
         this.userRepo = userRepo;
         this.userRoleRepo = userRoleRepo;
         this.rolePermRepo = rolePermRepo;
         this.userPermRepo = userPermRepo;
         this.jwtService = jwtService;
+        this.logger = new common_1.Logger(AuthService_1.name);
+        this.dummyHash = '';
+    }
+    async onModuleInit() {
+        this.dummyHash = await bcrypt.hash('dummy-password-never-matches-anything', 12);
+        this.logger.debug('SEC-07: Timing-attack dummy hash generated');
     }
     async login(dto) {
         const user = await this.userRepo.findOne({
@@ -70,8 +77,7 @@ let AuthService = class AuthService {
             relations: ['roles'],
         });
         if (!user) {
-            const DUMMY_HASH = '$2b$12$d7R1A.L8P.Gv9D/7yU7kE7P.r7Y.e7r7r7r7r7r7r7r7r7r7r7r7r7';
-            await bcrypt.compare(dto.password, DUMMY_HASH);
+            await bcrypt.compare(dto.password, this.dummyHash);
             throw new common_1.UnauthorizedException('Kullanıcı adı veya şifre hatalı');
         }
         if (user.state === 2) {
@@ -110,10 +116,52 @@ let AuthService = class AuthService {
             tokenVersion: user.tokenVersion,
         };
         const userProfile = await this.getProfile(user.id);
+        const access_token = this.jwtService.sign(payload, { expiresIn: '15m' });
+        const refresh_token = this.jwtService.sign({ sub: user.id, type: 'refresh', tokenVersion: user.tokenVersion }, { expiresIn: '7d' });
+        const refreshSalt = await bcrypt.genSalt(10);
+        user.refreshTokenHash = await bcrypt.hash(refresh_token, refreshSalt);
+        await this.userRepo.save(user);
         return {
-            access_token: this.jwtService.sign(payload),
+            access_token,
+            refresh_token,
             user: userProfile,
         };
+    }
+    async refreshToken(oldRefreshToken) {
+        if (!oldRefreshToken)
+            throw new common_1.UnauthorizedException('Refresh token is missing');
+        try {
+            const payload = this.jwtService.verify(oldRefreshToken, { ignoreExpiration: false });
+            if (payload.type !== 'refresh') {
+                throw new common_1.UnauthorizedException('Invalid token type');
+            }
+            const user = await this.userRepo.findOne({ where: { id: payload.sub } });
+            if (!user || user.state !== 1) {
+                throw new common_1.UnauthorizedException('User not found or disabled');
+            }
+            if (user.tokenVersion !== payload.tokenVersion) {
+                throw new common_1.UnauthorizedException('Token version mismatch');
+            }
+            const isMatch = await bcrypt.compare(oldRefreshToken, user.refreshTokenHash || '');
+            if (!isMatch) {
+                throw new common_1.UnauthorizedException('Invalid refresh token');
+            }
+            const newPayload = {
+                sub: user.id,
+                username: user.username,
+                departmentId: user.departmentId,
+                tokenVersion: user.tokenVersion,
+            };
+            const access_token = this.jwtService.sign(newPayload, { expiresIn: '15m' });
+            const refresh_token = this.jwtService.sign({ sub: user.id, type: 'refresh', tokenVersion: user.tokenVersion }, { expiresIn: '7d' });
+            const salt = await bcrypt.genSalt(10);
+            user.refreshTokenHash = await bcrypt.hash(refresh_token, salt);
+            await this.userRepo.save(user);
+            return { access_token, refresh_token };
+        }
+        catch (e) {
+            throw new common_1.UnauthorizedException('Invalid or expired refresh token');
+        }
     }
     async register(dto) {
         const salt = await bcrypt.genSalt(12);
@@ -198,7 +246,7 @@ let AuthService = class AuthService {
     }
 };
 exports.AuthService = AuthService;
-exports.AuthService = AuthService = __decorate([
+exports.AuthService = AuthService = AuthService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
     __param(1, (0, typeorm_1.InjectRepository)(user_role_entity_1.UserRole)),

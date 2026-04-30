@@ -17,8 +17,6 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const log_entity_1 = require("./entities/log.entity");
-const rxjs_1 = require("rxjs");
-const operators_1 = require("rxjs/operators");
 const sql_helper_1 = require("../../common/utils/sql.helper");
 const config_1 = require("@nestjs/config");
 let LogsService = class LogsService {
@@ -26,27 +24,10 @@ let LogsService = class LogsService {
         this.logRepository = logRepository;
         this.configService = configService;
         this.logger = new common_1.Logger('SystemAudit');
-        this.logSubject = new rxjs_1.Subject();
         this.dbLoggingEnabled = this.configService.get('DB_LOGGING_ENABLED', false);
     }
     onModuleInit() {
         this.logger.log(`LogsService initialized. DB Logging: ${this.dbLoggingEnabled}`);
-        if (this.dbLoggingEnabled) {
-            this.logSubscription = this.logSubject.pipe((0, operators_1.bufferTime)(5000, undefined, 1000), (0, operators_1.filter)(logs => logs.length > 0)).subscribe(async (logs) => {
-                try {
-                    const entities = this.logRepository.create(logs);
-                    await this.logRepository.save(entities);
-                }
-                catch (err) {
-                    this.logger.error(`Failed to save batched logs to DB: ${err.message}`);
-                }
-            });
-        }
-    }
-    onModuleDestroy() {
-        if (this.logSubscription) {
-            this.logSubscription.unsubscribe();
-        }
     }
     async findAll(query) {
         const qb = this.logRepository.createQueryBuilder('log');
@@ -59,7 +40,7 @@ let LogsService = class LogsService {
         }
         const allowedSortCols = ['createdAt', 'tag', 'username', 'action', 'module'];
         const sortCol = allowedSortCols.includes(query.sortBy || '') ? query.sortBy : 'createdAt';
-        qb.orderBy(`log.${sortCol}`, query.sortOrder || 'DESC');
+        qb.orderBy(`log.${sortCol}`, query.sortOrder?.toUpperCase() || 'DESC');
         qb.skip(query.skip).take(query.limit);
         const [data, total] = await qb.getManyAndCount();
         return {
@@ -78,12 +59,18 @@ let LogsService = class LogsService {
             ...data,
         };
         this.logger.log(JSON.stringify(logPayload));
-        if (this.dbLoggingEnabled) {
-            this.logSubject.next(data);
-        }
     }
     async addLog(data) {
         this.logActivity(data);
+        if (this.dbLoggingEnabled) {
+            try {
+                const entity = this.logRepository.create(data);
+                return await this.logRepository.save(entity);
+            }
+            catch (err) {
+                this.logger.error(`Failed to save log to DB: ${err.message}`);
+            }
+        }
         return null;
     }
     async getNotifications(limit = 20) {

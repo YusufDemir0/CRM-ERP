@@ -1,9 +1,8 @@
 import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, IsEmail, IsInt, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
-
 export class CreatePartyDto {
-  @IsEnum(['customer', 'provider', 'both'])
-  type: 'customer' | 'provider' | 'both';
+  @IsEnum(['customer', 'supplier'])
+  type: 'customer' | 'supplier';
 
   @IsString()
   @IsNotEmpty()
@@ -24,7 +23,7 @@ export class CreatePartyDto {
 }
 
 export class UpdatePartyDto {
-  @IsOptional() @IsEnum(['customer', 'provider', 'both']) type?: 'customer' | 'provider' | 'both';
+  @IsOptional() @IsEnum(['customer', 'supplier']) type?: 'customer' | 'supplier';
   @IsOptional() @IsString() name?: string;
   @IsOptional() @IsString() phone1?: string;
   @IsOptional() @IsString() phone2?: string;

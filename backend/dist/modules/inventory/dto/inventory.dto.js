@@ -389,32 +389,21 @@ exports.ItemsQueryDto = ItemsQueryDto;
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Type)(() => Number),
-    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsInt)(),
     __metadata("design:type", Number)
 ], ItemsQueryDto.prototype, "itemTypeId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Type)(() => Number),
-    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsInt)(),
     __metadata("design:type", Number)
 ], ItemsQueryDto.prototype, "providerId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Type)(() => Number),
-    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsInt)(),
     __metadata("design:type", Number)
 ], ItemsQueryDto.prototype, "currencyId", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_transformer_1.Type)(() => Number),
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
-], ItemsQueryDto.prototype, "state", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], ItemsQueryDto.prototype, "search", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsBooleanString)(),
@@ -426,13 +415,13 @@ exports.StocksQueryDto = StocksQueryDto;
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Type)(() => Number),
-    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsInt)(),
     __metadata("design:type", Number)
 ], StocksQueryDto.prototype, "departmentId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Type)(() => Number),
-    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsInt)(),
     __metadata("design:type", Number)
 ], StocksQueryDto.prototype, "itemId", void 0);
 __decorate([
@@ -440,10 +429,4 @@ __decorate([
     (0, class_validator_1.IsBooleanString)(),
     __metadata("design:type", String)
 ], StocksQueryDto.prototype, "isCritical", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_transformer_1.Type)(() => Number),
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
-], StocksQueryDto.prototype, "state", void 0);
 //# sourceMappingURL=inventory.dto.js.map

@@ -45,7 +45,7 @@ let UsersController = class UsersController {
 exports.UsersController = UsersController;
 __decorate([
     (0, common_1.Get)(),
-    (0, permissions_decorator_1.RequirePermissions)('kullanici_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('USER_VIEW'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [pagination_dto_1.PaginationDto]),
@@ -53,14 +53,14 @@ __decorate([
 ], UsersController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('status'),
-    (0, permissions_decorator_1.RequirePermissions)('kullanici_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('USER_VIEW'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "getStatus", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('kullanici_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('USER_VIEW'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number]),
@@ -68,7 +68,7 @@ __decorate([
 ], UsersController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Post)(),
-    (0, permissions_decorator_1.RequirePermissions)('kullanici_olusturma'),
+    (0, permissions_decorator_1.RequirePermissions)('USER_CREATE'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -77,7 +77,7 @@ __decorate([
 ], UsersController.prototype, "create", null);
 __decorate([
     (0, common_1.Put)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('kullanici_duzenleme'),
+    (0, permissions_decorator_1.RequirePermissions)('USER_EDIT'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
@@ -87,7 +87,7 @@ __decorate([
 ], UsersController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('kullanici_silme'),
+    (0, permissions_decorator_1.RequirePermissions)('USER_DELETE'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),

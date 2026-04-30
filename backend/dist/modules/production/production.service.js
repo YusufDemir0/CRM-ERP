@@ -48,9 +48,17 @@ let ProductionService = ProductionService_1 = class ProductionService {
     }
     async findAllBoms(query) {
         const qb = this.bomRepo.createQueryBuilder('bom')
-            .leftJoinAndSelect('bom.items', 'items')
-            .leftJoinAndSelect('items.item', 'item')
-            .leftJoinAndSelect('bom.targetItem', 'targetItem');
+            .leftJoin('bom.targetItem', 'targetItem')
+            .select([
+            'bom.id', 'bom.name', 'bom.version', 'bom.isActive', 'bom.state', 'bom.createdAt',
+            'targetItem.id', 'targetItem.name', 'targetItem.code'
+        ])
+            .addSelect(subQuery => {
+            return subQuery
+                .select('COUNT(*)', 'count')
+                .from(bom_item_entity_1.BomItem, 'bi')
+                .where('bi.bomId = bom.id');
+        }, 'bom_itemCount');
         if (query.search) {
             const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
             qb.andWhere('(bom.name LIKE :s OR targetItem.name LIKE :s OR targetItem.code LIKE :s)', { s });
@@ -58,20 +66,23 @@ let ProductionService = ProductionService_1 = class ProductionService {
         if (query.state !== undefined) {
             qb.andWhere('bom.state = :state', { state: query.state });
         }
-        const allowedSortMap = {
+        const sortFieldMap = {
             'name': 'bom.name',
-            'targetItemId': 'bom.targetItemId',
-            'description': 'bom.description',
             'createdAt': 'bom.createdAt',
-            'itemCount': '(SELECT COUNT(*) FROM bom_items WHERE bom_id = bom.id)'
+            'version': 'bom.version'
         };
-        const sortField = allowedSortMap[query.sortBy || ''] || 'bom.createdAt';
-        qb.orderBy(sortField, query.sortOrder || 'DESC');
+        const sortCol = sortFieldMap[query.sortBy || ''] || 'bom.createdAt';
+        qb.orderBy(sortCol, query.sortOrderSafe);
         qb.skip(query.skip).take(query.limit);
         const [data, total] = await qb.getManyAndCount();
         return {
             data,
-            meta: { total, page: query.page || 1, limit: query.limit || 20, totalPages: Math.ceil(total / (query.limit || 20)) },
+            meta: {
+                total,
+                page: query.page || 1,
+                limit: query.limit || 20,
+                totalPages: Math.ceil(total / (query.limit || 20))
+            },
         };
     }
     async findOneBom(id) {
@@ -95,6 +106,28 @@ let ProductionService = ProductionService_1 = class ProductionService {
                 version = lastBom.version + 1;
             await manager.update(bom_entity_1.Bom, { targetItemId: dto.targetItemId, isActive: true }, { isActive: false });
         }
+        const materialItemIds = [];
+        if (dto.items.length > 0) {
+            const itemIdsToFetch = dto.items.map(i => i.itemId);
+            const items = await manager.find(item_entity_1.Item, { where: { id: (0, typeorm_2.In)(itemIdsToFetch) } });
+            const itemMap = new Map(items.map(i => [i.id, i]));
+            for (const itemDto of dto.items) {
+                if (dto.targetItemId && Number(itemDto.itemId) === Number(dto.targetItemId)) {
+                    throw new common_1.BadRequestException('Üretilecek ürünün kendisi, reçete içeriğinde yer alamaz!');
+                }
+                const item = itemMap.get(itemDto.itemId);
+                if (!item || item.state !== 1) {
+                    throw new common_1.BadRequestException(`Ürün bulunamadı veya pasif (ID: ${itemDto.itemId}).`);
+                }
+                materialItemIds.push(itemDto.itemId);
+            }
+        }
+        if (dto.targetItemId) {
+            const hasCycle = await this.detectBomCycle(dto.targetItemId, materialItemIds, manager);
+            if (hasCycle) {
+                throw new common_1.BadRequestException('Döngüsel reçete tespit edildi! Malzemelerden biri doğrudan veya dolaylı olarak üretilecek ürüne bağlı.');
+            }
+        }
         const bom = manager.create(bom_entity_1.Bom, {
             name: dto.name,
             description: dto.description ?? undefined,
@@ -104,23 +137,41 @@ let ProductionService = ProductionService_1 = class ProductionService {
             createdBy: userId,
         });
         const savedBom = await manager.save(bom);
-        for (const itemDto of dto.items) {
-            if (dto.targetItemId && Number(itemDto.itemId) === Number(dto.targetItemId)) {
-                throw new common_1.BadRequestException('Üretilecek ürünün kendisi, reçete içeriğinde yer alamaz!');
-            }
-            const item = await manager.findOne(item_entity_1.Item, { where: { id: itemDto.itemId } });
-            if (!item || item.state !== 1) {
-                throw new common_1.BadRequestException(`Ürün bulunamadı veya pasif (ID: ${itemDto.itemId}).`);
-            }
-            await manager.save(manager.create(bom_item_entity_1.BomItem, {
-                bomId: savedBom.id,
-                itemId: itemDto.itemId,
-                quantity: new decimal_js_1.Decimal(itemDto.quantity),
-                description: itemDto.description ?? '',
-                createdBy: userId,
-            }));
+        const bomItemsToCreate = dto.items.map(itemDto => manager.create(bom_item_entity_1.BomItem, {
+            bomId: savedBom.id,
+            itemId: itemDto.itemId,
+            quantity: new decimal_js_1.Decimal(itemDto.quantity),
+            description: itemDto.description ?? '',
+            createdBy: userId,
+        }));
+        if (bomItemsToCreate.length > 0) {
+            await manager.save(bom_item_entity_1.BomItem, bomItemsToCreate);
         }
         return this.findOneBom(savedBom.id);
+    }
+    async detectBomCycle(targetItemId, materialItemIds, manager) {
+        const visited = new Set();
+        const stack = [...materialItemIds];
+        while (stack.length > 0) {
+            const currentId = stack.pop();
+            if (currentId === targetItemId)
+                return true;
+            if (visited.has(currentId))
+                continue;
+            visited.add(currentId);
+            const childBoms = await manager.find(bom_entity_1.Bom, {
+                where: { targetItemId: currentId, isActive: true },
+                relations: ['items'],
+            });
+            for (const childBom of childBoms) {
+                for (const bomItem of (childBom.items || [])) {
+                    if (!visited.has(bomItem.itemId)) {
+                        stack.push(bomItem.itemId);
+                    }
+                }
+            }
+        }
+        return false;
     }
     async updateBom(id, dto, userId) {
         const manager = this.transactionContext.manager;
@@ -155,29 +206,40 @@ let ProductionService = ProductionService_1 = class ProductionService {
     }
     async findAllOrders(query) {
         const qb = this.poRepo.createQueryBuilder('po')
-            .leftJoinAndSelect('po.bom', 'bom')
-            .leftJoinAndSelect('po.sourceDepartment', 'sourceDept')
-            .leftJoinAndSelect('po.targetDepartment', 'targetDept');
+            .leftJoin('po.bom', 'bom')
+            .leftJoin('po.sourceDepartment', 'sourceDept')
+            .leftJoin('po.targetDepartment', 'targetDept')
+            .select([
+            'po.id', 'po.code', 'po.plannedQuantity', 'po.producedQuantity',
+            'po.status', 'po.startDate', 'po.endDate', 'po.createdAt',
+            'bom.id', 'bom.name',
+            'sourceDept.id', 'sourceDept.name',
+            'targetDept.id', 'targetDept.name'
+        ]);
         if (query.search) {
             const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
             qb.where('(po.code LIKE :s OR bom.name LIKE :s)', { s });
         }
         if (query.status)
             qb.andWhere('po.status = :status', { status: query.status });
-        const allowedSortMap = {
+        const sortFieldMap = {
             'code': 'po.code',
-            'bom.name': 'bom.name',
-            'plannedQuantity': 'po.plannedQuantity',
             'status': 'po.status',
+            'plannedQuantity': 'po.plannedQuantity',
             'createdAt': 'po.createdAt'
         };
-        const sortField = allowedSortMap[query.sortBy || ''] || 'po.createdAt';
-        qb.orderBy(sortField, query.sortOrder || 'DESC');
+        const sortCol = sortFieldMap[query.sortBy || ''] || 'po.createdAt';
+        qb.orderBy(sortCol, query.sortOrderSafe);
         qb.skip(query.skip).take(query.limit);
         const [data, total] = await qb.getManyAndCount();
         return {
             data,
-            meta: { total, page: query.page || 1, limit: query.limit || 20, totalPages: Math.ceil(total / (query.limit || 20)) },
+            meta: {
+                total,
+                page: query.page || 1,
+                limit: query.limit || 20,
+                totalPages: Math.ceil(total / (query.limit || 20))
+            },
         };
     }
     async findOneOrder(id) {
@@ -260,6 +322,8 @@ let ProductionService = ProductionService_1 = class ProductionService {
         });
         if (!po || po.status === 'completed')
             throw new common_1.BadRequestException('İş emri bulunamadı veya zaten tamamlanmış.');
+        if (!po.bom)
+            throw new common_1.BadRequestException('İş emrine bağlı reçete bulunamadı. Silinmiş veya yetim kayıt olabilir.');
         const producedQty = new decimal_js_1.Decimal(dto.producedQuantity ?? po.producedQuantity);
         const sourceDeptId = dto.sourceDepartmentId ?? po.sourceDepartmentId;
         const targetDeptId = dto.targetDepartmentId ?? po.targetDepartmentId;

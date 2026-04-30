@@ -47,6 +47,10 @@ __decorate([
     (0, typeorm_1.JoinColumn)({ name: 'commercial_account_id' }),
     __metadata("design:type", commercial_account_entity_1.CommercialAccount)
 ], Department.prototype, "commercialAccount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'city_id', type: 'int', nullable: true }),
+    __metadata("design:type", Object)
+], Department.prototype, "cityId", void 0);
 exports.Department = Department = __decorate([
     (0, typeorm_1.Entity)('departments')
 ], Department);

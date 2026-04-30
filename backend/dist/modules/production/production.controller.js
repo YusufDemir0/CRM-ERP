@@ -45,7 +45,7 @@ let ProductionController = class ProductionController {
 exports.ProductionController = ProductionController;
 __decorate([
     (0, common_1.Get)('boms'),
-    (0, permissions_decorator_1.RequirePermissions)('uretim_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('PRODUCTION_VIEW'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [production_dto_1.BomQueryDto]),
@@ -53,7 +53,7 @@ __decorate([
 ], ProductionController.prototype, "findAllBoms", null);
 __decorate([
     (0, common_1.Get)('boms/:id'),
-    (0, permissions_decorator_1.RequirePermissions)('uretim_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('PRODUCTION_VIEW'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number]),
@@ -61,7 +61,7 @@ __decorate([
 ], ProductionController.prototype, "findOneBom", null);
 __decorate([
     (0, common_1.Post)('boms'),
-    (0, permissions_decorator_1.RequirePermissions)('uretim_olusturma'),
+    (0, permissions_decorator_1.RequirePermissions)('PRODUCTION_CREATE'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -70,7 +70,7 @@ __decorate([
 ], ProductionController.prototype, "createBom", null);
 __decorate([
     (0, common_1.Put)('boms/:id'),
-    (0, permissions_decorator_1.RequirePermissions)('uretim_duzenleme'),
+    (0, permissions_decorator_1.RequirePermissions)('PRODUCTION_EDIT'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
@@ -80,7 +80,7 @@ __decorate([
 ], ProductionController.prototype, "updateBom", null);
 __decorate([
     (0, common_1.Delete)('boms/:id'),
-    (0, permissions_decorator_1.RequirePermissions)('uretim_silme'),
+    (0, permissions_decorator_1.RequirePermissions)('PRODUCTION_DELETE'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number]),
@@ -88,7 +88,7 @@ __decorate([
 ], ProductionController.prototype, "deleteBom", null);
 __decorate([
     (0, common_1.Get)('orders'),
-    (0, permissions_decorator_1.RequirePermissions)('uretim_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('PRODUCTION_VIEW'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [production_dto_1.ProductionOrderQueryDto]),
@@ -96,7 +96,7 @@ __decorate([
 ], ProductionController.prototype, "findAllOrders", null);
 __decorate([
     (0, common_1.Get)('orders/:id'),
-    (0, permissions_decorator_1.RequirePermissions)('uretim_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('PRODUCTION_VIEW'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number]),
@@ -104,7 +104,7 @@ __decorate([
 ], ProductionController.prototype, "findOneOrder", null);
 __decorate([
     (0, common_1.Post)('orders'),
-    (0, permissions_decorator_1.RequirePermissions)('uretim_olusturma'),
+    (0, permissions_decorator_1.RequirePermissions)('PRODUCTION_CREATE'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -113,7 +113,7 @@ __decorate([
 ], ProductionController.prototype, "createOrder", null);
 __decorate([
     (0, common_1.Put)('orders/:id'),
-    (0, permissions_decorator_1.RequirePermissions)('uretim_duzenleme'),
+    (0, permissions_decorator_1.RequirePermissions)('PRODUCTION_EDIT'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
@@ -123,7 +123,7 @@ __decorate([
 ], ProductionController.prototype, "updateOrder", null);
 __decorate([
     (0, common_1.Delete)('orders/:id'),
-    (0, permissions_decorator_1.RequirePermissions)('uretim_silme'),
+    (0, permissions_decorator_1.RequirePermissions)('PRODUCTION_DELETE'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number]),
@@ -131,7 +131,7 @@ __decorate([
 ], ProductionController.prototype, "deleteOrder", null);
 __decorate([
     (0, common_1.Get)('status'),
-    (0, permissions_decorator_1.RequirePermissions)('uretim_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('PRODUCTION_VIEW'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)

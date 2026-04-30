@@ -21,6 +21,9 @@ class PaginationDto {
     get skip() {
         return ((this.page || 1) - 1) * (this.limit || 20);
     }
+    get sortOrderSafe() {
+        return this.sortOrder?.toUpperCase() || 'DESC';
+    }
 }
 exports.PaginationDto = PaginationDto;
 __decorate([
@@ -51,7 +54,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsIn)(['ASC', 'DESC']),
+    (0, class_validator_1.IsIn)(['ASC', 'DESC', 'asc', 'desc']),
     __metadata("design:type", String)
 ], PaginationDto.prototype, "sortOrder", void 0);
 __decorate([

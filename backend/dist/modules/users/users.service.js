@@ -46,6 +46,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UsersService = void 0;
+const crypto = __importStar(require("crypto"));
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const cache_manager_1 = require("@nestjs/cache-manager");
@@ -75,9 +76,10 @@ let UsersService = class UsersService {
             'roles.id', 'roles.name',
         ]);
         if (query.search) {
-            const searchPattern = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            const searchPattern = query.search.replace(/[+><()~*\"@\-]/g, ' ').trim();
+            const safeLikePattern = (0, sql_helper_1.getSafeSearchPattern)(query.search);
             if (searchPattern) {
-                qb.where('(user.fullName LIKE :search OR user.username LIKE :search OR user.email LIKE :search OR department.name LIKE :search OR roles.name LIKE :search)', { search: searchPattern });
+                qb.where('(MATCH(user.username, user.fullName, user.email, user.phone) AGAINST(:s IN BOOLEAN MODE) OR department.name LIKE :like OR roles.name LIKE :like)', { s: `*${searchPattern}*`, like: safeLikePattern });
             }
         }
         if (query.state !== undefined) {
@@ -93,7 +95,7 @@ let UsersService = class UsersService {
         };
         const allowedSortCols = ['fullName', 'username', 'email', 'createdAt', 'department.name', 'roles.name'];
         const sortCol = allowedSortCols.includes(query.sortBy || '') ? sortFieldMap[query.sortBy] : 'user.createdAt';
-        qb.orderBy(sortCol, query.sortOrder || 'DESC');
+        qb.orderBy(sortCol, query.sortOrderSafe);
         qb.skip(query.skip).take(query.limit);
         const [data, total] = await qb.getManyAndCount();
         return {
@@ -206,10 +208,10 @@ let UsersService = class UsersService {
         const user = await this.userRepo.findOne({ where: { id } });
         if (!user)
             throw new common_1.NotFoundException('Kullanıcı bulunamadı');
-        const timestamp = Date.now();
+        const suffix = `_del_${crypto.randomUUID().substring(0, 8)}`;
         await this.userRepo.update(id, {
-            username: `_DEL_${timestamp}_${user.username}`.substring(0, 100),
-            email: `_DEL_${timestamp}_${user.email}`.substring(0, 150),
+            username: `${user.username}${suffix}`.substring(0, 100),
+            email: `${user.email}${suffix}`.substring(0, 150),
             state: 0,
             updatedBy: currentUserId || null,
         });

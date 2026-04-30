@@ -26,6 +26,7 @@ export declare class ProductionService {
     findAllBoms(query: BomQueryDto): Promise<PaginatedResult<Bom>>;
     findOneBom(id: number): Promise<Bom>;
     createBom(dto: CreateBomDto, userId?: number): Promise<Bom>;
+    private detectBomCycle;
     updateBom(id: number, dto: UpdateBomDto, userId?: number): Promise<Bom>;
     deleteBom(id: number): Promise<void>;
     findAllOrders(query: ProductionOrderQueryDto): Promise<PaginatedResult<ProductionOrder>>;

@@ -66,7 +66,7 @@ export declare class StocksService {
     getCriticalStocks(): Promise<Stock[]>;
     getStatus(): Promise<{
         totalItems: number;
-        totalQuantity: number;
+        totalQuantity: string;
         criticalCount: number;
     }>;
 }

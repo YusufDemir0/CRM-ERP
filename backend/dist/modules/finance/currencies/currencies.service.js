@@ -25,7 +25,7 @@ let CurrenciesService = class CurrenciesService {
         const qb = this.currencyRepo.createQueryBuilder('currency');
         const allowedSortCols = ['code', 'name', 'symbol', 'exchangeRate', 'isDefault', 'createdAt'];
         const sortCol = allowedSortCols.includes(query.sortBy || '') ? query.sortBy : 'isDefault';
-        const sortOrder = query.sortBy ? (query.sortOrder || 'ASC') : 'DESC';
+        const sortOrder = query.sortBy ? query.sortOrderSafe : 'DESC';
         qb.orderBy(`currency.${sortCol}`, sortOrder);
         if (query.skip !== undefined)
             qb.skip(query.skip).take(query.limit);

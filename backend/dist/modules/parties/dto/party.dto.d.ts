@@ -1,5 +1,5 @@
 export declare class CreatePartyDto {
-    type: 'customer' | 'provider' | 'both';
+    type: 'customer' | 'supplier';
     name: string;
     phone1?: string;
     phone2?: string;
@@ -15,7 +15,7 @@ export declare class CreatePartyDto {
     notes?: string;
 }
 export declare class UpdatePartyDto {
-    type?: 'customer' | 'provider' | 'both';
+    type?: 'customer' | 'supplier';
     name?: string;
     phone1?: string;
     phone2?: string;

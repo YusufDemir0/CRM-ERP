@@ -9,4 +9,5 @@ export declare class Department extends BaseEntity {
     departmentType: DepartmentType;
     commercialAccountId: number | null;
     commercialAccount: CommercialAccount;
+    cityId: number | null;
 }

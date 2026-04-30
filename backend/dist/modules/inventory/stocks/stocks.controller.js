@@ -41,7 +41,7 @@ let StocksController = class StocksController {
 exports.StocksController = StocksController;
 __decorate([
     (0, common_1.Get)(),
-    (0, permissions_decorator_1.RequirePermissions)('stok_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [inventory_dto_1.StocksQueryDto]),
@@ -49,14 +49,14 @@ __decorate([
 ], StocksController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('critical'),
-    (0, permissions_decorator_1.RequirePermissions)('stok_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], StocksController.prototype, "getCriticalStocks", null);
 __decorate([
     (0, common_1.Get)(':id/movements'),
-    (0, permissions_decorator_1.RequirePermissions)('stok_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Query)()),
     __metadata("design:type", Function),
@@ -65,7 +65,7 @@ __decorate([
 ], StocksController.prototype, "getMovements", null);
 __decorate([
     (0, common_1.Post)('adjust'),
-    (0, permissions_decorator_1.RequirePermissions)('stok_duzenleme'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_EDIT'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -74,7 +74,7 @@ __decorate([
 ], StocksController.prototype, "adjustStock", null);
 __decorate([
     (0, common_1.Post)('transfer'),
-    (0, permissions_decorator_1.RequirePermissions)('stok_duzenleme'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_EDIT'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -83,7 +83,7 @@ __decorate([
 ], StocksController.prototype, "transferStock", null);
 __decorate([
     (0, common_1.Get)('status'),
-    (0, permissions_decorator_1.RequirePermissions)('stok_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)

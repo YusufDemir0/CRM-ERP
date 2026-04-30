@@ -7,14 +7,14 @@ export declare class PartiesController {
     getStatus(): Promise<{
         active: number;
         passive: number;
-        totalReceivable: number;
+        totalReceivable: string;
         exposurePercentage: number;
         atRiskCount: number;
     }>;
     findOne(id: number): Promise<import("./entities/party.entity").Party>;
     getBalance(id: number): Promise<{
-        balance: number;
-        creditLimit: number;
+        balance: string;
+        creditLimit: string;
         currency: string;
         symbol: string;
     }>;

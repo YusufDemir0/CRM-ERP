@@ -8,7 +8,7 @@ export declare class AccountsController {
         active: number;
         passive: number;
         total: number;
-        totalBalance: number;
+        totalBalance: string;
     }>;
     findOne(id: number): Promise<import("./entities/commercial-account.entity").CommercialAccount>;
     create(dto: CreateAccountDto, userId: number): Promise<import("./entities/commercial-account.entity").CommercialAccount>;

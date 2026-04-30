@@ -63,7 +63,7 @@ __decorate([
 ], SalesController.prototype, "findAllSaleTypes", null);
 __decorate([
     (0, common_1.Post)('types'),
-    (0, permissions_decorator_1.RequirePermissions)('satis_olusturma'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_CREATE'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -72,14 +72,14 @@ __decorate([
 ], SalesController.prototype, "createSaleType", null);
 __decorate([
     (0, common_1.Get)('status'),
-    (0, permissions_decorator_1.RequirePermissions)('satis_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_VIEW'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], SalesController.prototype, "getStatus", null);
 __decorate([
     (0, common_1.Get)(),
-    (0, permissions_decorator_1.RequirePermissions)('satis_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_VIEW'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [sale_dto_1.SalesQueryDto]),
@@ -87,7 +87,7 @@ __decorate([
 ], SalesController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('satis_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_VIEW'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number]),
@@ -95,7 +95,7 @@ __decorate([
 ], SalesController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Post)(),
-    (0, permissions_decorator_1.RequirePermissions)('satis_olusturma'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_CREATE'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -104,7 +104,7 @@ __decorate([
 ], SalesController.prototype, "create", null);
 __decorate([
     (0, common_1.Put)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('satis_duzenleme'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_EDIT'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
@@ -114,7 +114,7 @@ __decorate([
 ], SalesController.prototype, "update", null);
 __decorate([
     (0, common_1.Post)(':id/approve'),
-    (0, permissions_decorator_1.RequirePermissions)('satis_onaylama'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_APPROVE'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
@@ -124,7 +124,7 @@ __decorate([
 ], SalesController.prototype, "approve", null);
 __decorate([
     (0, common_1.Post)(':id/cancel'),
-    (0, permissions_decorator_1.RequirePermissions)('satis_iptal'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_CANCEL'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -133,7 +133,7 @@ __decorate([
 ], SalesController.prototype, "cancel", null);
 __decorate([
     (0, common_1.Post)(':id/ship'),
-    (0, permissions_decorator_1.RequirePermissions)('satis_onaylama'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_APPROVE'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
@@ -143,7 +143,7 @@ __decorate([
 ], SalesController.prototype, "ship", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('satis_silme'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_DELETE'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number]),

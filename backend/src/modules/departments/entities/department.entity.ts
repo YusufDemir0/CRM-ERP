@@ -27,4 +27,7 @@ export class Department extends BaseEntity {
   @ManyToOne(() => CommercialAccount, { nullable: true })
   @JoinColumn({ name: 'commercial_account_id' })
   commercialAccount: CommercialAccount;
+
+  @Column({ name: 'city_id', type: 'int', nullable: true })
+  cityId: number | null;
 }

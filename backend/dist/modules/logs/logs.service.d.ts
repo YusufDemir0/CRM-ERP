@@ -1,17 +1,14 @@
-import { OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { OnModuleInit } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { SystemLog } from './entities/log.entity';
 import { ConfigService } from '@nestjs/config';
-export declare class LogsService implements OnModuleInit, OnModuleDestroy {
+export declare class LogsService implements OnModuleInit {
     private readonly logRepository;
     private readonly configService;
     private readonly logger;
-    private readonly logSubject;
-    private logSubscription;
     private readonly dbLoggingEnabled;
     constructor(logRepository: Repository<SystemLog>, configService: ConfigService);
     onModuleInit(): void;
-    onModuleDestroy(): void;
     findAll(query: {
         search?: string;
         module?: string;

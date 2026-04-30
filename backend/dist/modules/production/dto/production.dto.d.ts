@@ -1,6 +1,5 @@
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 export declare class BomQueryDto extends PaginationDto {
-    state?: number;
 }
 export declare class ProductionOrderQueryDto extends PaginationDto {
     status?: 'draft' | 'planned' | 'in_progress' | 'completed' | 'cancelled';

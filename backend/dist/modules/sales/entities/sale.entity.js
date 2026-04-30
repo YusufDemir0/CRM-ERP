@@ -162,6 +162,7 @@ __decorate([
 ], Sale.prototype, "items", void 0);
 exports.Sale = Sale = __decorate([
     (0, typeorm_1.Entity)('sales'),
-    (0, typeorm_1.Unique)(['code'])
+    (0, typeorm_1.Unique)(['code']),
+    (0, typeorm_1.Index)('IDX_SALE_FULLTEXT', ['code', 'notes', 'phone', 'address', 'city', 'district', 'taxNumber', 'email', 'source'], { fulltext: true })
 ], Sale);
 //# sourceMappingURL=sale.entity.js.map

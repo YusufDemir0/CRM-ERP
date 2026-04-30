@@ -57,7 +57,7 @@ let TransactionsService = class TransactionsService {
         const allowedSortCols = ['date', 'amount', 'createdAt', 'code', 'party.name', 'commercialAccount.name', 'status'];
         const sortField = allowedSortCols.includes(query.sortBy || '') ? query.sortBy : 'date';
         const finalSortField = sortField.includes('.') ? sortField : `tx.${sortField}`;
-        qb.orderBy(finalSortField, query.sortOrder || 'DESC');
+        qb.orderBy(finalSortField, query.sortOrderSafe);
         if (sortField !== 'createdAt') {
             qb.addOrderBy('tx.createdAt', 'DESC');
         }
@@ -81,6 +81,10 @@ let TransactionsService = class TransactionsService {
         const manager = this.transactionContext.manager;
         let party = null;
         let exchangeRate = new decimal_js_1.Decimal(1);
+        const p = await manager.findOne(party_entity_1.Party, { where: { id: dto.partyId } });
+        if (p && p.type === 'supplier' && dto.type === 'in') {
+            console.warn(`Tedarikçiden tahsilat işlemi yapılıyor: ${p.name}`);
+        }
         if (dto.partyId) {
             party = await manager.findOne(party_entity_1.Party, {
                 where: { id: dto.partyId },
@@ -93,7 +97,7 @@ let TransactionsService = class TransactionsService {
         exchangeRate = currency ? new decimal_js_1.Decimal(currency.exchangeRate) : new decimal_js_1.Decimal(1);
         const tlAmount = finance_helper_1.FinanceHelper.mul(dto.amount, exchangeRate);
         if (party) {
-            const isSupplierRefund = dto.type === 'in' && party.type === 'provider';
+            const isSupplierRefund = dto.type === 'in' && party.type === 'supplier';
             const isDebit = dto.type === 'out' || isSupplierRefund;
             const newBalance = isDebit
                 ? finance_helper_1.FinanceHelper.add(new decimal_js_1.Decimal(party.balance), tlAmount)
@@ -112,7 +116,7 @@ let TransactionsService = class TransactionsService {
         });
         const savedTx = await manager.save(tx);
         if (party) {
-            const isSupplierRefund = dto.type === 'in' && party.type === 'provider';
+            const isSupplierRefund = dto.type === 'in' && party.type === 'supplier';
             const isCredit = dto.type === 'in' && !isSupplierRefund;
             const entryDebit = isCredit ? new decimal_js_1.Decimal(0) : tlAmount;
             const entryCredit = isCredit ? tlAmount : new decimal_js_1.Decimal(0);
@@ -146,7 +150,7 @@ let TransactionsService = class TransactionsService {
                 lock: { mode: 'pessimistic_write' }
             });
             if (party) {
-                const isSupplierRefund = tx.type === 'in' && party.type === 'provider';
+                const isSupplierRefund = tx.type === 'in' && party.type === 'supplier';
                 const isReverseCredit = (tx.type === 'in' && !isSupplierRefund) ? false : true;
                 const tlAmount = finance_helper_1.FinanceHelper.mul(tx.amount, tx.exchangeRate);
                 const revDebit = isReverseCredit ? new decimal_js_1.Decimal(0) : tlAmount;

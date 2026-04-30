@@ -24,6 +24,9 @@ export declare class AuthController {
             permissions: string[];
         };
     }>;
+    refresh(req: import('express').Request, res: Response): Promise<{
+        message: string;
+    }>;
     logout(res: Response): Promise<{
         message: string;
     }>;

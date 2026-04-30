@@ -44,7 +44,7 @@ let TransactionsController = class TransactionsController {
 exports.TransactionsController = TransactionsController;
 __decorate([
     (0, common_1.Get)(),
-    (0, permissions_decorator_1.RequirePermissions)('finans_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('FINANCE_VIEW'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [finance_dto_1.TransactionsQueryDto]),
@@ -52,21 +52,21 @@ __decorate([
 ], TransactionsController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('status'),
-    (0, permissions_decorator_1.RequirePermissions)('finans_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('FINANCE_VIEW'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], TransactionsController.prototype, "getStatus", null);
 __decorate([
     (0, common_1.Get)('trends'),
-    (0, permissions_decorator_1.RequirePermissions)('finans_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('FINANCE_VIEW'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], TransactionsController.prototype, "getDailyTrends", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('finans_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('FINANCE_VIEW'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number]),
@@ -74,7 +74,7 @@ __decorate([
 ], TransactionsController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Post)(),
-    (0, permissions_decorator_1.RequirePermissions)('finans_islem'),
+    (0, permissions_decorator_1.RequirePermissions)('FINANCE_MANAGE'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -83,7 +83,7 @@ __decorate([
 ], TransactionsController.prototype, "create", null);
 __decorate([
     (0, common_1.Post)(':id/cancel'),
-    (0, permissions_decorator_1.RequirePermissions)('finans_islem'),
+    (0, permissions_decorator_1.RequirePermissions)('FINANCE_MANAGE'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),

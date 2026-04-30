@@ -16,12 +16,6 @@ const pagination_dto_1 = require("../../../common/dto/pagination.dto");
 class BomQueryDto extends pagination_dto_1.PaginationDto {
 }
 exports.BomQueryDto = BomQueryDto;
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_transformer_1.Type)(() => Number),
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
-], BomQueryDto.prototype, "state", void 0);
 class ProductionOrderQueryDto extends pagination_dto_1.PaginationDto {
 }
 exports.ProductionOrderQueryDto = ProductionOrderQueryDto;

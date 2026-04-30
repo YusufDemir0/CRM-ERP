@@ -5,6 +5,7 @@ export declare class CreateDepartmentDto {
     abbreviation?: string;
     departmentTypeId?: number;
     commercialAccountId?: number;
+    cityId?: number;
 }
 export declare class UpdateDepartmentDto {
     name?: string;
@@ -12,6 +13,7 @@ export declare class UpdateDepartmentDto {
     abbreviation?: string;
     departmentTypeId?: number;
     commercialAccountId?: number;
+    cityId?: number;
     state?: number;
 }
 export declare class CreateDepartmentTypeDto {

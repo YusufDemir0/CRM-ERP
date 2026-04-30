@@ -28,20 +28,46 @@ let AuthController = class AuthController {
         return { success: true };
     }
     async login(dto, res) {
-        const { access_token, user } = await this.authService.login(dto);
+        const { access_token, refresh_token, user } = await this.authService.login(dto);
         res.cookie('erp_token', access_token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
-            maxAge: 8 * 60 * 60 * 1000,
+            maxAge: 15 * 60 * 1000,
+        });
+        res.cookie('erp_refresh_token', refresh_token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/api/auth/refresh',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
         });
         return {
             message: 'Giriş başarılı',
             user
         };
     }
+    async refresh(req, res) {
+        const oldRefreshToken = req.cookies['erp_refresh_token'];
+        const { access_token, refresh_token } = await this.authService.refreshToken(oldRefreshToken);
+        res.cookie('erp_token', access_token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 15 * 60 * 1000,
+        });
+        res.cookie('erp_refresh_token', refresh_token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/api/auth/refresh',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+        return { message: 'Token refreshed' };
+    }
     async logout(res) {
         res.clearCookie('erp_token');
+        res.clearCookie('erp_refresh_token', { path: '/api/auth/refresh' });
         return { message: 'Çıkış başarılı' };
     }
     async register(dto) {
@@ -78,6 +104,15 @@ __decorate([
 ], AuthController.prototype, "login", null);
 __decorate([
     (0, public_decorator_1.Public)(),
+    (0, common_1.Post)('refresh'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Res)({ passthrough: true })),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "refresh", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
     (0, common_1.Post)('logout'),
     __param(0, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),
@@ -85,7 +120,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "logout", null);
 __decorate([
-    (0, permissions_decorator_1.RequirePermissions)('users.create'),
+    (0, permissions_decorator_1.RequirePermissions)('USER_CREATE'),
     (0, common_1.Post)('register'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),

@@ -14,7 +14,7 @@ export declare class StocksController {
     }>;
     getStatus(): Promise<{
         totalItems: number;
-        totalQuantity: number;
+        totalQuantity: string;
         criticalCount: number;
     }>;
 }

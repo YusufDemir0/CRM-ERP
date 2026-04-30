@@ -20,7 +20,7 @@ let Party = class Party extends base_entity_1.BaseEntity {
 };
 exports.Party = Party;
 __decorate([
-    (0, typeorm_1.Column)({ type: 'enum', enum: ['customer', 'provider', 'both'], default: 'customer' }),
+    (0, typeorm_1.Column)({ type: 'enum', enum: ['customer', 'supplier'], default: 'customer' }),
     __metadata("design:type", String)
 ], Party.prototype, "type", void 0);
 __decorate([
@@ -87,6 +87,7 @@ __decorate([
     __metadata("design:type", currency_entity_1.Currency)
 ], Party.prototype, "currency", void 0);
 exports.Party = Party = __decorate([
-    (0, typeorm_1.Entity)('parties')
+    (0, typeorm_1.Entity)('parties'),
+    (0, typeorm_1.Index)('IDX_PARTY_FULLTEXT', ['name', 'phone1', 'phone2', 'taxOffice', 'taxNumber', 'email', 'address', 'districtName', 'notes'], { fulltext: true })
 ], Party);
 //# sourceMappingURL=party.entity.js.map

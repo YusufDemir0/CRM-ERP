@@ -17,21 +17,21 @@ export declare class PartiesService {
     update(id: number, dto: UpdatePartyDto, userId?: number): Promise<Party>;
     softDelete(id: number): Promise<void>;
     getBalance(id: number): Promise<{
-        balance: number;
-        creditLimit: number;
+        balance: string;
+        creditLimit: string;
         currency: string;
         symbol: string;
     }>;
     getStatus(): Promise<{
         active: number;
         passive: number;
-        totalReceivable: number;
+        totalReceivable: string;
         exposurePercentage: number;
         atRiskCount: number;
     }>;
     getGlobalExposure(): Promise<{
-        totalReceivable: number;
-        totalCreditLimit: number;
+        totalReceivable: string;
+        totalCreditLimit: string;
         exposurePercentage: number;
     }>;
     getHealthMetrics(): Promise<{

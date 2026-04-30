@@ -5,7 +5,7 @@ import { CommercialAccount } from '../../accounts/entities/commercial-account.en
 import { Currency } from '../../currencies/entities/currency.entity';
 export declare class Transaction extends BaseEntity {
     code: string;
-    partyId: number;
+    partyId: number | null;
     commercialAccountId: number;
     amount: Decimal;
     currencyId: number | null;

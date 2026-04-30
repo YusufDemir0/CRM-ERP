@@ -71,8 +71,11 @@ let SalesService = SalesService_1 = class SalesService {
             .leftJoinAndSelect('sale.saleType', 'saleType')
             .leftJoinAndSelect('sale.currency', 'currency');
         if (query.search) {
-            const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
-            qb.where('(sale.code LIKE :s OR party.name LIKE :s)', { s });
+            const searchPattern = query.search.replace(/[+><()~*\"@\-]/g, ' ').trim();
+            const safeLikePattern = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            if (searchPattern) {
+                qb.where('(MATCH(sale.code, sale.notes, sale.phone, sale.address, sale.city, sale.district, sale.taxNumber, sale.email, sale.source) AGAINST(:s IN BOOLEAN MODE) OR party.name LIKE :like)', { s: `*${searchPattern}*`, like: safeLikePattern });
+            }
         }
         if (query.status)
             qb.andWhere('sale.status = :status', { status: query.status });
@@ -87,7 +90,7 @@ let SalesService = SalesService_1 = class SalesService {
             'saleType.name': 'saleType.name'
         };
         const sortField = allowedSortMap[query.sortBy || ''] || 'sale.createdAt';
-        qb.orderBy(sortField, query.sortOrder || 'DESC');
+        qb.orderBy(sortField, query.sortOrderSafe);
         if (sortField !== 'sale.createdAt') {
             qb.addOrderBy('sale.createdAt', 'DESC');
         }
@@ -124,8 +127,10 @@ let SalesService = SalesService_1 = class SalesService {
         const manager = this.transactionContext.manager;
         const party = await manager.findOne(party_entity_1.Party, { where: { id: dto.partyId } });
         if (!party)
-            throw new common_1.NotFoundException('Cari hesap bulunamadı.');
-        if (party.type === 'provider')
+            throw new common_1.NotFoundException('Cari bulunamadı.');
+        if (party.state === 0)
+            throw new common_1.BadRequestException('Pasif durumdaki bir cariye işlem yapılamaz.');
+        if (party.type === 'supplier')
             throw new common_1.BadRequestException('Sadece Tedarikçi tipindeki bir cariye satış yapılamaz.');
         const currency = await manager.findOne(currency_entity_1.Currency, { where: { id: dto.currencyId } });
         const currentExchangeRate = currency ? currency.exchangeRate : new decimal_js_1.Decimal(1);
@@ -344,12 +349,16 @@ let SalesService = SalesService_1 = class SalesService {
             }
         }
         await this.stocksService.finalizeShipmentBulk(shipItems, sale.departmentId, manager, { type: 'sale', id: sale.id, description: `Sevkiyat Çıkışı: ${sale.code}` }, userId);
+        const saleItemsToUpdate = [];
         for (const item of shipItems) {
             const saleItem = sale.items.find(si => Number(si.itemId) === Number(item.itemId));
             if (saleItem) {
                 saleItem.shippedQuantity = new decimal_js_1.Decimal(saleItem.shippedQuantity || 0).add(item.quantity);
-                await manager.save(sale_item_entity_1.SaleItem, saleItem);
+                saleItemsToUpdate.push(saleItem);
             }
+        }
+        if (saleItemsToUpdate.length > 0) {
+            await manager.save(sale_item_entity_1.SaleItem, saleItemsToUpdate);
         }
         sale.status = 'shipped';
         sale.updatedBy = userId || null;

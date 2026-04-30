@@ -26,6 +26,12 @@ export class CreateDepartmentDto {
   @IsInt()
   @Type(() => Number)
   commercialAccountId?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @IsInt()
+  @Type(() => Number)
+  cityId?: number;
 }
 
 export class UpdateDepartmentDto {
@@ -52,6 +58,12 @@ export class UpdateDepartmentDto {
   @IsInt()
   @Type(() => Number)
   commercialAccountId?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @IsInt()
+  @Type(() => Number)
+  cityId?: number;
 
   @IsOptional()
   @IsNumber()

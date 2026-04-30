@@ -27,7 +27,7 @@ __decorate([
 ], Transaction.prototype, "code", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'party_id', type: 'bigint', nullable: true }),
-    __metadata("design:type", Number)
+    __metadata("design:type", Object)
 ], Transaction.prototype, "partyId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'commercial_account_id', type: 'bigint', nullable: true }),

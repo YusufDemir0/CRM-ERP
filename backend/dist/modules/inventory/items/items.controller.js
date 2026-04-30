@@ -56,7 +56,7 @@ let ItemsController = class ItemsController {
 exports.ItemsController = ItemsController;
 __decorate([
     (0, common_1.Get)('status'),
-    (0, permissions_decorator_1.RequirePermissions)('stok_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
@@ -81,7 +81,7 @@ __decorate([
 ], ItemsController.prototype, "findAllCodeGroups", null);
 __decorate([
     (0, common_1.Get)(),
-    (0, permissions_decorator_1.RequirePermissions)('stok_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [inventory_dto_1.ItemsQueryDto]),
@@ -89,7 +89,7 @@ __decorate([
 ], ItemsController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('stok_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number]),
@@ -97,7 +97,7 @@ __decorate([
 ], ItemsController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Post)(),
-    (0, permissions_decorator_1.RequirePermissions)('stok_olusturma'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_CREATE'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -106,7 +106,7 @@ __decorate([
 ], ItemsController.prototype, "create", null);
 __decorate([
     (0, common_1.Post)('types'),
-    (0, permissions_decorator_1.RequirePermissions)('stok_olusturma'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_CREATE'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -147,7 +147,7 @@ __decorate([
 ], ItemsController.prototype, "removeQuantityType", null);
 __decorate([
     (0, common_1.Put)('types/:id'),
-    (0, permissions_decorator_1.RequirePermissions)('stok_duzenleme'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_EDIT'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
@@ -166,7 +166,7 @@ __decorate([
 ], ItemsController.prototype, "updateCodeGroup", null);
 __decorate([
     (0, common_1.Put)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('stok_duzenleme'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_EDIT'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
@@ -176,7 +176,7 @@ __decorate([
 ], ItemsController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)('types/:id'),
-    (0, permissions_decorator_1.RequirePermissions)('stok_silme'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_DELETE'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number]),
@@ -191,7 +191,7 @@ __decorate([
 ], ItemsController.prototype, "removeCodeGroup", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('stok_silme'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_DELETE'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),

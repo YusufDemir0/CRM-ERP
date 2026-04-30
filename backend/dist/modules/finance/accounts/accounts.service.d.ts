@@ -17,6 +17,6 @@ export declare class AccountsService {
         active: number;
         passive: number;
         total: number;
-        totalBalance: number;
+        totalBalance: string;
     }>;
 }

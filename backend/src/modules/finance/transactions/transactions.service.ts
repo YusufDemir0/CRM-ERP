@@ -72,7 +72,12 @@ export class TransactionsService {
 
     let party: Party | null = null;
     let exchangeRate = new Decimal(1);
-    
+    // Cari limit veya bakiye durumu
+    const p = await manager.findOne(Party, { where: { id: dto.partyId }});
+    if (p && p.type === 'supplier' && dto.type === 'in') {
+      // Tedarikçiden tahsilat (in) - belki fazla ödeme iadesi
+      console.warn(`Tedarikçiden tahsilat işlemi yapılıyor: ${p.name}`);
+    }
     if (dto.partyId) {
       party = await manager.findOne(Party, { 
         where: { id: dto.partyId },
@@ -86,7 +91,7 @@ export class TransactionsService {
     const tlAmount = FH.mul(dto.amount, exchangeRate);
 
     if (party) {
-      const isSupplierRefund = dto.type === 'in' && party.type === 'provider';
+      const isSupplierRefund = dto.type === 'in' && party.type === 'supplier';
       const isDebit = dto.type === 'out' || isSupplierRefund;
       
       const newBalance = isDebit 
@@ -111,7 +116,7 @@ export class TransactionsService {
     const savedTx = await manager.save(tx);
     
     if (party) {
-      const isSupplierRefund = dto.type === 'in' && party.type === 'provider';
+      const isSupplierRefund = dto.type === 'in' && party.type === 'supplier';
       const isCredit = dto.type === 'in' && !isSupplierRefund;
       const entryDebit = isCredit ? new Decimal(0) : tlAmount;
       const entryCredit = isCredit ? tlAmount : new Decimal(0);
@@ -151,7 +156,7 @@ export class TransactionsService {
         lock: { mode: 'pessimistic_write' }
       });
       if (party) {
-        const isSupplierRefund = tx.type === 'in' && party.type === 'provider';
+        const isSupplierRefund = tx.type === 'in' && party.type === 'supplier';
         const isReverseCredit = (tx.type === 'in' && !isSupplierRefund) ? false : true;
         const tlAmount = FH.mul(tx.amount, tx.exchangeRate);
         

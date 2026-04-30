@@ -8,16 +8,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
 var FinanceSaleListener_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FinanceSaleListener = void 0;
 const common_1 = require("@nestjs/common");
-const event_emitter_1 = require("@nestjs/event-emitter");
-const typeorm_1 = require("@nestjs/typeorm");
-const typeorm_2 = require("typeorm");
+const typeorm_1 = require("typeorm");
 const ledger_entity_1 = require("../../parties/entities/ledger.entity");
 const party_entity_1 = require("../../parties/entities/party.entity");
 const transaction_entity_1 = require("../../finance/transactions/entities/transaction.entity");
@@ -25,102 +20,111 @@ const decimal_js_1 = require("decimal.js");
 const finance_helper_1 = require("../../../common/utils/finance.helper");
 const date_utils_1 = require("../../../common/utils/date.utils");
 const sequence_generator_service_1 = require("../../../common/services/sequence-generator.service");
-const transaction_context_service_1 = require("../../../common/services/transaction-context.service");
-const transactional_1 = require("@nestjs-cls/transactional");
+const rabbitmq_service_1 = require("../../../common/services/rabbitmq.service");
 let FinanceSaleListener = FinanceSaleListener_1 = class FinanceSaleListener {
-    constructor(dataSource, sequenceGenerator, ledgerRepo, partyRepo, txRepo, transactionContext) {
+    constructor(dataSource, sequenceGenerator, rabbitMQService) {
         this.dataSource = dataSource;
         this.sequenceGenerator = sequenceGenerator;
-        this.ledgerRepo = ledgerRepo;
-        this.partyRepo = partyRepo;
-        this.txRepo = txRepo;
-        this.transactionContext = transactionContext;
+        this.rabbitMQService = rabbitMQService;
         this.logger = new common_1.Logger(FinanceSaleListener_1.name);
+    }
+    async onModuleInit() {
+        this.setupConsumer();
+    }
+    setupConsumer() {
+        const trySubscribe = async () => {
+            if (this.rabbitMQService.isConnected()) {
+                await this.rabbitMQService.subscribe('ermay.finance.sale_approved', 'sale.approved', async (msg) => {
+                    try {
+                        const payload = JSON.parse(msg.content.toString());
+                        payload.tlGrandTotal = new decimal_js_1.Decimal(payload.tlGrandTotal || 0);
+                        payload.deposit = new decimal_js_1.Decimal(payload.deposit || 0);
+                        await this.handleFinanceLogic(payload);
+                    }
+                    catch (err) {
+                        this.logger.error(`Error processing finance logic: ${err.message}`);
+                        throw err;
+                    }
+                });
+            }
+            else {
+                setTimeout(trySubscribe, 2000);
+            }
+        };
+        trySubscribe();
     }
     async handleFinanceLogic(payload) {
         const { sale, tlGrandTotal, deposit, commercialAccountId, userId } = payload;
-        const qr = this.transactionContext.manager;
-        const exists = await qr.findOne(ledger_entity_1.AccountingLedger, {
-            where: { source: 'SALE', transactionId: sale.id }
-        });
-        if (exists) {
-            this.logger.warn(`Idempotency: Finance logic for sale.id=${sale.id} already processed. Skipping.`);
-            return;
-        }
-        try {
-            await qr.save(qr.create(ledger_entity_1.AccountingLedger, {
-                date: date_utils_1.DateUtils.getToday(),
-                partyId: sale.partyId,
-                debit: tlGrandTotal,
-                credit: new decimal_js_1.Decimal(0),
-                transactionId: sale.id,
-                source: 'SALE',
-                description: `${sale.code} numaralı Satış Faturası Borçlandırması`
-            }));
-            const party = await qr.findOne(party_entity_1.Party, {
-                where: { id: sale.partyId },
-                lock: { mode: 'pessimistic_write' }
+        await this.dataSource.transaction(async (qr) => {
+            const exists = await qr.findOne(ledger_entity_1.AccountingLedger, {
+                where: { source: 'SALE', transactionId: sale.id }
             });
-            if (party) {
-                party.balance = finance_helper_1.FinanceHelper.add(party.balance, tlGrandTotal);
-                if (deposit.gt(0) && commercialAccountId) {
-                    const txCode = await this.sequenceGenerator.generateTransactionCode(qr, 'MKB');
-                    await qr.save(qr.create(transaction_entity_1.Transaction, {
-                        code: txCode,
-                        partyId: party.id,
-                        commercialAccountId,
-                        amount: sale.deposit,
-                        currencyId: sale.currencyId,
-                        exchangeRate: sale.exchangeRate,
-                        type: 'in',
-                        referenceType: 'sale',
-                        referenceId: sale.id,
-                        date: date_utils_1.DateUtils.getToday(),
-                        description: `${sale.code} Nolu Sipariş Peşinat / Kaporası`,
-                        status: 'completed',
-                        createdBy: userId
-                    }));
-                    await qr.save(qr.create(ledger_entity_1.AccountingLedger, {
-                        date: date_utils_1.DateUtils.getToday(),
-                        partyId: party.id,
-                        accountId: commercialAccountId,
-                        debit: new decimal_js_1.Decimal(0),
-                        credit: deposit,
-                        transactionId: sale.id,
-                        source: 'DEPOSIT',
-                        description: `${sale.code} Sipariş Peşinat Tahsilatı`
-                    }));
-                    party.balance = finance_helper_1.FinanceHelper.sub(party.balance, deposit);
-                }
-                party.updatedBy = userId || null;
-                await qr.save(party_entity_1.Party, party);
+            if (exists) {
+                this.logger.warn(`Idempotency: Finance logic for sale.id=${sale.id} already processed. Skipping.`);
+                return;
             }
-            this.logger.log(`Finance logic completed for sale ${sale.code}`);
-        }
-        catch (err) {
-            this.logger.error(`Failed to process finance for sale ${payload.sale.code}: ${err.message}`);
-            throw err;
-        }
+            try {
+                await qr.save(qr.create(ledger_entity_1.AccountingLedger, {
+                    date: date_utils_1.DateUtils.getToday(),
+                    partyId: sale.partyId,
+                    debit: tlGrandTotal,
+                    credit: new decimal_js_1.Decimal(0),
+                    transactionId: sale.id,
+                    source: 'SALE',
+                    description: `${sale.code} numaralı Satış Faturası Borçlandırması`
+                }));
+                const party = await qr.findOne(party_entity_1.Party, {
+                    where: { id: sale.partyId },
+                    lock: { mode: 'pessimistic_write' }
+                });
+                if (party) {
+                    party.balance = finance_helper_1.FinanceHelper.add(party.balance, tlGrandTotal);
+                    if (deposit.gt(0) && commercialAccountId) {
+                        const txCode = await this.sequenceGenerator.generateTransactionCode(qr, 'MKB');
+                        await qr.save(qr.create(transaction_entity_1.Transaction, {
+                            code: txCode,
+                            partyId: party.id,
+                            commercialAccountId,
+                            amount: sale.deposit,
+                            currencyId: sale.currencyId,
+                            exchangeRate: sale.exchangeRate,
+                            type: 'in',
+                            referenceType: 'sale',
+                            referenceId: sale.id,
+                            date: date_utils_1.DateUtils.getToday(),
+                            description: `${sale.code} Nolu Sipariş Peşinat / Kaporası`,
+                            status: 'completed',
+                            createdBy: userId
+                        }));
+                        await qr.save(qr.create(ledger_entity_1.AccountingLedger, {
+                            date: date_utils_1.DateUtils.getToday(),
+                            partyId: party.id,
+                            accountId: commercialAccountId,
+                            debit: new decimal_js_1.Decimal(0),
+                            credit: deposit,
+                            transactionId: sale.id,
+                            source: 'DEPOSIT',
+                            description: `${sale.code} Sipariş Peşinat Tahsilatı`
+                        }));
+                        party.balance = finance_helper_1.FinanceHelper.sub(party.balance, deposit);
+                    }
+                    party.updatedBy = userId || null;
+                    await qr.save(party_entity_1.Party, party);
+                }
+                this.logger.log(`Finance logic completed for sale ${sale.code}`);
+            }
+            catch (err) {
+                this.logger.error(`Failed to process finance for sale ${payload.sale.code}: ${err.message}`);
+                throw err;
+            }
+        });
     }
 };
 exports.FinanceSaleListener = FinanceSaleListener;
-__decorate([
-    (0, transactional_1.Transactional)(),
-    (0, event_emitter_1.OnEvent)('sale.approved'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", Promise)
-], FinanceSaleListener.prototype, "handleFinanceLogic", null);
 exports.FinanceSaleListener = FinanceSaleListener = FinanceSaleListener_1 = __decorate([
     (0, common_1.Injectable)(),
-    __param(2, (0, typeorm_1.InjectRepository)(ledger_entity_1.AccountingLedger)),
-    __param(3, (0, typeorm_1.InjectRepository)(party_entity_1.Party)),
-    __param(4, (0, typeorm_1.InjectRepository)(transaction_entity_1.Transaction)),
-    __metadata("design:paramtypes", [typeorm_2.DataSource,
+    __metadata("design:paramtypes", [typeorm_1.DataSource,
         sequence_generator_service_1.SequenceGeneratorService,
-        typeorm_2.Repository,
-        typeorm_2.Repository,
-        typeorm_2.Repository,
-        transaction_context_service_1.TransactionContextService])
+        rabbitmq_service_1.RabbitMQService])
 ], FinanceSaleListener);
 //# sourceMappingURL=finance-sale.listener.js.map

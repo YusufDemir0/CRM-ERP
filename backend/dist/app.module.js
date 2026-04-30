@@ -58,7 +58,7 @@ const logs_module_1 = require("./modules/logs/logs.module");
 const notes_module_1 = require("./modules/notes/notes.module");
 const webhooks_module_1 = require("./modules/webhooks/webhooks.module");
 const staff_module_1 = require("./modules/staff/staff.module");
-const health_module_1 = require("./modules/health/health.module");
+const health_module_1 = require("./infrastructure/health/health.module");
 let AppModule = class AppModule {
     configure(consumer) {
         consumer.apply(csrf_middleware_1.CsrfMiddleware).forRoutes('*');

@@ -30,7 +30,6 @@ const stock_movement_entity_1 = require("./entities/stock-movement.entity");
 const inventory_dto_1 = require("../dto/inventory.dto");
 const item_entity_1 = require("../items/entities/item.entity");
 const transaction_entity_1 = require("../../finance/transactions/entities/transaction.entity");
-const party_entity_1 = require("../../parties/entities/party.entity");
 const sequence_generator_service_1 = require("../../../common/services/sequence-generator.service");
 const date_utils_1 = require("../../../common/utils/date.utils");
 const finance_helper_1 = require("../../../common/utils/finance.helper");
@@ -49,10 +48,17 @@ let StocksService = class StocksService {
     }
     async findAll(query) {
         const qb = this.stockRepo.createQueryBuilder('stock')
-            .leftJoinAndSelect('stock.item', 'item')
-            .leftJoinAndSelect('item.itemType', 'itemType')
-            .leftJoinAndSelect('item.quantityType', 'quantityType')
-            .leftJoinAndSelect('stock.department', 'department');
+            .leftJoin('stock.item', 'item')
+            .leftJoin('item.itemType', 'itemType')
+            .leftJoin('item.quantityType', 'quantityType')
+            .leftJoin('stock.department', 'department')
+            .select([
+            'stock.id', 'stock.quantity', 'stock.reservedQuantity', 'stock.updatedAt',
+            'item.id', 'item.name', 'item.code', 'item.criticalLimit', 'item.state',
+            'itemType.id', 'itemType.name',
+            'quantityType.id', 'quantityType.abbreviation',
+            'department.id', 'department.name'
+        ]);
         if (query.departmentId)
             qb.andWhere('stock.departmentId = :deptId', { deptId: query.departmentId });
         if (query.itemId)
@@ -65,18 +71,26 @@ let StocksService = class StocksService {
             qb.andWhere('item.state = :state', { state: query.state });
         }
         if (query.isCritical === 'true') {
-            qb.andWhere('stock.quantity <= item.criticalLimit');
-            qb.andWhere('item.criticalLimit > 0');
+            qb.andWhere('stock.quantity <= item.criticalLimit AND item.criticalLimit > 0');
         }
-        const allowedSortCols = ['quantity', 'createdAt', 'item.name', 'department.name'];
-        const sortField = allowedSortCols.includes(query.sortBy || '') ? query.sortBy : 'quantity';
-        const finalSortField = sortField.includes('.') ? sortField : `stock.${sortField}`;
-        qb.orderBy(finalSortField, query.sortOrder || 'DESC');
+        const sortFieldMap = {
+            'quantity': 'stock.quantity',
+            'item.name': 'item.name',
+            'department.name': 'department.name',
+            'updatedAt': 'stock.updatedAt'
+        };
+        const sortCol = sortFieldMap[query.sortBy || ''] || 'stock.updatedAt';
+        qb.orderBy(sortCol, query.sortOrderSafe);
         qb.skip(query.skip).take(query.limit);
         const [data, total] = await qb.getManyAndCount();
         return {
             data,
-            meta: { total, page: query.page || 1, limit: query.limit || 20, totalPages: Math.ceil(total / (query.limit || 20)) },
+            meta: {
+                total,
+                page: query.page || 1,
+                limit: query.limit || 20,
+                totalPages: Math.ceil(total / (query.limit || 20))
+            },
         };
     }
     async updateMovingAverageCost(manager, itemId, inQty, inUnitCost, userId) {
@@ -419,17 +433,6 @@ let StocksService = class StocksService {
             const txType = dto.type === 'in' ? 'in' : 'out';
             const txPrefix = txType === 'in' ? 'SFG' : 'SFC';
             const txCode = await this.sequenceGenerator.generateTransactionCode(manager, txPrefix);
-            let internalParty = await manager.findOne(party_entity_1.Party, { where: { taxNumber: 'INTERNAL' } });
-            if (!internalParty) {
-                internalParty = manager.create(party_entity_1.Party, {
-                    name: 'ERMAY İÇ TRANSFER / MERKEZ',
-                    taxNumber: 'INTERNAL',
-                    type: 'both',
-                    balance: new decimal_js_1.Decimal(0),
-                    createdBy: userId
-                });
-                internalParty = await manager.save(internalParty);
-            }
             await manager.save(manager.create(transaction_entity_1.Transaction, {
                 code: txCode,
                 amount: totalCostValue,
@@ -438,7 +441,7 @@ let StocksService = class StocksService {
                 referenceType: 'manual_adjustment',
                 referenceId: savedMovement.id,
                 description: `Stok Ayarlaması Değer Kaydı: ${item.name}`,
-                partyId: internalParty.id,
+                partyId: null,
                 status: 'completed',
                 createdBy: userId,
             }));
@@ -614,7 +617,7 @@ let StocksService = class StocksService {
         ]);
         return {
             totalItems: Number(total.items || 0),
-            totalQuantity: new decimal_js_1.Decimal(total.quantity || 0).toNumber(),
+            totalQuantity: new decimal_js_1.Decimal(total.quantity || 0).toFixed(2),
             criticalCount: Number(critical.count || 0),
         };
     }

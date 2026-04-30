@@ -84,7 +84,7 @@ export interface Currency extends BaseEntity {
 
 export interface Party extends BaseEntity {
   name: string;
-  type: 'customer' | 'provider' | 'both';
+  type: 'customer' | 'supplier';
   phone1?: string | null;
   phone2?: string | null;
   taxNumber?: string | null;

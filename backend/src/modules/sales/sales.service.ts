@@ -144,8 +144,9 @@ export class SalesService {
     const manager = this.transactionContext.manager;
 
     const party = await manager.findOne(Party, { where: { id: dto.partyId } });
-    if (!party) throw new NotFoundException('Cari hesap bulunamadı.');
-    if (party.type === 'provider') throw new BadRequestException('Sadece Tedarikçi tipindeki bir cariye satış yapılamaz.');
+    if (!party) throw new NotFoundException('Cari bulunamadı.');
+    if (party.state === 0) throw new BadRequestException('Pasif durumdaki bir cariye işlem yapılamaz.');
+    if (party.type === 'supplier') throw new BadRequestException('Sadece Tedarikçi tipindeki bir cariye satış yapılamaz.');
 
     const currency = await manager.findOne(Currency, { where: { id: dto.currencyId } });
     const currentExchangeRate = currency ? currency.exchangeRate : new Decimal(1);

@@ -35,7 +35,7 @@ let PartiesController = class PartiesController {
 exports.PartiesController = PartiesController;
 __decorate([
     (0, common_1.Get)(),
-    (0, permissions_decorator_1.RequirePermissions)('musteri_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('CUSTOMER_VIEW'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [party_dto_1.PartiesQueryDto]),
@@ -43,14 +43,14 @@ __decorate([
 ], PartiesController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('status'),
-    (0, permissions_decorator_1.RequirePermissions)('musteri_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('CUSTOMER_VIEW'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], PartiesController.prototype, "getStatus", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('musteri_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('CUSTOMER_VIEW'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number]),
@@ -58,7 +58,7 @@ __decorate([
 ], PartiesController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Get)(':id/balance'),
-    (0, permissions_decorator_1.RequirePermissions)('musteri_goruntuleme'),
+    (0, permissions_decorator_1.RequirePermissions)('CUSTOMER_VIEW'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number]),
@@ -66,7 +66,7 @@ __decorate([
 ], PartiesController.prototype, "getBalance", null);
 __decorate([
     (0, common_1.Post)(),
-    (0, permissions_decorator_1.RequirePermissions)('musteri_olusturma'),
+    (0, permissions_decorator_1.RequirePermissions)('CUSTOMER_CREATE'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -75,7 +75,7 @@ __decorate([
 ], PartiesController.prototype, "create", null);
 __decorate([
     (0, common_1.Put)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('musteri_duzenleme'),
+    (0, permissions_decorator_1.RequirePermissions)('CUSTOMER_EDIT'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
@@ -85,7 +85,7 @@ __decorate([
 ], PartiesController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('musteri_silme'),
+    (0, permissions_decorator_1.RequirePermissions)('CUSTOMER_DELETE'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number]),

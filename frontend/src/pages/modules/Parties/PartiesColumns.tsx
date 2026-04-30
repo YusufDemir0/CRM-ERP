@@ -11,14 +11,14 @@ export const getPartiesColumns = (onQuickSale?: (partyId: number) => void): Colu
       <div className="flex items-center gap-4 group/item">
         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl transition-colors shadow-sm ${
           p.type === 'customer' ? 'bg-primary/10 text-primary border border-primary/20 bg-gradient-to-br from-primary/10 to-transparent' : 
-          p.type === 'provider' ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-slate-100 text-slate-600 border border-slate-200'
+          p.type === 'supplier' ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-slate-100 text-slate-600 border border-slate-200'
         }`}>
           <FiBriefcase />
         </div>
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <div className="font-black text-slate-800 text-[15px] tracking-tight group-hover/item:text-primary transition-colors">{p.name}</div>
-            {onQuickSale && p.state === 1 && p.type !== 'provider' && (
+            {onQuickSale && p.state === 1 && p.type !== 'supplier' && (
               <button 
                 onClick={(e) => { e.stopPropagation(); onQuickSale(p.id); }}
                 className="p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg transition-all border border-emerald-100 shadow-sm"
@@ -30,7 +30,7 @@ export const getPartiesColumns = (onQuickSale?: (partyId: number) => void): Colu
           </div>
           <div className="flex items-center gap-2">
              <span className="text-[9px] text-slate-400 font-black tracking-widest uppercase opacity-70">
-               {p.type === 'customer' ? 'MÜŞTERİ' : (p.type === 'provider' ? 'TEDARİKÇİ' : 'HİBRİT')}
+               {p.type === 'customer' ? 'MÜŞTERİ' : (p.type === 'supplier' ? 'TEDARİKÇİ' : 'HİBRİT')}
              </span>
              {p.state === 0 && <span className="bg-danger/10 text-danger text-[8px] px-1.5 py-0.5 rounded font-black uppercase">PASİF</span>}
           </div>
@@ -38,6 +38,18 @@ export const getPartiesColumns = (onQuickSale?: (partyId: number) => void): Colu
       </div>
     ),
     sortKey: 'name'
+  },
+  {
+    header: 'Tip',
+    accessor: (p) => {
+      const typeMap = {
+        customer: { text: 'Müşteri', className: 'badge-blue' },
+        supplier: { text: 'Tedarikçi', className: 'badge-purple' },
+      };
+      const info = typeMap[p.type as keyof typeof typeMap] || { text: p.type, className: 'badge-gray' };
+      return <span className={`badge ${info.className}`}>{info.text}</span>;
+    },
+    sortKey: 'type'
   },
   { 
     header: 'KİMLİK / VERGİ', 

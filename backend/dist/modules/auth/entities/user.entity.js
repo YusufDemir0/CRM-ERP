@@ -29,6 +29,11 @@ __decorate([
     __metadata("design:type", String)
 ], User.prototype, "passwordHash", void 0);
 __decorate([
+    (0, class_transformer_1.Exclude)(),
+    (0, typeorm_1.Column)({ name: 'refresh_token_hash', type: 'varchar', length: 255, nullable: true }),
+    __metadata("design:type", Object)
+], User.prototype, "refreshTokenHash", void 0);
+__decorate([
     (0, typeorm_1.Column)({ name: 'full_name', type: 'varchar', length: 100 }),
     __metadata("design:type", String)
 ], User.prototype, "fullName", void 0);
@@ -85,6 +90,7 @@ __decorate([
 exports.User = User = __decorate([
     (0, typeorm_1.Entity)('users'),
     (0, typeorm_1.Index)("UQ_USERNAME_ACTIVE", ["username"]),
-    (0, typeorm_1.Index)("UQ_EMAIL_ACTIVE", ["email"])
+    (0, typeorm_1.Index)("UQ_EMAIL_ACTIVE", ["email"]),
+    (0, typeorm_1.Index)('IDX_USER_FULLTEXT', ['username', 'fullName', 'email', 'phone'], { fulltext: true })
 ], User);
 //# sourceMappingURL=user.entity.js.map

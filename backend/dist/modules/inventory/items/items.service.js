@@ -27,7 +27,6 @@ const currencies_service_1 = require("../../finance/currencies/currencies.servic
 const decimal_js_1 = require("decimal.js");
 const transactional_1 = require("@nestjs-cls/transactional");
 const transaction_context_service_1 = require("../../../common/services/transaction-context.service");
-const sql_helper_1 = require("../../../common/utils/sql.helper");
 const department_entity_1 = require("../../departments/entities/department.entity");
 const bom_item_entity_1 = require("../../production/entities/bom-item.entity");
 let ItemsService = class ItemsService {
@@ -44,14 +43,24 @@ let ItemsService = class ItemsService {
     }
     async findAll(query) {
         const qb = this.itemRepo.createQueryBuilder('item')
-            .leftJoinAndSelect('item.itemType', 'itemType')
-            .leftJoinAndSelect('item.itemCodeGroup', 'itemCodeGroup')
-            .leftJoinAndSelect('item.quantityType', 'quantityType')
-            .leftJoinAndSelect('item.provider', 'provider')
-            .leftJoinAndSelect('item.currency', 'currency');
+            .leftJoin('item.itemType', 'itemType')
+            .leftJoin('item.quantityType', 'quantityType')
+            .leftJoin('item.provider', 'provider')
+            .leftJoin('item.currency', 'currency')
+            .select([
+            'item.id', 'item.name', 'item.code', 'item.code1', 'item.code2',
+            'item.purchasePrice', 'item.salePrice', 'item.totalStock',
+            'item.criticalLimit', 'item.state', 'item.createdAt',
+            'itemType.id', 'itemType.name',
+            'quantityType.id', 'quantityType.abbreviation',
+            'provider.id', 'provider.name',
+            'currency.id', 'currency.symbol'
+        ]);
         if (query.search) {
-            const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
-            qb.andWhere('(item.name LIKE :s OR item.code LIKE :s OR item.code1 LIKE :s OR item.code2 LIKE :s OR item.description LIKE :s OR item.notes LIKE :s OR itemType.name LIKE :s OR provider.name LIKE :s)', { s });
+            const searchPattern = query.search.replace(/[+><()~*\"@\-]/g, ' ').trim();
+            if (searchPattern) {
+                qb.andWhere('MATCH(item.name, item.code, item.code1, item.code2, item.description, item.notes) AGAINST(:s IN BOOLEAN MODE)', { s: `*${searchPattern}*` });
+            }
         }
         if (query.itemTypeId)
             qb.andWhere('item.itemTypeId = :typeId', { typeId: query.itemTypeId });
@@ -62,46 +71,27 @@ let ItemsService = class ItemsService {
         if (query.state !== undefined)
             qb.andWhere('item.state = :state', { state: query.state });
         if (query.critical === 'true') {
-            qb.andWhere('item.totalStock < item.criticalLimit');
-            qb.andWhere('item.criticalLimit > 0');
+            qb.andWhere('item.totalStock < item.criticalLimit AND item.criticalLimit > 0');
         }
-        const itemFilterMap = {
-            name: 'item.name',
-            code: 'item.code',
-            code1: 'item.code1',
-            code2: 'item.code2',
-            description: 'item.description',
-            notes: 'item.notes',
-            barcode: 'item.barcode',
-            taxRate: 'item.taxRate',
-        };
-        Object.keys(query).forEach(key => {
-            const dbCol = itemFilterMap[key];
-            const val = query[key];
-            if (dbCol && val !== undefined) {
-                const s = (0, sql_helper_1.getSafeSearchPattern)(val.toString());
-                qb.andWhere(`${dbCol} LIKE :${key}`, { [key]: s });
-            }
-        });
         const sortFieldMap = {
             'name': 'item.name',
             'code': 'item.code',
             'purchasePrice': 'item.purchasePrice',
-            'salePrice': 'item.salePrice',
-            'criticalLimit': 'item.criticalLimit',
-            'createdAt': 'item.createdAt',
-            'itemType.name': 'itemType.name',
-            'provider.name': 'provider.name',
-            'state': 'item.state',
-            'totalStock': 'item.totalStock'
+            'totalStock': 'item.totalStock',
+            'createdAt': 'item.createdAt'
         };
         const sortCol = sortFieldMap[query.sortBy || ''] || 'item.createdAt';
-        qb.orderBy(sortCol, query.sortOrder || 'DESC');
+        qb.orderBy(sortCol, query.sortOrderSafe);
         qb.skip(query.skip).take(query.limit);
         const [data, total] = await qb.getManyAndCount();
         return {
             data,
-            meta: { total, page: query.page || 1, limit: query.limit || 20, totalPages: Math.ceil(total / (query.limit || 20)) },
+            meta: {
+                total,
+                page: query.page || 1,
+                limit: query.limit || 20,
+                totalPages: Math.ceil(total / (query.limit || 20))
+            },
         };
     }
     async findOne(id) {
@@ -137,14 +127,15 @@ let ItemsService = class ItemsService {
         });
         const savedItem = await manager.save(item);
         const departments = await manager.find(department_entity_1.Department, { where: { state: 1 } });
-        for (const dept of departments) {
-            await manager.save(manager.create(stock_entity_1.Stock, {
-                itemId: savedItem.id,
-                departmentId: dept.id,
-                quantity: new decimal_js_1.Decimal(0),
-                reservedQuantity: new decimal_js_1.Decimal(0),
-                createdBy: userId
-            }));
+        const initialStocks = departments.map(dept => manager.create(stock_entity_1.Stock, {
+            itemId: savedItem.id,
+            departmentId: dept.id,
+            quantity: new decimal_js_1.Decimal(0),
+            reservedQuantity: new decimal_js_1.Decimal(0),
+            createdBy: userId
+        }));
+        if (initialStocks.length > 0) {
+            await manager.save(stock_entity_1.Stock, initialStocks);
         }
         return savedItem;
     }

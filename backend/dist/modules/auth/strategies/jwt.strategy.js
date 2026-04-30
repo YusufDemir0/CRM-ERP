@@ -45,13 +45,16 @@ let JwtStrategy = JwtStrategy_1 = class JwtStrategy extends (0, passport_1.Passp
         if (state === undefined || state === null) {
             const user = await this.dataSource.getRepository(user_entity_1.User).findOne({
                 where: { id: payload.sub },
-                select: ['id', 'state']
+                select: ['id', 'state', 'tokenVersion']
             });
             if (!user) {
                 throw new common_1.UnauthorizedException('Kullanıcı bulunamadı veya silinmiş');
             }
+            if (user.tokenVersion !== payload.tokenVersion) {
+                throw new common_1.UnauthorizedException('Oturum geçersiz. Lütfen tekrar giriş yapınız.');
+            }
             state = user.state;
-            await this.cacheManager.set(cacheKey, state, 300000);
+            await this.cacheManager.set(cacheKey, state, 30_000);
         }
         if (state !== record_state_enum_1.RecordState.ACTIVE) {
             throw new common_1.UnauthorizedException('Kullanıcı hesabı askıya alınmış veya pasif durumda');

@@ -137,6 +137,7 @@ __decorate([
     __metadata("design:type", quantity_type_entity_1.QuantityType)
 ], Item.prototype, "quantityType", void 0);
 exports.Item = Item = __decorate([
-    (0, typeorm_1.Entity)('items')
+    (0, typeorm_1.Entity)('items'),
+    (0, typeorm_1.Index)('IDX_ITEM_FULLTEXT', ['name', 'code', 'code1', 'code2', 'description', 'notes'], { fulltext: true })
 ], Item);
 //# sourceMappingURL=item.entity.js.map
