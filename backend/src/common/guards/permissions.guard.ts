@@ -86,6 +86,8 @@ export class PermissionsGuard implements CanActivate {
     const isSystemAdmin = userRoles.some((ur) => ur.role?.isSystemAdmin === true);
     
     if (isSystemAdmin) {
+      request.user.isSystemAdmin = true;
+      request.user.permissions = []; // System admins don't need explicit permissions
       return true;
     }
 
@@ -125,6 +127,9 @@ export class PermissionsGuard implements CanActivate {
 
       await this.cacheManager.set(cacheKey, finalPermissions, 60000); // 1 dk cache
     }
+
+    request.user.permissions = finalPermissions;
+    request.user.isSystemAdmin = isSystemAdmin;
 
     // 4. Her required permission için kontrol
     const hasAll = requiredPermissions.every(key => finalPermissions.includes(key));

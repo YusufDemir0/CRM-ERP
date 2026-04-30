@@ -23,10 +23,13 @@ export class DashboardService {
     @InjectRepository(Sale) private saleRepo: Repository<Sale>,
   ) {}
 
-  async getSummary() {
+  async getSummary(user: any) {
     // Tarih Aralıkları (dayjs ile)
     const now = dayjs();
-    const todayStr = now.format('YYYY-MM-DD');
+    
+    // Bugünün başlangıç ve bitişi (Günün Cirosu için)
+    const todayStart = now.startOf('day').toDate();
+    const todayEnd = now.endOf('day').toDate();
     
     // Bu Ay (Bugüne kadar - MTD)
     const thisMonthStart = now.startOf('month').toDate();
@@ -37,17 +40,33 @@ export class DashboardService {
     const lastMonthEnd = now.subtract(1, 'month').toDate();
 
     const [
-      totalUsers,
-      totalParties,
-      totalItems,
+      totalCustomers,
+      totalSalesCount,
+      todayRevenueStats,
       thisMonthStats,
       lastMonthStats,
-      recentActions
     ] = await Promise.all([
-      this.userRepo.count({ where: { state: 1 } }),
-      this.partyRepo.count({ where: { state: 1 } }),
-      this.itemRepo.count({ where: { state: 1 } }),
+      // Yalnızca kullanıcının oluşturduğu Cariler ve Sadece Müşteri
+      this.partyRepo.count({ 
+        where: { 
+          state: 1, 
+          type: 'customer',
+          createdBy: user?.id 
+        } 
+      }),
       
+      // Toplam Satış Miktarı
+      this.saleRepo.count({ 
+        where: { status: Between('approved', 'shipped') } 
+      }),
+      
+      // Günün Cirosu
+      this.saleRepo.createQueryBuilder('sale')
+        .select("SUM(sale.grandTotal * sale.exchangeRate)", "revenue")
+        .where("sale.createdAt BETWEEN :start AND :end", { start: todayStart, end: todayEnd })
+        .andWhere("sale.status != 'cancelled'")
+        .getRawOne(),
+
       // 🔥 HIGH PERFORMANCE: Use SQL aggregates instead of loading all entities into memory
       this.saleRepo.createQueryBuilder('sale')
         .select("SUM(sale.grandTotal * sale.exchangeRate - sale.kdv * sale.exchangeRate)", "revenue")
@@ -61,41 +80,23 @@ export class DashboardService {
         .addSelect("COUNT(*)", "count")
         .where("sale.createdAt BETWEEN :start AND :end", { start: lastMonthStart, end: lastMonthEnd })
         .andWhere("sale.status != 'cancelled'")
-        .getRawOne(),
-
-      // Son İşlemler
-      this.txRepo.find({
-        relations: ['party'],
-        order: { createdAt: 'DESC' },
-        take: 10
-      })
+        .getRawOne()
     ]);
     
-    return plainToInstance(DashboardSummaryDto, {
-      totalUsers,
-      totalParties,
-      totalItems,
-      todaySales: 0,
+    return {
+      totalCustomers,
+      totalSalesCount,
+      todaySales: todayRevenueStats.revenue || 0,
       thisMonth: {
-        revenue: thisMonthStats.revenue,
-        count: thisMonthStats.count,
+        revenue: thisMonthStats.revenue || 0,
+        count: thisMonthStats.count || 0,
         profit: 0
       },
       lastMonth: {
-        revenue: lastMonthStats.revenue,
-        count: lastMonthStats.count,
+        revenue: lastMonthStats.revenue || 0,
+        count: lastMonthStats.count || 0,
         profit: 0
-      },
-      recentActions: recentActions.map(tx => ({
-        id: tx.id,
-        code: tx.code,
-        type: tx.type,
-        amount: tx.amount?.toString() || '0',
-        date: tx.date,
-        partyName: tx.party?.name || 'Genel İşlem',
-        referenceType: tx.referenceType,
-        description: tx.description
-      }))
-    });
+      }
+    };
   }
 }

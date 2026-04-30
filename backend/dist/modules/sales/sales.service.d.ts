@@ -27,7 +27,7 @@ export declare class SalesService {
     findAll(query: PaginationDto & {
         status?: string;
         partyId?: number;
-    }): Promise<PaginatedResult<Sale>>;
+    }, user?: any): Promise<PaginatedResult<Sale>>;
     findOne(id: number): Promise<Sale>;
     private fetchItemData;
     create(dto: CreateSaleDto, userId?: number): Promise<Sale>;

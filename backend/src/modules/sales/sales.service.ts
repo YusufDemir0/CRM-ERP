@@ -70,7 +70,7 @@ export class SalesService {
 
   // ────── SALES CRUD ──────
 
-  async findAll(query: PaginationDto & { status?: string; partyId?: number }): Promise<PaginatedResult<Sale>> {
+  async findAll(query: PaginationDto & { status?: string; partyId?: number }, user?: any): Promise<PaginatedResult<Sale>> {
     const qb = this.saleRepo.createQueryBuilder('sale')
       .leftJoinAndSelect('sale.party', 'party')
       .leftJoinAndSelect('sale.saleType', 'saleType')
@@ -88,6 +88,13 @@ export class SalesService {
     }
     if (query.status) qb.andWhere('sale.status = :status', { status: query.status });
     if (query.partyId) qb.andWhere('sale.partyId = :partyId', { partyId: query.partyId });
+
+    if (user && !user.isSystemAdmin) {
+      const hasViewAll = user.permissions?.includes('SALES_VIEW_ALL');
+      if (!hasViewAll && user.departmentId) {
+        qb.andWhere('sale.departmentId = :userDeptId', { userDeptId: user.departmentId });
+      }
+    }
     
     const allowedSortMap: Record<string, string> = {
       'code': 'sale.code',

@@ -18,9 +18,8 @@ export class DashboardStatsDto {
 }
 
 export class DashboardSummaryDto {
-  @Expose() totalUsers: number;
-  @Expose() totalParties: number;
-  @Expose() totalItems: number;
+  @Expose() totalCustomers: number;
+  @Expose() totalSalesCount: number;
   @Expose() todaySales: number;
 
   @Expose()
@@ -30,8 +29,4 @@ export class DashboardSummaryDto {
   @Expose()
   @Type(() => DashboardStatsDto)
   lastMonth: DashboardStatsDto;
-
-  @Expose()
-  @Type(() => RecentActionDto)
-  recentActions: RecentActionDto[];
 }

@@ -107,10 +107,33 @@ let PartiesService = class PartiesService {
         const sortCol = allowedSortCols.includes(query.sortBy || '') ? query.sortBy : 'name';
         qb.orderBy(`party.${sortCol}`, query.sortOrderSafe);
         qb.skip(query.skip).take(query.limit);
-        const [data, total] = await qb.getManyAndCount();
+        qb.addSelect((subQuery) => {
+            return subQuery
+                .select('COUNT(sale.id)')
+                .from('sales', 'sale')
+                .where('sale.party_id = party.id')
+                .andWhere('sale.deleted_at IS NULL');
+        }, 'total_sales_count');
+        qb.addSelect((subQuery) => {
+            return subQuery
+                .select('MAX(sale.created_at)')
+                .from('sales', 'sale')
+                .where('sale.party_id = party.id')
+                .andWhere('sale.deleted_at IS NULL');
+        }, 'last_sale_date');
+        const { entities, raw } = await qb.getRawAndEntities();
+        const count = await qb.getCount();
+        entities.forEach(entity => {
+            const rawData = raw.find(r => r.party_id === entity.id.toString() || r.party_id === entity.id);
+            if (rawData) {
+                entity.totalSalesCount = Number(rawData.total_sales_count || 0);
+                entity.lastSaleDate = rawData.last_sale_date || null;
+                entity.calculatedBalance = entity.balance;
+            }
+        });
         return {
-            data,
-            meta: { total, page: query.page || 1, limit: query.limit || 20, totalPages: Math.ceil(total / (query.limit || 20)) },
+            data: entities,
+            meta: { total: count, page: query.page || 1, limit: query.limit || 20, totalPages: Math.ceil(count / (query.limit || 20)) },
         };
     }
     async findOne(id) {

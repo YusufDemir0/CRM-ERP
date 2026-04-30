@@ -236,6 +236,11 @@ export interface ProductionOrder extends BaseEntity {
   unitCost: string; // DB-03: Decimal → JSON string
   totalCost: string; // DB-03: Decimal → JSON string
   notes?: string | null;
+
+  // Virtual Fields
+  totalSalesCount?: number;
+  lastSaleDate?: string | Date;
+  calculatedBalance?: number | string;
 }
 
 export interface Transaction extends BaseEntity {

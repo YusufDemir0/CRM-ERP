@@ -67,15 +67,11 @@ exports.DashboardSummaryDto = DashboardSummaryDto;
 __decorate([
     (0, class_transformer_1.Expose)(),
     __metadata("design:type", Number)
-], DashboardSummaryDto.prototype, "totalUsers", void 0);
+], DashboardSummaryDto.prototype, "totalCustomers", void 0);
 __decorate([
     (0, class_transformer_1.Expose)(),
     __metadata("design:type", Number)
-], DashboardSummaryDto.prototype, "totalParties", void 0);
-__decorate([
-    (0, class_transformer_1.Expose)(),
-    __metadata("design:type", Number)
-], DashboardSummaryDto.prototype, "totalItems", void 0);
+], DashboardSummaryDto.prototype, "totalSalesCount", void 0);
 __decorate([
     (0, class_transformer_1.Expose)(),
     __metadata("design:type", Number)
@@ -90,9 +86,4 @@ __decorate([
     (0, class_transformer_1.Type)(() => DashboardStatsDto),
     __metadata("design:type", DashboardStatsDto)
 ], DashboardSummaryDto.prototype, "lastMonth", void 0);
-__decorate([
-    (0, class_transformer_1.Expose)(),
-    (0, class_transformer_1.Type)(() => RecentActionDto),
-    __metadata("design:type", Array)
-], DashboardSummaryDto.prototype, "recentActions", void 0);
 //# sourceMappingURL=dashboard-summary.dto.js.map

@@ -24,8 +24,6 @@ const party_entity_1 = require("../parties/entities/party.entity");
 const item_entity_1 = require("../inventory/items/entities/item.entity");
 const transaction_entity_1 = require("../finance/transactions/entities/transaction.entity");
 const department_entity_1 = require("../departments/entities/department.entity");
-const class_transformer_1 = require("class-transformer");
-const dashboard_summary_dto_1 = require("./dto/dashboard-summary.dto");
 const sale_entity_1 = require("../sales/entities/sale.entity");
 const dayjs_1 = __importDefault(require("dayjs"));
 let DashboardService = class DashboardService {
@@ -37,17 +35,30 @@ let DashboardService = class DashboardService {
         this.deptRepo = deptRepo;
         this.saleRepo = saleRepo;
     }
-    async getSummary() {
+    async getSummary(user) {
         const now = (0, dayjs_1.default)();
-        const todayStr = now.format('YYYY-MM-DD');
+        const todayStart = now.startOf('day').toDate();
+        const todayEnd = now.endOf('day').toDate();
         const thisMonthStart = now.startOf('month').toDate();
         const thisMonthEnd = now.toDate();
         const lastMonthStart = now.subtract(1, 'month').startOf('month').toDate();
         const lastMonthEnd = now.subtract(1, 'month').toDate();
-        const [totalUsers, totalParties, totalItems, thisMonthStats, lastMonthStats, recentActions] = await Promise.all([
-            this.userRepo.count({ where: { state: 1 } }),
-            this.partyRepo.count({ where: { state: 1 } }),
-            this.itemRepo.count({ where: { state: 1 } }),
+        const [totalCustomers, totalSalesCount, todayRevenueStats, thisMonthStats, lastMonthStats,] = await Promise.all([
+            this.partyRepo.count({
+                where: {
+                    state: 1,
+                    type: 'customer',
+                    createdBy: user?.id
+                }
+            }),
+            this.saleRepo.count({
+                where: { status: (0, typeorm_2.Between)('approved', 'shipped') }
+            }),
+            this.saleRepo.createQueryBuilder('sale')
+                .select("SUM(sale.grandTotal * sale.exchangeRate)", "revenue")
+                .where("sale.createdAt BETWEEN :start AND :end", { start: todayStart, end: todayEnd })
+                .andWhere("sale.status != 'cancelled'")
+                .getRawOne(),
             this.saleRepo.createQueryBuilder('sale')
                 .select("SUM(sale.grandTotal * sale.exchangeRate - sale.kdv * sale.exchangeRate)", "revenue")
                 .addSelect("COUNT(*)", "count")
@@ -59,39 +70,23 @@ let DashboardService = class DashboardService {
                 .addSelect("COUNT(*)", "count")
                 .where("sale.createdAt BETWEEN :start AND :end", { start: lastMonthStart, end: lastMonthEnd })
                 .andWhere("sale.status != 'cancelled'")
-                .getRawOne(),
-            this.txRepo.find({
-                relations: ['party'],
-                order: { createdAt: 'DESC' },
-                take: 10
-            })
+                .getRawOne()
         ]);
-        return (0, class_transformer_1.plainToInstance)(dashboard_summary_dto_1.DashboardSummaryDto, {
-            totalUsers,
-            totalParties,
-            totalItems,
-            todaySales: 0,
+        return {
+            totalCustomers,
+            totalSalesCount,
+            todaySales: todayRevenueStats.revenue || 0,
             thisMonth: {
-                revenue: thisMonthStats.revenue,
-                count: thisMonthStats.count,
+                revenue: thisMonthStats.revenue || 0,
+                count: thisMonthStats.count || 0,
                 profit: 0
             },
             lastMonth: {
-                revenue: lastMonthStats.revenue,
-                count: lastMonthStats.count,
+                revenue: lastMonthStats.revenue || 0,
+                count: lastMonthStats.count || 0,
                 profit: 0
-            },
-            recentActions: recentActions.map(tx => ({
-                id: tx.id,
-                code: tx.code,
-                type: tx.type,
-                amount: tx.amount?.toString() || '0',
-                date: tx.date,
-                partyName: tx.party?.name || 'Genel İşlem',
-                referenceType: tx.referenceType,
-                description: tx.description
-            }))
-        });
+            }
+        };
     }
 };
 exports.DashboardService = DashboardService;

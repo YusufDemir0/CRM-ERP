@@ -10,7 +10,7 @@ export declare class SalesController {
         monthlyOrders: import("decimal.js").Decimal;
         pendingOrders: import("decimal.js").Decimal;
     }>;
-    findAll(query: SalesQueryDto): Promise<import("../../common/dto/pagination.dto").PaginatedResult<import("./entities/sale.entity").Sale>>;
+    findAll(query: SalesQueryDto, user: any): Promise<import("../../common/dto/pagination.dto").PaginatedResult<import("./entities/sale.entity").Sale>>;
     findOne(id: number): Promise<import("./entities/sale.entity").Sale>;
     create(dto: CreateSaleDto, userId: number): Promise<import("./entities/sale.entity").Sale>;
     update(id: number, dto: UpdateSaleDto, userId: number): Promise<import("./entities/sale.entity").Sale>;

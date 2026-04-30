@@ -28,8 +28,8 @@ export class SalesController {
   // ────── SALES ──────
   @Get()
   @RequirePermissions('SALES_VIEW')
-  findAll(@Query() query: SalesQueryDto) {
-    return this.salesService.findAll(query);
+  findAll(@Query() query: SalesQueryDto, @CurrentUser() user: any) {
+    return this.salesService.findAll(query, user);
   }
 
   @Get(':id')

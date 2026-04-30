@@ -29,8 +29,8 @@ let SalesController = class SalesController {
     getStatus() {
         return this.salesService.getStatus();
     }
-    findAll(query) {
-        return this.salesService.findAll(query);
+    findAll(query, user) {
+        return this.salesService.findAll(query, user);
     }
     findOne(id) {
         return this.salesService.findOne(id);
@@ -81,8 +81,9 @@ __decorate([
     (0, common_1.Get)(),
     (0, permissions_decorator_1.RequirePermissions)('SALES_VIEW'),
     __param(0, (0, common_1.Query)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [sale_dto_1.SalesQueryDto]),
+    __metadata("design:paramtypes", [sale_dto_1.SalesQueryDto, Object]),
     __metadata("design:returntype", void 0)
 ], SalesController.prototype, "findAll", null);
 __decorate([

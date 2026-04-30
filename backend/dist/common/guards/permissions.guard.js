@@ -57,6 +57,8 @@ let PermissionsGuard = PermissionsGuard_1 = class PermissionsGuard {
         const roleIds = userRoles.map((ur) => ur.roleId);
         const isSystemAdmin = userRoles.some((ur) => ur.role?.isSystemAdmin === true);
         if (isSystemAdmin) {
+            request.user.isSystemAdmin = true;
+            request.user.permissions = [];
             return true;
         }
         const cacheKey = `user_perms_${userId}`;
@@ -86,6 +88,8 @@ let PermissionsGuard = PermissionsGuard_1 = class PermissionsGuard {
                 .filter(key => key && !userDenyKeys.includes(key));
             await this.cacheManager.set(cacheKey, finalPermissions, 60000);
         }
+        request.user.permissions = finalPermissions;
+        request.user.isSystemAdmin = isSystemAdmin;
         const hasAll = requiredPermissions.every(key => finalPermissions.includes(key));
         if (!hasAll) {
             this.logger.warn(`User ${userId} missing one of: ${requiredPermissions.join(', ')}`);

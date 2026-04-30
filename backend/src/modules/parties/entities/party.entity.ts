@@ -58,4 +58,9 @@ export class Party extends BaseEntity {
   @ManyToOne(() => Currency, { nullable: true })
   @JoinColumn({ name: 'currency_id' })
   currency: Currency;
+
+  // Virtual Fields
+  totalSalesCount?: number;
+  lastSaleDate?: Date;
+  calculatedBalance?: Decimal;
 }

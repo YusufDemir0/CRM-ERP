@@ -14,11 +14,9 @@ export declare class DashboardStatsDto {
     profit: number;
 }
 export declare class DashboardSummaryDto {
-    totalUsers: number;
-    totalParties: number;
-    totalItems: number;
+    totalCustomers: number;
+    totalSalesCount: number;
     todaySales: number;
     thisMonth: DashboardStatsDto;
     lastMonth: DashboardStatsDto;
-    recentActions: RecentActionDto[];
 }
