@@ -41,6 +41,11 @@ export class InventoryListener implements OnModuleInit {
       return;
     }
 
+    if (!departmentId) {
+      this.logger.error(`Missing departmentId in inventory listener for sale: ${sale.code}`);
+      return;
+    }
+
     this.logger.log(`Processing inventory for approved sale: ${sale.code}`);
 
     try {

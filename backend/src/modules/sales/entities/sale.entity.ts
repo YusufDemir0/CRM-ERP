@@ -70,6 +70,14 @@ export class Sale extends BaseEntity {
   @Column({ name: 'grand_total', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
   grandTotal: Decimal;
 
+  @Transform(({ value }) => value ? String(value) : value)
+  @Column({ name: 'total_cost', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
+  totalCost: Decimal;
+
+  @Transform(({ value }) => value ? String(value) : value)
+  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
+  profit: Decimal;
+
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 

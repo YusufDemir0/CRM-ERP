@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseIntPipe, Res } from '@nestjs/common';
+import { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { SalesService } from './sales.service';
 import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto, SalesQueryDto, ShipSaleDto } from './dto/sale.dto';
@@ -27,6 +28,12 @@ export class SalesController {
   }
 
   // ────── SALES ──────
+  @Get('export')
+  @RequirePermissions('SALES_VIEW')
+  export(@Query() query: SalesQueryDto, @CurrentUser() user: JwtPayload, @Res() res: Response) {
+    return this.salesService.exportToExcel(query, user, res);
+  }
+
   @Get()
   @RequirePermissions('SALES_VIEW')
   findAll(@Query() query: SalesQueryDto, @CurrentUser() user: JwtPayload) {

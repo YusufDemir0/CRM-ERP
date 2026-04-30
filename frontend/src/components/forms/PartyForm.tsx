@@ -176,6 +176,15 @@ export const PartyForm: React.FC<PartyFormProps> = ({
             onChange={(val) => setValue('phone1', val)}
           />
         </FormField>
+        <FormField label="İkincil İletişim Hattı (Gsm)">
+          <PhoneInput 
+            value={phone2Watcher}
+            onChange={(val) => setValue('phone2', val)}
+          />
+        </FormField>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <FormField label="Kurumsal E-Posta" className="relative">
           <input 
             type="text" 

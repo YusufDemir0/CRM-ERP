@@ -124,7 +124,7 @@ export class ItemsService {
         const defaultCurrency = await this.currenciesService.getDefault();
         dto.currencyId = Number(defaultCurrency.id);
       } catch (error) {
-        console.warn('Default currency not found in ItemsService, setting to null');
+        // Silently continue or handle as per business rules
       }
     }
 
@@ -434,7 +434,7 @@ export class ItemsService {
     const [active, passive, lowStock] = await Promise.all([
       this.itemRepo.count({ where: { state: 1 } }),
       this.itemRepo.count({ where: { state: 0 } }),
-      this.itemRepo.count({ where: { state: 1, criticalLimit: MoreThan(0 as unknown as Decimal) } }),
+      this.itemRepo.createQueryBuilder('item').where('item.state = 1 AND item.criticalLimit > 0').getCount(),
     ]);
     return { active, passive, total: active + passive, lowStock };
   }

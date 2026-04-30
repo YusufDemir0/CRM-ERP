@@ -48,7 +48,7 @@ export class CreateTransactionDto {
   @IsNotEmpty() @Transform(FinanceHelper.transformString) @IsString() amount: string; 
   @IsOptional() @Type(() => Number) @IsNumber() currencyId?: number;
   @IsEnum(['in', 'out']) type: 'in' | 'out';
-  @IsOptional() @Transform(({ value }) => (value === '' || value === null) ? undefined : value) @IsEnum(['sale', 'purchase', 'manual_adjustment', 'manual']) referenceType?: 'sale' | 'purchase' | 'manual_adjustment' | 'manual';
+  @IsOptional() @Transform(({ value }) => (value === '' || value === null) ? undefined : value) @IsEnum(['sale', 'purchase', 'manual_adjustment', 'manual', 'sale_deposit']) referenceType?: 'sale' | 'purchase' | 'manual_adjustment' | 'manual' | 'sale_deposit';
   @IsOptional() @Type(() => Number) @IsNumber() referenceId?: number;
   @IsDateString() date: string;
   @IsOptional() @IsString() description?: string;

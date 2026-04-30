@@ -88,7 +88,7 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
           <div className="flex flex-col items-end mr-4">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SATIŞ NUMARASI</span>
             <span className="text-sm font-bold text-[var(--primary)] tracking-wider">
-              S-{(department?.abbreviation || 'GEN').toUpperCase()}-2024-XXX
+              S-{(department?.abbreviation || 'GEN').toUpperCase()}-{new Date().getFullYear()}-XXX
             </span>
           </div>
           <button 
@@ -136,7 +136,7 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
                     }}
                     className={`px-3 py-1 text-[10px] font-black rounded-md transition-all ${!isNewInfo ? 'bg-white shadow-sm text-[var(--primary)]' : 'text-slate-400'}`}
                   >
-                    MEVCUT BİLGİLER
+                    KAYITLI ADRES
                   </button>
                   <button 
                     type="button"
@@ -152,7 +152,7 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
                     }}
                     className={`px-3 py-1 text-[10px] font-black rounded-md transition-all ${isNewInfo ? 'bg-white shadow-sm text-[var(--primary)]' : 'text-slate-400'}`}
                   >
-                    YENİ BİLGİLER
+                    FARKLI ADRES
                   </button>
                </div>
             </div>

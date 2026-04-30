@@ -3,7 +3,10 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  StreamableFile,
 } from '@nestjs/common';
+import { Response } from 'express';
+import * as ExcelJS from 'exceljs';
 import { StocksService } from '../inventory/stocks/stocks.service';
 import { LogsService } from '../logs/logs.service';
 import { Item } from '../inventory/items/entities/item.entity';
@@ -143,7 +146,11 @@ export class SalesService {
     }
 
     const map = new Map<number, ItemData>();
-    items.forEach(i => map.set(i.id, { id: i.id, salePrice: i.salePrice || 0 }));
+    items.forEach(i => map.set(i.id, { 
+      id: i.id, 
+      salePrice: i.salePrice || 0,
+      purchasePrice: i.purchasePrice || 0
+    }));
     return map;
   }
 
@@ -184,6 +191,8 @@ export class SalesService {
       discountPercent: calcResult.discountPercent,
       kdv: calcResult.kdv,
       grandTotal: calcResult.grandTotal,
+      totalCost: calcResult.totalCost,
+      profit: calcResult.profit,
       createdBy: userId,
     });
 
@@ -192,6 +201,7 @@ export class SalesService {
     const saleItemEntities = calcResult.lines.map(line => manager.create(SaleItem, {
       ...line,
       saleId: savedSale.id,
+      costPrice: line.costPrice,
       createdBy: userId
     }));
     await manager.save(SaleItem, saleItemEntities);
@@ -231,12 +241,15 @@ export class SalesService {
       sale.discountPercent = calcResult.discountPercent;
       sale.kdv = calcResult.kdv;
       sale.grandTotal = calcResult.grandTotal;
+      sale.totalCost = calcResult.totalCost;
+      sale.profit = calcResult.profit;
       if (dto.deposit !== undefined) sale.deposit = new Decimal(dto.deposit);
 
       await manager.delete(SaleItem, { saleId: sale.id });
       const saleItemEntities = calcResult.lines.map(line => manager.create(SaleItem, {
         ...line,
         saleId: sale.id,
+        costPrice: line.costPrice,
         updatedBy: userId
       }));
       await manager.save(SaleItem, saleItemEntities);
@@ -455,5 +468,63 @@ export class SalesService {
     });
 
     return this.findOne(sale.id);
+  }
+
+  async exportToExcel(query: SalesQueryDto, user: JwtPayload, res: Response) {
+    const qb = this.saleRepo.createQueryBuilder('sale')
+      .leftJoinAndSelect('sale.party', 'party')
+      .leftJoinAndSelect('sale.saleType', 'saleType')
+      .leftJoinAndSelect('sale.currency', 'currency')
+      .leftJoinAndSelect('sale.items', 'items')
+      .leftJoinAndSelect('items.item', 'item');
+
+    // Reuse filter logic (simplification for this turn: just basic filters)
+    if (query.status) qb.andWhere('sale.status = :status', { status: query.status });
+    if (user && !user.isSystemAdmin) {
+       const hasViewAll = user.permissions?.includes('SALES_VIEW_ALL');
+       if (!hasViewAll && user.departmentId) {
+         qb.andWhere('sale.departmentId = :userDeptId', { userDeptId: user.departmentId });
+       }
+    }
+
+    const sales = await qb.getMany();
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Satislar');
+
+    worksheet.columns = [
+      { header: 'Satış No', key: 'code', width: 15 },
+      { header: 'Tarih', key: 'date', width: 15 },
+      { header: 'Müşteri', key: 'party', width: 25 },
+      { header: 'Telefon', key: 'phone', width: 15 },
+      { header: 'Tutar', key: 'total', width: 15 },
+      { header: 'Döviz', key: 'currency', width: 10 },
+      { header: 'Durum', key: 'status', width: 15 },
+      { header: 'Teslimat', key: 'delivery', width: 15 },
+      { header: 'Kar/Zarar', key: 'profit', width: 15 },
+    ];
+
+    sales.forEach(s => {
+      worksheet.addRow({
+        code: s.code,
+        date: dayjs(s.createdAt).format('DD.MM.YYYY'),
+        party: s.party?.name || '—',
+        phone: s.phone || s.party?.phone1 || '—',
+        total: s.grandTotal.toNumber(),
+        currency: s.currency?.symbol || '₺',
+        status: s.status,
+        delivery: s.deliveryDate || '—',
+        profit: s.profit.toNumber(),
+      });
+    });
+
+    // Formatting
+    worksheet.getRow(1).font = { bold: true };
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=Satis_Raporu_${dayjs().format('YYYYMMDD')}.xlsx`);
+
+    await workbook.xlsx.write(res);
+    res.end();
   }
 }

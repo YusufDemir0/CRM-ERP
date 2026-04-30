@@ -48,7 +48,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
 }) => {
   const columns = useMemo<Column<Sale>[]>(() => [
     { 
-      header: 'SİPARİŞ NO', 
+      header: 'SATIŞ NO', 
       accessor: (s) => (
         <div className="flex items-center gap-2">
            <span className="bg-primary/5 text-primary px-2.5 py-1 rounded-lg font-black text-[10px] tracking-widest border border-primary/10 uppercase">
@@ -59,32 +59,30 @@ export const SalesTable: React.FC<SalesTableProps> = ({
       sortKey: 'code'
     },
     { 
-      header: 'TARİH', 
+      header: 'MÜŞTERİ BİLGİSİ', 
       accessor: (s) => (
         <div className="flex flex-col">
-          <span className="font-bold text-slate-700">{formatDisplayDate(s.createdAt)}</span>
-          <span className="text-[10px] text-slate-400 font-black tracking-tighter uppercase">
-            {new Date(s.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-          </span>
+          <div className="font-black text-slate-800 tracking-tight group-hover:text-primary transition-colors">{s.party?.name}</div>
+          <div className="text-[10px] text-slate-400 font-bold tabular-nums">{s.phone || s.party?.phone1 || '—'}</div>
         </div>
       ),
-      sortKey: 'createdAt'
-    },
-    { 
-      header: 'MÜŞTERİ (CARİ)', 
-      accessor: (s) => <div className="font-black text-slate-800 tracking-tight group-hover:text-primary transition-colors">{s.party?.name}</div>,
       sortKey: 'party.name'
     },
     { 
-      header: 'TUTAR', 
-      accessor: (s: Sale) => (
-        <div className="flex flex-col items-end">
-          <span className="tabular-nums font-black text-on-surface tracking-tighter">{formatCurrency(s.grandTotal, s.currency?.symbol)}</span>
-          {(parseFloat(String(s.deposit)) || 0) > 0 && (
-            <span className="text-[9px] text-success font-black uppercase tracking-widest">KAPORA: {formatCurrency(s.deposit, s.currency?.symbol)}</span>
-          )}
-        </div>
-      ),
+      header: 'TUTAR & KAR', 
+      accessor: (s: Sale) => {
+        const total = new Decimal(s.grandTotal || 0);
+        const profit = new Decimal(s.profit || 0);
+        const isProfitPositive = profit.gt(0);
+        return (
+          <div className="flex flex-col items-end">
+            <span className="tabular-nums font-black text-on-surface tracking-tighter">{formatCurrency(s.grandTotal, s.currency?.symbol)}</span>
+            <span className={`text-[9px] font-black uppercase tracking-widest ${isProfitPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
+              KAR: {formatCurrency(s.profit || 0, s.currency?.symbol)}
+            </span>
+          </div>
+        );
+      },
       sortKey: 'grandTotal',
       className: 'text-right'
     },
@@ -92,9 +90,9 @@ export const SalesTable: React.FC<SalesTableProps> = ({
       header: 'DURUM', 
       accessor: (s) => {
         const config: Record<string, { label: string; icon: React.ReactNode; cls: string }> = {
-          draft: { label: 'TASLAK', icon: <FiClock />, cls: 'bg-warning/10 text-warning border-warning/20' },
+          draft: { label: 'BEKLİYOR', icon: <FiClock />, cls: 'bg-warning/10 text-warning border-warning/20' },
           approved: { label: 'ONAYLI', icon: <FiCheckCircle />, cls: 'bg-info/10 text-info border-info/20' },
-          shipped: { label: 'SEVK EDİLDİ', icon: <FiTruck />, cls: 'bg-success/10 text-success border-success/20' },
+          shipped: { label: 'TESLİM EDİLDİ', icon: <FiTruck />, cls: 'bg-success/10 text-success border-success/20' },
           cancelled: { label: 'İPTAL', icon: <FiXCircle />, cls: 'bg-danger/10 text-danger border-danger/20' },
         };
         const st = config[s.status] || config.draft;
@@ -105,6 +103,24 @@ export const SalesTable: React.FC<SalesTableProps> = ({
         );
       },
       sortKey: 'status'
+    },
+    { 
+      header: 'TARİHLER', 
+      accessor: (s) => (
+        <div className="flex flex-col">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] font-black text-slate-300 uppercase">Satış:</span>
+            <span className="font-bold text-slate-700 text-xs">{formatDisplayDate(s.createdAt)}</span>
+          </div>
+          {s.deliveryDate && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-black text-emerald-400 uppercase">Teslim:</span>
+              <span className="font-bold text-emerald-600 text-xs">{formatDisplayDate(s.deliveryDate)}</span>
+            </div>
+          )}
+        </div>
+      ),
+      sortKey: 'createdAt'
     }
   ], []);
 

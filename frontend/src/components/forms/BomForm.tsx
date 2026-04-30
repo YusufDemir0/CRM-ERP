@@ -61,8 +61,10 @@ export const BomForm: React.FC<BomFormProps> = ({
   const componentOptions = useMemo(() => 
     itemOptions.filter(o => {
       const isSelf = String(o.id) === String(formData.targetItemId);
-      const isExcluded = itemsList.find(i => i.id === o.id)?.itemType?.isExcludedFromBom;
-      return !isSelf && !isExcluded;
+      const originalItem = itemsList.find(i => i.id === Number(o.id));
+      const isExcluded = originalItem?.itemType?.isExcludedFromBom;
+      const isCommercial = originalItem?.itemType?.name?.toUpperCase().includes('TİCARİ');
+      return !isSelf && !isExcluded && !isCommercial;
     }),
     [itemOptions, formData.targetItemId, itemsList]
   );

@@ -4,6 +4,7 @@ import { departmentsAPI, accountsAPI } from '../../services/api';
 import { FiCheck, FiPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
+import { useTurkiyeCities } from '../../hooks/useTurkiyeApi';
 import { Account, Department } from '../../types';
 import { FormField } from '../common/FormField';
 
@@ -23,6 +24,7 @@ type DepartmentFormData = {
   departmentTypeId: string;
   commercialAccountId: string;
   description: string;
+  cityId: number;
 };
 
 export const DepartmentForm: React.FC<DepartmentFormProps> = ({
@@ -40,7 +42,8 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
       description: (initialData?.description as string) || '',
       abbreviation: (initialData?.abbreviation as string) || '',
       departmentTypeId: initialData?.departmentTypeId ? String(initialData.departmentTypeId) : '',
-      commercialAccountId: initialData?.commercialAccountId ? String(initialData.commercialAccountId) : ''
+      commercialAccountId: initialData?.commercialAccountId ? String(initialData.commercialAccountId) : '',
+      cityId: initialData?.cityId ? Number(initialData.cityId) : 0,
     }
   });
 
@@ -50,6 +53,7 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [deptTypes, setDeptTypes] = useState<Record<string, unknown>[]>([]);
+  const { cities } = useTurkiyeCities();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -82,7 +86,8 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
       description: data.description.toLocaleUpperCase('tr-TR'),
       abbreviation: formattedAbbr,
       departmentTypeId: data.departmentTypeId ? Number(data.departmentTypeId) : undefined,
-      commercialAccountId: data.commercialAccountId ? Number(data.commercialAccountId) : undefined
+      commercialAccountId: data.commercialAccountId ? Number(data.commercialAccountId) : undefined,
+      cityId: data.cityId ? Number(data.cityId) : undefined,
     } as Partial<Department>;
 
     try {
@@ -132,6 +137,12 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormField label="Bulunduğu Şehir (İl)">
+          <select className="input-premium font-black" {...register('cityId')}>
+             <option value={0}>ŞEHİR SEÇİNİZ...</option>
+             {cities.map(c => <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>)}
+          </select>
+        </FormField>
         <FormField label="Departman Tipi" required>
           <select 
             required
@@ -142,6 +153,7 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
             {deptTypes.map((dt) => <option key={String(dt.id)} value={String(dt.id)}>{String(dt.name).toUpperCase()} ({String(dt.abbreviation)})</option>)}
           </select>
         </FormField>
+      </div>
         <FormField label="Finans/Kasa Hesabı" helperText="YENİ KASA EKLEMEK İÇİN YANDAKİ BUTONU KULLANIN">
           <div className="flex flex-col gap-2">
             <select 

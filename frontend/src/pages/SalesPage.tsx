@@ -183,6 +183,17 @@ export default function SalesPage() {
     setSort(key, isAsc ? 'DESC' : 'ASC');
   }, [sort, setSort]);
 
+  const handleExport = useCallback(() => {
+    const params = new URLSearchParams({
+      status: filterStatus === 'all' ? '' : filterStatus,
+      q: searchTerm,
+      sortBy: sort.key,
+      sortOrder: sort.order,
+      ...filters
+    });
+    window.open(`${import.meta.env.VITE_API_URL}/sales/export?${params.toString()}`, '_blank');
+  }, [filterStatus, searchTerm, sort, filters]);
+
   return (
     <div className="animate-in flex flex-col gap-8">
       <SalesHeader 
@@ -191,6 +202,7 @@ export default function SalesPage() {
         searchTerm={searchTerm}
         onSearchTermChange={(term) => updateParams({ q: term, page: 1 })}
         onNewSale={handleNewSale}
+        onExport={handleExport}
       />
 
       <SalesTable 

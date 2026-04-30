@@ -26,6 +26,10 @@ export class SaleItem {
   price: Decimal;
 
   @Transform(({ value }) => value ? String(value) : value)
+  @Column({ name: 'cost_price', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
+  costPrice: Decimal;
+
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'discount_amount', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
   discountAmount: Decimal;
 

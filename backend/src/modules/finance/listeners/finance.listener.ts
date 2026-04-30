@@ -71,7 +71,7 @@ export class FinanceListener implements OnModuleInit {
         await this.transactionsService.create({
           partyId: sale.partyId,
           commercialAccountId: commercialAccountId,
-          amount: Number(depositAmount),
+          amount: depositAmount.toString(),
           currencyId: sale.currencyId,
           type: 'in',
           referenceType: 'sale_deposit',

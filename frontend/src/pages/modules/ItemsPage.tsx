@@ -15,6 +15,7 @@ import { useMemo } from 'react';
 // Sub-components
 import { ItemHeader } from './Items/ItemHeader';
 import { getItemColumns } from './Items/ItemColumns';
+import { BulkImportModal } from '../../components/modals/BulkImportModal';
 
 export default function ItemsPage() {
   const queryClient = useQueryClient();
@@ -55,6 +56,7 @@ export default function ItemsPage() {
   const setSort = (key: string, order: 'ASC' | 'DESC') => updateParams({ sortBy: key, sortOrder: order, page: 1 });
   
   const { openCreate } = useQuickCreateStore();
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const { data: itemsData, isLoading: loading } = useQuery({
     queryKey: queryKeys.items.all({ page, limit, deferredSearch, filterTab, sort, filters }),
@@ -167,7 +169,17 @@ export default function ItemsPage() {
         setPage={setPage} 
         openCreate={openCreate} 
         handleFormSuccess={handleFormSuccess} 
+        onImport={() => setIsImportModalOpen(true)}
       />
+
+      {isImportModalOpen && (
+        <BulkImportModal 
+          onClose={() => setIsImportModalOpen(false)} 
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['items', 'list'] });
+          }} 
+        />
+      )}
 
       <div className="flex flex-col gap-4">
         <DataTable<Item>

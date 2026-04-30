@@ -5,6 +5,7 @@ export interface CalculatedSaleLine {
   itemId: number;
   quantity: Decimal;
   price: Decimal;
+  costPrice: Decimal;
   discountAmount: Decimal;
   discountPercent: Decimal;
   netPrice: Decimal;
@@ -20,6 +21,8 @@ export interface CalculationResult {
   discountPercent: Decimal;
   kdv: Decimal;
   grandTotal: Decimal;
+  totalCost: Decimal;
+  profit: Decimal;
   lines: CalculatedSaleLine[];
 }
 
@@ -35,6 +38,7 @@ export interface InputSaleLine {
 export interface ItemData {
   id: number;
   salePrice: number | Decimal;
+  purchasePrice: number | Decimal;
 }
 
 export class SaleCalculator {
@@ -52,6 +56,7 @@ export class SaleCalculator {
     const hDiscountPercent = new Decimal(headerDiscountPercent);
     
     let rawTotalAmount = new Decimal(0);
+    let totalCost = new Decimal(0);
     const lines: CalculatedSaleLine[] = [];
 
     // 1. Initial Line Calculations (Net Price & Subtotal)
@@ -60,6 +65,7 @@ export class SaleCalculator {
       if (!item) throw new Error(`Item data missing for ID ${input.itemId}`);
 
       const unitPrice = new Decimal(item.salePrice || 0);
+      const purchasePrice = new Decimal(item.purchasePrice || 0);
       const qty = new Decimal(input.quantity);
       const dAmount = new Decimal(input.discountAmount || 0);
       const dPercent = new Decimal(input.discountPercent || 0);
@@ -74,11 +80,13 @@ export class SaleCalculator {
 
       const lineSubtotal = FH.mul(qty, netPrice);
       rawTotalAmount = FH.add(rawTotalAmount, lineSubtotal);
+      totalCost = FH.add(totalCost, FH.mul(qty, purchasePrice));
 
       lines.push({
         itemId: input.itemId,
         quantity: qty,
         price: unitPrice,
+        costPrice: purchasePrice,
         discountAmount: dAmount,
         discountPercent: dPercent,
         netPrice,
@@ -140,12 +148,16 @@ export class SaleCalculator {
       totalKdv = expectedKdv;
     }
 
+    const grandTotal = FH.add(discountedMatrah, totalKdv);
+
     return {
       totalAmount: rawTotalAmount,
       discountAmount: hDiscountAmount,
       discountPercent: hDiscountPercent,
       kdv: totalKdv,
-      grandTotal: FH.add(discountedMatrah, totalKdv),
+      grandTotal,
+      totalCost,
+      profit: grandTotal.sub(totalCost),
       lines,
     };
   }

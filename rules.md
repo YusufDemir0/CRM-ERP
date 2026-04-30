@@ -1,32 +1,36 @@
-# 📜 ERMAY ERP - Geliştirme Kuralları (Development Rules & Guidelines)
+# ERMAY ERP - MİMARİ VE KODLAMA KURALLARI (RULES.MD)
 
-Bu dosya, Ermay ERP projesinin geliştirme sürecinde kod kalitesini korumak, eski mimari hatalara (anti-pattern) geri dönmemek ve enterprise (kurumsal) standartlarda bir ürün ortaya koymak için uyulması zorunlu kuralları içerir.
+Bu doküman, Ermay ERP projesinin sürdürülebilirliği, güvenliği ve performansını korumak için uyulması gereken zorunlu kuralları içerir.
 
-## 1. 🛡️ TypeScript ve Tip Güvenliği (Type Safety)
-*   **KESİNLİKLE `any` KULLANILMAYACAK:** Projede `any` tipi kullanımı yasaktır. Verinin tipi bilinmiyorsa `unknown` kullanılacak ve "Type Guard" (tip koruyucu) veya validasyon kütüphaneleri (Zod, class-validator) ile doğrulanacaktır.
-*   **ID Yönetimi (BigInt vs String):** Veritabanından `bigint` olarak dönen tüm ID'ler, Frontend tarafında **kesinlikle matematiksel işleme sokulmayacak**, `parseInt()` veya `Number()` ile dönüştürülmeyecektir. Tüm ID'ler arayüzlerde (Interface/DTO) `string` olarak tanımlanacak ve taşınacaktır.
-*   **Sıkı Derleme (Strict Mode):** TypeScript derleyicisinin uyardığı "Object is possibly undefined" gibi hatalar `--skipLibCheck` veya zorlama (force) ile geçiştirilmeyecek, tipler (Örn: `Party` nesnesine eksik propların eklenmesi) kod içinde kesin olarak çözülecektir.
+## 1. Tip Güvenliği (TypeScript)
+- **Kesinlikle `any` Kullanılmayacak:** Tüm değişkenler, fonksiyon parametreleri ve dönüş değerleri açıkça tiplendirilmelidir. Tip bilinmiyorsa `unknown` kullanılmalı ve tip korumaları (type guards) ile daraltılmalıdır.
+- **Strict Mode:** Proje `strict: true` modunda kalacaktır. `Object is possibly undefined` hataları opsiyonel zincirleme (`?.`) veya null kontrolleri ile çözülmelidir.
+- **DTO Kullanımı:** API üzerinden gelen ve giden tüm veriler için DTO (Data Transfer Object) sınıfları kullanılmalıdır. `class-validator` ile validasyonlar yapılmalıdır.
 
-## 2. 🏗️ Mimari Katmanlar ve Sorumlulukların Ayrılığı (Separation of Concerns)
-*   **API Katmanında UI Kontrolü Yapılamaz:** Axios Interceptor veya backend servisleri içinde `window.location.pathname` gibi arayüz (UI) katmanına ait yönlendirme ve mantık kontrolleri yapılamaz. API katmanı sadece veri transferi ve yetki (HTTP statüleri) ile ilgilenir.
-*   **Büyük Bileşenler (Component) Parçalanacak:** Yüzlerce satırlık, içinde sayısız state barındıran (örn: `SaleWizard`) devasa React bileşenleri yazılmayacaktır. Mantık katmanı Custom Hook'lara (`useSaleWizardLogic`), arayüz ise küçük alt bileşenlere (Sub-components) ayrılacaktır.
+## 2. Finansal Hesaplamalar (Precision)
+- **Native Float Yasak:** Para birimi ve miktar hesaplamalarında asla native `number` ve `parseFloat` kullanılmamalıdır.
+- **Decimal.js Zorunluluğu:** Tüm finansal matematik işlemleri (toplama, çıkarma, KDV hesabı, kur dönüşümü) `decimal.js` kütüphanesi ile yapılmalıdır.
+- **Yuvarlama:** Hesaplamalar en az 10 hassasiyetle yapılmalı, display aşamasında `toDecimalPlaces(2)` ile yuvarlanmalıdır.
 
-## 3. 💸 Finansal ve Matematiksel İşlemler
-*   **`parseFloat` Yasaktır:** JavaScript'in native ondalıklı sayı hesaplama problemleri (`0.1 + 0.2 = 0.30000000000000004`) nedeniyle UI tarafında fatura, ara toplam ve vergi hesaplamalarında asla native `parseFloat` kullanılmayacaktır.
-*   **Sadece Decimal.js:** Hem Backend hem de Frontend'de tüm parasal değerler ve stok miktarları `Decimal.js` (veya benzeri bir kütüphane) ile hesaplanacak ve veritabanına öyle kaydedilecektir.
+## 3. Olay Güdümlü Mimari (Event-Driven)
+- **Transactional Outbox:** Kritik veritabanı işlemleri (Satış Onayı, Stok Hareketi vb.) mutlaka `Outbox` tablosuna yazılmalıdır.
+- **Asenkron İşleme:** Outbox'a yazılan eventler bir Worker tarafından RabbitMQ'ya basılmalı ve Consumer'lar aracılığıyla işlenmelidir.
+- **Bakiye ve Stok:** Stok düşme ve bakiye güncelleme işlemleri asla doğrudan Controller/Service içinde değil, event listener'lar (Consumer) üzerinden transactional olarak yapılmalıdır.
 
-## 4. 🔄 State (Durum) Yönetimi (Frontend)
-*   **Tek Bir State Yöneticisi:** Aynı işi yapan birden fazla state kütüphanesi kullanılmayacaktır. Authentication ve global state işlemleri tamamen **Zustand** ile yönetilecek, projede geriye dönük uyumluluk (backward compatibility shim) adına bırakılan eski React Context API yapıları silinecektir.
+## 4. Veritabanı ve Performans
+- **N+1 Problemi:** Döngü içinde veritabanı sorgusu atılmamalıdır. Bunun yerine `In([])` operatörü veya toplu join'ler kullanılmalıdır.
+- **Selective Fetching:** `leftJoinAndSelect` ile tüm kolonları çekmek yerine, sadece ihtiyaç duyulan kolonlar `select()` ile belirtilmelidir.
+- **Indexing:** Arama yapılan alanlarda (Kod, İsim, Vergi No) mutlaka veritabanı index'leri bulunmalıdır.
 
-## 5. 🚀 Olay Güdümlü Mimari ve Asenkron İşlemler (Backend)
-*   **Yerel Event'ler Kritik İşlemlerde Kullanılamaz:** Stok düşme, finansal bakiye güncelleme gibi modüller arası (cross-domain) kritik işlemler NestJS `@OnEvent` (local memory) ile **yapılamaz**.
-*   **RabbitMQ Zorunluluğu:** Bu tür işlemler RabbitMQ üzerinden (Producer -> Consumer mimarisiyle) veya Transactional Outbox pattern kurallarına birebir uyularak yapılacaktır.
+## 5. UI/UX Standartları
+- **Premium Tasarım:** Tasarımlarda HSL design token'ları kullanılmalı, standart HTML renkleri yerine kurumsal palet tercih edilmelidir.
+- **Geri Bildirim:** Tüm asenkron işlemler (Save, Update, Delete) `react-hot-toast` ile kullanıcıya bildirilmelidir.
+- **Onay Mekanizması:** Silme ve iptal gibi geri dönüşü olmayan işlemler için mutlaka `confirmDialog` kullanılmalıdır.
 
-## 6. 🔐 Güvenlik, Performans ve Dağıtık Sistemler (Concurrency)
-*   **Memory-Based Kilit (Lock) Kullanımı Yasaktır:** Fatura/Sipariş numarası üretimi (`S-GEN-001` vb.) gibi sıralı işlemlerde `Map` veya `Set` gibi sadece o anki Node.js sürecinde (memory) yaşayan kilitler kullanılamaz. Çoklu pod/sunucu senaryoları düşünülerek veritabanı satır kilidi (`SELECT ... FOR UPDATE`) veya Redis bazlı kilitler kullanılacaktır.
-*   **Self-DDoS Engelleme:** API'ye gelen payload'ları sansürlemek/loglamak için yazılan Interceptor'larda CPU'yu kilitliycecek sınırsız döngülü (recursive) veri taraması (sanitize) algoritması yazılmayacaktır.
-*   **Log Kaybı Önlemi:** Kritik denetim (audit) logları sistemde RAM üzerinde uzun süreli (örn: 5 saniye buffer) bekletilmeyecek; crash (çökme) anında veri kaybı olmaması için anında (veya asenkron disk yazımı ile) kaydedilecektir.
+## 6. Güvenlik
+- **Permission Kontrolü:** Her API endpoint'i `@RequirePermissions` dekoratörü ile korunmalıdır.
+- **Audit Logging:** Tüm kritik veri değişimleri `LogsService` üzerinden audit log olarak kaydedilmelidir.
+- **Sensitive Data:** Loglarda şifre, token gibi hassas veriler mutlaka maskelenmelidir.
 
-## 7. 🗄️ Veritabanı ve Veri Bütünlüğü
-*   **Manuel SQL Migration Dosyası Yasaktır:** TypeORM projelerinde `migrations_backup` gibi manuel/isimsiz SQL dosyaları barındırılamaz. Şema değişiklikleri her zaman CLI üzerinden `typeorm migration:generate` ile üretilip uygulanacaktır.
-*   **Kayıt Durumu (State vs Soft Delete) Karmaşası:** Bir kaydın aktif/pasif/silinmiş durumu için aynı anda hem `state: 0/1` hem de `deletedAt: Date | null` mantığı karışık olarak kullanılamaz. Proje genelinde standart bir filtreleme mantığı oturtulacaktır.
+---
+*Bu kurallar bütünü, sistemin "kurumsal" standartlarda kalmasını sağlar. Her yeni geliştirme bu kurallar süzgecinden geçirilmelidir.*

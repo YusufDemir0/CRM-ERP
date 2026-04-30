@@ -95,5 +95,23 @@ export const getPartiesColumns = (onQuickSale?: (partyId: number) => void): Colu
     },
     sortKey: 'balance',
     className: 'text-right'
+  },
+  {
+    header: 'SATIŞ ÖZETİ',
+    accessor: (p) => (
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-slate-400 font-black uppercase">Adet:</span>
+          <span className="font-black text-slate-700 tabular-nums">{p.totalSalesCount || 0}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-slate-400 font-black uppercase">Son:</span>
+          <span className="text-[11px] font-bold text-slate-600">
+            {p.lastSaleDate ? new Date(p.lastSaleDate).toLocaleDateString('tr-TR') : '—'}
+          </span>
+        </div>
+      </div>
+    ),
+    sortKey: 'last_sale_date'
   }
 ];

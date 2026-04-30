@@ -1,5 +1,4 @@
-
-import { FiShoppingBag, FiPlus, FiClock, FiCheckCircle, FiTruck, FiInfo, FiSearch } from 'react-icons/fi';
+import { FiShoppingBag, FiPlus, FiClock, FiCheckCircle, FiTruck, FiInfo, FiSearch, FiDownload } from 'react-icons/fi';
 
 interface SalesHeaderProps {
   filterStatus: 'draft' | 'approved' | 'shipped' | 'cancelled' | 'all';
@@ -7,6 +6,7 @@ interface SalesHeaderProps {
   searchTerm: string;
   onSearchTermChange: (term: string) => void;
   onNewSale: () => void;
+  onExport: () => void;
 }
 
 export const SalesHeader: React.FC<SalesHeaderProps> = ({
@@ -14,7 +14,8 @@ export const SalesHeader: React.FC<SalesHeaderProps> = ({
   onFilterStatusChange,
   searchTerm,
   onSearchTermChange,
-  onNewSale
+  onNewSale,
+  onExport
 }) => {
   return (
     <div className="flex flex-col gap-8">
@@ -25,7 +26,7 @@ export const SalesHeader: React.FC<SalesHeaderProps> = ({
             <FiShoppingBag /> SATIŞ VE PAZARLAMA
           </div>
           <h1 className="text-3xl font-black tracking-tighter text-on-surface">
-            Sipariş Takibi & <span className="text-primary italic text-shadow-sm">Sevkiyat</span>
+            Satış Takibi & <span className="text-primary italic text-shadow-sm">Sevkiyat</span>
           </h1>
         </div>
 
@@ -34,7 +35,7 @@ export const SalesHeader: React.FC<SalesHeaderProps> = ({
             {[
               { id: 'draft', label: 'Bekleyenler', icon: <FiClock /> },
               { id: 'approved', label: 'Onaylılar', icon: <FiCheckCircle /> },
-              { id: 'shipped', label: 'Sevk Edilenler', icon: <FiTruck /> },
+              { id: 'shipped', label: 'Teslim Edilenler', icon: <FiTruck /> },
               { id: 'all', label: 'Tümü', icon: <FiInfo /> }
             ].map((tab) => (
               <button
@@ -52,10 +53,17 @@ export const SalesHeader: React.FC<SalesHeaderProps> = ({
           </div>
           
           <button 
-            className="h-14 px-8 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:shadow-2xl hover:-translate-y-1 active:scale-95 transition-colors flex items-center gap-3" 
+            className="h-14 px-6 bg-emerald-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-500/20 hover:shadow-2xl hover:-translate-y-1 active:scale-95 transition-all flex items-center gap-2" 
+            onClick={onExport}
+          >
+            <FiDownload size={18} /> RAPOR AL (EXCEL)
+          </button>
+
+          <button 
+            className="h-14 px-8 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:shadow-2xl hover:-translate-y-1 active:scale-95 transition-all flex items-center gap-3" 
             onClick={onNewSale}
           >
-            <FiPlus size={20} /> YENİ SİPARİŞ
+            <FiPlus size={20} /> YENİ SATIŞ
           </button>
         </div>
       </div>
@@ -66,7 +74,7 @@ export const SalesHeader: React.FC<SalesHeaderProps> = ({
           <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors text-lg" />
           <input 
             type="text" 
-            placeholder="Sipariş no veya müşteri adı ile hızlı ara..." 
+            placeholder="Satış no veya müşteri adı ile hızlı ara..." 
             value={searchTerm}
             onChange={(e) => onSearchTermChange(e.target.value)}
             className="w-full pl-14 h-14 bg-surface-container-low border border-transparent focus:border-primary/20 focus:bg-white rounded-3xl transition-colors outline-none font-bold text-slate-700 placeholder:text-slate-300 placeholder:font-black placeholder:uppercase placeholder:text-[10px] placeholder:tracking-widest" 
