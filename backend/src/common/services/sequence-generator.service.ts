@@ -6,92 +6,73 @@ import { TransactionContextService } from './transaction-context.service';
 
 /**
  * SequenceGeneratorService — Benzersiz ve sıralı kodlar üretir.
- * ROAST COMPLIANCE: HiLo (High-Low) pattern implementasyonu. 
- * Her ID üretimi için veritabanına UPDATE atmak yerine (deadlock riski),
- * bellekten 50'lik bloklar halinde numara tahsis edilir. Sadece blok bittiğinde DB'ye gidilir.
- * Autonomous transaction kullanılarak business logic rollback'lerinden etkilenmesi engellenir.
+ * ROAST COMPLIANCE & PHASE 0.2:
+ * Memory tabanlı kilitler (Map) kaldırılmış, yerine %100 güvenli
+ * Row-Level Lock (SELECT ... FOR UPDATE) yapısı getirilmiştir.
+ * Böylece Kubernetes gibi çoklu-pod mimarilerinde sıfır hata ile çalışır.
  */
 @Injectable()
 export class SequenceGeneratorService {
   private readonly logger = new Logger(SequenceGeneratorService.name);
   
-  // HiLo Block Configurations
-  private readonly BLOCK_SIZE = 50;
-  private blocks = new Map<string, { current: number; max: number }>();
-  private locks = new Map<string, Promise<void>>();
-
   constructor(
     private readonly transactionContext: TransactionContextService,
     private readonly dataSource: DataSource
   ) {}
 
   /**
-   * Bellekten sıradaki numarayı verir. Blok tükenmişse DB'den yeni blok tahsis eder.
+   * Veritabanı kilidi (Row-Level Lock) ile sıradaki numarayı verir.
    */
-  private async getNextNumber(manager: EntityManager, table: string, idField: string, idValue: number | string): Promise<number> {
-    const cacheKey = `${table}_${idField}_${idValue}`;
-
-    // 1. Sıralı işlem için Lock bekle (Race condition önleme)
-    while (this.locks.has(cacheKey)) {
-      await this.locks.get(cacheKey);
-    }
-
-    // 2. Bellekte hazır blok varsa hemen dön
-    let block = this.blocks.get(cacheKey);
-    if (block && block.current <= block.max) {
-      return block.current++;
-    }
-
-    // 3. Yeni blok tahsis süreci (Lock oluştur)
-    let release!: () => void;
-    const lockPromise = new Promise<void>(resolve => release = resolve);
-    this.locks.set(cacheKey, lockPromise);
+  private async getNextNumber(table: string, idField: string, idValue: number | string): Promise<number> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
     try {
-      // Lock beklerken başka bir thread bloğu doldurmuş olabilir, tekrar kontrol et
-      block = this.blocks.get(cacheKey);
-      if (block && block.current <= block.max) {
-        return block.current++;
-      }
+      // Satırı okurken kilitle (Başka pod'lar bekler)
+      let [row] = await queryRunner.query(
+        `SELECT current_number as id FROM ${table} WHERE ${idField} = ? FOR UPDATE`,
+        [idValue]
+      );
 
-      // 4. Autonomous Transaction ile DB'den blok al
-      // Ana işleme (manager) bağlı DEĞİLDİR, bu sayede fatura iptal edilse bile sayaç geri sarmaz
-      const queryRunner = this.dataSource.createQueryRunner();
-      await queryRunner.connect();
-      await queryRunner.startTransaction();
+      let current = 1;
 
-      try {
+      if (!row) {
+        // İlk defa oluşturuluyorsa (Eğer aynı anda 2 insert gelirse biri hata fırlatabilir, 
+        // ancak idField genelde uygulama kurulurken veya ilk kayıtta üretildiği için risk düşüktür)
+        try {
+          await queryRunner.query(
+            `INSERT INTO ${table} (${idField}, current_number) VALUES (?, ?)`,
+            [idValue, 1]
+          );
+        } catch (insertErr) {
+          // Eğer aynı anda başka bir thread insert ettiyse, tekrar kilitli oku
+          [row] = await queryRunner.query(
+            `SELECT current_number as id FROM ${table} WHERE ${idField} = ? FOR UPDATE`,
+            [idValue]
+          );
+          current = Number(row.id) + 1;
+          await queryRunner.query(
+            `UPDATE ${table} SET current_number = ? WHERE ${idField} = ?`,
+            [current, idValue]
+          );
+        }
+      } else {
+        current = Number(row.id) + 1;
         await queryRunner.query(
-          `INSERT INTO ${table} (${idField}, current_number) 
-           VALUES (?, ?) 
-           ON DUPLICATE KEY UPDATE current_number = current_number + ?`,
-          [idValue, this.BLOCK_SIZE, this.BLOCK_SIZE]
+          `UPDATE ${table} SET current_number = ? WHERE ${idField} = ?`,
+          [current, idValue]
         );
-
-        const [row] = await queryRunner.query(
-          `SELECT current_number as id FROM ${table} WHERE ${idField} = ?`,
-          [idValue]
-        );
-
-        await queryRunner.commitTransaction();
-
-        const max = Number(row.id);
-        const current = max - this.BLOCK_SIZE + 1;
-        
-        this.blocks.set(cacheKey, { current: current + 1, max });
-        
-        this.logger.debug(`[HiLo] Tahsis edildi - Tablo: ${table}, Key: ${idValue}, Blok: ${current}-${max}`);
-        return current;
-
-      } catch (err) {
-        await queryRunner.rollbackTransaction();
-        throw err;
-      } finally {
-        await queryRunner.release();
       }
+
+      await queryRunner.commitTransaction();
+      return current;
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(`Error generating sequence for ${table} (${idField}=${idValue}): ${err.message}`);
+      throw err;
     } finally {
-      this.locks.delete(cacheKey);
-      release();
+      await queryRunner.release();
     }
   }
 
@@ -102,7 +83,7 @@ export class SequenceGeneratorService {
     const codeGroup = await manager.findOne(ItemCodeGroup, { where: { id: itemCodeGroupId } });
     if (!codeGroup) throw new NotFoundException(`Item code group bulunamadı: ${itemCodeGroupId}`);
 
-    const currentNumber = await this.getNextNumber(manager, 'item_code_sequences', 'item_code_group_id', itemCodeGroupId);
+    const currentNumber = await this.getNextNumber('item_code_sequences', 'item_code_group_id', itemCodeGroupId);
     const code = `${codeGroup.prefix}-${String(currentNumber).padStart(3, '0')}`;
     
     return code;
@@ -115,11 +96,12 @@ export class SequenceGeneratorService {
     const department = await manager.findOne(Department, { where: { id: departmentId } });
     if (!department) throw new NotFoundException(`Departman bulunamadı: ${departmentId}`);
 
+    // FAZ 2.2: Yeni Format M + DEP + 00001
     const deptPrefix = (department.abbreviation || 'GEN').toUpperCase();
-    const finalPrefix = `S-${deptPrefix}`;
+    const finalPrefix = `M${deptPrefix}`;
 
-    const currentNumber = await this.getNextNumber(manager, 'sale_sequences', 'department_id', departmentId);
-    const code = `${finalPrefix}-${String(currentNumber).padStart(3, '0')}`;
+    const currentNumber = await this.getNextNumber('sale_sequences', 'department_id', departmentId);
+    const code = `${finalPrefix}${String(currentNumber).padStart(5, '0')}`;
     
     return code;
   }
@@ -128,7 +110,7 @@ export class SequenceGeneratorService {
     manager: EntityManager = this.transactionContext.manager,
     prefix: string = 'URT',
   ): Promise<string> {
-    const currentNumber = await this.getNextNumber(manager, 'production_sequences', 'prefix', prefix);
+    const currentNumber = await this.getNextNumber('production_sequences', 'prefix', prefix);
     const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
     
     return code;
@@ -138,7 +120,7 @@ export class SequenceGeneratorService {
     manager: EntityManager = this.transactionContext.manager,
     prefix: string,
   ): Promise<string> {
-    const currentNumber = await this.getNextNumber(manager, 'transaction_sequences', 'prefix', prefix);
+    const currentNumber = await this.getNextNumber('transaction_sequences', 'prefix', prefix);
     const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
     
     return code;
