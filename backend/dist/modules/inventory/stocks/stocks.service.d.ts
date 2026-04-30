@@ -35,7 +35,11 @@ export declare class StocksService {
     reserveStockBulk(items: Array<{
         itemId: number;
         quantity: number | Decimal;
-    }>, departmentId: number, manager?: EntityManager, userId?: number): Promise<void>;
+    }>, departmentId: number, manager?: EntityManager, referenceInfo?: {
+        type: StockMovement['referenceType'];
+        id: number;
+        description: string;
+    }, userId?: number): Promise<void>;
     unreserveStockBulk(items: Array<{
         itemId: number;
         quantity: number | Decimal;

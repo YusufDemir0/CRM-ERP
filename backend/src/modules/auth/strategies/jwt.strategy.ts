@@ -45,16 +45,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (state === undefined || state === null) {
       const user = await this.dataSource.getRepository(User).findOne({
         where: { id: payload.sub },
-        select: ['id', 'state']
+        select: ['id', 'state', 'tokenVersion']
       });
 
       if (!user) {
         throw new UnauthorizedException('Kullanıcı bulunamadı veya silinmiş');
       }
 
+      // SEC-08: Reject tokens minted before password change / forced logout
+      if (user.tokenVersion !== payload.tokenVersion) {
+        throw new UnauthorizedException('Oturum geçersiz. Lütfen tekrar giriş yapınız.');
+      }
+
       state = user.state;
-      // 5 dakika (300,000 ms) boyunca state bilgisini cache'de tut
-      await this.cacheManager.set(cacheKey, state, 300000);
+      // 30 seconds cache — balances security (ban propagation) vs performance (DB load)
+      await this.cacheManager.set(cacheKey, state, 30_000);
     }
 
     if (state !== RecordState.ACTIVE) {

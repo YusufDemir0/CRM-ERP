@@ -17,7 +17,6 @@ import { StockMovement } from './stocks/entities/stock-movement.entity';
 import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
 
 import { BomItem } from '../production/entities/bom-item.entity';
-import { InventoryOrchestratorService } from './inventory-orchestrator.service';
 
 @Module({
   imports: [
@@ -30,8 +29,8 @@ import { InventoryOrchestratorService } from './inventory-orchestrator.service';
     LogsModule,
   ],
   controllers: [ItemsController, StocksController],
-  providers: [ItemsService, StocksService, SequenceGeneratorService, InventoryOrchestratorService],
-  exports: [ItemsService, StocksService, SequenceGeneratorService, InventoryOrchestratorService],
+  providers: [ItemsService, StocksService, SequenceGeneratorService],
+  exports: [ItemsService, StocksService, SequenceGeneratorService],
 })
 export class InventoryModule {}
 

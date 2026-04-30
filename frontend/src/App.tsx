@@ -63,21 +63,21 @@ export default function App() {
                 <Route path="/unauthorized" element={<UnauthorizedPage />} />
                 <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                   <Route index element={<ErrorBoundary><DashboardPage /></ErrorBoundary>} />
-                  <Route path="users" element={<ErrorBoundary><ProtectedRoute requiredPermission="kullanici_goruntuleme"><UsersPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="roles" element={<ErrorBoundary><ProtectedRoute requiredPermission="rol_goruntuleme"><RolesPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="departments" element={<ErrorBoundary><ProtectedRoute requiredPermission="system:manage"><DepartmentsPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="parties" element={<ErrorBoundary><ProtectedRoute requiredPermission="musteri_goruntuleme"><PartiesPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="items" element={<ErrorBoundary><ProtectedRoute requiredPermission="stok_goruntuleme"><ItemsPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="stocks" element={<ErrorBoundary><ProtectedRoute requiredPermission="stok_goruntuleme"><StocksPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="sales" element={<ErrorBoundary><ProtectedRoute requiredPermission="satis_goruntuleme"><SalesPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="sales/wizard" element={<ErrorBoundary><ProtectedRoute requiredPermission="satis_goruntuleme"><SaleWizardPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="users" element={<ErrorBoundary><ProtectedRoute requiredPermission="USER_VIEW"><UsersPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="roles" element={<ErrorBoundary><ProtectedRoute requiredPermission="ROLE_VIEW"><RolesPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="departments" element={<ErrorBoundary><ProtectedRoute requiredPermission="SYSTEM_MANAGE"><DepartmentsPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="parties" element={<ErrorBoundary><ProtectedRoute requiredPermission="CUSTOMER_VIEW"><PartiesPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="items" element={<ErrorBoundary><ProtectedRoute requiredPermission="INVENTORY_VIEW"><ItemsPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="stocks" element={<ErrorBoundary><ProtectedRoute requiredPermission="INVENTORY_VIEW"><StocksPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="sales" element={<ErrorBoundary><ProtectedRoute requiredPermission="SALES_VIEW"><SalesPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="sales/wizard" element={<ErrorBoundary><ProtectedRoute requiredPermission="SALES_VIEW"><SaleWizardPage /></ProtectedRoute></ErrorBoundary>} />
 
-                  <Route path="accounts" element={<ErrorBoundary><ProtectedRoute requiredPermission="finans_goruntuleme"><AccountsPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="transactions" element={<ErrorBoundary><ProtectedRoute requiredPermission="finans_goruntuleme"><TransactionsPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="boms" element={<ErrorBoundary><ProtectedRoute requiredPermission="uretim_goruntuleme"><BomsPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="production" element={<ErrorBoundary><ProtectedRoute requiredPermission="uretim_goruntuleme"><ProductionPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="settings" element={<ErrorBoundary><ProtectedRoute requiredPermission="system:manage"><SettingsPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="logs" element={<ErrorBoundary><ProtectedRoute requiredPermission="system:manage"><LogsPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="accounts" element={<ErrorBoundary><ProtectedRoute requiredPermission="FINANCE_VIEW"><AccountsPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="transactions" element={<ErrorBoundary><ProtectedRoute requiredPermission="FINANCE_VIEW"><TransactionsPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="boms" element={<ErrorBoundary><ProtectedRoute requiredPermission="PRODUCTION_VIEW"><BomsPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="production" element={<ErrorBoundary><ProtectedRoute requiredPermission="PRODUCTION_VIEW"><ProductionPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="settings" element={<ErrorBoundary><ProtectedRoute requiredPermission="SYSTEM_MANAGE"><SettingsPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="logs" element={<ErrorBoundary><ProtectedRoute requiredPermission="SYSTEM_MANAGE"><LogsPage /></ProtectedRoute></ErrorBoundary>} />
                   <Route path="notes" element={<ErrorBoundary><NotesPage /></ErrorBoundary>} />
                 </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />

@@ -9,16 +9,17 @@ import { BomItem } from './entities/bom-item.entity';
 import { ProductionOrder } from './entities/production-order.entity';
 import { ProductionSequence } from './entities/production-sequence.entity';
 import { Item } from '../inventory/items/entities/item.entity';
-import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
+import { CommonModule } from '../../common/common.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Bom, BomItem, ProductionOrder, ProductionSequence, Item]),
+    CommonModule,
     InventoryModule,
     LogsModule,
   ],
   controllers: [ProductionController],
-  providers: [ProductionService, SequenceGeneratorService],
+  providers: [ProductionService],
   exports: [ProductionService],
 })
 export class ProductionModule {}

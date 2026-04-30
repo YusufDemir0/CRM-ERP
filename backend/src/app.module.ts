@@ -5,11 +5,25 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ThrottlerProxyGuard } from './common/guards/throttler-proxy.guard';
 import { CacheModule } from '@nestjs/cache-manager';
-import { ClsModule } from 'nestjs-cls';
+import { ClsModule, ClsService } from 'nestjs-cls';
+import { ClsPluginTransactional } from '@nestjs-cls/transactional';
+import { TransactionalAdapterTypeOrm } from '@nestjs-cls/transactional-adapter-typeorm';
+import { getDataSourceToken } from '@nestjs/typeorm';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+// ScheduleModule moved to WorkerModule — CRON jobs run in worker process only
+import { redisStore } from 'cache-manager-redis-yet';
+import { LoggerModule } from 'nestjs-pino';
+import { v4 as uuidv4 } from 'uuid';
+import { TelemetryModule } from './modules/telemetry/telemetry.module';
+import { RabbitMQModule } from './common/services/rabbitmq.module';
 
 // Config
 import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
+import redisConfig from './config/redis.config';
+import rabbitmqConfig from './config/rabbitmq.config';
+import storageConfig from './config/storage.config';
+import { configValidationSchema } from './config/config.schema';
 
 // Common
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
@@ -21,6 +35,7 @@ import { CsrfMiddleware } from './common/middleware/csrf.middleware';
 import { AuditSubscriber } from './common/subscribers/audit.subscriber';
 import { StockSubscriber } from './modules/inventory/stocks/subscribers/stock.subscriber';
 import { CommonModule } from './common/common.module';
+import { StorageModule } from './common/services/storage/storage.module';
 
 // Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -38,21 +53,73 @@ import { LogsModule } from './modules/logs/logs.module';
 import { NotesModule } from './modules/notes/notes.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { StaffModule } from './modules/staff/staff.module';
+import { HealthModule } from './infrastructure/health/health.module';
 
 @Module({
   imports:[
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
-    ClsModule.forRoot({ global: true, middleware: { mount: true } }),
-    ConfigModule.forRoot({ isGlobal: true, load: [databaseConfig, jwtConfig], envFilePath: '.env' }),
+    EventEmitterModule.forRoot(),
+    // ScheduleModule removed — runs in worker.ts process only
+    ConfigModule.forRoot({ 
+      isGlobal: true, 
+      load: [databaseConfig, jwtConfig, redisConfig, rabbitmqConfig, storageConfig], 
+      validationSchema: configValidationSchema,
+      envFilePath: '.env' 
+    }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({ ...configService.get('database') }),
     }),
-    CacheModule.register({ isGlobal: true, ttl: 60000 }),
-    AuthModule, UsersModule, RolesModule, DepartmentsModule, PartiesModule, InventoryModule,
+    ClsModule.forRoot({
+      global: true,
+      middleware: { mount: true },
+      plugins: [
+        new ClsPluginTransactional({
+          imports: [TypeOrmModule],
+          adapter: new TransactionalAdapterTypeOrm({
+            dataSourceToken: getDataSourceToken(),
+          }),
+        }),
+      ],
+    }),
+    // 🔥 ENTERPRISE: Structured JSON Logging + Correlation ID
+    LoggerModule.forRootAsync({
+      imports: [ClsModule],
+      inject: [ClsService],
+      useFactory: (cls: ClsService) => ({
+        pinoHttp: {
+          level: process.env.NODE_ENV !== 'production' ? 'debug' : 'info',
+          genReqId: (req: import('http').IncomingMessage) => {
+            const reqId = req.headers['x-request-id'] || uuidv4();
+            // Store it in CLS context so services can access it without passing req down
+            cls.set('reqId', reqId);
+            return reqId;
+          },
+          transport: process.env.NODE_ENV !== 'production' ? {
+            target: 'pino-pretty',
+            options: { singleLine: true }
+          } : undefined, // In production, we log pure JSON for Loki
+        },
+      }),
+    }),
+    // 🔥 ENTERPRISE: Redis cache with config from redis.config.ts
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (config: ConfigService) => ({
+        store: redisStore,
+        host: config.get('redis.host'),
+        port: config.get('redis.port'),
+        password: config.get('redis.password'),
+        ttl: config.get('redis.ttl'),
+      }),
+    }),
+    RabbitMQModule,
+    TelemetryModule, AuthModule, UsersModule, RolesModule, DepartmentsModule, PartiesModule, InventoryModule,
     SalesModule, FinanceModule, ProductionModule, DashboardModule, SettingsModule,
-    LogsModule, NotesModule, WebhooksModule, StaffModule, CommonModule,
+    LogsModule, NotesModule, WebhooksModule, StaffModule, CommonModule, HealthModule, StorageModule,
   ],
   providers:[
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
@@ -66,7 +133,6 @@ import { StaffModule } from './modules/staff/staff.module';
   ],
 })
 export class AppModule {
-
   configure(consumer: import('@nestjs/common').MiddlewareConsumer) {
     consumer.apply(CsrfMiddleware).forRoutes('*');
   }

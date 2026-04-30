@@ -1,55 +1,218 @@
-version: '3.8'
+# ============================================================
+# Ermay ERP — Docker Compose (Enterprise)
+# ============================================================
+# Usage:
+#   1. Copy .env.example to .env and fill in values
+#   2. docker compose up -d
+# ============================================================
 
 services:
+  # ── Database ──────────────────────────────────────────────
   db:
-    image: mysql:8.0
+    image: mariadb:11.4
     container_name: ermay-db
-    restart: always
+    restart: unless-stopped
     environment:
-      MYSQL_DATABASE: benyaptim
-      MYSQL_ROOT_PASSWORD: 1754
+      MYSQL_DATABASE: ${DB_DATABASE:-benyaptim}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      MYSQL_USER: ${DB_USERNAME:-erp_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-CHANGE_THIS_TO_A_STRONG_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p1754"]
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    networks:
+      - ermay-network
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: "1.0"
 
+  # ── Redis ─────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: ermay-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ermay-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+  # ── RabbitMQ ──────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: ermay-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-erp_user}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-changeme}
+      RABBITMQ_DEFAULT_VHOST: ermay
+    ports:
+      - "5672:5672"
+      - "15672:15672"  # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - ermay-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+  # ── Backend API (HTTP Only) ───────────────────────────────
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: ermay-backend
-    restart: always
+      target: production
+    container_name: ermay-api
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - APP_PORT=5143
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USERNAME=${DB_USERNAME:-root}
+      - DB_PASSWORD=${DB_PASSWORD:?DB password required}
+      - DB_DATABASE=${DB_DATABASE:-benyaptim}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-8h}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost}
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-erp_user}:${RABBITMQ_PASS:-changeme}@rabbitmq:5672/ermay
+      - DB_LOGGING_ENABLED=${DB_LOGGING_ENABLED:-false}
+      - METRICS_PORT=9464
+      - SERVICE_NAME=ermay-api
+    command: ["node", "dist/main.js"]
+    depends_on:
+      db:
+        condition: service_started
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+    ports:
+      - "5143:5143"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5143/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    networks:
+      - ermay-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+  # ── Backend Worker (CRON + Event Processing) ──────────────
+  backend-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: ermay-worker
+    restart: unless-stopped
     environment:
       - NODE_ENV=production
       - DB_HOST=db
       - DB_PORT=3306
-      - DB_USERNAME=root
-      - DB_PASSWORD=1754
-      - DB_DATABASE=benyaptim
-      - JWT_SECRET=erp-super-secret-key-change-in-production-2024
-      - JWT_EXPIRES_IN=24h
-      - APP_PORT=5143
+      - DB_USERNAME=${DB_USERNAME:-root}
+      - DB_PASSWORD=${DB_PASSWORD:?DB password required}
+      - DB_DATABASE=${DB_DATABASE:-benyaptim}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-erp_user}:${RABBITMQ_PASS:-changeme}@rabbitmq:5672/ermay
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - DB_LOGGING_ENABLED=${DB_LOGGING_ENABLED:-false}
+      - METRICS_PORT=9465
+      - SERVICE_NAME=ermay-worker
+    command: ["node", "dist/worker.js"]
     depends_on:
       db:
+        condition: service_started
+      redis:
+        condition: service_started
+      rabbitmq:
         condition: service_healthy
-    ports:
-      - "5143:5143"
+      backend:
+        condition: service_started
+    networks:
+      - ermay-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
 
+  # ── Frontend ──────────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: ermay-frontend
-    restart: always
+    restart: unless-stopped
     ports:
       - "80:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_started
+    networks:
+      - ermay-network
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
 
+# ── Volumes ───────────────────────────────────────────────
 volumes:
   mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+
+# ── Networks ──────────────────────────────────────────────
+networks:
+  ermay-network:
+    driver: bridge
+    name: ermay-network

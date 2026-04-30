@@ -25,8 +25,8 @@ export class PaginationDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['ASC', 'DESC'])
-  sortOrder?: 'ASC' | 'DESC' = 'DESC';
+  @IsIn(['ASC', 'DESC', 'asc', 'desc'])
+  sortOrder?: 'ASC' | 'DESC' | 'asc' | 'desc' = 'DESC';
 
   @IsOptional()
   @Type(() => Number)
@@ -35,6 +35,11 @@ export class PaginationDto {
 
   get skip(): number {
     return ((this.page || 1) - 1) * (this.limit || 20);
+  }
+
+  /** TypeORM-safe sort order — always uppercase */
+  get sortOrderSafe(): 'ASC' | 'DESC' {
+    return (this.sortOrder?.toUpperCase() as 'ASC' | 'DESC') || 'DESC';
   }
 }
 

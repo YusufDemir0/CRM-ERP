@@ -29,7 +29,7 @@ const ledger_entity_1 = require("../../parties/entities/ledger.entity");
 const date_utils_1 = require("../../../common/utils/date.utils");
 const finance_helper_1 = require("../../../common/utils/finance.helper");
 const dayjs_1 = __importDefault(require("dayjs"));
-const transactional_decorator_1 = require("../../../common/decorators/transactional.decorator");
+const transactional_1 = require("@nestjs-cls/transactional");
 const transaction_context_service_1 = require("../../../common/services/transaction-context.service");
 const sql_helper_1 = require("../../../common/utils/sql.helper");
 let TransactionsService = class TransactionsService {
@@ -203,13 +203,13 @@ let TransactionsService = class TransactionsService {
 };
 exports.TransactionsService = TransactionsService;
 __decorate([
-    (0, transactional_decorator_1.Transactional)(),
+    (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [finance_dto_1.CreateTransactionDto, Number]),
     __metadata("design:returntype", Promise)
 ], TransactionsService.prototype, "create", null);
 __decorate([
-    (0, transactional_decorator_1.Transactional)(),
+    (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number, Number]),
     __metadata("design:returntype", Promise)

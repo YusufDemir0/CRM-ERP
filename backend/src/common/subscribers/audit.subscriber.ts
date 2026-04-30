@@ -6,17 +6,19 @@ import {
   RemoveEvent,
   DataSource,
 } from 'typeorm';
-import { AuditLog } from '../entities/audit-log.entity';
 import { ClsService } from 'nestjs-cls';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 /**
- * AuditSubscriber — Veritabanı işlemlerinde createdBy ve updatedBy alanlarını otomatik doldurur.
- * AsyncLocalStorage (ClsService) kullanarak aktif kullanıcıyı her yerden güvenli bir şekilde okur.
+ * AuditSubscriber — Veritabanı işlemlerini izler ve loglar.
+ * ROAST COMPLIANCE: Artik AuditLog tablosuna yazmak yerine JSON formatında stdout'a basar.
+ * Bu, RDBMS üzerindeki yükü azaltır ve log yönetimini ELK/Loki gibi dış sistemlere devreder.
  */
 @EventSubscriber()
 @Injectable()
 export class AuditSubscriber implements EntitySubscriberInterface {
+  private readonly logger = new Logger('AUDIT');
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly cls: ClsService,
@@ -24,86 +26,59 @@ export class AuditSubscriber implements EntitySubscriberInterface {
     this.dataSource.subscribers.push(this);
   }
 
-  /**
-   * Kayıt eklenmeden önce çalışır.
-   */
   beforeInsert(event: InsertEvent<unknown>) {
     const userId = this.cls.get('userId');
     if (userId && event.entity && typeof event.entity === 'object' && ('createdBy' in event.entity)) {
-      event.entity.createdBy = userId;
+      (event.entity as { createdBy?: number }).createdBy = userId;
     }
     if (userId && event.entity && typeof event.entity === 'object' && ('updatedBy' in event.entity)) {
-      event.entity.updatedBy = userId;
+      (event.entity as { updatedBy?: number }).updatedBy = userId;
     }
   }
 
-  /**
-   * Kayıt güncellenmeden önce çalışır.
-   */
   beforeUpdate(event: UpdateEvent<unknown>) {
     const userId = this.cls.get('userId');
     if (userId && event.entity && ('updatedBy' in event.entity)) {
-      event.entity.updatedBy = userId;
+      (event.entity as { updatedBy?: number }).updatedBy = userId;
     }
   }
 
-  /**
-   * Kayıt eklendikten sonra çalışır.
-   */
   async afterInsert(event: InsertEvent<unknown>) {
-    await this.logAction(event, 'insert');
+    this.logAction(event, 'INSERT');
   }
 
-  /**
-   * Kayıt güncellendikten sonra çalışır.
-   */
   async afterUpdate(event: UpdateEvent<unknown>) {
-    await this.logAction(event, 'update');
+    this.logAction(event, 'UPDATE');
   }
 
-  /**
-   * Kayıt silindikten sonra çalışır.
-   */
   async afterRemove(event: RemoveEvent<unknown>) {
-    // Note: Remove events are tricky depending on how they are called.
-    // BaseEntity uses soft-delete usually, which is an Update.
+    this.logAction(event, 'DELETE');
   }
 
-  private async logAction(event: InsertEvent<unknown> | UpdateEvent<unknown> | RemoveEvent<unknown>, action: 'insert' | 'update' | 'delete') {
+  private logAction(event: InsertEvent<unknown> | UpdateEvent<unknown> | RemoveEvent<unknown>, action: string) {
     const userId = this.cls.get('userId');
-    const entity = event.entity;
     const entityName = event.metadata.name;
     
-    // AuditLog kendisini loglamasın (infinite loop önleme)
-    if (entityName === 'AuditLog' || !entity) return;
+    // Infinite loop ve gereksiz log önleme
+    if (entityName === 'AuditLog' || entityName === 'OutboxEvent') return;
 
-    const audit = new AuditLog();
-    audit.entityName = entityName;
-    
-    // Get ID reliably. In updates, entity might not have ID, but databaseEntity does.
-    const entityId = (entity as { id?: number })?.id || (event as { databaseEntity?: { id?: number } }).databaseEntity?.id || null;
-    audit.entityId = entityId;
-    
-    audit.action = action;
-    audit.userId = userId || null;
-    
-    if (action === 'update' && (event as { databaseEntity?: object }).databaseEntity) {
-      audit.oldValues = JSON.stringify((event as { databaseEntity?: object }).databaseEntity);
-      audit.newValues = JSON.stringify(event.entity);
-    } else {
-      audit.newValues = JSON.stringify(event.entity);
-    }
+    const entity = event.entity;
+    const entityId = (entity as { id?: string | number })?.id || (event as { databaseEntity?: { id?: string | number } }).databaseEntity?.id || 'unknown';
 
-    // Final check: don't save if there's no useful data
-    if (!audit.newValues && !audit.oldValues) return;
+    const logPayload = {
+      reqId: this.cls.get('reqId'),
+      timestamp: new Date().toISOString(),
+      action,
+      entity: entityName,
+      entityId,
+      userId: userId || null,
+      changes: action === 'UPDATE' ? {
+        old: (event as UpdateEvent<unknown>).databaseEntity,
+        new: event.entity
+      } : event.entity
+    };
 
-    const manager = event.manager;
-    try {
-      await manager.save(AuditLog, audit);
-    } catch (err) {
-      // 🔴 SECURITY: In an ERP, if we can't audit, we CANNOT proceed with the transaction.
-      // Throwing here will trigger a rollback of the parent transaction (Sales, Production, etc.)
-      throw new Error(`Critical Audit Failure: ${err.message}. Transaction aborted for safety.`);
-    }
+    // 🔥 RDBMS'den Çıkarıldı: Sadece Stdout/JSON
+    this.logger.log(JSON.stringify(logPayload));
   }
 }

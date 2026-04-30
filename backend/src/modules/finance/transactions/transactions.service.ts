@@ -12,7 +12,7 @@ import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.d
 import { DateUtils } from '../../../common/utils/date.utils';
 import { FinanceHelper as FH } from '../../../common/utils/finance.helper';
 import dayjs from 'dayjs';
-import { Transactional } from '../../../common/decorators/transactional.decorator';
+import { Transactional } from '@nestjs-cls/transactional';
 import { TransactionContextService } from '../../../common/services/transaction-context.service';
 import { getSafeSearchPattern } from '../../../common/utils/sql.helper';
 
@@ -43,7 +43,7 @@ export class TransactionsService {
     const sortField = allowedSortCols.includes(query.sortBy || '') ? query.sortBy! : 'date';
     
     const finalSortField = sortField.includes('.') ? sortField : `tx.${sortField}`;
-    qb.orderBy(finalSortField, query.sortOrder || 'DESC');
+    qb.orderBy(finalSortField, query.sortOrderSafe);
 
     if (sortField !== 'createdAt') {
       qb.addOrderBy('tx.createdAt', 'DESC');

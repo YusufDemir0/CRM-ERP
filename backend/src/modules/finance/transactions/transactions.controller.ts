@@ -10,37 +10,37 @@ export class TransactionsController {
   constructor(private readonly txService: TransactionsService) {}
 
   @Get()
-  @RequirePermissions('finans_goruntuleme')
+  @RequirePermissions('FINANCE_VIEW')
   findAll(@Query() query: TransactionsQueryDto) {
     return this.txService.findAll(query);
   }
 
   @Get('status')
-  @RequirePermissions('finans_goruntuleme')
+  @RequirePermissions('FINANCE_VIEW')
   getStatus() {
     return this.txService.getStatus();
   }
 
   @Get('trends')
-  @RequirePermissions('finans_goruntuleme')
+  @RequirePermissions('FINANCE_VIEW')
   getDailyTrends() {
     return this.txService.getDailyTrends();
   }
 
   @Get(':id')
-  @RequirePermissions('finans_goruntuleme')
+  @RequirePermissions('FINANCE_VIEW')
   findOne(@Param('id', ParseIntPipe) id: number) { 
     return this.txService.findOne(id); 
   }
 
   @Post()
-  @RequirePermissions('finans_islem')
+  @RequirePermissions('FINANCE_MANAGE')
   create(@Body() dto: CreateTransactionDto, @CurrentUser('sub') userId: number) {
     return this.txService.create(dto, userId);
   }
 
   @Post(':id/cancel')
-  @RequirePermissions('finans_islem')
+  @RequirePermissions('FINANCE_MANAGE')
   cancel(@Param('id', ParseIntPipe) id: number, @CurrentUser('sub') userId: number) {
     return this.txService.cancel(id, userId);
   }

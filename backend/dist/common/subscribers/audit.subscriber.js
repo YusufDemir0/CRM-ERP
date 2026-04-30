@@ -11,13 +11,13 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuditSubscriber = void 0;
 const typeorm_1 = require("typeorm");
-const audit_log_entity_1 = require("../entities/audit-log.entity");
 const nestjs_cls_1 = require("nestjs-cls");
 const common_1 = require("@nestjs/common");
 let AuditSubscriber = class AuditSubscriber {
     constructor(dataSource, cls) {
         this.dataSource = dataSource;
         this.cls = cls;
+        this.logger = new common_1.Logger('AUDIT');
         this.dataSource.subscribers.push(this);
     }
     beforeInsert(event) {
@@ -36,41 +36,34 @@ let AuditSubscriber = class AuditSubscriber {
         }
     }
     async afterInsert(event) {
-        await this.logAction(event, 'insert');
+        this.logAction(event, 'INSERT');
     }
     async afterUpdate(event) {
-        await this.logAction(event, 'update');
+        this.logAction(event, 'UPDATE');
     }
     async afterRemove(event) {
+        this.logAction(event, 'DELETE');
     }
-    async logAction(event, action) {
+    logAction(event, action) {
         const userId = this.cls.get('userId');
-        const entity = event.entity;
         const entityName = event.metadata.name;
-        if (entityName === 'AuditLog' || !entity)
+        if (entityName === 'AuditLog' || entityName === 'OutboxEvent')
             return;
-        const audit = new audit_log_entity_1.AuditLog();
-        audit.entityName = entityName;
-        const entityId = entity?.id || event.databaseEntity?.id || null;
-        audit.entityId = entityId;
-        audit.action = action;
-        audit.userId = userId || null;
-        if (action === 'update' && event.databaseEntity) {
-            audit.oldValues = JSON.stringify(event.databaseEntity);
-            audit.newValues = JSON.stringify(event.entity);
-        }
-        else {
-            audit.newValues = JSON.stringify(event.entity);
-        }
-        if (!audit.newValues && !audit.oldValues)
-            return;
-        const manager = event.manager;
-        try {
-            await manager.save(audit_log_entity_1.AuditLog, audit);
-        }
-        catch (err) {
-            throw new Error(`Critical Audit Failure: ${err.message}. Transaction aborted for safety.`);
-        }
+        const entity = event.entity;
+        const entityId = entity?.id || event.databaseEntity?.id || 'unknown';
+        const logPayload = {
+            reqId: this.cls.get('reqId'),
+            timestamp: new Date().toISOString(),
+            action,
+            entity: entityName,
+            entityId,
+            userId: userId || null,
+            changes: action === 'UPDATE' ? {
+                old: event.databaseEntity,
+                new: event.entity
+            } : event.entity
+        };
+        this.logger.log(JSON.stringify(logPayload));
     }
 };
 exports.AuditSubscriber = AuditSubscriber;

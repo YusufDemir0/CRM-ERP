@@ -17,6 +17,7 @@ import { UserPermission } from './user-permission.entity';
 @Entity('users')
 @Index("UQ_USERNAME_ACTIVE", ["username"])
 @Index("UQ_EMAIL_ACTIVE", ["email"])
+@Index('IDX_USER_FULLTEXT', ['username', 'fullName', 'email', 'phone'], { fulltext: true })
 export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 50 })
   username: string;
@@ -24,6 +25,10 @@ export class User extends BaseEntity {
   @Exclude()
   @Column({ name: 'password_hash', type: 'varchar', length: 255 })
   passwordHash: string;
+
+  @Exclude()
+  @Column({ name: 'refresh_token_hash', type: 'varchar', length: 255, nullable: true })
+  refreshTokenHash: string | null;
 
   @Column({ name: 'full_name', type: 'varchar', length: 100 })
   fullName: string;

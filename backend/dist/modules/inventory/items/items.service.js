@@ -1,43 +1,10 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
@@ -58,9 +25,11 @@ const inventory_dto_1 = require("../dto/inventory.dto");
 const sequence_generator_service_1 = require("../../../common/services/sequence-generator.service");
 const currencies_service_1 = require("../../finance/currencies/currencies.service");
 const decimal_js_1 = require("decimal.js");
-const transactional_decorator_1 = require("../../../common/decorators/transactional.decorator");
+const transactional_1 = require("@nestjs-cls/transactional");
 const transaction_context_service_1 = require("../../../common/services/transaction-context.service");
 const sql_helper_1 = require("../../../common/utils/sql.helper");
+const department_entity_1 = require("../../departments/entities/department.entity");
+const bom_item_entity_1 = require("../../production/entities/bom-item.entity");
 let ItemsService = class ItemsService {
     constructor(itemRepo, itemTypeRepo, qtyTypeRepo, codeGroupRepo, stockRepo, dataSource, sequenceGenerator, currenciesService, transactionContext) {
         this.itemRepo = itemRepo;
@@ -167,8 +136,7 @@ let ItemsService = class ItemsService {
             createdBy: userId,
         });
         const savedItem = await manager.save(item);
-        const { Department } = await Promise.resolve().then(() => __importStar(require('../../departments/entities/department.entity')));
-        const departments = await manager.find(Department, { where: { state: 1 } });
+        const departments = await manager.find(department_entity_1.Department, { where: { state: 1 } });
         for (const dept of departments) {
             await manager.save(manager.create(stock_entity_1.Stock, {
                 itemId: savedItem.id,
@@ -209,6 +177,9 @@ let ItemsService = class ItemsService {
             updateData.notes = dto.notes;
         if (dto.providerId !== undefined)
             updateData.providerId = dto.providerId;
+        if (dto.state === 0 && item.state !== 0) {
+            await this.validateUsage(id);
+        }
         if (dto.state !== undefined)
             updateData.state = dto.state;
         if (dto.criticalLimit !== undefined)
@@ -225,25 +196,28 @@ let ItemsService = class ItemsService {
         return this.findOne(id);
     }
     async softDelete(id, currentUserId) {
-        const item = await this.findOne(id);
-        const totalQtyResult = await this.stockRepo.createQueryBuilder('stock')
-            .where('stock.itemId = :id', { id })
-            .select('SUM(stock.quantity)', 'total')
-            .getRawOne();
-        const totalQty = new decimal_js_1.Decimal(totalQtyResult?.total || 0);
-        if (!totalQty.isZero()) {
-            throw new common_1.BadRequestException(`Stokta ${totalQty.toString()} adet ürün bulunduğu için silinemez. Lütfen önce stokları sıfırlayınız.`);
-        }
-        const { BomItem } = await Promise.resolve().then(() => __importStar(require('../../production/entities/bom-item.entity')));
-        const bomUsage = await this.dataSource.getRepository(BomItem).count({ where: { itemId: id } });
-        if (bomUsage > 0) {
-            throw new common_1.BadRequestException(`Bu ürün ${bomUsage} adet üretim reçetesinde (BOM) kullanılmaktadır ve silinemez.`);
-        }
+        await this.findOne(id);
+        await this.validateUsage(id);
         await this.itemRepo.update(id, {
             state: 0,
             updatedBy: currentUserId || null,
         });
         await this.itemRepo.softDelete(id);
+    }
+    async validateUsage(id) {
+        const manager = this.transactionContext.manager;
+        const totalQtyResult = await manager.createQueryBuilder(stock_entity_1.Stock, 'stock')
+            .where('stock.itemId = :id', { id })
+            .select('SUM(stock.quantity)', 'total')
+            .getRawOne();
+        const totalQty = new decimal_js_1.Decimal(totalQtyResult?.total || 0);
+        if (!totalQty.isZero()) {
+            throw new common_1.BadRequestException(`Stokta ${totalQty.toString()} adet ürün bulunduğu için işlem yapılamaz.`);
+        }
+        const bomUsage = await manager.count(bom_item_entity_1.BomItem, { where: { itemId: id } });
+        if (bomUsage > 0) {
+            throw new common_1.BadRequestException(`Bu ürün ${bomUsage} adet üretim reçetesinde (BOM) kullanılmaktadır.`);
+        }
     }
     async findAllItemTypes() {
         return this.itemTypeRepo.find();
@@ -357,13 +331,13 @@ let ItemsService = class ItemsService {
 };
 exports.ItemsService = ItemsService;
 __decorate([
-    (0, transactional_decorator_1.Transactional)(),
+    (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [inventory_dto_1.CreateItemDto, Number]),
     __metadata("design:returntype", Promise)
 ], ItemsService.prototype, "create", null);
 __decorate([
-    (0, transactional_decorator_1.Transactional)(),
+    (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number, inventory_dto_1.UpdateItemDto, Number]),
     __metadata("design:returntype", Promise)

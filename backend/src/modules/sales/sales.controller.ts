@@ -14,38 +14,38 @@ export class SalesController {
   findAllSaleTypes() { return this.salesService.findAllSaleTypes(); }
 
   @Post('types')
-  @RequirePermissions('satis_olusturma')
+  @RequirePermissions('SALES_CREATE')
   createSaleType(@Body() dto: CreateSaleTypeDto, @CurrentUser('sub') userId: number) {
     return this.salesService.createSaleType(dto, userId);
   }
 
   @Get('status')
-  @RequirePermissions('satis_goruntuleme')
+  @RequirePermissions('SALES_VIEW')
   getStatus() {
     return this.salesService.getStatus();
   }
 
   // ────── SALES ──────
   @Get()
-  @RequirePermissions('satis_goruntuleme')
+  @RequirePermissions('SALES_VIEW')
   findAll(@Query() query: SalesQueryDto) {
     return this.salesService.findAll(query);
   }
 
   @Get(':id')
-  @RequirePermissions('satis_goruntuleme')
+  @RequirePermissions('SALES_VIEW')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.salesService.findOne(id);
   }
 
   @Post()
-  @RequirePermissions('satis_olusturma')
+  @RequirePermissions('SALES_CREATE')
   create(@Body() dto: CreateSaleDto, @CurrentUser('sub') userId: number) {
     return this.salesService.create(dto, userId);
   }
 
   @Put(':id')
-  @RequirePermissions('satis_duzenleme')
+  @RequirePermissions('SALES_EDIT')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSaleDto, @CurrentUser('sub') userId: number) {
     return this.salesService.update(id, dto, userId);
   }
@@ -56,7 +56,7 @@ export class SalesController {
    * Tümü tek transaction içinde.
    */
   @Post(':id/approve')
-  @RequirePermissions('satis_onaylama')
+  @RequirePermissions('SALES_APPROVE')
   approve(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ApproveSaleDto,
@@ -66,19 +66,19 @@ export class SalesController {
   }
 
   @Post(':id/cancel')
-  @RequirePermissions('satis_iptal')
+  @RequirePermissions('SALES_CANCEL')
   cancel(@Param('id', ParseIntPipe) id: number, @CurrentUser('sub') userId: number) {
     return this.salesService.cancelSale(id, userId);
   }
 
   @Post(':id/ship')
-  @RequirePermissions('satis_onaylama') // Reuse approval permission or add 'satis_sevk'
+  @RequirePermissions('SALES_APPROVE') // Reuse approval permission or add 'satis_sevk'
   ship(@Param('id', ParseIntPipe) id: number, @Body() dto: ShipSaleDto, @CurrentUser('sub') userId: number) {
     return this.salesService.shipSale(id, dto, userId);
   }
 
   @Delete(':id')
-  @RequirePermissions('satis_silme')
+  @RequirePermissions('SALES_DELETE')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.salesService.softDelete(id);
   }

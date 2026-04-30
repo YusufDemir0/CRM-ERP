@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, OnModuleInit, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
@@ -11,7 +11,17 @@ import { LoginDto, RegisterDto, ForgotPasswordDto, ChangePasswordDto } from './d
 import { RecordState } from '../../common/enums/record-state.enum';
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
+  private readonly logger = new Logger(AuthService.name);
+
+  /**
+   * SEC-07: Pre-generated valid bcrypt hash for timing attack prevention.
+   * Generated once at startup with the same cost factor (12) as real passwords.
+   * This ensures bcrypt.compare() runs with identical computational cost
+   * regardless of whether the user exists.
+   */
+  private dummyHash: string = '';
+
   constructor(
     @InjectRepository(User)
     private userRepo: Repository<User>,
@@ -24,6 +34,12 @@ export class AuthService {
     private jwtService: JwtService,
   ) { }
 
+  async onModuleInit(): Promise<void> {
+    // Generate a real bcrypt hash with cost factor 12 — same as production passwords
+    this.dummyHash = await bcrypt.hash('dummy-password-never-matches-anything', 12);
+    this.logger.debug('SEC-07: Timing-attack dummy hash generated');
+  }
+
   async login(dto: LoginDto) {
     const user = await this.userRepo.findOne({
       where: { username: dto.username },
@@ -32,9 +48,8 @@ export class AuthService {
 
     if (!user) {
       // SEC-07: Perform a dummy comparison to normalize response time (prevents username enumeration)
-      // We use a real bcrypt hash structure to ensure the comparison algorithm runs.
-      const DUMMY_HASH = '$2b$12$d7R1A.L8P.Gv9D/7yU7kE7P.r7Y.e7r7r7r7r7r7r7r7r7r7r7r7r7'; 
-      await bcrypt.compare(dto.password, DUMMY_HASH);
+      // Uses a real bcrypt hash generated at startup — guaranteed valid structure.
+      await bcrypt.compare(dto.password, this.dummyHash);
       throw new UnauthorizedException('Kullanıcı adı veya şifre hatalı');
     }
 
@@ -86,23 +101,72 @@ export class AuthService {
     };
 
     const userProfile = await this.getProfile(user.id);
+    const access_token = this.jwtService.sign(payload, { expiresIn: '15m' });
+    
+    const refresh_token = this.jwtService.sign(
+      { sub: user.id, type: 'refresh', tokenVersion: user.tokenVersion },
+      { expiresIn: '7d' }
+    );
+
+    const refreshSalt = await bcrypt.genSalt(10);
+    user.refreshTokenHash = await bcrypt.hash(refresh_token, refreshSalt);
+    await this.userRepo.save(user);
 
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token,
+      refresh_token,
       user: userProfile,
     };
   }
 
-  async register(dto: RegisterDto) {
-    // Kullanıcı adı kontrolü
-    const existingUser = await this.userRepo.findOne({
-      where: [{ username: dto.username }, { email: dto.email }],
-    });
+  async refreshToken(oldRefreshToken: string) {
+    if (!oldRefreshToken) throw new UnauthorizedException('Refresh token is missing');
 
-    if (existingUser) {
-      throw new ConflictException('Bu kullanıcı adı veya email zaten kullanılıyor');
+    try {
+      const payload = this.jwtService.verify(oldRefreshToken, { ignoreExpiration: false });
+      if (payload.type !== 'refresh') {
+        throw new UnauthorizedException('Invalid token type');
+      }
+
+      const user = await this.userRepo.findOne({ where: { id: payload.sub } });
+      if (!user || user.state !== 1) {
+        throw new UnauthorizedException('User not found or disabled');
+      }
+
+      if (user.tokenVersion !== payload.tokenVersion) {
+        throw new UnauthorizedException('Token version mismatch');
+      }
+
+      const isMatch = await bcrypt.compare(oldRefreshToken, user.refreshTokenHash || '');
+      if (!isMatch) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      // Generate new tokens
+      const newPayload = {
+        sub: user.id,
+        username: user.username,
+        departmentId: user.departmentId,
+        tokenVersion: user.tokenVersion,
+      };
+
+      const access_token = this.jwtService.sign(newPayload, { expiresIn: '15m' });
+      const refresh_token = this.jwtService.sign(
+        { sub: user.id, type: 'refresh', tokenVersion: user.tokenVersion },
+        { expiresIn: '7d' }
+      );
+
+      const salt = await bcrypt.genSalt(10);
+      user.refreshTokenHash = await bcrypt.hash(refresh_token, salt);
+      await this.userRepo.save(user);
+
+      return { access_token, refresh_token };
+    } catch (e) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
     }
+  }
 
+  async register(dto: RegisterDto) {
     const salt = await bcrypt.genSalt(12);
     const passwordHash = await bcrypt.hash(dto.password, salt);
 
@@ -115,14 +179,20 @@ export class AuthService {
       departmentId: dto.departmentId || null,
     });
 
-    const savedUser = await this.userRepo.save(user);
-
-    return {
-      id: savedUser.id,
-      username: savedUser.username,
-      fullName: savedUser.fullName,
-      email: savedUser.email,
-    };
+    try {
+      const savedUser = await this.userRepo.save(user);
+      return {
+        id: savedUser.id,
+        username: savedUser.username,
+        fullName: savedUser.fullName,
+        email: savedUser.email,
+      };
+    } catch (error) {
+      if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062) {
+        throw new ConflictException('Bu kullanıcı adı veya email zaten kullanılıyor');
+      }
+      throw error;
+    }
   }
 
   async getProfile(userId: number) {

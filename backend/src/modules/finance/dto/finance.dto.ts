@@ -19,7 +19,7 @@ export class UpdateCurrencyDto {
   @IsOptional() @IsNumber() state?: number;
 }
 
-import { transformDecimal, transformDecimalString } from '../../../common/helpers/number.helper';
+import { FinanceHelper } from '../../../common/utils/finance.helper';
 
 export class CreateAccountDto {
   @IsString() @IsNotEmpty() name: string;
@@ -27,7 +27,7 @@ export class CreateAccountDto {
   @IsOptional() @IsString() iban?: string;
   @IsOptional() @IsString() ibanName?: string;
   @IsNumber() @Type(() => Number) currencyId: number;
-  @IsOptional() @Transform(transformDecimal) criticalLimit?: Decimal; 
+  @IsOptional() @Transform(FinanceHelper.transform) criticalLimit?: Decimal; 
   @IsOptional() @IsString() description?: string;
 }
 
@@ -36,7 +36,7 @@ export class UpdateAccountDto {
   @IsOptional() @IsString() bankName?: string;
   @IsOptional() @IsString() iban?: string;
   @IsOptional() @IsString() ibanName?: string;
-  @IsOptional() @Transform(transformDecimal) criticalLimit?: Decimal;
+  @IsOptional() @Transform(FinanceHelper.transform) criticalLimit?: Decimal;
   @IsOptional() @IsNumber() @Type(() => Number) currencyId?: number;
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsNumber() @Type(() => Number) state?: number;
@@ -45,7 +45,7 @@ export class UpdateAccountDto {
 export class CreateTransactionDto {
   @IsOptional() @Type(() => Number) @IsNumber() partyId?: number;
   @Type(() => Number) @IsNumber() commercialAccountId: number;
-  @IsNotEmpty() @Transform(transformDecimalString) @IsString() amount: string; 
+  @IsNotEmpty() @Transform(FinanceHelper.transformString) @IsString() amount: string; 
   @IsOptional() @Type(() => Number) @IsNumber() currencyId?: number;
   @IsEnum(['in', 'out']) type: 'in' | 'out';
   @IsOptional() @Transform(({ value }) => (value === '' || value === null) ? undefined : value) @IsEnum(['sale', 'purchase', 'manual_adjustment', 'manual']) referenceType?: 'sale' | 'purchase' | 'manual_adjustment' | 'manual';

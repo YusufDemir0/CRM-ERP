@@ -72,7 +72,7 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], UpdateCurrencyDto.prototype, "state", void 0);
-const number_helper_1 = require("../../../common/helpers/number.helper");
+const finance_helper_1 = require("../../../common/utils/finance.helper");
 class CreateAccountDto {
 }
 exports.CreateAccountDto = CreateAccountDto;
@@ -103,7 +103,7 @@ __decorate([
 ], CreateAccountDto.prototype, "currencyId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_transformer_1.Transform)(number_helper_1.transformDecimal),
+    (0, class_transformer_1.Transform)(finance_helper_1.FinanceHelper.transform),
     __metadata("design:type", decimal_js_1.Decimal)
 ], CreateAccountDto.prototype, "criticalLimit", void 0);
 __decorate([
@@ -136,7 +136,7 @@ __decorate([
 ], UpdateAccountDto.prototype, "ibanName", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_transformer_1.Transform)(number_helper_1.transformDecimal),
+    (0, class_transformer_1.Transform)(finance_helper_1.FinanceHelper.transform),
     __metadata("design:type", decimal_js_1.Decimal)
 ], UpdateAccountDto.prototype, "criticalLimit", void 0);
 __decorate([
@@ -172,7 +172,7 @@ __decorate([
 ], CreateTransactionDto.prototype, "commercialAccountId", void 0);
 __decorate([
     (0, class_validator_1.IsNotEmpty)(),
-    (0, class_transformer_1.Transform)(number_helper_1.transformDecimalString),
+    (0, class_transformer_1.Transform)(finance_helper_1.FinanceHelper.transformString),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateTransactionDto.prototype, "amount", void 0);

@@ -6,6 +6,7 @@ import { Currency } from '../../finance/currencies/entities/currency.entity';
 import { DecimalTransformer } from '../../../common/transformers/decimal.transformer';
 
 @Entity('parties')
+@Index('IDX_PARTY_FULLTEXT', ['name', 'phone1', 'phone2', 'taxOffice', 'taxNumber', 'email', 'address', 'districtName', 'notes'], { fulltext: true })
 export class Party extends BaseEntity {
   @Column({ type: 'enum', enum: ['customer', 'provider', 'both'], default: 'customer' })
   type: 'customer' | 'provider' | 'both';

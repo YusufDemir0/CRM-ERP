@@ -1,10 +1,14 @@
-import { OnModuleInit } from '@nestjs/common';
-import { InternalEventBus } from '../../../common/services/event-bus.service';
 import { StocksService } from '../../inventory/stocks/stocks.service';
-export declare class InventorySaleListener implements OnModuleInit {
-    private readonly eventBus;
+import { TransactionContextService } from '../../../common/services/transaction-context.service';
+import { Sale } from '../entities/sale.entity';
+export declare class InventorySaleListener {
     private readonly stocksService;
-    constructor(eventBus: InternalEventBus, stocksService: StocksService);
-    onModuleInit(): void;
-    private handleSaleApproved;
+    private readonly transactionContext;
+    private readonly logger;
+    constructor(stocksService: StocksService, transactionContext: TransactionContextService);
+    handleSaleApproved(payload: {
+        sale: Sale;
+        departmentId: number;
+        userId?: number;
+    }): Promise<void>;
 }

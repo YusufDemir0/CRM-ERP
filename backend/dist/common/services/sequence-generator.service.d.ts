@@ -5,6 +5,7 @@ export declare class SequenceGeneratorService {
     private readonly dataSource;
     private readonly logger;
     constructor(transactionContext: TransactionContextService, dataSource: DataSource);
+    private getNextNumber;
     generateItemCode(manager: EntityManager | undefined, itemCodeGroupId: number): Promise<string>;
     generateSaleCode(manager: EntityManager | undefined, departmentId: number): Promise<string>;
     generateProductionCode(manager?: EntityManager, prefix?: string): Promise<string>;

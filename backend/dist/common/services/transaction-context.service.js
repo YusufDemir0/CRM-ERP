@@ -11,30 +11,34 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TransactionContextService = void 0;
 const common_1 = require("@nestjs/common");
-const nestjs_cls_1 = require("nestjs-cls");
+const transactional_1 = require("@nestjs-cls/transactional");
 const typeorm_1 = require("typeorm");
 let TransactionContextService = class TransactionContextService {
-    constructor(cls, dataSource) {
-        this.cls = cls;
+    constructor(txHost, dataSource) {
+        this.txHost = txHost;
         this.dataSource = dataSource;
     }
     get manager() {
-        return this.cls.get('TRANSACTION_MANAGER') || this.dataSource.manager;
+        try {
+            return this.txHost.tx || this.dataSource.manager;
+        }
+        catch {
+            return this.dataSource.manager;
+        }
     }
     getAvailableManager() {
-        return this.cls.get('TRANSACTION_MANAGER') || null;
-    }
-    setManager(manager) {
-        this.cls.set('TRANSACTION_MANAGER', manager);
-    }
-    clear() {
-        this.cls.set('TRANSACTION_MANAGER', null);
+        try {
+            return this.txHost.tx || null;
+        }
+        catch {
+            return null;
+        }
     }
 };
 exports.TransactionContextService = TransactionContextService;
 exports.TransactionContextService = TransactionContextService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [nestjs_cls_1.ClsService,
+    __metadata("design:paramtypes", [transactional_1.TransactionHost,
         typeorm_1.DataSource])
 ], TransactionContextService);
 //# sourceMappingURL=transaction-context.service.js.map

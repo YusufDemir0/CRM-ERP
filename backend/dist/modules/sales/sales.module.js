@@ -16,7 +16,6 @@ const sale_item_entity_1 = require("./entities/sale-item.entity");
 const sale_type_entity_1 = require("./entities/sale-type.entity");
 const sale_sequence_entity_1 = require("./entities/sale-sequence.entity");
 const party_entity_1 = require("../parties/entities/party.entity");
-const sequence_generator_service_1 = require("../../common/services/sequence-generator.service");
 const inventory_module_1 = require("../inventory/inventory.module");
 const logs_module_1 = require("../logs/logs.module");
 const inventory_sale_listener_1 = require("./listeners/inventory-sale.listener");
@@ -40,7 +39,6 @@ exports.SalesModule = SalesModule = __decorate([
         controllers: [sales_controller_1.SalesController],
         providers: [
             sales_service_1.SalesService,
-            sequence_generator_service_1.SequenceGeneratorService,
             inventory_sale_listener_1.InventorySaleListener,
             finance_sale_listener_1.FinanceSaleListener
         ],

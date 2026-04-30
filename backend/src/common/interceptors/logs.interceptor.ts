@@ -9,12 +9,16 @@ import { Observable } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
 import { throwError } from 'rxjs';
 import { LogsService } from '../../modules/logs/logs.service';
+import { ClsService } from 'nestjs-cls';
 
 @Injectable()
 export class LogsInterceptor implements NestInterceptor {
   private readonly logger = new Logger(LogsInterceptor.name);
 
-  constructor(private readonly logsService: LogsService) {}
+  constructor(
+    private readonly logsService: LogsService,
+    private readonly cls: ClsService,
+  ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest();
@@ -30,14 +34,18 @@ export class LogsInterceptor implements NestInterceptor {
       return next.handle();
     }
 
+    const startTime = Date.now();
+
     return next.handle().pipe(
       tap((data) => {
-        this.saveLog(request, 'SUCCESS', data).catch(err =>
+        const duration = Date.now() - startTime;
+        this.saveLog(request, 'SUCCESS', data, duration).catch(err =>
           this.logger.error(`Audit log failed: ${err.message}`),
         );
       }),
       catchError((err) => {
-        this.saveLog(request, 'ERROR', err).catch(e =>
+        const duration = Date.now() - startTime;
+        this.saveLog(request, 'ERROR', err, duration).catch(e =>
           this.logger.error(`Audit error-log failed: ${e.message}`),
         );
         return throwError(() => err);
@@ -45,68 +53,69 @@ export class LogsInterceptor implements NestInterceptor {
     );
   }
 
-  private sanitizeBody(body: Record<string, unknown> | null | undefined, depth = 0): unknown {
-    // ARCH-02: Tight depth limit (max 2) and flat logic for performance
-    if (depth > 1) return '[NESTED_CONTENT_TRUNCATED]';
+  private sanitizeBody(body: unknown, depth = 0): unknown {
+    if (depth > 4) return '[NESTED_CONTENT_TRUNCATED]';
     if (!body || typeof body !== 'object') return body;
-    if (Array.isArray(body)) return body.map(item => this.sanitizeBody(item, depth + 1));
 
-    const sanitized = { ...body };
-    const sensitiveFields = [
-      'password', 'token', 'access_token', 'secret', 'passwordHash',
-      'taxNumber', 'tax_number', 'tc_no', 'tckn', 'iban', 'cc_number', 'cvv'
-    ];
+    if (Array.isArray(body)) {
+      return body.map(item => this.sanitizeBody(item, depth + 1));
+    }
 
-    for (const key of Object.keys(sanitized)) {
-      if (sensitiveFields.some((field) => key.toLowerCase().includes(field.toLowerCase()))) {
+    const sanitized: Record<string, unknown> = {};
+    const sensitiveKeys = ['password', 'token', 'secret', 'hash', 'iban', 'cc_', 'cvv', 'tax_number', 'tc_no'];
+
+    for (const [key, value] of Object.entries(body)) {
+      const isSensitive = sensitiveKeys.some(s => key.toLowerCase().includes(s));
+      
+      if (isSensitive) {
         sanitized[key] = '********';
-      } else if (typeof sanitized[key] === 'object' && sanitized[key] !== null) {
-        sanitized[key] = this.sanitizeBody(sanitized[key] as Record<string, unknown>, depth + 1);
+      } else if (value && typeof value === 'object') {
+        sanitized[key] = this.sanitizeBody(value, depth + 1);
+      } else {
+        sanitized[key] = value;
       }
     }
     return sanitized;
   }
 
-  private async saveLog(request: { method: string, url: string, user?: { id?: number, sub?: number, username?: string, fullName?: string, full_name?: string }, ip?: string, body?: unknown }, status: string, responseData: unknown) {
+  private async saveLog(request: import('express').Request & { user?: Record<string, unknown>, id?: string }, status: string, responseData: unknown, durationMs: number) {
     try {
       const { method, url, user, ip, body } = request;
+      const cleanBody = body ? this.sanitizeBody(body) : null;
+      const reqId = this.cls.get('reqId') || request.id;
+      
+      // Efficient payload size check
+      let detailsBody = cleanBody;
+      if (cleanBody) {
+        const bodyStr = JSON.stringify(cleanBody);
+        if (bodyStr.length > 5120) detailsBody = '[PAYLOAD_TOO_LARGE]';
+      }
 
-      const userId = user?.id || user?.sub || undefined;
-      const username = user?.username || 'SYSTEM';
-      const fullName = user?.fullName || user?.full_name || '';
-
-      const parts = url.replace(/^\/api\//, '').split('/');
-      const moduleName = (parts[0] || 'SYSTEM').toUpperCase();
-      const action = `${method} ${url}`;
-
-      const cleanBody = this.sanitizeBody(body as Record<string, unknown>);
-
-      let responseSummary = 'OK';
+      let responseMsg = 'OK';
       if (status === 'ERROR') {
-        const errorData = responseData as { message?: string, response?: { message?: string } } | undefined;
-        responseSummary =
-          errorData?.message ||
-          errorData?.response?.message ||
-          String(responseData) ||
-          'REQUEST_FAILED';
+        const errObj = responseData as { message?: string, response?: { message?: string } };
+        responseMsg = errObj?.message || errObj?.response?.message || String(responseData);
+        if (responseMsg.length > 1000) responseMsg = responseMsg.substring(0, 1000) + '...';
       }
 
       await this.logsService.addLog({
-        userId,
-        username,
-        fullName,
-        action,
-        module: moduleName,
+        userId: Number(user?.id || user?.sub || 0),
+        username: String(user?.username || 'SYSTEM'),
+        fullName: String(user?.fullName || user?.full_name || ''),
+        action: `${method} ${url}`,
+        module: (url.replace(/^\/api\//, '').split('/')[0] || 'SYSTEM').toUpperCase(),
         tag: status,
         details: JSON.stringify({
-          body: cleanBody && Object.keys(cleanBody).length > 0 ? (JSON.stringify(cleanBody).length > 5120 ? '[PAYLOAD_TOO_LARGE]' : cleanBody) : null,
+          reqId,
+          durationMs,
+          body: detailsBody,
           status,
-          response: typeof responseSummary === 'string' && responseSummary.length > 1000 ? responseSummary.substring(0, 1000) + '...' : responseSummary,
+          response: responseMsg,
         }),
         ipAddress: ip,
       });
     } catch (e) {
-      this.logger.error(`LogsInterceptor.saveLog crashed silently: ${e.message}`);
+      this.logger.error(`Audit log failed: ${e.message}`);
     }
   }
 }

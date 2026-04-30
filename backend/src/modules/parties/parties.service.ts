@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
@@ -8,6 +9,7 @@ import { CurrenciesService } from '../finance/currencies/currencies.service';
 import { Decimal } from 'decimal.js';
 
 import { getSafeSearchPattern } from '../../common/utils/sql.helper';
+import { Sale } from '../sales/entities/sale.entity';
 
 @Injectable()
 export class PartiesService {
@@ -26,9 +28,9 @@ export class PartiesService {
     }
 
     if (query.search) {
-      const searchPattern = getSafeSearchPattern(query.search);
+      const searchPattern = query.search.replace(/[+><()~*\"@\-]/g, ' ').trim();
       if (searchPattern) {
-        qb.andWhere('(party.name LIKE :s OR party.phone1 LIKE :s OR party.email LIKE :s OR party.taxNumber LIKE :s OR party.taxOffice LIKE :s OR party.districtName LIKE :s OR party.address LIKE :s OR party.notes LIKE :s OR currency.name LIKE :s)', { s: searchPattern });
+        qb.andWhere('MATCH(party.name, party.phone1, party.phone2, party.taxOffice, party.taxNumber, party.email, party.address, party.districtName, party.notes) AGAINST(:s IN BOOLEAN MODE)', { s: `*${searchPattern}*` });
       }
     }
 
@@ -70,7 +72,7 @@ export class PartiesService {
     // Security: Whitelist sort columns
     const allowedSortCols = ['name', 'balance', 'creditLimit', 'createdAt', 'taxNumber', 'phone1'];
     const sortCol = allowedSortCols.includes(query.sortBy || '') ? query.sortBy! : 'name';
-    qb.orderBy(`party.${sortCol}`, query.sortOrder || 'ASC');
+    qb.orderBy(`party.${sortCol}`, query.sortOrderSafe);
 
     qb.skip(query.skip).take(query.limit);
 
@@ -164,9 +166,7 @@ export class PartiesService {
     }
 
     // SEC-05: Aktif Sipariş Kontrolü
-    const dataSource = this.partyRepo.manager.connection;
-    const { Sale } = await import('../sales/entities/sale.entity');
-    const activeSales = await dataSource.getRepository(Sale).count({
+    const activeSales = await this.partyRepo.manager.getRepository(Sale).count({
       where: { partyId: id, status: In(['draft', 'approved', 'shipped']) }
     });
 
@@ -177,9 +177,10 @@ export class PartiesService {
       );
     }
 
-    const timestamp = Date.now();
+    // Unique alanları UUID ile damgala — substring kırpma çakışması riski sıfır
+    const suffix = `_del_${crypto.randomUUID().substring(0, 8)}`;
     await this.partyRepo.update(id, {
-      taxNumber: `_DEL_${timestamp}_${party.taxNumber || id}`.substring(0, 50),
+      taxNumber: `${party.taxNumber || id}${suffix}`.substring(0, 50),
       state: 0,
     });
     await this.partyRepo.softDelete(id);
@@ -189,8 +190,8 @@ export class PartiesService {
   async getBalance(id: number) {
     const party = await this.findOne(id);
     return {
-      balance: Number(party.balance || 0),
-      creditLimit: Number(party.creditLimit || 0),
+      balance: new Decimal(party.balance || 0).toFixed(2),
+      creditLimit: new Decimal(party.creditLimit || 0).toFixed(2),
       currency: party.currency?.code || 'TRY',
       symbol: party.currency?.symbol || '₺'
     };
@@ -225,7 +226,7 @@ export class PartiesService {
     return {
       active,
       passive,
-      totalReceivable: totalReceivable.toNumber(),
+      totalReceivable: totalReceivable.toFixed(2),
       exposurePercentage: totalCreditLimit.gt(0) ? totalReceivable.div(totalCreditLimit).mul(100).toDecimalPlaces(0).toNumber() : 0,
       atRiskCount: atRisk.length
     };
@@ -244,9 +245,9 @@ export class PartiesService {
     }, new Decimal(0));
 
     return {
-      totalReceivable: totalReceivable.toNumber(),
-      totalCreditLimit: totalCreditLimit.toNumber(),
-      exposurePercentage: totalCreditLimit.gt(0) ? totalReceivable.div(totalCreditLimit).mul(100).toNumber() : 0
+      totalReceivable: totalReceivable.toFixed(2),
+      totalCreditLimit: totalCreditLimit.toFixed(2),
+      exposurePercentage: totalCreditLimit.gt(0) ? totalReceivable.div(totalCreditLimit).mul(100).toDecimalPlaces(2).toNumber() : 0
     };
   }
 

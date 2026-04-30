@@ -11,14 +11,15 @@ import { CommercialAccount } from './accounts/entities/commercial-account.entity
 import { Transaction } from './transactions/entities/transaction.entity';
 import { TransactionSequence } from './transactions/entities/transaction-sequence.entity';
 import { Party } from '../parties/entities/party.entity';
-import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
+import { CommonModule } from '../../common/common.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Currency, CommercialAccount, Transaction, TransactionSequence, Party]),
+    CommonModule,
   ],
   controllers: [CurrenciesController, AccountsController, TransactionsController],
-  providers: [CurrenciesService, AccountsService, TransactionsService, SequenceGeneratorService],
+  providers: [CurrenciesService, AccountsService, TransactionsService],
   exports: [CurrenciesService, AccountsService, TransactionsService],
 })
 export class FinanceModule {}

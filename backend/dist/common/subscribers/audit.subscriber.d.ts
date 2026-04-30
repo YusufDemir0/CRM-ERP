@@ -3,6 +3,7 @@ import { ClsService } from 'nestjs-cls';
 export declare class AuditSubscriber implements EntitySubscriberInterface {
     private readonly dataSource;
     private readonly cls;
+    private readonly logger;
     constructor(dataSource: DataSource, cls: ClsService);
     beforeInsert(event: InsertEvent<unknown>): void;
     beforeUpdate(event: UpdateEvent<unknown>): void;

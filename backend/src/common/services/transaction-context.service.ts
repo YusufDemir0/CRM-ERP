@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { ClsService } from 'nestjs-cls';
+import { TransactionHost } from '@nestjs-cls/transactional';
 import { EntityManager, DataSource } from 'typeorm';
 
 @Injectable()
 export class TransactionContextService {
   constructor(
-    private readonly cls: ClsService,
+    private readonly txHost: TransactionHost<any>,
     private readonly dataSource: DataSource,
   ) { }
 
@@ -13,27 +13,22 @@ export class TransactionContextService {
    * Returns the current transactional manager or the default one if no transaction is active.
    */
   get manager(): EntityManager {
-    return this.cls.get<EntityManager>('TRANSACTION_MANAGER') || this.dataSource.manager;
+    try {
+      // In @nestjs-cls/transactional, txHost.tx returns the transactional instance (EntityManager)
+      return (this.txHost.tx as EntityManager) || this.dataSource.manager;
+    } catch {
+      return this.dataSource.manager;
+    }
   }
 
   /**
    * Returns the current EntityManager if in a transaction, or null otherwise.
    */
   getAvailableManager(): EntityManager | null {
-    return this.cls.get<EntityManager>('TRANSACTION_MANAGER') || null;
-  }
-
-  /**
-   * Sets the current EntityManager for the transaction context.
-   */
-  setManager(manager: EntityManager): void {
-    this.cls.set('TRANSACTION_MANAGER', manager);
-  }
-
-  /**
-   * Clears the transaction context.
-   */
-  clear(): void {
-    this.cls.set('TRANSACTION_MANAGER', null);
+    try {
+      return (this.txHost.tx as EntityManager) || null;
+    } catch {
+      return null;
+    }
   }
 }

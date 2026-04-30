@@ -18,7 +18,7 @@ const bom_item_entity_1 = require("./entities/bom-item.entity");
 const production_order_entity_1 = require("./entities/production-order.entity");
 const production_sequence_entity_1 = require("./entities/production-sequence.entity");
 const item_entity_1 = require("../inventory/items/entities/item.entity");
-const sequence_generator_service_1 = require("../../common/services/sequence-generator.service");
+const common_module_1 = require("../../common/common.module");
 let ProductionModule = class ProductionModule {
 };
 exports.ProductionModule = ProductionModule;
@@ -26,11 +26,12 @@ exports.ProductionModule = ProductionModule = __decorate([
     (0, common_1.Module)({
         imports: [
             typeorm_1.TypeOrmModule.forFeature([bom_entity_1.Bom, bom_item_entity_1.BomItem, production_order_entity_1.ProductionOrder, production_sequence_entity_1.ProductionSequence, item_entity_1.Item]),
+            common_module_1.CommonModule,
             inventory_module_1.InventoryModule,
             logs_module_1.LogsModule,
         ],
         controllers: [production_controller_1.ProductionController],
-        providers: [production_service_1.ProductionService, sequence_generator_service_1.SequenceGeneratorService],
+        providers: [production_service_1.ProductionService],
         exports: [production_service_1.ProductionService],
     })
 ], ProductionModule);

@@ -57,7 +57,7 @@ export class DepartmentsService {
     };
 
     const sortField = allowedSortMap[query.sortBy || ''] || 'dept.name';
-    qb.orderBy(sortField, query.sortOrder || 'ASC');
+    qb.orderBy(sortField, query.sortOrderSafe);
 
     if (sortField !== 'dept.createdAt') {
       qb.addOrderBy('dept.createdAt', 'DESC');

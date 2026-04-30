@@ -12,6 +12,7 @@ import { CommercialAccount } from '../../finance/accounts/entities/commercial-ac
 
 @Entity('sales')
 @Unique(['code'])
+@Index('IDX_SALE_FULLTEXT', ['code', 'notes', 'phone', 'address', 'city', 'district', 'taxNumber', 'email', 'source'], { fulltext: true })
 export class Sale extends BaseEntity {
   @Column({ type: 'varchar', length: 50 })
   code: string;

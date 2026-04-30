@@ -87,13 +87,13 @@ export default function PartiesPage() {
     mutationFn: ({ id, currentState }: { id: number; currentState: number }) => 
       partiesAPI.toggleState(id, currentState),
     onMutate: async ({ id }) => {
-      // FE-18: Optimistic Update Implementation
-      await queryClient.cancelQueries({ queryKey: queryKeys.parties.all({}) });
+      // FE-18: Optimistic Update — use fuzzy key match to target all paginated queries
+      await queryClient.cancelQueries({ queryKey: ['parties', 'list'] });
 
-      const previousParties = queryClient.getQueriesData({ queryKey: queryKeys.parties.all({}) });
+      const previousParties = queryClient.getQueriesData({ queryKey: ['parties', 'list'] });
 
       queryClient.setQueriesData(
-        { queryKey: queryKeys.parties.all({}) },
+        { queryKey: ['parties', 'list'] },
         (old: { data: Party[] } | undefined) => {
           if (!old?.data) return old;
           return {
@@ -116,7 +116,7 @@ export default function PartiesPage() {
       toast.error("İşlem başarısız");
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.parties.all({}) });
+      queryClient.invalidateQueries({ queryKey: ['parties', 'list'] });
       queryClient.invalidateQueries({ queryKey: queryKeys.parties.lookup });
     },
     onSuccess: () => {
@@ -131,7 +131,7 @@ export default function PartiesPage() {
   }, [parties.length, loading, page, paginationMeta]);
 
   const handleFormSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.parties.all({}) });
+    queryClient.invalidateQueries({ queryKey: ['parties', 'list'] });
     toast.success("Cari kart kaydedildi.");
   };
 

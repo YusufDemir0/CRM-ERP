@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'ermay-erp-api'
+    static_configs:
+      - targets: ['ermay-api:9464']
+  
+  - job_name: 'ermay-erp-worker'
+    static_configs:
+      - targets: ['ermay-worker:9464']
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

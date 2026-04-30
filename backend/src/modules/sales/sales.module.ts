@@ -28,7 +28,6 @@ import { CommonModule } from '../../common/common.module';
   controllers: [SalesController],
   providers: [
     SalesService, 
-    SequenceGeneratorService, 
     InventorySaleListener, 
     FinanceSaleListener
   ],

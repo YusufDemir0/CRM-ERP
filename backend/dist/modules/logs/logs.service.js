@@ -11,7 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var LogsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LogsService = void 0;
 const common_1 = require("@nestjs/common");
@@ -21,23 +20,28 @@ const log_entity_1 = require("./entities/log.entity");
 const rxjs_1 = require("rxjs");
 const operators_1 = require("rxjs/operators");
 const sql_helper_1 = require("../../common/utils/sql.helper");
-let LogsService = LogsService_1 = class LogsService {
-    constructor(logRepository) {
+const config_1 = require("@nestjs/config");
+let LogsService = class LogsService {
+    constructor(logRepository, configService) {
         this.logRepository = logRepository;
-        this.logger = new common_1.Logger(LogsService_1.name);
+        this.configService = configService;
+        this.logger = new common_1.Logger('SystemAudit');
         this.logSubject = new rxjs_1.Subject();
+        this.dbLoggingEnabled = this.configService.get('DB_LOGGING_ENABLED', false);
     }
     onModuleInit() {
-        this.logger.log('LogsService initialized (Batch Logger enabled).');
-        this.logSubscription = this.logSubject.pipe((0, operators_1.bufferTime)(5000, undefined, 1000), (0, operators_1.filter)(logs => logs.length > 0)).subscribe(async (logs) => {
-            try {
-                const entities = this.logRepository.create(logs);
-                await this.logRepository.save(entities);
-            }
-            catch (err) {
-                this.logger.error(`Failed to save batched logs: ${err.message}`);
-            }
-        });
+        this.logger.log(`LogsService initialized. DB Logging: ${this.dbLoggingEnabled}`);
+        if (this.dbLoggingEnabled) {
+            this.logSubscription = this.logSubject.pipe((0, operators_1.bufferTime)(5000, undefined, 1000), (0, operators_1.filter)(logs => logs.length > 0)).subscribe(async (logs) => {
+                try {
+                    const entities = this.logRepository.create(logs);
+                    await this.logRepository.save(entities);
+                }
+                catch (err) {
+                    this.logger.error(`Failed to save batched logs to DB: ${err.message}`);
+                }
+            });
+        }
     }
     onModuleDestroy() {
         if (this.logSubscription) {
@@ -69,11 +73,18 @@ let LogsService = LogsService_1 = class LogsService {
         };
     }
     logActivity(data) {
-        this.logSubject.next(data);
+        const logPayload = {
+            timestamp: new Date().toISOString(),
+            ...data,
+        };
+        this.logger.log(JSON.stringify(logPayload));
+        if (this.dbLoggingEnabled) {
+            this.logSubject.next(data);
+        }
     }
     async addLog(data) {
-        const log = this.logRepository.create(data);
-        return this.logRepository.save(log);
+        this.logActivity(data);
+        return null;
     }
     async getNotifications(limit = 20) {
         return this.logRepository.find({
@@ -90,9 +101,10 @@ let LogsService = LogsService_1 = class LogsService {
     }
 };
 exports.LogsService = LogsService;
-exports.LogsService = LogsService = LogsService_1 = __decorate([
+exports.LogsService = LogsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(log_entity_1.SystemLog)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        config_1.ConfigService])
 ], LogsService);
 //# sourceMappingURL=logs.service.js.map

@@ -2,9 +2,7 @@ import { IsString, IsNotEmpty, IsOptional, IsNumber, IsArray, ValidateNested, Is
 import { Type } from 'class-transformer';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 
-export class BomQueryDto extends PaginationDto {
-  @IsOptional() @Type(() => Number) @IsNumber() state?: number;
-}
+export class BomQueryDto extends PaginationDto {}
 
 export class ProductionOrderQueryDto extends PaginationDto {
   @IsOptional()
@@ -50,11 +48,11 @@ export class CreateProductionOrderDto {
   @IsOptional() @IsDateString() startDate?: string;
   @IsOptional() @IsDateString() endDate?: string;
   @IsOptional() @IsString() notes?: string;
-  @IsOptional() @IsEnum(['draft', 'planned', 'in_progress', 'completed', 'cancelled']) status?: string;
+  @IsOptional() @IsEnum(['draft', 'planned', 'in_progress', 'completed', 'cancelled']) status?: 'draft' | 'planned' | 'in_progress' | 'completed' | 'cancelled';
   @IsOptional() @IsNumber() @Type(() => Number) producedQuantity?: number;
   @IsOptional() @IsNumber() @Type(() => Number) wastageQuantity?: number;
-  @IsOptional() @IsString() unitCost?: string;
-  @IsOptional() @IsString() totalCost?: string;
+  @IsOptional() @IsNumber() @Type(() => Number) laborCost?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) overheadCost?: number;
 }
 
 export class UpdateProductionOrderDto {

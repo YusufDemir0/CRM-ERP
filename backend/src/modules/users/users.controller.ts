@@ -10,31 +10,31 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @RequirePermissions('kullanici_goruntuleme')
+  @RequirePermissions('USER_VIEW')
   findAll(@Query() query: PaginationDto) {
     return this.usersService.findAll(query);
   }
 
   @Get('status')
-  @RequirePermissions('kullanici_goruntuleme')
+  @RequirePermissions('USER_VIEW')
   getStatus() {
     return this.usersService.getStatus();
   }
 
   @Get(':id')
-  @RequirePermissions('kullanici_goruntuleme')
+  @RequirePermissions('USER_VIEW')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.findOne(id);
   }
 
   @Post()
-  @RequirePermissions('kullanici_olusturma')
+  @RequirePermissions('USER_CREATE')
   create(@Body() dto: CreateUserDto, @CurrentUser('sub') userId: number) {
     return this.usersService.create(dto, userId);
   }
 
   @Put(':id')
-  @RequirePermissions('kullanici_duzenleme')
+  @RequirePermissions('USER_EDIT')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateUserDto,
@@ -44,7 +44,7 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @RequirePermissions('kullanici_silme')
+  @RequirePermissions('USER_DELETE')
   remove(@Param('id', ParseIntPipe) id: number, @CurrentUser('sub') userId: number) {
     return this.usersService.softDelete(id, userId);
   }

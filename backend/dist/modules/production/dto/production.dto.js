@@ -173,14 +173,16 @@ __decorate([
 ], CreateProductionOrderDto.prototype, "wastageQuantity", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateProductionOrderDto.prototype, "unitCost", void 0);
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], CreateProductionOrderDto.prototype, "laborCost", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateProductionOrderDto.prototype, "totalCost", void 0);
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], CreateProductionOrderDto.prototype, "overheadCost", void 0);
 class UpdateProductionOrderDto {
 }
 exports.UpdateProductionOrderDto = UpdateProductionOrderDto;

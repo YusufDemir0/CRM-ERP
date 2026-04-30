@@ -34,7 +34,7 @@ export class AccountsService {
 
     const allowedSortCols = ['name', 'bankName', 'iban', 'criticalLimit', 'createdAt'];
     const sortField = allowedSortCols.includes(query.sortBy || '') ? query.sortBy! : 'name';
-    qb.orderBy(`acc.${sortField}`, query.sortOrder || 'ASC');
+    qb.orderBy(`acc.${sortField}`, query.sortOrderSafe);
     
     qb.skip(query.skip).take(query.limit);
     const [data, total] = await qb.getManyAndCount();
@@ -104,7 +104,7 @@ export class AccountsService {
       active: Number(counts.active || 0),
       passive: Number(counts.passive || 0),
       total: Number(counts.total || 0),
-      totalBalance: new Decimal(balances.balance || 0).toNumber(),
+      totalBalance: new Decimal(balances.balance || 0).toFixed(2),
     };
   }
 }

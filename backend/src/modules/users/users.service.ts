@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import { Injectable, Inject, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -8,7 +9,7 @@ import { User } from '../auth/entities/user.entity';
 import { Role } from '../auth/entities/role.entity';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
-import { Transactional } from '../../common/decorators/transactional.decorator';
+import { Transactional } from '@nestjs-cls/transactional';
 import { TransactionContextService } from '../../common/services/transaction-context.service';
 import { Department } from '../departments/entities/department.entity';
 import { getSafeSearchPattern } from '../../common/utils/sql.helper';
@@ -38,11 +39,12 @@ export class UsersService {
       ]);
 
     if (query.search) {
-      const searchPattern = getSafeSearchPattern(query.search);
+      const searchPattern = query.search.replace(/[+><()~*\"@\-]/g, ' ').trim();
+      const safeLikePattern = getSafeSearchPattern(query.search);
       if (searchPattern) {
         qb.where(
-          '(user.fullName LIKE :search OR user.username LIKE :search OR user.email LIKE :search OR department.name LIKE :search OR roles.name LIKE :search)',
-          { search: searchPattern },
+          '(MATCH(user.username, user.fullName, user.email, user.phone) AGAINST(:s IN BOOLEAN MODE) OR department.name LIKE :like OR roles.name LIKE :like)',
+          { s: `*${searchPattern}*`, like: safeLikePattern },
         );
       }
     }
@@ -63,7 +65,7 @@ export class UsersService {
     // Security: Whitelist sort columns
     const allowedSortCols = ['fullName', 'username', 'email', 'createdAt', 'department.name', 'roles.name'];
     const sortCol = allowedSortCols.includes(query.sortBy || '') ? sortFieldMap[query.sortBy!] : 'user.createdAt';
-    qb.orderBy(sortCol, query.sortOrder || 'DESC');
+    qb.orderBy(sortCol, query.sortOrderSafe);
     qb.skip(query.skip).take(query.limit);
 
     const [data, total] = await qb.getManyAndCount();
@@ -93,13 +95,6 @@ export class UsersService {
   async create(dto: CreateUserDto, currentUserId?: number): Promise<User> {
     const manager = this.transactionContext.manager;
 
-    // DB-02: Use explicit locking to prevent registration deadlocks/race conditions
-    const existing = await manager.findOne(User, {
-      where: [{ username: dto.username }, { email: dto.email }],
-      lock: { mode: 'pessimistic_write' }
-    });
-    if (existing) throw new ConflictException('Kullanıcı adı veya email zaten mevcut');
-
     const salt = await bcrypt.genSalt(12);
     const passwordHash = await bcrypt.hash(dto.password, salt);
 
@@ -119,7 +114,14 @@ export class UsersService {
       });
     }
 
-    return manager.save(user);
+    try {
+      return await manager.save(user);
+    } catch (error) {
+      if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062) {
+        throw new ConflictException('Kullanıcı adı veya email zaten mevcut');
+      }
+      throw error;
+    }
   }
 
   async update(id: number, dto: UpdateUserDto, currentUserId?: number): Promise<User> {
@@ -193,11 +195,11 @@ export class UsersService {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) throw new NotFoundException('Kullanıcı bulunamadı');
 
-    const timestamp = Date.now();
-    // Unique alanları damgala ki aynı değerler tekrar kullanılabilsin
+    // Unique alanları UUID ile damgala — substring kırpma çakışması riski sıfır
+    const suffix = `_del_${crypto.randomUUID().substring(0, 8)}`;
     await this.userRepo.update(id, {
-      username: `_DEL_${timestamp}_${user.username}`.substring(0, 100),
-      email: `_DEL_${timestamp}_${user.email}`.substring(0, 150),
+      username: `${user.username}${suffix}`.substring(0, 100),
+      email: `${user.email}${suffix}`.substring(0, 150),
       state: 0,
       updatedBy: currentUserId || null,
     });

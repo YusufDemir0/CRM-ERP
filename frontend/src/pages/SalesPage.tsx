@@ -107,7 +107,10 @@ export default function SalesPage() {
       setSelectedDeptId('');
       toast.success("Sipariş başarıyla onaylandı.");
     },
-    onError: () => toast.error("Onaylama işlemi başarısız oldu.")
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Onaylama işlemi başarısız oldu.';
+      toast.error(msg);
+    }
   });
 
   const cancelMutation = useMutation({

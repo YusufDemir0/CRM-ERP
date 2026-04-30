@@ -54,7 +54,7 @@ const bcrypt = __importStar(require("bcrypt"));
 const user_entity_1 = require("../auth/entities/user.entity");
 const role_entity_1 = require("../auth/entities/role.entity");
 const user_dto_1 = require("./dto/user.dto");
-const transactional_decorator_1 = require("../../common/decorators/transactional.decorator");
+const transactional_1 = require("@nestjs-cls/transactional");
 const transaction_context_service_1 = require("../../common/services/transaction-context.service");
 const sql_helper_1 = require("../../common/utils/sql.helper");
 let UsersService = class UsersService {
@@ -117,12 +117,6 @@ let UsersService = class UsersService {
     }
     async create(dto, currentUserId) {
         const manager = this.transactionContext.manager;
-        const existing = await manager.findOne(user_entity_1.User, {
-            where: [{ username: dto.username }, { email: dto.email }],
-            lock: { mode: 'pessimistic_write' }
-        });
-        if (existing)
-            throw new common_1.ConflictException('Kullanıcı adı veya email zaten mevcut');
         const salt = await bcrypt.genSalt(12);
         const passwordHash = await bcrypt.hash(dto.password, salt);
         const user = manager.create(user_entity_1.User, {
@@ -139,7 +133,15 @@ let UsersService = class UsersService {
                 where: { id: (0, typeorm_2.In)(dto.roleIds) }
             });
         }
-        return manager.save(user);
+        try {
+            return await manager.save(user);
+        }
+        catch (error) {
+            if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062) {
+                throw new common_1.ConflictException('Kullanıcı adı veya email zaten mevcut');
+            }
+            throw error;
+        }
     }
     async update(id, dto, currentUserId) {
         const user = await this.findOne(id);
@@ -228,7 +230,7 @@ let UsersService = class UsersService {
 };
 exports.UsersService = UsersService;
 __decorate([
-    (0, transactional_decorator_1.Transactional)(),
+    (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [user_dto_1.CreateUserDto, Number]),
     __metadata("design:returntype", Promise)

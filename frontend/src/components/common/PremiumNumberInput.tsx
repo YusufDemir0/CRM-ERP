@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { FiPlus, FiMinus } from 'react-icons/fi';
+import { Decimal } from 'decimal.js';
 
 interface PremiumNumberInputProps {
   value: number | string;
@@ -23,20 +24,20 @@ export const PremiumNumberInput: React.FC<PremiumNumberInputProps> = ({
   className = '',
   disabled = false,
 }) => {
-  const numValue = Number(value) || 0;
+  const numValue = new Decimal(value || 0);
 
   const handleIncrement = () => {
     if (disabled) return;
-    const newVal = numValue + step;
-    if (max !== undefined && newVal > max) return;
-    onChange(newVal);
+    const newVal = numValue.plus(step);
+    if (max !== undefined && newVal.gt(max)) return;
+    onChange(newVal.toNumber());
   };
 
   const handleDecrement = () => {
     if (disabled) return;
-    const newVal = numValue - step;
-    if (min !== undefined && newVal < min) return;
-    onChange(newVal);
+    const newVal = numValue.minus(step);
+    if (min !== undefined && newVal.lt(min)) return;
+    onChange(newVal.toNumber());
   };
 
   return (
@@ -45,7 +46,7 @@ export const PremiumNumberInput: React.FC<PremiumNumberInputProps> = ({
         type="button"
         tabIndex={-1}
         onClick={handleDecrement}
-        disabled={disabled || (min !== undefined && numValue <= min)}
+        disabled={disabled || (min !== undefined && numValue.lte(min))}
         className="absolute left-1 w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-30 disabled:hover:bg-slate-50 disabled:hover:text-slate-400 transition-all z-10"
       >
         <FiMinus size={16} />
@@ -67,7 +68,7 @@ export const PremiumNumberInput: React.FC<PremiumNumberInputProps> = ({
         type="button"
         tabIndex={-1}
         onClick={handleIncrement}
-        disabled={disabled || (max !== undefined && numValue >= max)}
+        disabled={disabled || (max !== undefined && numValue.gte(max))}
         className="absolute right-1 w-8 h-8 flex items-center justify-center rounded-lg bg-slate-50 text-slate-400 hover:bg-green-50 hover:text-green-600 disabled:opacity-30 disabled:hover:bg-slate-50 disabled:hover:text-slate-400 transition-all z-10"
       >
         <FiPlus size={16} />

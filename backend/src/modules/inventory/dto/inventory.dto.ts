@@ -121,17 +121,14 @@ export class TransferStockDto {
 }
 
 export class ItemsQueryDto extends PaginationDto {
-  @IsOptional() @Type(() => Number) @IsNumber() itemTypeId?: number;
-  @IsOptional() @Type(() => Number) @IsNumber() providerId?: number;
-  @IsOptional() @Type(() => Number) @IsNumber() currencyId?: number;
-  @IsOptional() @Type(() => Number) @IsNumber() state?: number;
-  @IsOptional() @IsString() search?: string;
+  @IsOptional() @Type(() => Number) @IsInt() itemTypeId?: number;
+  @IsOptional() @Type(() => Number) @IsInt() providerId?: number;
+  @IsOptional() @Type(() => Number) @IsInt() currencyId?: number;
   @IsOptional() @IsBooleanString() critical?: string;
 }
 
 export class StocksQueryDto extends PaginationDto {
-  @IsOptional() @Type(() => Number) @IsNumber() departmentId?: number;
-  @IsOptional() @Type(() => Number) @IsNumber() itemId?: number;
+  @IsOptional() @Type(() => Number) @IsInt() departmentId?: number;
+  @IsOptional() @Type(() => Number) @IsInt() itemId?: number;
   @IsOptional() @IsBooleanString() isCritical?: string;
-  @IsOptional() @Type(() => Number) @IsNumber() state?: number;
 }

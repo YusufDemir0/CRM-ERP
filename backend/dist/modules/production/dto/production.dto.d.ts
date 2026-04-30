@@ -31,11 +31,11 @@ export declare class CreateProductionOrderDto {
     startDate?: string;
     endDate?: string;
     notes?: string;
-    status?: string;
+    status?: 'draft' | 'planned' | 'in_progress' | 'completed' | 'cancelled';
     producedQuantity?: number;
     wastageQuantity?: number;
-    unitCost?: string;
-    totalCost?: string;
+    laborCost?: number;
+    overheadCost?: number;
 }
 export declare class UpdateProductionOrderDto {
     bomId?: number;

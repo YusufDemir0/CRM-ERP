@@ -16,7 +16,7 @@ export declare class ProductionController {
     getStatus(): Promise<{
         draft: number;
         planned: number;
-        inProgress: number;
+        in_progress: number;
         completed: number;
         total: number;
     }>;

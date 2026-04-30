@@ -1,25 +1,34 @@
-import { Global, Module, OnModuleInit } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-import { ClsService } from 'nestjs-cls';
+import { Global, Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { CacheService } from './services/cache.service';
-import { InternalEventBus } from './services/event-bus.service';
 import { TransactionContextService } from './services/transaction-context.service';
-import { TransactionInternal } from './decorators/transactional.decorator';
+import { SequenceGeneratorService } from './services/sequence-generator.service';
+import { OutboxService } from './services/outbox.service';
+import { OutboxEvent } from './entities/outbox-event.entity';
+import { RabbitMQModule } from './services/rabbitmq.module';
+import { StorageModule } from './services/storage/storage.module';
 
 @Global()
 @Module({
-  providers: [CacheService, InternalEventBus, TransactionContextService],
-  exports: [CacheService, InternalEventBus, TransactionContextService],
+  imports: [
+    TypeOrmModule.forFeature([OutboxEvent]),
+    RabbitMQModule,
+    StorageModule,
+  ],
+  providers: [
+    CacheService,
+    TransactionContextService,
+    SequenceGeneratorService,
+    OutboxService,
+    // OutboxWorker removed — runs in worker process only
+  ],
+  exports: [
+    CacheService,
+    TransactionContextService,
+    SequenceGeneratorService,
+    OutboxService,
+    TypeOrmModule,
+  ],
 })
-export class CommonModule implements OnModuleInit {
-  constructor(
-    private readonly dataSource: DataSource,
-    private readonly cls: ClsService,
-  ) { }
+export class CommonModule { }
 
-  onModuleInit() {
-    // FE-11: Bridge TypeORM and CLS for @Transactional decorator
-    TransactionInternal.dataSource = this.dataSource;
-    TransactionInternal.cls = this.cls;
-  }
-}

@@ -28,16 +28,16 @@ export declare class ProductionService {
     createBom(dto: CreateBomDto, userId?: number): Promise<Bom>;
     updateBom(id: number, dto: UpdateBomDto, userId?: number): Promise<Bom>;
     deleteBom(id: number): Promise<void>;
-    countItemUsageInBoms(itemId: number): Promise<number>;
     findAllOrders(query: ProductionOrderQueryDto): Promise<PaginatedResult<ProductionOrder>>;
     findOneOrder(id: number): Promise<ProductionOrder>;
     createOrder(dto: CreateProductionOrderDto, userId?: number): Promise<ProductionOrder>;
     updateOrder(id: number, dto: UpdateProductionOrderDto, userId?: number): Promise<ProductionOrder>;
+    private completeOrder;
     deleteOrder(id: number): Promise<void>;
     getStatus(): Promise<{
         draft: number;
         planned: number;
-        inProgress: number;
+        in_progress: number;
         completed: number;
         total: number;
     }>;

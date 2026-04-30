@@ -116,12 +116,6 @@ let AuthService = class AuthService {
         };
     }
     async register(dto) {
-        const existingUser = await this.userRepo.findOne({
-            where: [{ username: dto.username }, { email: dto.email }],
-        });
-        if (existingUser) {
-            throw new common_1.ConflictException('Bu kullanıcı adı veya email zaten kullanılıyor');
-        }
         const salt = await bcrypt.genSalt(12);
         const passwordHash = await bcrypt.hash(dto.password, salt);
         const user = this.userRepo.create({
@@ -132,13 +126,21 @@ let AuthService = class AuthService {
             phone: dto.phone || null,
             departmentId: dto.departmentId || null,
         });
-        const savedUser = await this.userRepo.save(user);
-        return {
-            id: savedUser.id,
-            username: savedUser.username,
-            fullName: savedUser.fullName,
-            email: savedUser.email,
-        };
+        try {
+            const savedUser = await this.userRepo.save(user);
+            return {
+                id: savedUser.id,
+                username: savedUser.username,
+                fullName: savedUser.fullName,
+                email: savedUser.email,
+            };
+        }
+        catch (error) {
+            if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062) {
+                throw new common_1.ConflictException('Bu kullanıcı adı veya email zaten kullanılıyor');
+            }
+            throw error;
+        }
     }
     async getProfile(userId) {
         const user = await this.userRepo.createQueryBuilder('user')

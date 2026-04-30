@@ -14,7 +14,7 @@ export class Transaction extends BaseEntity {
   code: string;
 
   @Column({ name: 'party_id', type: 'bigint', nullable: true })
-  partyId: number;
+  partyId: number | null;
 
   @Column({ name: 'commercial_account_id', type: 'bigint', nullable: true })
   commercialAccountId: number;

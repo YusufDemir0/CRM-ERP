@@ -1,10 +1,8 @@
 import { ItemsService } from './items.service';
 import { CreateItemDto, UpdateItemDto, CreateItemTypeDto, CreateQuantityTypeDto, CreateItemCodeGroupDto, ItemsQueryDto, UpdateItemTypeDto, UpdateQuantityTypeDto, UpdateItemCodeGroupDto } from '../dto/inventory.dto';
-import { InventoryOrchestratorService } from '../inventory-orchestrator.service';
 export declare class ItemsController {
     private readonly itemsService;
-    private readonly orchestrator;
-    constructor(itemsService: ItemsService, orchestrator: InventoryOrchestratorService);
+    constructor(itemsService: ItemsService);
     getStatus(): Promise<{
         active: number;
         passive: number;
@@ -24,7 +22,7 @@ export declare class ItemsController {
     removeQuantityType(id: number): Promise<void>;
     updateItemType(id: number, dto: UpdateItemTypeDto, userId: number): Promise<import("./entities/item-type.entity").ItemType>;
     updateCodeGroup(id: number, dto: UpdateItemCodeGroupDto, userId: number): Promise<import("./entities/item-code-group.entity").ItemCodeGroup>;
-    update(id: number, dto: UpdateItemDto, userId: number): Promise<void> | Promise<import("./entities/item.entity").Item>;
+    update(id: number, dto: UpdateItemDto, userId: number): Promise<import("./entities/item.entity").Item>;
     removeItemType(id: number): Promise<void>;
     removeCodeGroup(id: number): Promise<void>;
     remove(id: number, userId: number): Promise<void>;

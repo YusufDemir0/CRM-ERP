@@ -35,7 +35,7 @@ const sequence_generator_service_1 = require("../../../common/services/sequence-
 const date_utils_1 = require("../../../common/utils/date.utils");
 const finance_helper_1 = require("../../../common/utils/finance.helper");
 const logs_service_1 = require("../../logs/logs.service");
-const transactional_decorator_1 = require("../../../common/decorators/transactional.decorator");
+const transactional_1 = require("@nestjs-cls/transactional");
 const transaction_context_service_1 = require("../../../common/services/transaction-context.service");
 const sql_helper_1 = require("../../../common/utils/sql.helper");
 let StocksService = class StocksService {
@@ -207,7 +207,7 @@ let StocksService = class StocksService {
         await manager.save(stock_entity_1.Stock, stocks);
         await manager.save(stock_movement_entity_1.StockMovement, movements);
     }
-    async reserveStockBulk(items, departmentId, manager = this.transactionContext.manager, userId) {
+    async reserveStockBulk(items, departmentId, manager = this.transactionContext.manager, referenceInfo, userId) {
         if (!items || items.length === 0)
             return;
         const reducedItems = new Map();
@@ -222,6 +222,7 @@ let StocksService = class StocksService {
         });
         const stockMap = new Map();
         stocks.forEach((s) => stockMap.set(s.itemId, s));
+        const movements = [];
         for (const itemId of uniqueItemIds) {
             const qty = reducedItems.get(itemId);
             let stock = stockMap.get(itemId);
@@ -229,13 +230,26 @@ let StocksService = class StocksService {
                 stock = manager.create(stock_entity_1.Stock, { itemId, departmentId, quantity: new decimal_js_1.Decimal(0), reservedQuantity: new decimal_js_1.Decimal(0) });
                 stock = await manager.save(stock_entity_1.Stock, stock);
             }
+            const qBefore = new decimal_js_1.Decimal(stock.quantity);
             stock.reservedQuantity = new decimal_js_1.Decimal(stock.reservedQuantity || 0).add(qty);
             stock.updatedBy = userId || null;
             if (!stocks.find((s) => s.id === stock.id)) {
                 stocks.push(stock);
             }
+            movements.push(manager.create(stock_movement_entity_1.StockMovement, {
+                stockId: stock.id,
+                quantity: qty,
+                quantityBefore: qBefore,
+                quantityAfter: qBefore,
+                type: 'out',
+                referenceType: referenceInfo?.type || 'reserve',
+                referenceId: referenceInfo?.id || null,
+                description: referenceInfo?.description || 'Stok Rezervasyonu',
+                createdBy: userId
+            }));
         }
         await manager.save(stock_entity_1.Stock, stocks);
+        await manager.save(stock_movement_entity_1.StockMovement, movements);
     }
     async unreserveStockBulk(items, departmentId, manager = this.transactionContext.manager, userId) {
         if (!items || items.length === 0)
@@ -607,13 +621,13 @@ let StocksService = class StocksService {
 };
 exports.StocksService = StocksService;
 __decorate([
-    (0, transactional_decorator_1.Transactional)(),
+    (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [inventory_dto_1.StockAdjustmentDto, Number]),
     __metadata("design:returntype", Promise)
 ], StocksService.prototype, "adjustStock", null);
 __decorate([
-    (0, transactional_decorator_1.Transactional)(),
+    (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [inventory_dto_1.TransferStockDto, Number]),
     __metadata("design:returntype", Promise)

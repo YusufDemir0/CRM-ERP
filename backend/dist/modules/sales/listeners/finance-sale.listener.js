@@ -15,7 +15,7 @@ var FinanceSaleListener_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FinanceSaleListener = void 0;
 const common_1 = require("@nestjs/common");
-const event_bus_service_1 = require("../../../common/services/event-bus.service");
+const event_emitter_1 = require("@nestjs/event-emitter");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const ledger_entity_1 = require("../../parties/entities/ledger.entity");
@@ -25,24 +25,28 @@ const decimal_js_1 = require("decimal.js");
 const finance_helper_1 = require("../../../common/utils/finance.helper");
 const date_utils_1 = require("../../../common/utils/date.utils");
 const sequence_generator_service_1 = require("../../../common/services/sequence-generator.service");
+const transaction_context_service_1 = require("../../../common/services/transaction-context.service");
+const transactional_1 = require("@nestjs-cls/transactional");
 let FinanceSaleListener = FinanceSaleListener_1 = class FinanceSaleListener {
-    constructor(eventBus, dataSource, sequenceGenerator, ledgerRepo, partyRepo, txRepo) {
-        this.eventBus = eventBus;
+    constructor(dataSource, sequenceGenerator, ledgerRepo, partyRepo, txRepo, transactionContext) {
         this.dataSource = dataSource;
         this.sequenceGenerator = sequenceGenerator;
         this.ledgerRepo = ledgerRepo;
         this.partyRepo = partyRepo;
         this.txRepo = txRepo;
+        this.transactionContext = transactionContext;
         this.logger = new common_1.Logger(FinanceSaleListener_1.name);
     }
-    onModuleInit() {
-        this.eventBus.subscribeSync('sale.approved', async (payload) => {
-            await this.handleFinanceLogic(payload);
-        });
-    }
     async handleFinanceLogic(payload) {
-        const { sale, tlGrandTotal, deposit, commercialAccountId, userId, manager } = payload;
-        const qr = manager || this.dataSource.manager;
+        const { sale, tlGrandTotal, deposit, commercialAccountId, userId } = payload;
+        const qr = this.transactionContext.manager;
+        const exists = await qr.findOne(ledger_entity_1.AccountingLedger, {
+            where: { source: 'SALE', transactionId: sale.id }
+        });
+        if (exists) {
+            this.logger.warn(`Idempotency: Finance logic for sale.id=${sale.id} already processed. Skipping.`);
+            return;
+        }
         try {
             await qr.save(qr.create(ledger_entity_1.AccountingLedger, {
                 date: date_utils_1.DateUtils.getToday(),
@@ -100,16 +104,23 @@ let FinanceSaleListener = FinanceSaleListener_1 = class FinanceSaleListener {
     }
 };
 exports.FinanceSaleListener = FinanceSaleListener;
+__decorate([
+    (0, transactional_1.Transactional)(),
+    (0, event_emitter_1.OnEvent)('sale.approved'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], FinanceSaleListener.prototype, "handleFinanceLogic", null);
 exports.FinanceSaleListener = FinanceSaleListener = FinanceSaleListener_1 = __decorate([
     (0, common_1.Injectable)(),
-    __param(3, (0, typeorm_1.InjectRepository)(ledger_entity_1.AccountingLedger)),
-    __param(4, (0, typeorm_1.InjectRepository)(party_entity_1.Party)),
-    __param(5, (0, typeorm_1.InjectRepository)(transaction_entity_1.Transaction)),
-    __metadata("design:paramtypes", [event_bus_service_1.InternalEventBus,
-        typeorm_2.DataSource,
+    __param(2, (0, typeorm_1.InjectRepository)(ledger_entity_1.AccountingLedger)),
+    __param(3, (0, typeorm_1.InjectRepository)(party_entity_1.Party)),
+    __param(4, (0, typeorm_1.InjectRepository)(transaction_entity_1.Transaction)),
+    __metadata("design:paramtypes", [typeorm_2.DataSource,
         sequence_generator_service_1.SequenceGeneratorService,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        typeorm_2.Repository])
+        typeorm_2.Repository,
+        transaction_context_service_1.TransactionContextService])
 ], FinanceSaleListener);
 //# sourceMappingURL=finance-sale.listener.js.map

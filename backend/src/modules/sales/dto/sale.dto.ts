@@ -1,15 +1,15 @@
 import { IsString, IsNotEmpty, IsOptional, IsNumber, IsArray, ValidateNested, IsDateString, Min, IsInt, IsIn } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { transformDecimalString } from '../../../common/helpers/number.helper';
+import { FinanceHelper } from '../../../common/utils/finance.helper';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 
 export class CreateSaleItemDto {
   @IsNumber() @IsInt() @Type(() => Number) itemId: number;
-  @IsNotEmpty() @Transform(transformDecimalString) @IsString() quantity: string;
-  @IsNotEmpty() @Transform(transformDecimalString) @IsString() price: string;
-  @IsOptional() @Transform(transformDecimalString) @IsString() discountAmount?: string;
-  @IsOptional() @Transform(transformDecimalString) @IsString() discountPercent?: string;
-  @IsOptional() @Transform(transformDecimalString) @IsString() kdvRate?: string;
+  @IsNotEmpty() @Transform(FinanceHelper.transformString) @IsString() quantity: string;
+  @IsNotEmpty() @Transform(FinanceHelper.transformString) @IsString() price: string;
+  @IsOptional() @Transform(FinanceHelper.transformString) @IsString() discountAmount?: string;
+  @IsOptional() @Transform(FinanceHelper.transformString) @IsString() discountPercent?: string;
+  @IsOptional() @Transform(FinanceHelper.transformString) @IsString() kdvRate?: string;
   @IsOptional() @IsString() description?: string;
 }
 
@@ -19,9 +19,9 @@ export class CreateSaleDto {
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) currencyId?: number;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) staffId?: number;
   @IsOptional() @IsDateString() deliveryDate?: string;
-  @IsOptional() @Transform(transformDecimalString) @IsString() deposit?: string;
-  @IsOptional() @Transform(transformDecimalString) @IsString() discountAmount?: string;
-  @IsOptional() @Transform(transformDecimalString) @IsString() discountPercent?: string;
+  @IsOptional() @Transform(FinanceHelper.transformString) @IsString() deposit?: string;
+  @IsOptional() @Transform(FinanceHelper.transformString) @IsString() discountAmount?: string;
+  @IsOptional() @Transform(FinanceHelper.transformString) @IsString() discountPercent?: string;
   @IsOptional() @IsString() notes?: string;
   @IsOptional() @IsString() phone?: string;
   @IsOptional() @IsString() address?: string;
@@ -44,9 +44,9 @@ export class UpdateSaleDto {
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) currencyId?: number;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) staffId?: number;
   @IsOptional() @IsDateString() deliveryDate?: string;
-  @IsOptional() @Transform(transformDecimalString) @IsString() deposit?: string;
-  @IsOptional() @Transform(transformDecimalString) @IsString() discountAmount?: string;
-  @IsOptional() @Transform(transformDecimalString) @IsString() discountPercent?: string;
+  @IsOptional() @Transform(FinanceHelper.transformString) @IsString() deposit?: string;
+  @IsOptional() @Transform(FinanceHelper.transformString) @IsString() discountAmount?: string;
+  @IsOptional() @Transform(FinanceHelper.transformString) @IsString() discountPercent?: string;
   @IsOptional() @IsString() notes?: string;
   @IsOptional() @IsString() phone?: string;
   @IsOptional() @IsString() address?: string;

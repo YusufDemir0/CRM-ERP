@@ -8,7 +8,7 @@ import { StocksService } from '../inventory/stocks/stocks.service';
 import { LogsService } from '../logs/logs.service';
 import { Item } from '../inventory/items/entities/item.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, In, EntityManager } from 'typeorm';
 import { Sale } from './entities/sale.entity';
 import { SaleItem } from './entities/sale-item.entity';
 import { SaleType } from './entities/sale-type.entity';
@@ -31,10 +31,12 @@ import { FinanceHelper as FH } from '../../common/utils/finance.helper';
 import { AccountingLedger } from '../parties/entities/ledger.entity';
 
 import { DateUtils } from '../../common/utils/date.utils';
-import { Transactional } from '../../common/decorators/transactional.decorator';
+import { Transactional } from '@nestjs-cls/transactional';
 import { TransactionContextService } from '../../common/services/transaction-context.service';
+import { OutboxService } from '../../common/services/outbox.service';
 import dayjs from 'dayjs';
 import { getSafeSearchPattern } from '../../common/utils/sql.helper';
+import { SaleCalculator, ItemData } from './domain/sale-calculator';
 
 @Injectable()
 export class SalesService {
@@ -49,6 +51,7 @@ export class SalesService {
     private stocksService: StocksService,
     private logsService: LogsService,
     private transactionContext: TransactionContextService,
+    private outboxService: OutboxService,
   ) { }
 
   // ────── SALE TYPES ──────
@@ -74,8 +77,14 @@ export class SalesService {
       .leftJoinAndSelect('sale.currency', 'currency');
 
     if (query.search) {
-      const s = getSafeSearchPattern(query.search);
-      qb.where('(sale.code LIKE :s OR party.name LIKE :s)', { s });
+      const searchPattern = query.search.replace(/[+><()~*\"@\-]/g, ' ').trim();
+      const safeLikePattern = getSafeSearchPattern(query.search);
+      if (searchPattern) {
+        qb.where(
+          '(MATCH(sale.code, sale.notes, sale.phone, sale.address, sale.city, sale.district, sale.taxNumber, sale.email, sale.source) AGAINST(:s IN BOOLEAN MODE) OR party.name LIKE :like)',
+          { s: `*${searchPattern}*`, like: safeLikePattern },
+        );
+      }
     }
     if (query.status) qb.andWhere('sale.status = :status', { status: query.status });
     if (query.partyId) qb.andWhere('sale.partyId = :partyId', { partyId: query.partyId });
@@ -90,7 +99,7 @@ export class SalesService {
     };
 
     const sortField = allowedSortMap[query.sortBy || ''] || 'sale.createdAt';
-    qb.orderBy(sortField, query.sortOrder || 'DESC');
+    qb.orderBy(sortField, query.sortOrderSafe);
     
     if (sortField !== 'sale.createdAt') {
       qb.addOrderBy('sale.createdAt', 'DESC');
@@ -114,6 +123,22 @@ export class SalesService {
     return sale;
   }
 
+  private async fetchItemData(manager: EntityManager, itemIds: number[]): Promise<Map<number, ItemData>> {
+    const items = await manager.find(Item, {
+      where: { id: In(itemIds), state: 1 }
+    });
+    
+    if (items.length !== itemIds.length) {
+      const foundIds = items.map(i => i.id);
+      const missing = itemIds.filter(id => !foundIds.includes(id));
+      throw new NotFoundException(`Bazı ürünler bulunamadı veya pasif: ${missing.join(', ')}`);
+    }
+
+    const map = new Map<number, ItemData>();
+    items.forEach(i => map.set(i.id, { id: i.id, salePrice: i.salePrice || 0 }));
+    return map;
+  }
+
   @Transactional()
   async create(dto: CreateSaleDto, userId?: number): Promise<Sale> {
     const manager = this.transactionContext.manager;
@@ -126,140 +151,40 @@ export class SalesService {
     const currentExchangeRate = currency ? currency.exchangeRate : new Decimal(1);
 
     const user = await manager.findOne(User, { where: { id: userId } });
-    const userDeptId = user?.departmentId || 1; // Fallback to 1 if not set
+    const userDeptId = user?.departmentId || 1;
 
     const code = await this.sequenceGenerator.generateSaleCode(manager, Number(userDeptId));
 
-    let rawTotalAmount = new Decimal(0);
-    const saleItems: Partial<SaleItem>[] = [];
-
-    for (const itemDto of dto.items) {
-      const dbItem = await manager.findOne(Item, {
-        where: { id: itemDto.itemId, state: 1 },
-      });
-
-      if (!dbItem) {
-        throw new NotFoundException(`Ürün bulunamadı veya pasif durumda: ID ${itemDto.itemId}`);
-      }
-
-      const unitPrice = new Decimal(dbItem.salePrice || 0);
-      const discountAmount = new Decimal(itemDto.discountAmount || 0);
-      const discountPercent = new Decimal(itemDto.discountPercent || 0);
-
-      const maxAllowedDiscount = unitPrice.mul(0.5);
-      if (discountAmount.gt(maxAllowedDiscount)) {
-        throw new BadRequestException(`Ürün ID ${itemDto.itemId} için maksimum iskonto sınırı (${maxAllowedDiscount}) aşıldı.`);
-      }
-
-      let netPrice = unitPrice;
-      if (discountAmount.gt(0)) {
-        netPrice = FH.sub(netPrice, discountAmount);
-      } else if (discountPercent.gt(0)) {
-        const discount = FH.mul(netPrice, discountPercent.div(100));
-        netPrice = FH.sub(netPrice, discount);
-      }
-
-      const subtotal = FH.mul(itemDto.quantity, netPrice);
-      rawTotalAmount = FH.add(rawTotalAmount, subtotal);
-
-      saleItems.push({
-        itemId: itemDto.itemId,
-        quantity: new Decimal(itemDto.quantity),
-        shippedQuantity: new Decimal(0),
-        price: unitPrice,
-        discountAmount,
-        discountPercent,
-        netPrice,
-        kdvRate: new Decimal(itemDto.kdvRate ?? 20),
-        description: itemDto.description,
-        createdBy: userId,
-      });
-    }
-
-    const headerDiscountAmount = new Decimal(dto.discountAmount || 0);
-    const headerDiscountPercent = new Decimal(dto.discountPercent || 0);
-    let discountToSubtract = headerDiscountAmount;
-
-    if (headerDiscountPercent.gt(0)) {
-      discountToSubtract = FH.mul(rawTotalAmount, headerDiscountPercent.div(100));
-    }
-
-    const discountedMatrah = FH.sub(rawTotalAmount, discountToSubtract);
-
-    let totalKdv = new Decimal(0);
-    let distributedMatrah = new Decimal(0);
-    let maxLineIndex = 0;
-    let maxLineAmount = new Decimal(0);
-
-    saleItems.forEach((item, index) => {
-      const isLast = index === saleItems.length - 1;
-      
-      let lineMatrah: Decimal;
-      if (isLast && saleItems.length > 0) {
-        lineMatrah = discountedMatrah.minus(distributedMatrah);
-      } else {
-        const lineRatio = rawTotalAmount.gt(0) 
-          ? FH.div(FH.mul(item.quantity!, item.netPrice!), rawTotalAmount, 10) 
-          : new Decimal(0);
-        lineMatrah = FH.round(discountedMatrah.mul(lineRatio));
-        distributedMatrah = distributedMatrah.plus(lineMatrah);
-      }
-
-      if (lineMatrah.gt(maxLineAmount)) {
-        maxLineAmount = lineMatrah;
-        maxLineIndex = index;
-      }
-
-      const lineKdv = FH.calculateKdv(lineMatrah, Number(item.kdvRate!));
-      item.kdvAmount = lineKdv;
-      item.lineTotal = FH.add(lineMatrah, lineKdv);
-      totalKdv = FH.add(totalKdv, lineKdv);
-    });
-
-    // [TASK-004] Penny Rounding Logic
-    const avgKdvRate = saleItems.length > 0 ? Number(saleItems[0].kdvRate) : 20;
-    const expectedKdv = FH.calculateKdv(discountedMatrah, avgKdvRate);
-    const difference = expectedKdv.sub(totalKdv);
-
-    if (!difference.isZero() && saleItems.length > 0) {
-      const targetItem = saleItems[maxLineIndex];
-      targetItem.kdvAmount = FH.add(targetItem.kdvAmount!, difference);
-      targetItem.lineTotal = FH.add(targetItem.lineTotal!, difference);
-      totalKdv = expectedKdv;
-    }
-
-    const grandTotal = FH.add(discountedMatrah, totalKdv);
+    // ─── DELEGATE TO DOMAIN CALCULATOR ───
+    const itemDataMap = await this.fetchItemData(manager, dto.items.map(i => i.itemId));
+    const calcResult = SaleCalculator.calculate(
+      dto.items,
+      itemDataMap,
+      dto.discountAmount,
+      dto.discountPercent
+    );
 
     const sale = manager.create(Sale, {
+      ...dto,
       code,
-      partyId: dto.partyId,
-      saleTypeId: dto.saleTypeId,
-      currencyId: dto.currencyId,
-      staffId: dto.staffId,
       exchangeRate: currentExchangeRate,
-      deliveryDate: dto.deliveryDate,
       status: 'draft',
       deposit: new Decimal(dto.deposit || 0),
-      totalAmount: rawTotalAmount,
-      discountAmount: headerDiscountAmount,
-      discountPercent: headerDiscountPercent,
-      kdv: totalKdv,
-      grandTotal,
-      notes: dto.notes,
-      phone: dto.phone,
-      address: dto.address,
-      taxNumber: dto.taxNumber,
-      email: dto.email,
-      source: dto.source,
-      city: dto.city,
-      district: dto.district,
-      commercialAccountId: dto.commercialAccountId,
+      totalAmount: calcResult.totalAmount,
+      discountAmount: calcResult.discountAmount,
+      discountPercent: calcResult.discountPercent,
+      kdv: calcResult.kdv,
+      grandTotal: calcResult.grandTotal,
       createdBy: userId,
     });
 
     const savedSale = await manager.save(sale);
 
-    const saleItemEntities = saleItems.map(si => manager.create(SaleItem, { ...si, saleId: savedSale.id }));
+    const saleItemEntities = calcResult.lines.map(line => manager.create(SaleItem, {
+      ...line,
+      saleId: savedSale.id,
+      createdBy: userId
+    }));
     await manager.save(SaleItem, saleItemEntities);
 
     return this.findOne(savedSale.id);
@@ -273,128 +198,41 @@ export class SalesService {
       throw new BadRequestException('Sadece taslak durumundaki siparişler düzenlenebilir.');
     }
 
-    if (dto.notes !== undefined) sale.notes = dto.notes;
-    if (dto.deliveryDate !== undefined) sale.deliveryDate = dto.deliveryDate;
-    if (dto.staffId !== undefined) sale.staffId = dto.staffId;
-    if (dto.phone !== undefined) sale.phone = dto.phone;
-    if (dto.address !== undefined) sale.address = dto.address;
-    if (dto.taxNumber !== undefined) sale.taxNumber = dto.taxNumber;
-    if (dto.email !== undefined) sale.email = dto.email;
-    if (dto.source !== undefined) sale.source = dto.source;
-    if (dto.city !== undefined) sale.city = dto.city;
-    if (dto.district !== undefined) sale.district = dto.district;
-    if (dto.commercialAccountId !== undefined) sale.commercialAccountId = dto.commercialAccountId;
+    // Basic fields update
+    const updatableFields: (keyof UpdateSaleDto)[] = [
+      'notes', 'deliveryDate', 'staffId', 'phone', 'address', 'taxNumber',
+      'email', 'source', 'city', 'district', 'commercialAccountId'
+    ];
+    updatableFields.forEach(field => {
+      if (dto[field] !== undefined) (sale as unknown as Record<string, unknown>)[field] = dto[field];
+    });
     sale.updatedBy = userId || null;
 
     if (dto.items && dto.items.length > 0) {
-      let rawTotalAmount = new Decimal(0);
-      const saleItems: Partial<SaleItem>[] = [];
+      const itemDataMap = await this.fetchItemData(manager, dto.items.map(i => i.itemId));
+      const calcResult = SaleCalculator.calculate(
+        dto.items,
+        itemDataMap,
+        dto.discountAmount !== undefined ? dto.discountAmount : sale.discountAmount,
+        dto.discountPercent !== undefined ? dto.discountPercent : sale.discountPercent
+      );
 
-      for (const itemDto of dto.items) {
-        const dbItem = await manager.findOne(Item, {
-          where: { id: itemDto.itemId, state: 1 },
-        });
-
-        if (!dbItem) {
-          throw new NotFoundException(`Ürün bulunamadı veya pasif durumda: ID ${itemDto.itemId}`);
-        }
-
-        const unitPrice = new Decimal(dbItem.salePrice || 0);
-        const discountAmount = new Decimal(itemDto.discountAmount || 0);
-        const discountPercent = new Decimal(itemDto.discountPercent || 0);
-
-        const maxAllowedDiscount = unitPrice.mul(0.5);
-        if (discountAmount.gt(maxAllowedDiscount)) {
-          throw new BadRequestException(`Ürün ID ${itemDto.itemId} için maksimum iskonto sınırı (${maxAllowedDiscount}) aşıldı.`);
-        }
-
-        let netPrice = unitPrice;
-        if (discountAmount.gt(0)) {
-          netPrice = FH.sub(netPrice, discountAmount);
-        } else if (discountPercent.gt(0)) {
-          const discount = FH.mul(netPrice, discountPercent.div(100));
-          netPrice = FH.sub(netPrice, discount);
-        }
-
-        rawTotalAmount = FH.add(rawTotalAmount, FH.mul(itemDto.quantity, netPrice));
-
-        saleItems.push({
-          itemId: itemDto.itemId,
-          quantity: new Decimal(itemDto.quantity),
-          shippedQuantity: new Decimal(0),
-          price: unitPrice,
-          discountAmount,
-          discountPercent,
-          netPrice,
-          kdvRate: new Decimal(itemDto.kdvRate ?? 20),
-          description: itemDto.description,
-          createdBy: userId,
-        });
-      }
-
-      const headerDiscountAmount = new Decimal(dto.discountAmount !== undefined ? dto.discountAmount : sale.discountAmount);
-      const headerDiscountPercent = new Decimal(dto.discountPercent !== undefined ? dto.discountPercent : sale.discountPercent);
-      let discountToSubtract = headerDiscountAmount;
-      if (headerDiscountPercent.gt(0)) {
-        discountToSubtract = FH.mul(rawTotalAmount, headerDiscountPercent.div(100));
-      }
-
-      const discountedMatrah = FH.sub(rawTotalAmount, discountToSubtract);
-
-      let totalKdv = new Decimal(0);
-      let distributedMatrah = new Decimal(0);
-      let maxLineIndex = 0;
-      let maxLineAmount = new Decimal(0);
-
-      saleItems.forEach((item, index) => {
-        const isLast = index === saleItems.length - 1;
-
-        let lineMatrah: Decimal;
-        if (isLast && saleItems.length > 0) {
-          lineMatrah = discountedMatrah.minus(distributedMatrah);
-        } else {
-          const lineRatio = rawTotalAmount.gt(0)
-            ? FH.div(FH.mul(item.quantity!, item.netPrice!), rawTotalAmount, 10)
-            : new Decimal(0);
-          lineMatrah = FH.round(discountedMatrah.mul(lineRatio));
-          distributedMatrah = distributedMatrah.plus(lineMatrah);
-        }
-
-        if (lineMatrah.gt(maxLineAmount)) {
-          maxLineAmount = lineMatrah;
-          maxLineIndex = index;
-        }
-
-        const lineKdv = FH.calculateKdv(lineMatrah, Number(item.kdvRate!));
-        item.kdvAmount = lineKdv;
-        item.lineTotal = FH.add(lineMatrah, lineKdv);
-        totalKdv = FH.add(totalKdv, lineKdv);
-      });
-
-      // [TASK-004] Penny Rounding Logic
-      const avgKdvRate = saleItems.length > 0 ? Number(saleItems[0].kdvRate) : 20;
-      const expectedKdv = FH.calculateKdv(discountedMatrah, avgKdvRate);
-      const difference = expectedKdv.sub(totalKdv);
-
-      if (!difference.isZero() && saleItems.length > 0) {
-        const targetItem = saleItems[maxLineIndex];
-        targetItem.kdvAmount = FH.add(targetItem.kdvAmount!, difference);
-        targetItem.lineTotal = FH.add(targetItem.lineTotal!, difference);
-        totalKdv = expectedKdv;
-      }
-
-      sale.totalAmount = rawTotalAmount;
-      sale.discountAmount = headerDiscountAmount;
-      sale.discountPercent = headerDiscountPercent;
-      sale.kdv = totalKdv;
-      sale.grandTotal = FH.add(discountedMatrah, totalKdv);
-      sale.deposit = new Decimal(dto.deposit !== undefined ? dto.deposit : sale.deposit);
+      sale.totalAmount = calcResult.totalAmount;
+      sale.discountAmount = calcResult.discountAmount;
+      sale.discountPercent = calcResult.discountPercent;
+      sale.kdv = calcResult.kdv;
+      sale.grandTotal = calcResult.grandTotal;
+      if (dto.deposit !== undefined) sale.deposit = new Decimal(dto.deposit);
 
       await manager.delete(SaleItem, { saleId: sale.id });
-      const saleItemEntities = saleItems.map(si => manager.create(SaleItem, { ...si, saleId: sale.id }));
+      const saleItemEntities = calcResult.lines.map(line => manager.create(SaleItem, {
+        ...line,
+        saleId: sale.id,
+        updatedBy: userId
+      }));
       await manager.save(SaleItem, saleItemEntities);
-    } else {
-      if (dto.deposit !== undefined) sale.deposit = new Decimal(dto.deposit);
+    } else if (dto.deposit !== undefined) {
+      sale.deposit = new Decimal(dto.deposit);
     }
 
     await manager.save(sale);
@@ -416,6 +254,7 @@ export class SalesService {
     if (!party) throw new NotFoundException('Cari hesap bulunamadı');
 
     const tlGrandTotal = FH.mul(sale.grandTotal, sale.exchangeRate);
+    const depositToTL = FH.mul(sale.deposit, sale.exchangeRate);
 
     if (party.creditLimit.gt(0) && (FH.add(party.balance, tlGrandTotal)).gt(party.creditLimit)) {
       throw new BadRequestException(`Cari limit aşıldı! Sipariş sonrası bakiye: ${FH.add(party.balance, tlGrandTotal)} olmaktadır.`);
@@ -426,61 +265,19 @@ export class SalesService {
     sale.updatedBy = userId || null;
     await manager.save(Sale, sale);
 
-    await this.stocksService.reserveStockBulk(
-      sale.items.map(i => ({ itemId: i.itemId, quantity: i.quantity })),
-      dto.departmentId,
-      manager,
-      userId
-    );
-
-    await manager.save(manager.create(AccountingLedger, {
-      date: DateUtils.getToday(),
-      partyId: sale.partyId,
-      debit: tlGrandTotal,
-      credit: new Decimal(0),
-      transactionId: sale.id,
-      source: 'SALE',
-      description: `${sale.code} numaralı Satış Faturası Borçlandırması`
-    }));
-
-    party.balance = FH.add(party.balance, tlGrandTotal);
-
-    const depositToTL = FH.mul(sale.deposit, sale.exchangeRate);
-    if (depositToTL.gt(0) && dto.commercialAccountId) {
-      const txCode = await this.sequenceGenerator.generateTransactionCode(manager, 'MKB');
-
-      await manager.save(manager.create(Transaction, {
-        code: txCode,
-        partyId: party.id,
+    // ─── DECOUPLE: Transactional Outbox ───
+    await this.outboxService.saveEvent({
+      topic: 'sale.approved',
+      payload: {
+        sale,
+        tlGrandTotal,
+        deposit: depositToTL,
+        departmentId: dto.departmentId,
         commercialAccountId: dto.commercialAccountId,
-        amount: sale.deposit,
-        currencyId: sale.currencyId,
-        exchangeRate: sale.exchangeRate,
-        type: 'in',
-        referenceType: 'sale',
-        referenceId: sale.id,
-        date: DateUtils.getToday(),
-        description: `${sale.code} Nolu Sipariş Peşinat / Kaporası`,
-        status: 'completed',
-        createdBy: userId
-      }));
-
-      await manager.save(manager.create(AccountingLedger, {
-        date: DateUtils.getToday(),
-        partyId: party.id,
-        accountId: dto.commercialAccountId,
-        debit: new Decimal(0),
-        credit: depositToTL,
-        transactionId: sale.id,
-        source: 'DEPOSIT',
-        description: `${sale.code} Sipariş Peşinat Tahsilatı`
-      }));
-
-      party.balance = FH.sub(party.balance, depositToTL);
-    }
-
-    party.updatedBy = userId || null;
-    await manager.save(Party, party);
+        userId,
+      },
+      manager,
+    });
 
     this.logsService.logActivity({
       userId,
@@ -626,12 +423,17 @@ export class SalesService {
       userId
     );
 
+    const saleItemsToUpdate: SaleItem[] = [];
     for (const item of shipItems) {
       const saleItem = sale.items.find(si => Number(si.itemId) === Number(item.itemId));
       if (saleItem) {
         saleItem.shippedQuantity = new Decimal(saleItem.shippedQuantity || 0).add(item.quantity);
-        await manager.save(SaleItem, saleItem);
+        saleItemsToUpdate.push(saleItem);
       }
+    }
+    
+    if (saleItemsToUpdate.length > 0) {
+      await manager.save(SaleItem, saleItemsToUpdate);
     }
 
     sale.status = 'shipped';

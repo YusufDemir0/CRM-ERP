@@ -3,8 +3,8 @@ import { partiesAPI, accountsAPI, salesAPI, itemsAPI, staffAPI, departmentsAPI }
 import { Party, Item, SaleType, Account, Staff, Department } from '../types';
 import { useSalesWizardStore } from '../store/useSalesWizardStore';
 import toast from 'react-hot-toast';
-
 import { useAuthStore } from '../store/useAuthStore';
+import { SalesWizardFormData } from '../pages/modules/SalesWizard/schema';
 
 export const useSalesWizard = (onCompleted: () => void) => {
   const store = useSalesWizardStore();
@@ -16,6 +16,7 @@ export const useSalesWizard = (onCompleted: () => void) => {
   const [saleTypes, setSaleTypes] = useState<SaleType[]>([]);
   const [department, setDepartment] = useState<Department | null>(null);
   const [searchCustomer, setSearchCustomer] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadLookups();
@@ -37,7 +38,6 @@ export const useSalesWizard = (onCompleted: () => void) => {
       setItems(iRes.data.data);
       setSaleTypes(stRes.data);
 
-      // Filter staff by department if user has one
       const allStaff = sRes.data.data;
       if (user?.departmentId) {
         setStaff(allStaff.filter(s => Number(s.departmentId) === Number(user.departmentId)));
@@ -45,17 +45,11 @@ export const useSalesWizard = (onCompleted: () => void) => {
         setStaff(allStaff);
       }
 
-      // Find default account for user's department
       if (user?.departmentId) {
         const userDept = dRes.data.data.find(d => Number(d.id) === Number(user.departmentId));
         if (userDept) {
           setDepartment(userDept);
-          if (userDept.commercialAccountId) {
-            const defaultAcc = aRes.data.data.find(a => Number(a.id) === Number(userDept.commercialAccountId));
-            if (defaultAcc && !store.paymentAccount) {
-              store.setPaymentAccount(defaultAcc);
-            }
-          }
+          // Auto-select payment account is handled at form initialization via draftData if null
         }
       }
 
@@ -68,38 +62,32 @@ export const useSalesWizard = (onCompleted: () => void) => {
     await loadLookups();
   };
 
-  const handleSelectCustomer = (c: Party) => {
-    store.setCustomer(c);
-  };
-
-  const handleSubmit = async () => {
-    if (store.selectedItems.length === 0) return toast.error("Lütfen en az bir ürün ekleyin.");
-    
-    store.setLoading(true);
+  const submitForm = async (data: SalesWizardFormData) => {
+    setLoading(true);
     try {
-      if (!store.customer) throw new Error("Müşteri seçilmedi.");
+      const customer = customers.find(c => c.id === data.customerId);
+      const currencyId = customer?.currencyId || 1;
+
       const payload = {
-        partyId: Number(store.customer.id),
-        staffId: store.staffId ? Number(store.staffId) : null,
-        phone: store.phone,
-        address: store.address,
-        city: store.city,
-        district: store.district,
-        deliveryDate: store.deliveryDate,
-        currencyId: Number(store.customer.currencyId || 1),
-        deposit: String(store.deposit || 0),
-        discountAmount: String(store.discountAmount || 0),
-        commercialAccountId: store.paymentAccount?.id ? Number(store.paymentAccount.id) : null,
-        taxNumber: store.taxId,
-        notes: store.description,
-        email: store.email,
-        source: store.source,
+        partyId: Number(data.customerId),
+        staffId: data.staffId ? Number(data.staffId) : null,
+        phone: data.phone,
+        address: `${data.address || ''} ${data.district || ''}`.trim(),
+        deliveryDate: data.deliveryDate,
+        currencyId: Number(currencyId),
+        deposit: String(data.deposit || 0),
+        discountAmount: String(data.discountAmount || 0),
+        commercialAccountId: data.paymentAccountId ? Number(data.paymentAccountId) : null,
+        taxNumber: data.taxId,
+        notes: data.description,
+        email: data.email,
+        source: data.source,
         saleTypeId: Number(saleTypes[0]?.id || 1),
-        items: store.selectedItems.map(item => ({
+        items: data.items.map(item => ({
           itemId: Number(item.id),
           quantity: String(item.quantity),
           price: String(item.unitPrice),
-          kdvRate: String(store.isTaxed ? (item.taxRate || 20) : 0)
+          kdvRate: String(data.isTaxed ? (item.taxRate || 20) : 0)
         }))
       };
       
@@ -110,7 +98,7 @@ export const useSalesWizard = (onCompleted: () => void) => {
     } catch (error) {
       toast.error("Satış kaydedilirken hata oluştu.");
     } finally {
-      store.setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -123,9 +111,8 @@ export const useSalesWizard = (onCompleted: () => void) => {
     department,
     searchCustomer,
     setSearchCustomer,
-    handleSelectCustomer,
-    handleSubmit,
+    submitForm,
     refreshLookups,
-    loading: store.loading
+    loading
   };
 };

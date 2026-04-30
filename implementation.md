@@ -1,881 +1,437 @@
-# ERMAY ERP — IMPLEMENTATION GUIDE
-> Versiyon: 1.1.0 | Durum: CRITICAL / MANDATORY  
-> Her başlık ilgili `tasks.md` task ID'siyle eşleştirilmiştir.
+🚀 ERMAY ERP - KAPSAMLI İMPLEMENTASYON VE REVİZYON PLANI
+FAZ 1: Veritabanı ve Şema Güncellemeleri (Backend DB)
 
----
+Bu fazda yeni iş kurallarını destekleyecek DB ve Entity değişiklikleri yapılacaktır.
 
-## BÖLÜM 1 — BACKEND MİMARİSİ & GÜVENLİK
+    Task 1.1: Departmanlara Şehir (İl) Ataması
 
----
+        Department entity'sine cityId (number) alanı eklenecek.
 
-### [TASK-001] RabbitMQ Audit Log Entegrasyonu
+        Veritabanı için yeni bir migration yazılacak: ALTER TABLE departments ADD COLUMN city_id INT NULL;
 
-**Sorun:** `LogsService.ts` içindeki `bufferTime` tabanlı in-memory log tampon mekanizması; Node.js process'i crash ettiğinde veya pod restart olduğunda hafızadaki tüm logları kaybeder. RAM birikimiyle bellek baskısı yaratır.
+        Hedef Dosyalar: backend/src/modules/departments/entities/department.entity.ts, backend/src/modules/departments/dto/department.dto.ts
 
-**Kurulum:**
-```bash
-npm install @nestjs/microservices amqplib
-```
+    Task 1.2: Cari (Party) Tiplerinin Düzenlenmesi
 
-**Adım 1 – RabbitMQ bağlantı modülü (AppModule):**
-```typescript
-// app.module.ts
-import { ClientsModule, Transport } from '@nestjs/microservices';
+        Enum değerlerinden both kaldırılacak. Sadece customer ve provider kalacak.
 
-ClientsModule.register([
-  {
-    name: 'AUDIT_LOG_SERVICE',
-    transport: Transport.RMQ,
-    options: {
-      urls: [process.env.RABBITMQ_URL],
-      queue: 'audit_logs_queue',
-      queueOptions: { durable: true },
-      noAck: false, // Manual ACK zorunlu
-    },
-  },
-]),
-```
+        Kod bloklarında provider'ın aynı zamanda bir customer gibi de işlem görebileceği yapı kurgulanacak. (Satışta provider da seçilebilecek).
 
-**Adım 2 – LogsService refactor:**
-```typescript
-// logs/logs.service.ts
-@Injectable()
-export class LogsService {
-  constructor(
-    @Inject('AUDIT_LOG_SERVICE') private readonly rmqClient: ClientProxy,
-  ) {}
+        Hedef Dosyalar: backend/src/modules/parties/entities/party.entity.ts, backend/src/modules/parties/dto/party.dto.ts
 
-  // ESKİ bufferTime bloğunu TAMAMEN SİL
-  // YENİSİ:
-  async emitLog(logData: AuditLogDto): Promise<void> {
-    this.rmqClient.emit('audit_log', logData);
-  }
+    Task 1.3: Ürün Türleri (Item Types) Default Veri Güncellemesi (Seed)
+
+        Veritabanına (Migration veya Seed ile) TİCARİ MAMÜL, YAN MADDE, HAMMADDE ürün türleri eklenecek.
+
+        TİCARİ MAMÜL türündeki veriler için isExcludedFromBom = true yapılacak. (Reçetede alt bileşen olarak seçilmelerini engellemek için).
+
+FAZ 2: Backend Servisleri ve İş Mantığı (Business Logic)
+
+    Task 2.1: Cari (Party) Listesi Gelişmiş İstatistikleri
+
+        PartiesService.findAll metodu güncellenecek. SubQuery veya Left Join ile her bir cari için:
+
+            total_sales_count (Cariye yapılan toplam satış adeti)
+
+            last_sale_date (Son satış tarihi)
+
+            calculated_balance (Toplam Satış Tutarı - Toplam Alınan Tutar) hesaplanıp döndürülecek.
+
+        Hedef Dosya: backend/src/modules/parties/parties.service.ts
+
+    Task 2.2: Satış Sipariş Kodu Formatının Değiştirilmesi
+
+        SequenceGeneratorService içindeki generateSaleCode güncellenecek.
+
+        Eski format: S-GEN-001. Yeni Format: MXXX99998 tarzı 5 haneli (M + DEP + 00001).
+
+        Hedef Dosya: backend/src/common/services/sequence-generator.service.ts
+
+    Task 2.3: Satış Listesinin (Sales) Yetki ve Departmana Göre Filtrelenmesi
+
+        SalesService.findAll içerisine departman filtreleme mantığı eklenecek.
+
+        Kullanıcının SALES_VIEW_ALL (Yetkili) izni varsa her şeyi görecek.
+
+        Yetkili değilse; sorguya qb.andWhere('sale.departmentId = :userDeptId', { userDeptId: user.departmentId }) eklenecek.
+
+        Hedef Dosyalar: backend/src/modules/sales/sales.service.ts, backend/src/modules/sales/sales.controller.ts
+
+    Task 2.4: Dashboard Veri Kaynaklarının Güncellenmesi
+
+        DashboardService.getSummary metodu güncellenecek.
+
+        Kaldırılacaklar: Finansal hareketler, Aktif ürün çeşidi, Sistem personeli sayısı.
+
+        Eklenecekler/Değişecekler:
+
+            Yalnızca kullanıcının oluşturduğu Cariler (createdBy = user.id) getirilecek.
+
+            Toplam Kayıtlı Müşteri (sadece type=customer olanlar)
+
+            Toplam Satış Miktarı (Count)
+
+            Günün Cirosu (Sadece bugüne ait satışların toplamı).
+
+        Hedef Dosya: backend/src/modules/dashboard/dashboard.service.ts
+
+FAZ 3: Frontend Navigasyon ve Genel UI
+
+    Task 3.1: Kenar Çubuğu (Sidebar) Sıralaması ve Gruplaması
+
+        navigation.tsx dosyası tam olarak verilen listeye göre baştan yapılandırılacak.
+
+            Genel: Dashboard, Notlar
+
+            Satış: Satışlar, Müşteri/Cari, Ürünler
+
+            Üretim: Ürün Reçeteleri, Üretim Emirleri, Stoklar, Stok Hareketleri
+
+            Hesaplar: Hesaplar, Hesap Hareketleri
+
+            Yönetim: Kullanıcılar, Roller Yetkiler, Departmanlar
+
+            Sistem: Ayarlar, Sistem Logları
+
+        Hedef Dosya: frontend/src/config/navigation.tsx
+
+    Task 3.2: Terminoloji Güncellemeleri
+
+        Uygulama genelinde "Siparişler" ibaresi "Satışlar" olarak değiştirilecek.
+
+        Satış durumu (Status): "Taslak" -> "Bekliyor" , "Sevk Edildi" -> "Teslim Edildi" olarak (UI tarafında display text) güncellenecek.
+
+        Hedef Dosyalar: SalesHeader.tsx, SalesTable.tsx, SaleWizard.tsx
+
+FAZ 4: Frontend Ekranları ve Bileşenleri (Component Updates)
+
+    Task 4.1: Ürün Reçetesi (BOM) Kural ve Arayüz Güncellemeleri
+
+        BomForm.tsx içerisindeki Hammadde/Bileşen ekleme ekranı standart <select> yerine <SearchableSelect> bileşenine geçirilecek.
+
+        "Ana Ürün"ün alt bileşen olarak seçilmesi engellenecek (Mevcutta var, sağlamlaştırılacak).
+
+        "Ticari Mal" olan ürünler listeden tamamen gizlenecek.
+
+        Hedef Dosya: frontend/src/components/forms/BomForm.tsx
+
+    Task 4.2: Cari (Party) Listesi Kolon Güncellemeleri
+
+        PartiesColumns.tsx güncellenecek.
+
+        Sütunlar: Ad, Telefon, Kalan Tutar, Son Satış Tarihi, Toplam Satış Adeti olarak ayarlanacak.
+
+        Hedef Dosya: frontend/src/pages/modules/Parties/PartiesColumns.tsx
+
+    Task 4.3: Satışlar Listesi (Sales Table) Sütunları
+
+        Sütun sıralaması kesin olarak şu şekilde ayarlanacak: Satış No, Müşteri Adı, Müşteri Telefonu, Tutar, Kar/Zarar, Durum (Bekliyor, vs), Satış Tarihi, Teslimat Tarihi.
+
+        Telefon numarası kolonlara eklenecek ve Backend'deki arama (search) alanına dahil edilecek.
+
+        Kâr/Zarar gösterimi eklenecek (Bunun için Backend'den Maliyet verisinin de UI'a taşınması gerekecek).
+
+        Hedef Dosya: frontend/src/components/sales/SalesTable.tsx
+
+    Task 4.4: Satış Listesi "Tab" Varsayılanları
+
+        Standart kullanıcılarda Tümü tabı default açık gelecek.
+
+        Yetkili Satış (Authorized Sales) izni olanlarda Bekleyenler (Draft/Pending) sekmesi default açık gelecek.
+
+        Hedef Dosya: frontend/src/pages/SalesPage.tsx
+
+    Task 4.5: Satış Ekleme Ekranı (Sale Wizard) Revizyonu
+
+        Müşteri seçildiğinde çıkan bilgiler kısmı UI olarak "KAYITLI ADRES" - "FARKLI ADRES" toggle butonu ile tasarlanacak.
+
+        Yeni müşteri oluşturma (+) butonu daha belirgin hale getirilecek.
+
+        Satış giriş yapan personelin departmanının city_id si (Faz 1'de eklendi) varsa, Şehir/İl dropdown'ında otomatik seçili gelecek.
+
+        Sağ taraftaki fiyat özet (Summary) bölümü yeniden tasarlanacak:
+
+            Temsilci Fiyatı (Ürün listesindeki toplam) -> ARA TUTAR
+
+            İskonto -> İSKONTO
+
+            GENEL TOPLAM
+
+        Hedef Dosyalar: frontend/src/pages/modules/SalesWizard/SaleWizard.tsx, WizardSummary.tsx
+
+    Task 4.6: Hızlı Cari Kayıt (Quick Create Party) Düzenlemeleri
+
+        Cari Kategorisi (Tip) kısmından "Her ikisi" seçeneği UI'dan kaldırılacak.
+
+        "İkinci Telefon Numarası" alanı eklenecek.
+
+        "Vergi Dairesi" ve "Vergi No" alanları zorunlu veya daha vurgulu hale getirilecek (VKN/TCKN mantığı korunarak).
+
+        Formdaki "Kritik Bakiye" kısmı Hızlı Cari ekleme formundan kaldırılacak.
+
+        Hedef Dosya: frontend/src/components/forms/PartyForm.tsx
+
+    Task 4.7: Departman Formu Güncellemesi
+
+        Departman oluşturma/düzenleme formuna "Bulunduğu İl" (City) <SearchableSelect> dropdown'ı eklenecek.
+
+        Hedef Dosya: frontend/src/components/forms/DepartmentForm.tsx
+
+    Task 4.8: Dashboard Arayüz (UI) Güncellemeleri
+
+        DashboardPage.tsx içerisinden "Aktif Ürün Çeşidi", "Sistem Personeli" widget'ları silinecek.
+
+        "Son Finansal Hareketler" tablosu tamamen silinecek.
+
+        Yeni Metrik kartları eklenecek: "Toplam Kayıtlı Müşteri", "Toplam Satış Miktarı", "Günün Cirosu".
+
+        Hedef Dosya: frontend/src/pages/modules/DashboardPage.tsx
+
+💡 Ek Mimari Öneriler (Uygulamanın Sağlığı İçin Kesinlikle Yapılmalı)
+
+İmplementasyon planında tam olarak istediklerinize odaklandık. Ancak "Roast" kısmında bahsettiğiniz çökme noktaları için Task kodlamalarına başlamadan önce yapılması gerekenler:
+
+    RabbitMQ / Outbox Fix: OutboxWorker eventi veritabanından aldığında lokal emitter'a basmak yerine (veya lokal basacaksa bile) consumer mantığını düzgün bağlayın. Mevcut haliyle stoklar düşmeyecektir. InventorySaleListener'ı @OnEvent yerine RabbitMQ Consumer ile tetiklenecek şekilde bağlamanız şart.
+
+    TypeScript Derleme Hatası Çözümü: Party nesnesine cityName prop'unu ekleyin. SaleWizardPage.tsx'teki defaultValues tip uyuşmazlığını (null/undefined karmaşası) tsconfig strict moduna uyumlu hale getirin. Aksi takdirde React tarafı compile edilemez.
+
+    Decimal UI Fix: Ekranda (özellikle Wizard Summary) parseFloat yapmadan doğrudan new Decimal().toDecimalPlaces(2) kullanın.
+
+
+    //////////////////////////////
+
+    REÇETE SEARCH LİSTBOXA DÖNECEK
+REÇETE ANA ÜRÜN ALTTA LİSTELENMEMESİ LAZIM. TİCARİ MAL OLANLARIN LİSTELENMEMESİ LAZIM
+cari tek tipe dönecek (cari tipleri tedarikçi ve müşteri olacak(her ikisi de seçeneği olmayacak tedarikçi her ikiside gibi olacak(yani müşteri özelliklerini müşteri isteyen yerlerde falan da kullanılabilecek)))
+müşteri ad
+telefon
+kalan tutar ( cariye yapılan toplan satıştan “eksi” toplam alınan tutar çıkacak)
+son satış tarihi
+toplam satış adeti ( müşteriye daha önce girilen satış adeti )
+ürün kayıtta ürün türü düzenlenecek. ( ticari mamül, YAN MADDE,  hammadde )
+dashboard - sadece kullanıcının kaydettiği cariler listelenecek.
+dashboarddan aktif ürün çeşidi ve sistem personelini kaldıralım.
+dashboarddan finansal haraketleri kaldıralım
+side bar sıralaması,
+— genel —
+dash
+not
+— satış —
+satışlar
+müşteri/cari
+ürünler
+üretim
+ürün reçeteleri
+ürün emirleri
+stoklar
+stok
+stok haraketleri
+hesaplar
+hesaplar
+hesap har.
+yönetim
+kullanıcılar
+roller yetkiler
+deparmanlar
+sistem
+ayarlar
+sistem logları
+
+SATIŞLAR SAYFASI
+SİPARİŞLER DEĞİL - SATIŞLAR OLARAK DÜZELTİLECEK
+satışlar giriş yapılan departmana göre listelenecek, yetkili satışlar hepsini görecek
+satış kodu s olmayacak. MXXX99998 formatında 5 rakam 00001 den başlayıp
+
+
+SATIŞ VE YETKİLİ SATIŞLAR SAYFASI OLACAK
+satışlar sayfasın;
+liste sınıfları “tümü” de default gelecek
+yetkili satışlarda bekleniyordan gelecek.
+sevk edilenler teslim edildi.
+listelenecek sütunlar sırasıyla; ( sadece görüntüleme olacak )
+satış no
+müşteri adı
+müşteri telefonu ( aramaya eklenecek )
+tutar
+kar/zarar
+durum ( taslak değil bekleniyor olarak değiştirelim )
+satış tarihi
+teslimat tarihi
+SATIŞ EKLEME EKRANI
+KAYITLI ADRES - FARKLI ADRES olarak değişecek. Yeni müşteri butonu gözükür tasarım
+VERGİ / TİCARİ - VERGİ DAİRESİ - 
+HIZLI CARİ KAYDI 2. NUMARA EKLENECEK.
+HIZLI CARİDE KRİTİK BAKİYE OLMAYACAK
+satışa sağ tarafta
+temsilci fiyat		-ARA TUTAR
+iskonto		-GENEL TOPLAM
+DEPARTMAN KAYITTA İL ATAMASI YAPILACAK. SATIŞTA O İL DEFAULTTA GELECEK.
+toplam kayıtlı müşteri, toplam satış miktarı, günün cirosu
+
+
+/////////////////////////////////////////////////////////////
+
+
+🚨 1. KRİTİK HATALAR (Uygulamayı Çökerten "Free Money" Bug'ları)
+Olay Güdümlü Mimari (Event-Driven) Değil, "Olay Gömülü Mimari" (Black Hole)
+
+Koddaki en büyük ve en feci hata Satış Onay (Approve Sale) sürecinde.
+SalesService.approveSale metodunda satışı onaylıyorsun ve stoktan düşmek için havalı bir şekilde Outbox tablosuna yazıyorsun:
+code TypeScript
+
+await this.outboxService.saveEvent({ topic: 'sale.approved', ... });
+
+Süper! Sonra OutboxWorker devreye giriyor, bunu veritabanından alıp RabbitMQ'ya fırlatıyor.
+Ama bekle... InventorySaleListener ve FinanceSaleListener sınıfları @OnEvent('sale.approved') ile dinliyor!
+Sorun: @OnEvent NestJS'in dahili (local) memory event emitter'ıdır. RabbitMQ'dan mesajları dinleyip bunu EventEmitter'a basan HİÇBİR CONSUMER YOK!
+RabbitMQService içinde subscribe metodu yazılmış ama kodun hiçbir yerinde çağırılmamış!
+Sonuç: Satışlar onaylanacak, müşteriye fatura gidecek ama stok ASLA düşmeyecek, muhasebede cari bakiye ASLA artmayacak. Ücretsiz ürün dağıtma makinesi yazmışsın, tebrikler!
+TypeScript Derleme Hatasıyla Production'a Çıkmak
+
+Adamlar Dockerfile yazmış, Nginx yapılandırmış ama tsc_output.txt dosyasına bakarsan TypeScript derlemesi patlıyor:
+Property 'cityName' does not exist on type 'Party'.
+Object is possibly 'undefined'.
+React projeni --skipLibCheck veya force build ile production'a zorlamışsın. "Type safety" diyip patlayan kodla deploy almak enterprise kavramına hakarettir.
+BigInt vs Number Saatli Bombası
+
+Backend TypeORM entity'lerinde id alanları: @PrimaryGeneratedColumn({ type: 'bigint' })
+Frontend tiplerinde: id: number;
+Veritabanı (MySQL) bigint'i JSON'da String olarak döner (çünkü JS'teki standart Number tipi
+
+        
+253−1
+253−1
+
+      
+
+'den sonrasını taşıyamaz). Frontend bunu alıp inatla Number(opt.id) veya parseInt() yapıyor. İleride sistemde kayıt sayısı arttığında ID'ler JS tarafından yuvarlanacak ve A kişisinin verisini güncellerken yanlışlıkla B kişisinin verisini uçuracaksın.
+🤥 2. MİMARİ VE TASARIM YANILGILARI (Cargo Cult Programming)
+"Stateless" JWT Ama Her İstekte Redis'e Gitmek
+
+JwtStrategy içerisine şu kodu yazmışsın:
+code TypeScript
+
+let state = await this.cacheManager.get<number>(cacheKey);
+if (state === undefined ...) { await db.findOne... }
+
+Dostum, JWT'nin asıl amacı Stateless (durumsuz) olmaktır. Token'ın içine state koymuşsun, imzalamışsın. Sonra "Ya bu adam banlandıysa?" korkusuyla gidip her yetki gerektiren API isteğinde Redis'e sorgu atıyorsun. Token'ın stateless avantajını yok edip bir de üstüne JWT doğrulama maliyeti eklemişsin. O zaman neden Session kullanmadın?
+CSRF "Tiyatrosu"
+
+CsrfGuard ve CsrfMiddleware yazmışsın, kriptografik tokenler vs... Ama Frontend'e bakıyoruz, JWT token'i HTTPOnly erp_token cookie'si ile geliyor ve sameSite: 'lax' ayarlı. CSRF Guard ise sadece Header ile Cookie'yi kıyaslıyor. Gerçek dünyada SPA+API senaryolarında SameSite=Strict yapıp JWT kullanırsan zaten bu kadar kasmaya gerek kalmaz. Üstelik Refresh Token'ın da lax! "Double Submit Cookie" kullanıyorsun ama modern tarayıcı standartlarının gerisinde bir çözüm üretmişsin.
+migrations_backup Diye Bir Şey Olamaz
+
+TypeORM kodunun ortasında migrations_backup diye bir klasör var. İçindeki dosyaların adları fecaat:
+
+    1776163392173-RepairSchemaGaps.ts
+
+    1776163392170-HardenUsersAndFixAudit.ts
+    Belli ki projede geliştirme yaparken synchronize: true açık unutulmuş, DB patlamış, sonra production DB'ye el yordamıyla dump atılıp "migration" adıyla yamanmaya çalışılmış. Bu klasörün git'te olması bile suç.
+
+Decimal.js Takıntısı ve İkiyüzlülüğü
+
+Backend'de para işleri için haklı olarak Decimal.js ve Custom Transformer kullanmışsın (Süper bir hareket). Ama Frontend tarafında tabloyu renderlarken:
+code TypeScript
+
+const num = typeof val === 'string' ? parseFloat(val) || 0 : val || 0;
+
+Backend'deki tüm o kusursuz finansal matematik, ekranda ve toplamlarda native Javascript parseFloat fonksiyonunun o meşhur 0.1 + 0.2 = 0.30000000000000004 sorunu ile çöpe gidiyor. Veri görselleşirken veya formlarda ara toplam alırken kuruş (penny) hataları çıkacak.
+🍝 3. KOD KALİTESİ VE UYGULAMA (Spaghetti Code)
+Şifremi Unuttum = "Gönderilmiş Gibi Yapalım"
+
+AuthService.ts:
+code TypeScript
+
+// In a real app, send email with token. For now, just logging.
+console.log(`[AUTH] Forgot password requested for ${dto.email}`);
+return { message: 'Şifre sıfırlama talimatları e-posta adresinize gönderildi...' };
+
+Enterprise ERP'nin şifre sıfırlama ekranı "console.log" ile çalışıyor. Muazzam bir güvenlik mimarisi.
+Veritabanı State Yönetimi Katliamı
+
+BaseEntity'de şu var:
+code TypeScript
+
+@Column({ type: 'tinyint', default: RecordState.ACTIVE }) state: RecordState;
+@DeleteDateColumn() deletedAt: Date | null;
+
+Yazılımda bir kayıt ya silinmiştir (Soft Delete) ya da aktiftir/pasiftir. Senin sistemde kayıtların hem deletedAt'i var hem de state = 0 (Passive).
+Frontend kodu o kadar kafası karışık ki; bazen state: 1 ile data arıyor, bazen deletedAt: null diyerek arıyor. Koca bir veri kirliliği oluşacak.
+Custom Axios Interceptor (Yılan Hikayesi)
+
+frontend/src/services/api.ts içindeki Token Refresh mekanizman resmen bir mayın tarlası.
+code TypeScript
+
+let isRefreshing = false;
+let failedQueue =[];
+
+İşte Axios Interceptor'daki Token Refresh "Yılan Hikayesi"nin devamı ve projenin geri kalanındaki diğer saatli bombalar:
+Custom Axios Interceptor (Yılan Hikayesi - Devam)
+
+frontend/src/services/api.ts içindeki Token Refresh mekanizman bir felaket:
+code TypeScript
+
+if (config?.url && !isAuthRequest && window.location.pathname !== '/login') { ... }
+
+Axios (API Layer) katmanının içinde window.location.pathname (UI Layer) kontrolü yapıyorsun! Frontend dünyasında "Separation of Concerns" (Sorumlulukların Ayrılığı) kuralının cenaze namazını kılmışsın. Eğer bir gün router yapını değiştirirsen (örneğin /auth/login yaparsan), tüm token refresh mekanizman çökecek ve sonsuz 401 loop'una gireceksin. Ayrıca failedQueue array'i ile memory'de request bekletmek, browser sekmesi uzun süre arka planda kaldığında devasa bellek sızıntılarına (memory leak) yol açar.
+🧱 4. GÜVENLİK VE PERFORMANS KABUSLARI (Self-DDoS)
+Event Loop'u Bloklayan Log Interceptor (Kendi Kendine DoS Saldırısı)
+
+LogsInterceptor.ts içerisinde her POST, PUT, DELETE isteğinde çalışan bir sanitizeBody fonksiyonun var:
+code TypeScript
+
+private sanitizeBody(body: unknown, depth = 0): unknown {
+  if (depth > 4) return '[NESTED_CONTENT_TRUNCATED]';
+  // Objenin bütün key'lerini döngüye alıp tek tek string match yapar:
+  const isSensitive = sensitiveKeys.some(s => key.toLowerCase().includes(s));
+  // Rekürsif olarak objenin dibine kadar iner...
 }
-```
 
-**Adım 3 – Consumer Worker (Manual ACK):**
-```typescript
-// audit-log.consumer.ts
-@Controller()
-export class AuditLogConsumer {
-  constructor(private readonly logsRepo: Repository<AuditLog>) {}
+Node.js Single-Thread çalışır! Bu interceptor yüzünden, birisi API'ne büyük ve iç içe geçmiş (nested) JSON payload'ları gönderirse CPU %100'e kilitlenir. Bütün uygulamayı saniyeler içinde "denial of service" (DoS) durumuna sokabilirsin. Hassas veri sansürleme (redaction) işlemi log kütüphanesinin (örneğin projede zaten kullandığın Pino'nun) kendi stream/transport seviyesinde, çok daha performanslı şekilde yapılmalıdır, request cycle'ın içinde değil!
+Fake (Sahte) "Distributed" Lock (Sıra Üreteci Faciası)
 
-  @EventPattern('audit_log')
-  async handleAuditLog(
-    @Payload() data: AuditLogDto,
-    @Ctx() context: RmqContext,
-  ) {
-    const channel = context.getChannelRef();
-    const originalMsg = context.getMessage();
-    try {
-      await this.logsRepo.save(data);
-      channel.ack(originalMsg); // Başarı → kuyruktan sil
-    } catch (err) {
-      channel.nack(originalMsg, false, true); // Hata → kuyruğa geri koy
-    }
-  }
-}
-```
+SequenceGeneratorService.ts dosyasında S-GEN-2024-001 gibi sipariş/üretim kodları üretmek için sözde çok havalı bir "HiLo" algoritması yazmışsın:
+code TypeScript
 
----
+private locks = new Map<string, Promise<void>>();
+// ...
+while (this.locks.has(cacheKey)) { await this.locks.get(cacheKey); }
 
-### [TASK-002] Timing Attack Korumaları
+Bu lock sadece o an çalışan Node.js process'inin memory'sindedir. Docker Compose'da ermay-api ve ermay-worker olmak üzere 2 farklı container/process çalıştırıyorsun. Kubernetes'e geçip API'yi 3 poda scale ettiğin an ne olacak? Pod A ile Pod B aynı anda kod üretmek isterse bu memory-based lock hiçbir işe yaramayacak, veritabanına aynı sırayı kaydetmeye çalışıp "Duplicate Key" hatasıyla birbirlerini patlatacaklar. Enterprise sistemlerde sıralı kod üretimleri için Redis (Redlock) veya DB bazlı Row-Lock (SELECT ... FOR UPDATE) kullanılmak zorundadır. ON DUPLICATE KEY UPDATE yazarak da TypeORM'un "Database Agnostic" olma özelliğini tamamen yok edip projeyi MySQL'e mahkum etmişsin.
+Logların Havaya Uçması (Buffer Kaybı)
 
-**Sorun 1 — `webhook.guard.ts`:** `===` ile string karşılaştırması, işlem süresinden imza bilgisini sızdırır (timing attack).
+LogsService.ts dosyasında logları veri tabanına yazarken "PERF-02" yorumuyla bir optimizasyon yapmışsın:
+code TypeScript
 
-```typescript
-// webhook.guard.ts
-import * as crypto from 'crypto';
+this.logSubscription = this.logSubject.pipe(
+  bufferTime(5000, undefined, 1000), 
+// ...
 
-const digest  = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-const expected = Buffer.from(`sha256=${digest}`, 'utf8');
-const received  = Buffer.from(signature, 'utf8');
+Logları memory'de (RAM) biriktirip 5 saniyede bir DB'ye basıyorsun. Harika performans! Peki ama server çökerse (OOM kill, elektrik kesintisi, pod restart vb.) ne olacak? Son 5 saniyedeki kritik sistem audit logları sonsuza dek yok olacak! Bir çalışanın siparişi silip kasayı boşalttığı ve hemen ardından servisin çöktüğü senaryoda adamın ne yaptığını hiçbir zaman bulamayacaksın. Enterprise sistemlerde log buffer'ı diske yazar veya Redis/Kafka gibi bir aracıya atılır.
+🧩 5. FRONTEND STATE MANAGEMENT ÇORBASI
+"Zustand Var Ama Eskileri Kıyamadık Silmedik"
 
-if (expected.length !== received.length) {
-  throw new UnauthorizedException('Geçersiz İmza');
-}
-if (!crypto.timingSafeEqual(expected, received)) {
-  throw new UnauthorizedException('Geçersiz İmza');
-}
-```
+Projede state management o kadar karman çorman ki:
 
-> ⚠️ Uzunluk kontrolü `timingSafeEqual`'dan **önce** yapılmalıdır; farklı uzunluktaki tamponları karşılaştırmak exception fırlatır.
+    React'in kendi Context API'si var (AuthContext.tsx).
 
-**Sorun 2 — `auth.service.ts`:** Kullanıcı bulunamadığında bcrypt atlanırsa, yanıt süresi login başarısına göre ölçülebilir hale gelir.
+    İçinde Zustand var (useAuthStore.ts).
 
-```typescript
-// auth/auth.service.ts
-// cost:12 değerinde önceden üretilmiş sabit sahte hash
-const DUMMY_HASH =
-  '$2b$12$e/9Xz1n0b1V1X1X1X1X1X.O1X1X1X1X1X1X1X1X1X1X1X1X1X1X1X';
+    Zustand'ın çalışmasını sağlayan bir "Compatibility Shim" yazmışsın. Neden?
+    code TypeScript
 
-async login(dto: LoginDto) {
-  const user = await this.usersRepo.findOne({ where: { username: dto.username } });
+    // ────── COMPATIBILITY SHIM ──────
+    // Re-exports useAuthStore as useAuth() for backward compatibility.
 
-  if (!user) {
-    await bcrypt.compare(dto.password, DUMMY_HASH); // CPU süresi normalize et
-    throw new UnauthorizedException('Kullanıcı adı veya şifre hatalı');
-  }
+Daha sürüm 1.0.0 olan, ortada legacy denecek bir geçmişi bile olmayan sıfır kod tabanında "backward compatibility" kasıyorsun. Zustand kullanıyorsan Context'i komple sil, kod temizlensin.
+Devasa Componentler ve Props Cehennemi
 
-  const valid = await bcrypt.compare(dto.password, user.passwordHash);
-  if (!valid) throw new UnauthorizedException('Kullanıcı adı veya şifre hatalı');
-  // ...token üret
-}
-```
+Sadece SaleWizard.tsx dosyası bile okurken baş ağrıtıyor. Modallar arası veri taşıma, yüzlerce state tanımı... Her şey bir store'a atılmış (useSalesWizardStore). Sayfadan çıkıp tekrar girildiğinde veya modal aniden kapandığında state temizlenmezse başka müşterinin faturası başkasının ekranında görünebilir.
+🔪 ÖZET (ROAST SONUCU)
 
----
+Projen, "Udemy / YouTube'dan yeni nesil havalı mimariler nasıl yazılır" eğitim serisinin birebir kopyası gibi görünüyor. Oradan Outbox Pattern duyulmuş ama yarım yamalak implemente edilmiş; oradan Telemetry/Prometheus görülmüş portları yazılmış; RabbitMQ config dosyasına konulmuş ama consume eden taraf unutulmuş; performans olsun diye RxJS ile buffer yapılmış ama veri güvenliği hiçe sayılmış.
 
-### [TASK-003] Transaction Yönetimi Standartlaştırması
 
-**Sorun:** Kendi yazılan `@Transactional()` decorator ve `TransactionInternal` sınıfı hatalı context propagation yapıyor; transaction dışı save çağrıları bağımsız transaction açabilir.
+///////////////////////////
 
-**Kurulum:**
-```bash
-npm install @nestjs-cls/transactional @nestjs-cls/transactional-adapter-typeorm nestjs-cls
-```
-
-**Adım 1 – AppModule kayıt:**
-```typescript
-// app.module.ts
-import { ClsModule } from 'nestjs-cls';
-import { ClsPluginTransactional } from '@nestjs-cls/transactional';
-import { TransactionalAdapterTypeOrm } from '@nestjs-cls/transactional-adapter-typeorm';
-
-ClsModule.forRoot({
-  plugins: [
-    new ClsPluginTransactional({
-      imports: [TypeOrmModule],
-      adapter: new TransactionalAdapterTypeOrm({ dataSourceToken: DataSource }),
-    }),
-  ],
-}),
-```
-
-**Adım 2 – Servis kullanımı:**
-```typescript
-// sales/sales.service.ts
-import { Transactional } from '@nestjs-cls/transactional';
-
-@Injectable()
-export class SalesService {
-  constructor(private readonly saleRepo: Repository<Sale>) {}
-
-  @Transactional() // Artık bu paket decorator'ı
-  async createSale(dto: CreateSaleDto) {
-    // this.transactionContext.manager → KALDIR
-    // Direkt repo kullan, plugin context'i yönetir:
-    await this.saleRepo.save(sale);
-  }
-}
-```
-
-**Adım 3 – Temizlik:**
-- `src/common/decorators/transactional.decorator.ts` → **SİL**
-- `TransactionInternal` sınıfını barındıran tüm dosyalar → **SİL**
-- Tüm servislerde `this.transactionContext.manager.save(...)` → `this.repo.save(...)` olarak değiştir
-
----
-
-## BÖLÜM 2 — FİNANSAL BÜTÜNLÜK & İŞ MANTIĞI
-
----
-
-### [TASK-004] Kuruş Farkı Dağıtımı (Penny Rounding)
-
-**Sorun:** Satır bazlı KDV toplamı ile belge toplam KDV'si arasındaki yuvarlama farkları e-fatura sistemlerinde red gerekçesi olur.
-
-```typescript
-// sales/sales.service.ts  — calculateLineKdvs() metodu içinde
-
-let sumOfLineKdvs = new Decimal(0);
-let maxLineIndex  = 0;
-let maxLineAmount = new Decimal(0);
-
-saleItems.forEach((item, index) => {
-  const lineKdv = FH.calculateKdv(item.lineMatrah, Number(item.kdvRate));
-  item.kdvAmount = lineKdv;
-  sumOfLineKdvs  = sumOfLineKdvs.add(lineKdv);
-
-  if (item.lineMatrah.gt(maxLineAmount)) {
-    maxLineAmount = item.lineMatrah;
-    maxLineIndex  = index;
-  }
-});
-
-// Olması gereken toplam KDV
-const expectedKdv  = FH.calculateKdv(discountedMatrah, avgKdvRate);
-const difference   = expectedKdv.sub(sumOfLineKdvs);
-
-// Farkı en büyük tutarlı kaleme ekle (ISO 4217 "largest remainder" yöntemi)
-if (!difference.isZero()) {
-  saleItems[maxLineIndex].kdvAmount =
-    saleItems[maxLineIndex].kdvAmount.add(difference);
-}
-```
-
-> Neden en büyük kaleme? Orantısal hata en küçük olur, ticari kabul görür.
-
----
-
-### [TASK-005] Cascading Soft Delete Guard
-
-**Sorun:** Cari silinirken yalnızca bakiye kontrolü yapılıyor; aktif sipariş/sevkiyat bağlantısı koparılınca veri bütünlüğü bozulur.
-
-```typescript
-// parties/parties.service.ts — softDelete() içinde
-
-async softDelete(id: string): Promise<void> {
-  // 1. Bakiye kontrolü
-  const party = await this.partyRepo.findOneOrFail({ where: { id } });
-  if (party.balance.gt(0)) {
-    throw new BadRequestException('Açık bakiyesi olan cari silinemez.');
-  }
-
-  // 2. İlişkisel bütünlük — aktif siparişler
-  const activeOrderCount = await this.dataSource
-    .getRepository(Sale)
-    .count({
-      where: {
-        partyId: id,
-        status: In(['draft', 'approved', 'shipped']),
-      },
-    });
-
-  if (activeOrderCount > 0) {
-    throw new BadRequestException(
-      `Bu cariye ait ${activeOrderCount} adet aktif sipariş mevcut. Önce siparişleri tamamlayın veya iptal edin.`,
-    );
-  }
-
-  // 3. Soft delete
-  await this.partyRepo.softDelete(id);
-}
-```
-
----
-
-### [TASK-006] Decimal Payload Standartı (parseTurkishDecimal)
-
-**Sorun:** `1,000,000.50` (Amerikan formatı) girildiğinde mevcut regex her `.` siler, `,` → `.` çevirir → sonuç `100000050` (100 Milyon) olur.
-
-**Çözüm — Kesin format tespiti ile güvenli parse:**
-```typescript
-// common/helpers/number.helper.ts
-
-/**
- * Türkçe VEYA Amerikan formatlı sayı string'ini
- * "1234567.89" biçiminde döndürür (parseFloat KULLANILMAZ).
- * Geçersiz girişte null döner — caller exception fırlatmalı.
- */
-export function parseTurkishDecimal(input: string): string | null {
-  if (!input || typeof input !== 'string') return null;
-
-  // 1. Boşluk ve para birimi sembollerini temizle
-  let s = input.replace(/[\s₺$€£]/g, '');
-
-  const commaCount = (s.match(/,/g) ?? []).length;
-  const dotCount   = (s.match(/\./g) ?? []).length;
-
-  // 2. Format tespiti
-  if (commaCount === 0 && dotCount === 0) {
-    // Düz tam sayı: "1000"
-    return s;
-  }
-
-  if (commaCount === 0 && dotCount === 1) {
-    // Amerikan ondalık: "1000.50"
-    return s;
-  }
-
-  if (dotCount === 0 && commaCount === 1) {
-    // Türkçe ondalık: "1000,50"
-    return s.replace(',', '.');
-  }
-
-  // 3. Binlik ayıraç + ondalık
-  // Türkçe format: "1.000.000,50" → son ayıraç ','
-  if (s.endsWith(/,\d{1,2}$/.exec(s)?.[0] ?? '')) {
-    const lastCommaIdx = s.lastIndexOf(',');
-    const intPart = s.slice(0, lastCommaIdx).replace(/\./g, '');
-    const decPart = s.slice(lastCommaIdx + 1);
-    if (!/^\d+$/.test(intPart) || !/^\d+$/.test(decPart)) return null;
-    return `${intPart}.${decPart}`;
-  }
-
-  // Amerikan format: "1,000,000.50" → son ayıraç '.'
-  if (s.endsWith(/\.\d{1,2}$/.exec(s)?.[0] ?? '')) {
-    const lastDotIdx = s.lastIndexOf('.');
-    const intPart = s.slice(0, lastDotIdx).replace(/,/g, '');
-    const decPart = s.slice(lastDotIdx + 1);
-    if (!/^\d+$/.test(intPart) || !/^\d+$/.test(decPart)) return null;
-    return `${intPart}.${decPart}`;
-  }
-
-  return null; // Tanımsız format
-}
-```
-
-**Kullanım (backend controller/service):**
-```typescript
-const rawPrice = dto.unitPrice; // "1.250,99"
-const parsed   = parseTurkishDecimal(rawPrice);
-if (parsed === null) throw new BadRequestException('Geçersiz fiyat formatı');
-const price = new Decimal(parsed); // Decimal("1250.99") ✓
-```
-
----
-
-## BÖLÜM 3 — ROL VE YETKİ (RBAC) MİMARİSİ
-
----
-
-### [TASK-007] Regex Yetki Kontrolünün Kaldırılması
-
-**Sorun:** `p.key.includes('view')` regex ile yetki tespiti; yeni modül eklendiğinde kod değişikliği gerektirir ve typo'ya karşı kırılgandır.
-
-**Adım 1 – Migration:**
-```sql
--- migrations/XXXX_add_action_to_permissions.sql
-ALTER TABLE permissions
-  ADD COLUMN action VARCHAR(20) NOT NULL DEFAULT 'read'
-  CHECK (action IN ('read', 'write', 'delete', 'approve', 'export'));
-```
-
-```typescript
-// typeorm migration örneği
-export class AddActionToPermissions implements MigrationInterface {
-  async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`
-      ALTER TABLE permissions
-      ADD COLUMN action VARCHAR(20) NOT NULL DEFAULT 'read'
-    `);
-    // Mevcut key adlarından tahmin et (tek seferlik veri taşıma)
-    await queryRunner.query(`
-      UPDATE permissions SET action = 'read'
-      WHERE key LIKE '%view%' OR key LIKE '%list%' OR key LIKE '%get%'
-    `);
-    await queryRunner.query(`
-      UPDATE permissions SET action = 'write'
-      WHERE key LIKE '%create%' OR key LIKE '%update%' OR key LIKE '%edit%'
-    `);
-    await queryRunner.query(`
-      UPDATE permissions SET action = 'delete' WHERE key LIKE '%delete%'
-    `);
-    await queryRunner.query(`
-      UPDATE permissions SET action = 'approve' WHERE key LIKE '%approve%'
-    `);
-  }
-  async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE permissions DROP COLUMN action`);
-  }
-}
-```
-
-**Adım 2 – Entity güncelleme:**
-```typescript
-// permissions/permission.entity.ts
-@Entity('permissions')
-export class Permission {
-  @Column({ type: 'varchar', length: 20, default: 'read' })
-  action: 'read' | 'write' | 'delete' | 'approve' | 'export';
-}
-```
-
-**Adım 3 – Frontend (RolesPage.tsx):**
-```tsx
-// ESKİ — SİL:
-const readPerms = permissions.filter(p => p.key.includes('view'));
-
-// YENİ:
-const readPerms = permissions.filter(p => p.action === 'read');
-const writePerms = permissions.filter(p => p.action === 'write');
-const deletePerms = permissions.filter(p => p.action === 'delete');
-```
-
----
-
-## BÖLÜM 4 — FRONTEND PERFORMANS & STABİLİTE
-
----
-
-### [TASK-008] Form Verisi Kaybını Önleme
-
-**Sorun:** Kullanıcı sekmeyi kapattığında veya tarayıcı çöktüğünde Zustand store senkron flush yapılmadığı için form verisi kaybolur.
-
-```typescript
-// hooks/usePersistentForm.ts
-
-export function usePersistentForm(saveToStorageSync: () => void) {
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      saveToStorageSync(); // localStorage'a senkron yaz
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      saveToStorageSync(); // Component unmount'ta da kaydet
-    };
-  }, [saveToStorageSync]);
-}
-```
-
-```typescript
-// stores/useSalesWizardStore.ts (zustand persist ile birlikte)
-import { persist, createJSONStorage } from 'zustand/middleware';
-
-export const useSalesWizardStore = create(
-  persist(
-    (set, get) => ({
-      formData: {},
-      saveToStorageSync: () => {
-        // Zustand persist zaten localStorage'ı yönetir
-        // Manuel flush için:
-        const state = get();
-        localStorage.setItem(
-          'sales-wizard-store',
-          JSON.stringify({ state, version: 1 }),
-        );
-      },
-    }),
-    {
-      name: 'sales-wizard-store',
-      storage: createJSONStorage(() => localStorage),
-    },
-  ),
-);
-```
-
----
-
-### [TASK-009] React Gereksiz Re-render Önleme (useCallback)
-
-**Sorun:** `DataTable` prop'larına inline arrow function geçmek, `React.memo` optimizasyonunu etkisiz kılar.
-
-```tsx
-// pages/SalesPage.tsx
-
-// ❌ ESKİ — Her render'da yeni referans üretir:
-<DataTable
-  onArchive={s => s.status === 'draft' ? handleCancel(s.id) : undefined}
-  onEdit={row => openEditModal(row.id)}
-/>
-
-// ✅ YENİ — Stabil referanslar:
-const onArchiveAction = useCallback(
-  (row: Sale) => {
-    if (row.status === 'draft') handleCancel(row.id);
-  },
-  [handleCancel],
-);
-
-const onEditAction = useCallback(
-  (row: Sale) => openEditModal(row.id),
-  [openEditModal],
-);
-
-<DataTable
-  onArchive={onArchiveAction}
-  onEdit={onEditAction}
-/>
-```
-
-> Aynı pattern tüm listeleme sayfalarına (PurchasesPage, ItemsPage, PartiesPage, vb.) uygulanmalıdır.
-
----
-
-### [TASK-010] Z-Index Hiyerarşisi Standardizasyonu
-
-**Sorun:** Kod içinde `z-[100]`, `z-[999]`, `z-[1000]`, `z-[9999]` gibi arbitrary değerler çakışmalara yol açıyor.
-
-```javascript
-// tailwind.config.js
-module.exports = {
-  theme: {
-    extend: {
-      zIndex: {
-        'dropdown': '30',
-        'header':   '40',
-        'modal':    '50',
-        'toast':    '60',
-        'tooltip':  '70',
-        'loader':   '9999',
-      },
-    },
-  },
-};
-```
-
-**Temizlik:**
-```bash
-# Proje genelinde arbitrary z-index tara:
-grep -rn "z-\[" src/
-```
-Bulunan her `z-[X]` değerini yukarıdaki semantic token'larla değiştir.
-
----
-
-## BÖLÜM 5 — EŞ ZAMANLILIK & RACE CONDITION
-
----
-
-### [TASK-011] Sequence Generator Race Condition
-
-**Sorun:** İki eş zamanlı istek aynı `itemCodeGroupId` için sequence bulamayınca ikisi birden INSERT yapar; biri `catch (e) {}` bloğuna düşer, pes eder ve `sequence!.currentNumber` null reference exception fırlatır.
-
-**Çözüm — Atomik Upsert + DB seviyesi increment:**
-
-```typescript
-// items/sequence-generator.service.ts
-
-async generateNextCode(
-  manager: EntityManager,
-  itemCodeGroupId: string,
-  prefix: string,
-): Promise<string> {
-
-  // 1. Atomik INSERT ... ON DUPLICATE KEY UPDATE
-  await manager.query(
-    `INSERT INTO item_code_sequences (item_code_group_id, current_number)
-     VALUES (?, 1)
-     ON DUPLICATE KEY UPDATE current_number = current_number + 1`,
-    [itemCodeGroupId],
-  );
-
-  // 2. Güncel değeri oku (aynı transaction içinde)
-  const [row] = await manager.query(
-    `SELECT current_number FROM item_code_sequences
-     WHERE item_code_group_id = ?`,
-    [itemCodeGroupId],
-  );
-
-  const seq    = (row as { current_number: number }).current_number;
-  const padded = String(seq).padStart(3, '0');
-  return `${prefix}-${padded}`;
-}
-```
-
-> Bu yaklaşım race condition'ı tamamen ortadan kaldırır: DB motoru increment'i tek operasyonda atomik yapar, uygulama katmanında lock veya retry gerekmez.
-
----
-
-## BÖLÜM 6 — MİMARİ DÖNGÜSEL BAĞIMLILIK
-
----
-
-### [TASK-012] Circular Dependency — InventoryOrchestratorService
-
-**Sorun:** `ItemsService.softDelete()` içinde `dynamic import` + runtime entity resolution hack'i ile `StocksService`'e erişiliyor. Bu NestJS DI sistemini devre dışı bırakır ve unit test yazmayı imkânsız kılar.
-
-**Çözüm — Orchestrator Pattern:**
-
-```typescript
-// inventory/inventory-orchestrator.service.ts
-@Injectable()
-export class InventoryOrchestratorService {
-  constructor(
-    private readonly itemsRepo: Repository<Item>,
-    private readonly stocksRepo: Repository<Stock>,
-  ) {}
-
-  async softDeleteItem(id: string): Promise<void> {
-    // Stok kontrolü (artık circular dep yok)
-    const totalStock = await this.stocksRepo
-      .createQueryBuilder('s')
-      .select('SUM(s.quantity)', 'total')
-      .where('s.itemId = :id', { id })
-      .getRawOne<{ total: string }>();
-
-    if (Number(totalStock?.total ?? 0) > 0) {
-      throw new BadRequestException(
-        'Stok miktarı sıfır olmayan ürün silinemez.',
-      );
-    }
-
-    await this.itemsRepo.softDelete(id);
-  }
-}
-```
-
-```typescript
-// items/items.service.ts  — eski dynamic import bloğunu SİL
-// Artık ItemsService sadece kendi repo'suyla çalışır.
-// softDeleteItem() çağrısı controller'dan InventoryOrchestratorService'e yönlendirilir.
-```
-
-```typescript
-// items/items.controller.ts
-@Delete(':id')
-softDelete(@Param('id') id: string) {
-  return this.inventoryOrchestrator.softDeleteItem(id);
-}
-```
-
----
-
-## BÖLÜM 7 — SQL WILDCARD DoS KORUМASI
-
----
-
-### [TASK-013] LIKE Injection & Wildcard DoS
-
-**Sorun:** `%_____` gibi bir arama metni SQL full-table scan'e zorlar; DB CPU %100'e kilitlenir.
-
-```typescript
-// common/utils/sql.helper.ts
-
-/**
- * SQL LIKE sorgularında kullanılan özel karakterleri escape eder.
- * % → \%   _ → \_   \ → \\
- */
-export function escapeLike(str: string): string {
-  return str.replace(/[\\%_]/g, (char) => `\\${char}`);
-}
-```
-
-**Tüm servis/repository kullanımlarında:**
-```typescript
-// logs/logs.service.ts, parties/parties.service.ts, items/items.service.ts, vb.
-
-import { escapeLike } from '../common/utils/sql.helper';
-
-if (query.search) {
-  const safe = escapeLike(query.search.trim());
-  qb.andWhere(
-    '(entity.name LIKE :s OR entity.code LIKE :s)',
-    { s: `%${safe}%` },
-  );
-}
-```
-
-> Ek önlem: `query.search` uzunluğunu 100 karakterle sınırla:
-```typescript
-if (query.search?.length > 100) {
-  throw new BadRequestException('Arama terimi çok uzun.');
-}
-```
-
----
-
-## BÖLÜM 8 — TYPEORM PAGINATION + JOIN SORUNU
-
----
-
-### [TASK-014] ManyToMany İlişkide Pagination (OutOfMemory Çözümü)
-
-**Sorun:** `leftJoinAndSelect` + `skip/take` kombinasyonu TypeORM'u tüm veriyi RAM'e çekip JS tarafında paginate etmeye zorlar.
-
-```typescript
-// roles/roles.service.ts
-
-async findAll(query: PaginationDto) {
-  // Adım 1: Sadece ID'leri paginate et (join yok)
-  const [rawRoles, total] = await this.roleRepo.findAndCount({
-    skip:  query.skip,
-    take:  query.limit,
-    order: { createdAt: 'DESC' },
-    // relations: ['permissions'] — BURAYA YAZMA
-  });
-
-  if (rawRoles.length === 0) return { data: [], total };
-
-  // Adım 2: Bulunan ID'lere göre ilişkileri ayrı sorguda getir
-  const rolesWithPerms = await this.roleRepo.find({
-    where:     { id: In(rawRoles.map((r) => r.id)) },
-    relations: ['permissions'],
-    order:     { createdAt: 'DESC' },
-  });
-
-  return { data: rolesWithPerms, total };
-}
-```
-
-> Aynı pattern `UsersService`, `MenuService` ve `OneToMany/ManyToMany` içeren tüm listeleme sorgularına uygulanmalıdır.
-
----
-
-## BÖLÜM 9 — CORS GÜVENLİĞİ
-
----
-
-### [TASK-015] Hardcoded CORS → Environment Variable
-
-**Sorun:** Localhost tabanlı hardcoded origin listesi, production deploy'da tüm frontend erişimini engeller.
-
-```typescript
-// main.ts
-
-const allowedOrigins: string[] = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
-  : ['http://localhost:5173']; // Yalnızca dev fallback
-
-app.enableCors({
-  origin:         allowedOrigins,
-  credentials:    true,
-  methods:        ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-TOKEN'],
-  exposedHeaders: ['X-CSRF-TOKEN'],
-});
-```
-
-```env
-# .env.production
-ALLOWED_ORIGINS=https://erp.ermay.com,https://app.ermay.com
-
-# .env.development
-ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5143
-```
-
-> ⚠️ `credentials: true` iken `origin: '*'` YAPAMAZSIN — tarayıcı reddeder ve her şey patlar.
-
----
-
-## BÖLÜM 10 — ZUSTAND ANTI-PATTERN
-
----
-
-### [TASK-016] Zustand + React Router Anti-Pattern
-
-**Sorun:** `AuthNavigationBridge` componenti `navigate` hook'unu Zustand store'a inject ediyor. Component unmount olduğunda closure stale kalır; logout çağrısı hiçbir şey yapmaz.
-
-**Çözüm — API Interceptor ile yönlendirme:**
-
-```typescript
-// api/axios.config.ts
-
-import axios from 'axios';
-
-const api = axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL });
-
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Store veya hook kullanma — direkt window.location
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  },
-);
-
-export default api;
-```
-
-```typescript
-// App.tsx — AuthNavigationBridge componentini TAMAMEN SİL
-// store/useAuthStore.ts — setRedirectToLogin fonksiyonunu SİL
-```
-
----
-
-## BÖLÜM 11 — TIMEZONE YÖNETİMİ
-
----
-
-### [TASK-017] Saat Dilimi Yönetimi (Finansal Tarih Sapması)
-
-**Sorun:** Backend sunucusu UTC timezone'undayken Türkiye'den gönderilen tarihler 3 saat kayarak bir önceki/sonraki güne düşebilir.
-
-**Kural: Frontend ISO string gönderir, Backend sadece UTC'ye kaydeder.**
-
-```typescript
-// Frontend — tarih seçici komponenti
-
-// ❌ ESKİ (backend timezone'una güvenir):
-const date = new Date(selectedDate);
-
-// ✅ YENİ (tarayıcı timezone'unda ISO string üretir):
-const date = new Date(selectedDate);
-const isoDate = date.toLocaleDateString('sv-SE'); // "2024-03-15" formatı — timezone-safe
-// Veya:
-const isoWithTime = date.toISOString(); // UTC ISO string
-```
-
-```typescript
-// Backend — date.utils.ts
-
-export const DateUtils = {
-  /**
-   * Frontend'den gelen "YYYY-MM-DD" string'ini
-   * UTC gün başlangıcına çevirir.
-   * Backend sunucusunun timezone'undan BAĞIMSIZDIR.
-   */
-  parseLocalDate: (dateStr: string): Date => {
-    // "2024-03-15" → UTC 2024-03-15T00:00:00Z
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(Date.UTC(year, month - 1, day));
-  },
-
-  toISODate: (date: Date): string => {
-    return date.toISOString().split('T')[0];
-  },
-};
-```
-
-```typescript
-// DB Entity — tarih kolonları
-@Entity('sales')
-export class Sale {
-  @Column({ type: 'date' })  // Saat bilgisi yok, sadece gün
-  saleDate: string;           // "2024-03-15" — string olarak sakla
-
-  @CreateDateColumn({ type: 'timestamptz' }) // Audit için full UTC timestamp
-  createdAt: Date;
-}
-```
-
----
-
-## BÖLÜM 12 — REACT KEY ANTI-PATTERN
-
----
-
-### [TASK-018] DataTable key={index} Kullanımı
-
-**Sorun:** Dinamik sütunlarda array index key kullanımı React reconciler'ını yanıltır; hücre state'leri yanlış satırlara kayar.
-
-```tsx
-// components/DataTable.tsx
-
-// ❌ ESKİ:
-{columns.map((col, idx) => (
-  <th key={idx}>{col.header}</th>
-))}
-
-{row.cells.map((cell, idx) => (
-  <td key={idx}>{cell.value}</td>
-))}
-
-// ✅ YENİ:
-{columns.map((col) => (
-  <th key={col.accessor.toString()}>{col.header}</th>
-))}
-
-{row.cells.map((cell) => (
-  <td key={`${row.id}-${cell.columnId}`}>{cell.value}</td>
-))}
-```
-
-> `col.accessor` string veya function olabilir; `.toString()` her durumu kapsar.  
-> Satır hücrelerinde `row.id` + `columnId` bileşik key kullan — uniqueness garantili.
-
----
-
-## KONTROL LİSTESİ — GÜVENLİK AYARI
-
-Canlıya almadan önce her maddeyi ✅ işaretle:
-
-| Kontrol | Durum |
-|---------|-------|
-| `RABBITMQ_URL` env variable set edildi | ☐ |
-| `ALLOWED_ORIGINS` production URL'leri içeriyor | ☐ |
-| `DUMMY_HASH` gerçek bcrypt cost:12 hash ile üretildi | ☐ |
-| Tüm `z-[X]` arbitrary değerler kaldırıldı | ☐ |
-| `escapeLike` tüm LIKE sorgularına uygulandı | ☐ |
-| `key={idx}` tüm list render'larından kaldırıldı | ☐ |
-| `AuthNavigationBridge` component silindi | ☐ |
-| `transactional.decorator.ts` silindi | ☐ |
-| Migration çalıştırıldı (`action` kolonu eklendi) | ☐ |
-| Sequence Generator eski catch bloğu silindi | ☐ |
-| Dynamic import hack (items.service.ts) silindi | ☐ |
-| Penny rounding tüm fatura akışlarında test edildi | ☐ |
+Soru:
+1.excel ile ürün yükleme kısmını nasıl yapabiliriz bu kısımdan kullanıcı bir excel indirmeli ve sonrasında o excelde mevcut ürünleri güncelleyebilemli yeni ürün ekleyebilmeli ama bu yapılırken id kısmı karışmamalı kullanıcı ürün idlerini bilmemeli bunu düşün ve çözüm önerisi sun

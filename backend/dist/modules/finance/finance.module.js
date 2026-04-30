@@ -20,7 +20,7 @@ const commercial_account_entity_1 = require("./accounts/entities/commercial-acco
 const transaction_entity_1 = require("./transactions/entities/transaction.entity");
 const transaction_sequence_entity_1 = require("./transactions/entities/transaction-sequence.entity");
 const party_entity_1 = require("../parties/entities/party.entity");
-const sequence_generator_service_1 = require("../../common/services/sequence-generator.service");
+const common_module_1 = require("../../common/common.module");
 let FinanceModule = class FinanceModule {
 };
 exports.FinanceModule = FinanceModule;
@@ -28,9 +28,10 @@ exports.FinanceModule = FinanceModule = __decorate([
     (0, common_1.Module)({
         imports: [
             typeorm_1.TypeOrmModule.forFeature([currency_entity_1.Currency, commercial_account_entity_1.CommercialAccount, transaction_entity_1.Transaction, transaction_sequence_entity_1.TransactionSequence, party_entity_1.Party]),
+            common_module_1.CommonModule,
         ],
         controllers: [currencies_controller_1.CurrenciesController, accounts_controller_1.AccountsController, transactions_controller_1.TransactionsController],
-        providers: [currencies_service_1.CurrenciesService, accounts_service_1.AccountsService, transactions_service_1.TransactionsService, sequence_generator_service_1.SequenceGeneratorService],
+        providers: [currencies_service_1.CurrenciesService, accounts_service_1.AccountsService, transactions_service_1.TransactionsService],
         exports: [currencies_service_1.CurrenciesService, accounts_service_1.AccountsService, transactions_service_1.TransactionsService],
     })
 ], FinanceModule);

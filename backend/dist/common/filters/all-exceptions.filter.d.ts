@@ -1,6 +1,5 @@
 import { ExceptionFilter, ArgumentsHost } from '@nestjs/common';
 export declare class AllExceptionsFilter implements ExceptionFilter {
     private readonly logger;
-    private readonly isProd;
     catch(exception: unknown, host: ArgumentsHost): void;
 }

@@ -10,32 +10,32 @@ export class PartiesController {
   constructor(private readonly partiesService: PartiesService) {}
 
   @Get()
-  @RequirePermissions('musteri_goruntuleme')
+  @RequirePermissions('CUSTOMER_VIEW')
   findAll(@Query() query: PartiesQueryDto) { return this.partiesService.findAll(query); }
 
   @Get('status')
-  @RequirePermissions('musteri_goruntuleme')
+  @RequirePermissions('CUSTOMER_VIEW')
   getStatus() { return this.partiesService.getStatus(); }
 
   @Get(':id')
-  @RequirePermissions('musteri_goruntuleme')
+  @RequirePermissions('CUSTOMER_VIEW')
   findOne(@Param('id', ParseIntPipe) id: number) { return this.partiesService.findOne(id); }
 
   @Get(':id/balance')
-  @RequirePermissions('musteri_goruntuleme')
+  @RequirePermissions('CUSTOMER_VIEW')
   getBalance(@Param('id', ParseIntPipe) id: number) { return this.partiesService.getBalance(id); }
 
   @Post()
-  @RequirePermissions('musteri_olusturma')
+  @RequirePermissions('CUSTOMER_CREATE')
   create(@Body() dto: CreatePartyDto, @CurrentUser('sub') userId: number) { return this.partiesService.create(dto, userId); }
 
   @Put(':id')
-  @RequirePermissions('musteri_duzenleme')
+  @RequirePermissions('CUSTOMER_EDIT')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePartyDto, @CurrentUser('sub') userId: number) {
     return this.partiesService.update(id, dto, userId);
   }
 
   @Delete(':id')
-  @RequirePermissions('musteri_silme')
+  @RequirePermissions('CUSTOMER_DELETE')
   remove(@Param('id', ParseIntPipe) id: number) { return this.partiesService.softDelete(id); }
 }

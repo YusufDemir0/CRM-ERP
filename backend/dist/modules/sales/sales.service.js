@@ -36,12 +36,14 @@ const sale_dto_1 = require("./dto/sale.dto");
 const finance_helper_1 = require("../../common/utils/finance.helper");
 const ledger_entity_1 = require("../parties/entities/ledger.entity");
 const date_utils_1 = require("../../common/utils/date.utils");
-const transactional_decorator_1 = require("../../common/decorators/transactional.decorator");
+const transactional_1 = require("@nestjs-cls/transactional");
 const transaction_context_service_1 = require("../../common/services/transaction-context.service");
+const outbox_service_1 = require("../../common/services/outbox.service");
 const dayjs_1 = __importDefault(require("dayjs"));
 const sql_helper_1 = require("../../common/utils/sql.helper");
+const sale_calculator_1 = require("./domain/sale-calculator");
 let SalesService = SalesService_1 = class SalesService {
-    constructor(saleRepo, saleItemRepo, saleTypeRepo, dataSource, sequenceGenerator, stocksService, logsService, transactionContext) {
+    constructor(saleRepo, saleItemRepo, saleTypeRepo, dataSource, sequenceGenerator, stocksService, logsService, transactionContext, outboxService) {
         this.saleRepo = saleRepo;
         this.saleItemRepo = saleItemRepo;
         this.saleTypeRepo = saleTypeRepo;
@@ -50,6 +52,7 @@ let SalesService = SalesService_1 = class SalesService {
         this.stocksService = stocksService;
         this.logsService = logsService;
         this.transactionContext = transactionContext;
+        this.outboxService = outboxService;
         this.logger = new common_1.Logger(SalesService_1.name);
     }
     async findAllSaleTypes() {
@@ -104,6 +107,19 @@ let SalesService = SalesService_1 = class SalesService {
             throw new common_1.NotFoundException('Satış bulunamadı');
         return sale;
     }
+    async fetchItemData(manager, itemIds) {
+        const items = await manager.find(item_entity_1.Item, {
+            where: { id: (0, typeorm_2.In)(itemIds), state: 1 }
+        });
+        if (items.length !== itemIds.length) {
+            const foundIds = items.map(i => i.id);
+            const missing = itemIds.filter(id => !foundIds.includes(id));
+            throw new common_1.NotFoundException(`Bazı ürünler bulunamadı veya pasif: ${missing.join(', ')}`);
+        }
+        const map = new Map();
+        items.forEach(i => map.set(i.id, { id: i.id, salePrice: i.salePrice || 0 }));
+        return map;
+    }
     async create(dto, userId) {
         const manager = this.transactionContext.manager;
         const party = await manager.findOne(party_entity_1.Party, { where: { id: dto.partyId } });
@@ -116,116 +132,27 @@ let SalesService = SalesService_1 = class SalesService {
         const user = await manager.findOne(user_entity_1.User, { where: { id: userId } });
         const userDeptId = user?.departmentId || 1;
         const code = await this.sequenceGenerator.generateSaleCode(manager, Number(userDeptId));
-        let rawTotalAmount = new decimal_js_1.Decimal(0);
-        const saleItems = [];
-        for (const itemDto of dto.items) {
-            const dbItem = await manager.findOne(item_entity_1.Item, {
-                where: { id: itemDto.itemId, state: 1 },
-            });
-            if (!dbItem) {
-                throw new common_1.NotFoundException(`Ürün bulunamadı veya pasif durumda: ID ${itemDto.itemId}`);
-            }
-            const unitPrice = new decimal_js_1.Decimal(dbItem.salePrice || 0);
-            const discountAmount = new decimal_js_1.Decimal(itemDto.discountAmount || 0);
-            const discountPercent = new decimal_js_1.Decimal(itemDto.discountPercent || 0);
-            const maxAllowedDiscount = unitPrice.mul(0.5);
-            if (discountAmount.gt(maxAllowedDiscount)) {
-                throw new common_1.BadRequestException(`Ürün ID ${itemDto.itemId} için maksimum iskonto sınırı (${maxAllowedDiscount}) aşıldı.`);
-            }
-            let netPrice = unitPrice;
-            if (discountAmount.gt(0)) {
-                netPrice = finance_helper_1.FinanceHelper.sub(netPrice, discountAmount);
-            }
-            else if (discountPercent.gt(0)) {
-                const discount = finance_helper_1.FinanceHelper.mul(netPrice, discountPercent.div(100));
-                netPrice = finance_helper_1.FinanceHelper.sub(netPrice, discount);
-            }
-            const subtotal = finance_helper_1.FinanceHelper.mul(itemDto.quantity, netPrice);
-            rawTotalAmount = finance_helper_1.FinanceHelper.add(rawTotalAmount, subtotal);
-            saleItems.push({
-                itemId: itemDto.itemId,
-                quantity: new decimal_js_1.Decimal(itemDto.quantity),
-                shippedQuantity: new decimal_js_1.Decimal(0),
-                price: unitPrice,
-                discountAmount,
-                discountPercent,
-                netPrice,
-                kdvRate: new decimal_js_1.Decimal(itemDto.kdvRate ?? 20),
-                description: itemDto.description,
-                createdBy: userId,
-            });
-        }
-        const headerDiscountAmount = new decimal_js_1.Decimal(dto.discountAmount || 0);
-        const headerDiscountPercent = new decimal_js_1.Decimal(dto.discountPercent || 0);
-        let discountToSubtract = headerDiscountAmount;
-        if (headerDiscountPercent.gt(0)) {
-            discountToSubtract = finance_helper_1.FinanceHelper.mul(rawTotalAmount, headerDiscountPercent.div(100));
-        }
-        const discountedMatrah = finance_helper_1.FinanceHelper.sub(rawTotalAmount, discountToSubtract);
-        let totalKdv = new decimal_js_1.Decimal(0);
-        let distributedMatrah = new decimal_js_1.Decimal(0);
-        let maxLineIndex = 0;
-        let maxLineAmount = new decimal_js_1.Decimal(0);
-        saleItems.forEach((item, index) => {
-            const isLast = index === saleItems.length - 1;
-            let lineMatrah;
-            if (isLast && saleItems.length > 0) {
-                lineMatrah = discountedMatrah.minus(distributedMatrah);
-            }
-            else {
-                const lineRatio = rawTotalAmount.gt(0)
-                    ? finance_helper_1.FinanceHelper.div(finance_helper_1.FinanceHelper.mul(item.quantity, item.netPrice), rawTotalAmount, 10)
-                    : new decimal_js_1.Decimal(0);
-                lineMatrah = finance_helper_1.FinanceHelper.round(discountedMatrah.mul(lineRatio));
-                distributedMatrah = distributedMatrah.plus(lineMatrah);
-            }
-            if (lineMatrah.gt(maxLineAmount)) {
-                maxLineAmount = lineMatrah;
-                maxLineIndex = index;
-            }
-            const lineKdv = finance_helper_1.FinanceHelper.calculateKdv(lineMatrah, Number(item.kdvRate));
-            item.kdvAmount = lineKdv;
-            item.lineTotal = finance_helper_1.FinanceHelper.add(lineMatrah, lineKdv);
-            totalKdv = finance_helper_1.FinanceHelper.add(totalKdv, lineKdv);
-        });
-        const avgKdvRate = saleItems.length > 0 ? Number(saleItems[0].kdvRate) : 20;
-        const expectedKdv = finance_helper_1.FinanceHelper.calculateKdv(discountedMatrah, avgKdvRate);
-        const difference = expectedKdv.sub(totalKdv);
-        if (!difference.isZero() && saleItems.length > 0) {
-            const targetItem = saleItems[maxLineIndex];
-            targetItem.kdvAmount = finance_helper_1.FinanceHelper.add(targetItem.kdvAmount, difference);
-            targetItem.lineTotal = finance_helper_1.FinanceHelper.add(targetItem.lineTotal, difference);
-            totalKdv = expectedKdv;
-        }
-        const grandTotal = finance_helper_1.FinanceHelper.add(discountedMatrah, totalKdv);
+        const itemDataMap = await this.fetchItemData(manager, dto.items.map(i => i.itemId));
+        const calcResult = sale_calculator_1.SaleCalculator.calculate(dto.items, itemDataMap, dto.discountAmount, dto.discountPercent);
         const sale = manager.create(sale_entity_1.Sale, {
+            ...dto,
             code,
-            partyId: dto.partyId,
-            saleTypeId: dto.saleTypeId,
-            currencyId: dto.currencyId,
-            staffId: dto.staffId,
             exchangeRate: currentExchangeRate,
-            deliveryDate: dto.deliveryDate,
             status: 'draft',
             deposit: new decimal_js_1.Decimal(dto.deposit || 0),
-            totalAmount: rawTotalAmount,
-            discountAmount: headerDiscountAmount,
-            discountPercent: headerDiscountPercent,
-            kdv: totalKdv,
-            grandTotal,
-            notes: dto.notes,
-            phone: dto.phone,
-            address: dto.address,
-            taxNumber: dto.taxNumber,
-            email: dto.email,
-            source: dto.source,
-            city: dto.city,
-            district: dto.district,
-            commercialAccountId: dto.commercialAccountId,
+            totalAmount: calcResult.totalAmount,
+            discountAmount: calcResult.discountAmount,
+            discountPercent: calcResult.discountPercent,
+            kdv: calcResult.kdv,
+            grandTotal: calcResult.grandTotal,
             createdBy: userId,
         });
         const savedSale = await manager.save(sale);
-        const saleItemEntities = saleItems.map(si => manager.create(sale_item_entity_1.SaleItem, { ...si, saleId: savedSale.id }));
+        const saleItemEntities = calcResult.lines.map(line => manager.create(sale_item_entity_1.SaleItem, {
+            ...line,
+            saleId: savedSale.id,
+            createdBy: userId
+        }));
         await manager.save(sale_item_entity_1.SaleItem, saleItemEntities);
         return this.findOne(savedSale.id);
     }
@@ -235,123 +162,35 @@ let SalesService = SalesService_1 = class SalesService {
         if (sale.status !== 'draft') {
             throw new common_1.BadRequestException('Sadece taslak durumundaki siparişler düzenlenebilir.');
         }
-        if (dto.notes !== undefined)
-            sale.notes = dto.notes;
-        if (dto.deliveryDate !== undefined)
-            sale.deliveryDate = dto.deliveryDate;
-        if (dto.staffId !== undefined)
-            sale.staffId = dto.staffId;
-        if (dto.phone !== undefined)
-            sale.phone = dto.phone;
-        if (dto.address !== undefined)
-            sale.address = dto.address;
-        if (dto.taxNumber !== undefined)
-            sale.taxNumber = dto.taxNumber;
-        if (dto.email !== undefined)
-            sale.email = dto.email;
-        if (dto.source !== undefined)
-            sale.source = dto.source;
-        if (dto.city !== undefined)
-            sale.city = dto.city;
-        if (dto.district !== undefined)
-            sale.district = dto.district;
-        if (dto.commercialAccountId !== undefined)
-            sale.commercialAccountId = dto.commercialAccountId;
+        const updatableFields = [
+            'notes', 'deliveryDate', 'staffId', 'phone', 'address', 'taxNumber',
+            'email', 'source', 'city', 'district', 'commercialAccountId'
+        ];
+        updatableFields.forEach(field => {
+            if (dto[field] !== undefined)
+                sale[field] = dto[field];
+        });
         sale.updatedBy = userId || null;
         if (dto.items && dto.items.length > 0) {
-            let rawTotalAmount = new decimal_js_1.Decimal(0);
-            const saleItems = [];
-            for (const itemDto of dto.items) {
-                const dbItem = await manager.findOne(item_entity_1.Item, {
-                    where: { id: itemDto.itemId, state: 1 },
-                });
-                if (!dbItem) {
-                    throw new common_1.NotFoundException(`Ürün bulunamadı veya pasif durumda: ID ${itemDto.itemId}`);
-                }
-                const unitPrice = new decimal_js_1.Decimal(dbItem.salePrice || 0);
-                const discountAmount = new decimal_js_1.Decimal(itemDto.discountAmount || 0);
-                const discountPercent = new decimal_js_1.Decimal(itemDto.discountPercent || 0);
-                const maxAllowedDiscount = unitPrice.mul(0.5);
-                if (discountAmount.gt(maxAllowedDiscount)) {
-                    throw new common_1.BadRequestException(`Ürün ID ${itemDto.itemId} için maksimum iskonto sınırı (${maxAllowedDiscount}) aşıldı.`);
-                }
-                let netPrice = unitPrice;
-                if (discountAmount.gt(0)) {
-                    netPrice = finance_helper_1.FinanceHelper.sub(netPrice, discountAmount);
-                }
-                else if (discountPercent.gt(0)) {
-                    const discount = finance_helper_1.FinanceHelper.mul(netPrice, discountPercent.div(100));
-                    netPrice = finance_helper_1.FinanceHelper.sub(netPrice, discount);
-                }
-                rawTotalAmount = finance_helper_1.FinanceHelper.add(rawTotalAmount, finance_helper_1.FinanceHelper.mul(itemDto.quantity, netPrice));
-                saleItems.push({
-                    itemId: itemDto.itemId,
-                    quantity: new decimal_js_1.Decimal(itemDto.quantity),
-                    shippedQuantity: new decimal_js_1.Decimal(0),
-                    price: unitPrice,
-                    discountAmount,
-                    discountPercent,
-                    netPrice,
-                    kdvRate: new decimal_js_1.Decimal(itemDto.kdvRate ?? 20),
-                    description: itemDto.description,
-                    createdBy: userId,
-                });
-            }
-            const headerDiscountAmount = new decimal_js_1.Decimal(dto.discountAmount !== undefined ? dto.discountAmount : sale.discountAmount);
-            const headerDiscountPercent = new decimal_js_1.Decimal(dto.discountPercent !== undefined ? dto.discountPercent : sale.discountPercent);
-            let discountToSubtract = headerDiscountAmount;
-            if (headerDiscountPercent.gt(0)) {
-                discountToSubtract = finance_helper_1.FinanceHelper.mul(rawTotalAmount, headerDiscountPercent.div(100));
-            }
-            const discountedMatrah = finance_helper_1.FinanceHelper.sub(rawTotalAmount, discountToSubtract);
-            let totalKdv = new decimal_js_1.Decimal(0);
-            let distributedMatrah = new decimal_js_1.Decimal(0);
-            let maxLineIndex = 0;
-            let maxLineAmount = new decimal_js_1.Decimal(0);
-            saleItems.forEach((item, index) => {
-                const isLast = index === saleItems.length - 1;
-                let lineMatrah;
-                if (isLast && saleItems.length > 0) {
-                    lineMatrah = discountedMatrah.minus(distributedMatrah);
-                }
-                else {
-                    const lineRatio = rawTotalAmount.gt(0)
-                        ? finance_helper_1.FinanceHelper.div(finance_helper_1.FinanceHelper.mul(item.quantity, item.netPrice), rawTotalAmount, 10)
-                        : new decimal_js_1.Decimal(0);
-                    lineMatrah = finance_helper_1.FinanceHelper.round(discountedMatrah.mul(lineRatio));
-                    distributedMatrah = distributedMatrah.plus(lineMatrah);
-                }
-                if (lineMatrah.gt(maxLineAmount)) {
-                    maxLineAmount = lineMatrah;
-                    maxLineIndex = index;
-                }
-                const lineKdv = finance_helper_1.FinanceHelper.calculateKdv(lineMatrah, Number(item.kdvRate));
-                item.kdvAmount = lineKdv;
-                item.lineTotal = finance_helper_1.FinanceHelper.add(lineMatrah, lineKdv);
-                totalKdv = finance_helper_1.FinanceHelper.add(totalKdv, lineKdv);
-            });
-            const avgKdvRate = saleItems.length > 0 ? Number(saleItems[0].kdvRate) : 20;
-            const expectedKdv = finance_helper_1.FinanceHelper.calculateKdv(discountedMatrah, avgKdvRate);
-            const difference = expectedKdv.sub(totalKdv);
-            if (!difference.isZero() && saleItems.length > 0) {
-                const targetItem = saleItems[maxLineIndex];
-                targetItem.kdvAmount = finance_helper_1.FinanceHelper.add(targetItem.kdvAmount, difference);
-                targetItem.lineTotal = finance_helper_1.FinanceHelper.add(targetItem.lineTotal, difference);
-                totalKdv = expectedKdv;
-            }
-            sale.totalAmount = rawTotalAmount;
-            sale.discountAmount = headerDiscountAmount;
-            sale.discountPercent = headerDiscountPercent;
-            sale.kdv = totalKdv;
-            sale.grandTotal = finance_helper_1.FinanceHelper.add(discountedMatrah, totalKdv);
-            sale.deposit = new decimal_js_1.Decimal(dto.deposit !== undefined ? dto.deposit : sale.deposit);
-            await manager.delete(sale_item_entity_1.SaleItem, { saleId: sale.id });
-            const saleItemEntities = saleItems.map(si => manager.create(sale_item_entity_1.SaleItem, { ...si, saleId: sale.id }));
-            await manager.save(sale_item_entity_1.SaleItem, saleItemEntities);
-        }
-        else {
+            const itemDataMap = await this.fetchItemData(manager, dto.items.map(i => i.itemId));
+            const calcResult = sale_calculator_1.SaleCalculator.calculate(dto.items, itemDataMap, dto.discountAmount !== undefined ? dto.discountAmount : sale.discountAmount, dto.discountPercent !== undefined ? dto.discountPercent : sale.discountPercent);
+            sale.totalAmount = calcResult.totalAmount;
+            sale.discountAmount = calcResult.discountAmount;
+            sale.discountPercent = calcResult.discountPercent;
+            sale.kdv = calcResult.kdv;
+            sale.grandTotal = calcResult.grandTotal;
             if (dto.deposit !== undefined)
                 sale.deposit = new decimal_js_1.Decimal(dto.deposit);
+            await manager.delete(sale_item_entity_1.SaleItem, { saleId: sale.id });
+            const saleItemEntities = calcResult.lines.map(line => manager.create(sale_item_entity_1.SaleItem, {
+                ...line,
+                saleId: sale.id,
+                updatedBy: userId
+            }));
+            await manager.save(sale_item_entity_1.SaleItem, saleItemEntities);
+        }
+        else if (dto.deposit !== undefined) {
+            sale.deposit = new decimal_js_1.Decimal(dto.deposit);
         }
         await manager.save(sale);
         return this.findOne(id);
@@ -370,6 +209,7 @@ let SalesService = SalesService_1 = class SalesService {
         if (!party)
             throw new common_1.NotFoundException('Cari hesap bulunamadı');
         const tlGrandTotal = finance_helper_1.FinanceHelper.mul(sale.grandTotal, sale.exchangeRate);
+        const depositToTL = finance_helper_1.FinanceHelper.mul(sale.deposit, sale.exchangeRate);
         if (party.creditLimit.gt(0) && (finance_helper_1.FinanceHelper.add(party.balance, tlGrandTotal)).gt(party.creditLimit)) {
             throw new common_1.BadRequestException(`Cari limit aşıldı! Sipariş sonrası bakiye: ${finance_helper_1.FinanceHelper.add(party.balance, tlGrandTotal)} olmaktadır.`);
         }
@@ -377,49 +217,18 @@ let SalesService = SalesService_1 = class SalesService {
         sale.departmentId = dto.departmentId;
         sale.updatedBy = userId || null;
         await manager.save(sale_entity_1.Sale, sale);
-        await this.stocksService.reserveStockBulk(sale.items.map(i => ({ itemId: i.itemId, quantity: i.quantity })), dto.departmentId, manager, userId);
-        await manager.save(manager.create(ledger_entity_1.AccountingLedger, {
-            date: date_utils_1.DateUtils.getToday(),
-            partyId: sale.partyId,
-            debit: tlGrandTotal,
-            credit: new decimal_js_1.Decimal(0),
-            transactionId: sale.id,
-            source: 'SALE',
-            description: `${sale.code} numaralı Satış Faturası Borçlandırması`
-        }));
-        party.balance = finance_helper_1.FinanceHelper.add(party.balance, tlGrandTotal);
-        const depositToTL = finance_helper_1.FinanceHelper.mul(sale.deposit, sale.exchangeRate);
-        if (depositToTL.gt(0) && dto.commercialAccountId) {
-            const txCode = await this.sequenceGenerator.generateTransactionCode(manager, 'MKB');
-            await manager.save(manager.create(transaction_entity_1.Transaction, {
-                code: txCode,
-                partyId: party.id,
+        await this.outboxService.saveEvent({
+            topic: 'sale.approved',
+            payload: {
+                sale,
+                tlGrandTotal,
+                deposit: depositToTL,
+                departmentId: dto.departmentId,
                 commercialAccountId: dto.commercialAccountId,
-                amount: sale.deposit,
-                currencyId: sale.currencyId,
-                exchangeRate: sale.exchangeRate,
-                type: 'in',
-                referenceType: 'sale',
-                referenceId: sale.id,
-                date: date_utils_1.DateUtils.getToday(),
-                description: `${sale.code} Nolu Sipariş Peşinat / Kaporası`,
-                status: 'completed',
-                createdBy: userId
-            }));
-            await manager.save(manager.create(ledger_entity_1.AccountingLedger, {
-                date: date_utils_1.DateUtils.getToday(),
-                partyId: party.id,
-                accountId: dto.commercialAccountId,
-                debit: new decimal_js_1.Decimal(0),
-                credit: depositToTL,
-                transactionId: sale.id,
-                source: 'DEPOSIT',
-                description: `${sale.code} Sipariş Peşinat Tahsilatı`
-            }));
-            party.balance = finance_helper_1.FinanceHelper.sub(party.balance, depositToTL);
-        }
-        party.updatedBy = userId || null;
-        await manager.save(party_entity_1.Party, party);
+                userId,
+            },
+            manager,
+        });
         this.logsService.logActivity({
             userId,
             module: 'sales',
@@ -554,31 +363,31 @@ let SalesService = SalesService_1 = class SalesService {
 };
 exports.SalesService = SalesService;
 __decorate([
-    (0, transactional_decorator_1.Transactional)(),
+    (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [sale_dto_1.CreateSaleDto, Number]),
     __metadata("design:returntype", Promise)
 ], SalesService.prototype, "create", null);
 __decorate([
-    (0, transactional_decorator_1.Transactional)(),
+    (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number, sale_dto_1.UpdateSaleDto, Number]),
     __metadata("design:returntype", Promise)
 ], SalesService.prototype, "update", null);
 __decorate([
-    (0, transactional_decorator_1.Transactional)(),
+    (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number, sale_dto_1.ApproveSaleDto, Number]),
     __metadata("design:returntype", Promise)
 ], SalesService.prototype, "approveSale", null);
 __decorate([
-    (0, transactional_decorator_1.Transactional)(),
+    (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number, Number]),
     __metadata("design:returntype", Promise)
 ], SalesService.prototype, "cancelSale", null);
 __decorate([
-    (0, transactional_decorator_1.Transactional)(),
+    (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number, sale_dto_1.ShipSaleDto, Number]),
     __metadata("design:returntype", Promise)
@@ -595,6 +404,7 @@ exports.SalesService = SalesService = SalesService_1 = __decorate([
         sequence_generator_service_1.SequenceGeneratorService,
         stocks_service_1.StocksService,
         logs_service_1.LogsService,
-        transaction_context_service_1.TransactionContextService])
+        transaction_context_service_1.TransactionContextService,
+        outbox_service_1.OutboxService])
 ], SalesService);
 //# sourceMappingURL=sales.service.js.map

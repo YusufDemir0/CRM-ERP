@@ -108,11 +108,11 @@ api.interceptors.response.use(
       }
 
       if (error.response?.status === 401) {
-        // [MODERNIZATION]: Silent Re-Auth Queuing
+        // [MODERNIZATION]: Silent Re-Auth Queuing & Refresh Token Flow
         const originalRequest = error.config;
         const isAuthRequest = config?.url?.includes('/auth/login') || 
-                            config?.url?.includes('/auth/profile') || 
-                            config?.url?.includes('/auth/csrf');
+                            config?.url?.includes('/auth/csrf') ||
+                            config?.url?.includes('/auth/refresh');
         
         if (config?.url && !isAuthRequest && window.location.pathname !== '/login') {
           console.warn('🛡️ Session: 401 Unauthorized detected. Freezing request...');
@@ -126,16 +126,21 @@ api.interceptors.response.use(
           }
 
           isRefreshing = true;
-          useAuthStore.getState().setReAuthModal(true);
-
-          return new Promise((resolve, reject) => {
-            failedQueue.push({ resolve, reject });
-          })
+          
+          return authAPI.refresh()
             .then(() => {
-              console.log('🛡️ Session: Retrying frozen request...');
+              console.log('🛡️ Session: Token refreshed successfully. Resolving queued requests...');
+              isRefreshing = false;
+              resolveFailedRequests();
               return api(originalRequest as AxiosRequestConfig);
             })
-            .catch((err) => Promise.reject(err));
+            .catch((refreshError) => {
+              console.error('🛡️ Session: Refresh failed. Prompting re-auth modal...');
+              isRefreshing = false;
+              rejectFailedRequests(refreshError);
+              useAuthStore.getState().setReAuthModal(true);
+              return Promise.reject(refreshError);
+            });
         }
       }
 
@@ -169,6 +174,7 @@ export const authAPI = {
   login: (data: { username: string; password: string }, config?: AxiosRequestConfig) => api.post('/auth/login', data, config),
   logout: (config?: AxiosRequestConfig) => api.post('/auth/logout', {}, config),
   profile: (config?: AxiosRequestConfig) => api.get('/auth/profile', config),
+  refresh: (config?: AxiosRequestConfig) => api.post('/auth/refresh', {}, config),
 };
 
 export const initCsrf = async () => {

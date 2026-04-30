@@ -11,82 +11,82 @@ export class RolesController {
 
   // ────── ROLES ──────
   @Get()
-  @RequirePermissions('rol_goruntuleme')
+  @RequirePermissions('ROLE_VIEW')
   findAllRoles(@Query() query: PaginationDto) {
     return this.rolesService.findAllRoles(query);
   }
 
   @Get('status')
-  @RequirePermissions('rol_goruntuleme')
+  @RequirePermissions('ROLE_VIEW')
   getStatus() {
     return this.rolesService.getStatus();
   }
 
   @Get(':id')
-  @RequirePermissions('rol_goruntuleme')
+  @RequirePermissions('ROLE_VIEW')
   findOneRole(@Param('id', ParseIntPipe) id: number) {
     return this.rolesService.findOneRole(id);
   }
 
   @Post()
-  @RequirePermissions('rol_olusturma')
+  @RequirePermissions('ROLE_CREATE')
   createRole(@Body() dto: CreateRoleDto, @CurrentUser('sub') userId: number) {
     return this.rolesService.createRole(dto, userId);
   }
 
   @Put(':id')
-  @RequirePermissions('rol_duzenleme')
+  @RequirePermissions('ROLE_EDIT')
   updateRole(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateRoleDto, @CurrentUser('sub') userId: number) {
     return this.rolesService.updateRole(id, dto, userId);
   }
 
   @Delete(':id')
-  @RequirePermissions('rol_silme')
+  @RequirePermissions('ROLE_DELETE')
   deleteRole(@Param('id', ParseIntPipe) id: number) {
     return this.rolesService.deleteRole(id);
   }
 
   // ────── PERMISSIONS ──────
   @Get('permissions/all')
-  @RequirePermissions('rol_goruntuleme')
+  @RequirePermissions('ROLE_VIEW')
   findAllPermissions(@Query() query: PaginationDto) {
     return this.rolesService.findAllPermissions(query);
   }
 
   @Post('permissions')
-  @RequirePermissions('rol_olusturma')
+  @RequirePermissions('ROLE_CREATE')
   createPermission(@Body() dto: CreatePermissionDto, @CurrentUser('sub') userId: number) {
     return this.rolesService.createPermission(dto, userId);
   }
 
   // ────── USER ROLE ASSIGNMENT ──────
   @Post('assign')
-  @RequirePermissions('rol_atama')
+  @RequirePermissions('ROLE_ASSIGN')
   assignRole(@Body() dto: AssignRoleDto) {
     return this.rolesService.assignRole(dto);
   }
 
   @Delete('assign')
-  @RequirePermissions('rol_atama')
+  @RequirePermissions('ROLE_ASSIGN')
   removeRole(@Body() dto: AssignRoleDto) {
     return this.rolesService.removeRole(dto);
   }
 
   // ────── USER PERMISSION OVERRIDE ──────
   @Post('user-permissions')
-  @RequirePermissions('yetki_atama')
+  @RequirePermissions('PERMISSION_ASSIGN')
   setUserPermission(@Body() dto: SetUserPermissionDto, @CurrentUser('sub') userId: number) {
     return this.rolesService.setUserPermission(dto, userId);
   }
 
   @Get('user-permissions/:userId')
-  @RequirePermissions('yetki_goruntuleme')
+  @RequirePermissions('PERMISSION_VIEW')
   getUserPermissions(@Param('userId', ParseIntPipe) userId: number) {
     return this.rolesService.getUserPermissions(userId);
   }
 
   @Delete('user-permissions')
-  @RequirePermissions('yetki_atama')
+  @RequirePermissions('PERMISSION_ASSIGN')
   removeUserPermission(@Body() dto: { userId: number; permissionId: number }) {
     return this.rolesService.removeUserPermission(dto);
   }

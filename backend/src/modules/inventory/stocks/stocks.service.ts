@@ -15,12 +15,11 @@ import { StockAdjustmentDto, StocksQueryDto, TransferStockDto } from '../dto/inv
 import { PaginatedResult, PaginationDto } from '../../../common/dto/pagination.dto';
 import { Item } from '../items/entities/item.entity';
 import { Transaction } from '../../finance/transactions/entities/transaction.entity';
-import { Party } from '../../parties/entities/party.entity';
 import { SequenceGeneratorService } from '../../../common/services/sequence-generator.service';
 import { DateUtils } from '../../../common/utils/date.utils';
 import { FinanceHelper } from '../../../common/utils/finance.helper';
 import { LogsService } from '../../logs/logs.service';
-import { Transactional } from '../../../common/decorators/transactional.decorator';
+import { Transactional } from '@nestjs-cls/transactional';
 import { TransactionContextService } from '../../../common/services/transaction-context.service';
 import { getSafeSearchPattern } from '../../../common/utils/sql.helper';
 
@@ -37,10 +36,17 @@ export class StocksService {
 
   async findAll(query: StocksQueryDto): Promise<PaginatedResult<Stock>> {
     const qb = this.stockRepo.createQueryBuilder('stock')
-      .leftJoinAndSelect('stock.item', 'item')
-      .leftJoinAndSelect('item.itemType', 'itemType')
-      .leftJoinAndSelect('item.quantityType', 'quantityType')
-      .leftJoinAndSelect('stock.department', 'department');
+      .leftJoin('stock.item', 'item')
+      .leftJoin('item.itemType', 'itemType')
+      .leftJoin('item.quantityType', 'quantityType')
+      .leftJoin('stock.department', 'department')
+      .select([
+        'stock.id', 'stock.quantity', 'stock.reservedQuantity', 'stock.updatedAt',
+        'item.id', 'item.name', 'item.code', 'item.criticalLimit', 'item.state',
+        'itemType.id', 'itemType.name',
+        'quantityType.id', 'quantityType.abbreviation',
+        'department.id', 'department.name'
+      ]);
 
     if (query.departmentId) qb.andWhere('stock.departmentId = :deptId', { deptId: query.departmentId });
     if (query.itemId) qb.andWhere('stock.itemId = :itemId', { itemId: query.itemId });
@@ -54,21 +60,30 @@ export class StocksService {
     }
 
     if (query.isCritical === 'true') {
-      qb.andWhere('stock.quantity <= item.criticalLimit');
-      qb.andWhere('item.criticalLimit > 0');
+      qb.andWhere('stock.quantity <= item.criticalLimit AND item.criticalLimit > 0');
     }
 
-    const allowedSortCols = ['quantity', 'createdAt', 'item.name', 'department.name'];
-    const sortField = allowedSortCols.includes(query.sortBy || '') ? query.sortBy! : 'quantity';
-    const finalSortField = sortField.includes('.') ? sortField : `stock.${sortField}`;
- 
-    qb.orderBy(finalSortField, query.sortOrder || 'DESC');
+    const sortFieldMap: Record<string, string> = {
+      'quantity': 'stock.quantity',
+      'item.name': 'item.name',
+      'department.name': 'department.name',
+      'updatedAt': 'stock.updatedAt'
+    };
+
+    const sortCol = sortFieldMap[query.sortBy || ''] || 'stock.updatedAt';
+    qb.orderBy(sortCol, query.sortOrderSafe);
     qb.skip(query.skip).take(query.limit);
 
     const [data, total] = await qb.getManyAndCount();
+    
     return {
       data,
-      meta: { total, page: query.page || 1, limit: query.limit || 20, totalPages: Math.ceil(total / (query.limit || 20)) },
+      meta: { 
+        total, 
+        page: query.page || 1, 
+        limit: query.limit || 20, 
+        totalPages: Math.ceil(total / (query.limit || 20)) 
+      },
     };
   }
 
@@ -253,6 +268,7 @@ export class StocksService {
     items: Array<{ itemId: number; quantity: number | Decimal }>,
     departmentId: number,
     manager: EntityManager = this.transactionContext.manager,
+    referenceInfo?: { type: StockMovement['referenceType']; id: number; description: string },
     userId?: number
   ): Promise<void> {
     if (!items || items.length === 0) return;
@@ -272,6 +288,7 @@ export class StocksService {
     const stockMap = new Map<number, Stock>();
     stocks.forEach((s: Stock) => stockMap.set(s.itemId, s));
 
+    const movements: StockMovement[] = [];
     for (const itemId of uniqueItemIds) {
       const qty = reducedItems.get(itemId)!;
       let stock = stockMap.get(itemId);
@@ -281,15 +298,29 @@ export class StocksService {
         stock = await manager.save(Stock, stock);
       }
 
+      const qBefore = new Decimal(stock.quantity);
       stock.reservedQuantity = new Decimal(stock.reservedQuantity || 0).add(qty);
       stock.updatedBy = userId || null;
 
       if (!stocks.find((s: Stock) => s.id === stock!.id)) {
         stocks.push(stock!);
       }
+
+      movements.push(manager.create(StockMovement, {
+        stockId: stock.id,
+        quantity: qty,
+        quantityBefore: qBefore,
+        quantityAfter: qBefore, // Quantity doesn't change during reservation
+        type: 'out', // Reservation is a potential 'out'
+        referenceType: referenceInfo?.type || 'reserve',
+        referenceId: referenceInfo?.id || null,
+        description: referenceInfo?.description || 'Stok Rezervasyonu',
+        createdBy: userId
+      }));
     }
 
     await manager.save(Stock, stocks);
+    await manager.save(StockMovement, movements);
   }
 
   async unreserveStockBulk(
@@ -515,18 +546,10 @@ export class StocksService {
       const txPrefix = txType === 'in' ? 'SFG' : 'SFC';
       const txCode = await this.sequenceGenerator.generateTransactionCode(manager, txPrefix);
 
-      let internalParty = await manager.findOne(Party, { where: { taxNumber: 'INTERNAL' } });
-      if (!internalParty) {
-        internalParty = manager.create(Party, {
-          name: 'ERMAY İÇ TRANSFER / MERKEZ',
-          taxNumber: 'INTERNAL',
-          type: 'both',
-          balance: new Decimal(0),
-          createdBy: userId
-        });
-        internalParty = await manager.save(internalParty);
-      }
-
+      // Stock adjustment value entry — no phantom party needed.
+      // These entries are self-referencing accounting records that track
+      // the financial impact of inventory adjustments without polluting
+      // the party ledger with fictitious balances.
       await manager.save(manager.create(Transaction, {
         code: txCode,
         amount: totalCostValue,
@@ -535,7 +558,7 @@ export class StocksService {
         referenceType: 'manual_adjustment',
         referenceId: savedMovement.id,
         description: `Stok Ayarlaması Değer Kaydı: ${item.name}`,
-        partyId: internalParty.id,
+        partyId: null, // No phantom party — clean accounting
         status: 'completed',
         createdBy: userId,
       }));
@@ -750,7 +773,7 @@ export class StocksService {
 
     return {
       totalItems: Number(total.items || 0),
-      totalQuantity: new Decimal(total.quantity || 0).toNumber(),
+      totalQuantity: new Decimal(total.quantity || 0).toFixed(2),
       criticalCount: Number(critical.count || 0),
     };
   }

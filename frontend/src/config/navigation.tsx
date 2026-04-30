@@ -25,31 +25,31 @@ export const navItems: NavSection[] = [
     { to: '/notes', icon: <FiFile />, label: 'Kişisel Notlarım', keywords: ['not', 'kendi', 'hatırlatıcı'] },
   ]},
   { section: 'Yönetim', items: [
-    { to: '/users', icon: <FiUsers />, label: 'Kullanıcılar', keywords: ['kullanıcı', 'user', 'personel'], permission: 'kullanici_goruntuleme' },
-    { to: '/roles', icon: <FiShield />, label: 'Roller & Yetkiler', keywords: ['rol', 'yetki', 'permission'], permission: 'rol_goruntuleme' },
-    { to: '/departments', icon: <FiLayers />, label: 'Departmanlar', keywords: ['departman', 'birim', 'department'], permission: 'system:manage' },
+    { to: '/users', icon: <FiUsers />, label: 'Kullanıcılar', keywords: ['kullanıcı', 'user', 'personel'], permission: 'USER_VIEW' },
+    { to: '/roles', icon: <FiShield />, label: 'Roller & Yetkiler', keywords: ['rol', 'yetki', 'permission'], permission: 'ROLE_VIEW' },
+    { to: '/departments', icon: <FiLayers />, label: 'Departmanlar', keywords: ['departman', 'birim', 'department'], permission: 'SYSTEM_MANAGE' },
   ]},
   { section: 'CRM', items: [
-    { to: '/parties', icon: <FiUserCheck />, label: 'Cari Hesaplar', keywords: ['cari', 'müşteri', 'tedarikçi'], permission: 'musteri_goruntuleme' },
+    { to: '/parties', icon: <FiUserCheck />, label: 'Cari Hesaplar', keywords: ['cari', 'müşteri', 'tedarikçi'], permission: 'CUSTOMER_VIEW' },
   ]},
   { section: 'Stok', items: [
-    { to: '/items', icon: <FiPackage />, label: 'Ürünler', keywords: ['ürün', 'item', 'malzeme'], permission: 'stok_goruntuleme' },
-    { to: '/stocks', icon: <FiBox />, label: 'Stok Durumu', keywords: ['stok', 'envanter', 'depo'], permission: 'stok_goruntuleme' },
+    { to: '/items', icon: <FiPackage />, label: 'Ürünler', keywords: ['ürün', 'item', 'malzeme'], permission: 'INVENTORY_VIEW' },
+    { to: '/stocks', icon: <FiBox />, label: 'Stok Durumu', keywords: ['stok', 'envanter', 'depo'], permission: 'INVENTORY_VIEW' },
   ]},
   { section: 'Satış', items: [
-    { to: '/sales', icon: <FiShoppingCart />, label: 'Siparişler', keywords: ['satış', 'sipariş', 'order'], permission: 'satis_goruntuleme' },
+    { to: '/sales', icon: <FiShoppingCart />, label: 'Siparişler', keywords: ['satış', 'sipariş', 'order'], permission: 'SALES_VIEW' },
   ]},
   { section: 'Finans', items: [
-    { to: '/accounts', icon: <FiCreditCard />, label: 'Hesaplar', keywords: ['kasa', 'banka', 'hesap'], permission: 'finans_goruntuleme' },
-    { to: '/transactions', icon: <FiRepeat />, label: 'İşlemler', keywords: ['işlem', 'hareket', 'transfer'], permission: 'finans_goruntuleme' },
+    { to: '/accounts', icon: <FiCreditCard />, label: 'Hesaplar', keywords: ['kasa', 'banka', 'hesap'], permission: 'FINANCE_VIEW' },
+    { to: '/transactions', icon: <FiRepeat />, label: 'İşlemler', keywords: ['işlem', 'hareket', 'transfer'], permission: 'FINANCE_VIEW' },
   ]},
   { section: 'Üretim', items: [
-    { to: '/boms', icon: <FiBox />, label: 'Ürün Reçeteleri', keywords: ['reçete', 'bom', 'üretim'], permission: 'uretim_goruntuleme' },
-    { to: '/production', icon: <FiTool />, label: 'Üretim Emirleri', keywords: ['emir', 'üretim', 'iş emri'], permission: 'uretim_goruntuleme' },
+    { to: '/boms', icon: <FiBox />, label: 'Ürün Reçeteleri', keywords: ['reçete', 'bom', 'üretim'], permission: 'PRODUCTION_VIEW' },
+    { to: '/production', icon: <FiTool />, label: 'Üretim Emirleri', keywords: ['emir', 'üretim', 'iş emri'], permission: 'PRODUCTION_VIEW' },
   ]},
   { section: 'Sistem', items: [
-    { to: '/settings', icon: <FiSettings />, label: 'Ayarlar', keywords: ['ayar', 'sistem', 'config'], permission: 'system:manage' },
-    { to: '/logs', icon: <FiList />, label: 'Sistem Logları', keywords: ['log', 'işlem', 'denetim'], permission: 'system:manage' },
+    { to: '/settings', icon: <FiSettings />, label: 'Ayarlar', keywords: ['ayar', 'sistem', 'config'], permission: 'SYSTEM_MANAGE' },
+    { to: '/logs', icon: <FiList />, label: 'Sistem Logları', keywords: ['log', 'işlem', 'denetim'], permission: 'SYSTEM_MANAGE' },
   ]},
 ];
 

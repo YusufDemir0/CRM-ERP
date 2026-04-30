@@ -34,7 +34,6 @@ export class WebhookGuard implements CanActivate {
     const digestWithPrefix = 'sha256=' + digest;
 
     // SEC-03: Use timingSafeEqual to prevent timing attacks.
-    // Requires both buffers to be of the same length.
     const signatureStr = signature.toString();
     const isSha256Match = this.safeCompare(signatureStr, digestWithPrefix) || this.safeCompare(signatureStr, digest);
 
@@ -45,13 +44,17 @@ export class WebhookGuard implements CanActivate {
     return true;
   }
 
+  /**
+   * SEC-03: Constant-time string comparison via HMAC hashing.
+   * 
+   * Instead of short-circuiting on length mismatch (which leaks timing info),
+   * both inputs are hashed to fixed-length digests before comparison.
+   * This eliminates the length-extension timing leak entirely.
+   */
   private safeCompare(a: string, b: string): boolean {
-    if (a.length !== b.length) {
-      // Still need to do some work to avoid short-circuiting length checks
-      // but crypto.timingSafeEqual requires equal length.
-      return false;
-    }
-    return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+    const hashA = crypto.createHash('sha256').update(a).digest();
+    const hashB = crypto.createHash('sha256').update(b).digest();
+    return crypto.timingSafeEqual(hashA, hashB);
   }
 
 }

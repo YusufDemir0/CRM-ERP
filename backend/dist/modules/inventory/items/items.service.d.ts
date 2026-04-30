@@ -25,6 +25,7 @@ export declare class ItemsService {
     create(dto: CreateItemDto, userId?: number): Promise<Item>;
     update(id: number, dto: UpdateItemDto, userId?: number): Promise<Item>;
     softDelete(id: number, currentUserId?: number): Promise<void>;
+    private validateUsage;
     findAllItemTypes(): Promise<ItemType[]>;
     createItemType(dto: CreateItemTypeDto, userId?: number): Promise<ItemType>;
     updateItemType(id: number, dto: UpdateItemTypeDto, userId?: number): Promise<ItemType>;

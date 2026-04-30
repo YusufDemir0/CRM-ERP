@@ -18,11 +18,9 @@ const items_service_1 = require("./items.service");
 const inventory_dto_1 = require("../dto/inventory.dto");
 const current_user_decorator_1 = require("../../../common/decorators/current-user.decorator");
 const permissions_decorator_1 = require("../../../common/decorators/permissions.decorator");
-const inventory_orchestrator_service_1 = require("../inventory-orchestrator.service");
 let ItemsController = class ItemsController {
-    constructor(itemsService, orchestrator) {
+    constructor(itemsService) {
         this.itemsService = itemsService;
-        this.orchestrator = orchestrator;
     }
     getStatus() { return this.itemsService.getStatus(); }
     findAllItemTypes() { return this.itemsService.findAllItemTypes(); }
@@ -47,15 +45,12 @@ let ItemsController = class ItemsController {
         return this.itemsService.updateItemCodeGroup(id, dto, userId);
     }
     update(id, dto, userId) {
-        if (dto.state === 0) {
-            return this.orchestrator.safeUpdateState(id, 0, userId);
-        }
         return this.itemsService.update(id, dto, userId);
     }
     removeItemType(id) { return this.itemsService.softDeleteItemType(id); }
     removeCodeGroup(id) { return this.itemsService.softDeleteItemCodeGroup(id); }
     remove(id, userId) {
-        return this.orchestrator.safeDelete(id, userId);
+        return this.itemsService.softDelete(id, userId);
     }
 };
 exports.ItemsController = ItemsController;
@@ -205,7 +200,6 @@ __decorate([
 ], ItemsController.prototype, "remove", null);
 exports.ItemsController = ItemsController = __decorate([
     (0, common_1.Controller)('items'),
-    __metadata("design:paramtypes", [items_service_1.ItemsService,
-        inventory_orchestrator_service_1.InventoryOrchestratorService])
+    __metadata("design:paramtypes", [items_service_1.ItemsService])
 ], ItemsController);
 //# sourceMappingURL=items.controller.js.map

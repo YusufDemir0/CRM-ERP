@@ -10,6 +10,7 @@ import { QuantityType } from './quantity-type.entity';
 import { DecimalTransformer } from '../../../../common/transformers/decimal.transformer';
 
 @Entity('items')
+@Index('IDX_ITEM_FULLTEXT', ['name', 'code', 'code1', 'code2', 'description', 'notes'], { fulltext: true })
 export class Item extends BaseEntity {
   @Index()
   @Column({ type: 'varchar', length: 150 })

@@ -10,7 +10,7 @@ export class LogsController {
   constructor(private readonly logsService: LogsService) {}
 
   @Get()
-  @RequirePermissions('system:manage')
+  @RequirePermissions('SYSTEM_MANAGE')
   async findAll(@Query() query: LogsQueryDto) {
     return this.logsService.findAll(query);
   }

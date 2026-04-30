@@ -9,6 +9,7 @@ import { Decimal } from 'decimal.js';
 import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto, ShipSaleDto } from './dto/sale.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
 import { TransactionContextService } from '../../common/services/transaction-context.service';
+import { OutboxService } from '../../common/services/outbox.service';
 export declare class SalesService {
     private saleRepo;
     private saleItemRepo;
@@ -18,8 +19,9 @@ export declare class SalesService {
     private stocksService;
     private logsService;
     private transactionContext;
+    private outboxService;
     private readonly logger;
-    constructor(saleRepo: Repository<Sale>, saleItemRepo: Repository<SaleItem>, saleTypeRepo: Repository<SaleType>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, stocksService: StocksService, logsService: LogsService, transactionContext: TransactionContextService);
+    constructor(saleRepo: Repository<Sale>, saleItemRepo: Repository<SaleItem>, saleTypeRepo: Repository<SaleType>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, stocksService: StocksService, logsService: LogsService, transactionContext: TransactionContextService, outboxService: OutboxService);
     findAllSaleTypes(): Promise<SaleType[]>;
     createSaleType(dto: CreateSaleTypeDto, userId?: number): Promise<SaleType>;
     findAll(query: PaginationDto & {
@@ -27,6 +29,7 @@ export declare class SalesService {
         partyId?: number;
     }): Promise<PaginatedResult<Sale>>;
     findOne(id: number): Promise<Sale>;
+    private fetchItemData;
     create(dto: CreateSaleDto, userId?: number): Promise<Sale>;
     update(id: number, dto: UpdateSaleDto, userId?: number): Promise<Sale>;
     approveSale(saleId: number, dto: ApproveSaleDto, userId?: number): Promise<Sale>;
