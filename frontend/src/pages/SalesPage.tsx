@@ -105,7 +105,7 @@ export default function SalesPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all({}) });
       setApproveSaleId(null);
       setSelectedDeptId('');
-      toast.success("Sipariş başarıyla onaylandı.");
+      toast.success("Satış başarıyla onaylandı.");
     },
     onError: (err: unknown) => {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Onaylama işlemi başarısız oldu.';
@@ -117,7 +117,7 @@ export default function SalesPage() {
     mutationFn: (id: number) => salesAPI.cancel(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all({}) });
-      toast.success("Sipariş iptal edildi.");
+      toast.success("Satış iptal edildi.");
     },
     onError: () => toast.error("İptal işlemi başarısız oldu.")
   });
@@ -150,7 +150,7 @@ export default function SalesPage() {
   };
 
   const handleCancelSale = useCallback(async (id: number) => {
-    const confirmed = await confirmDialog('Bu siparişi iptal etmek istediğinize emin misiniz?', true);
+    const confirmed = await confirmDialog('Bu satışı iptal etmek istediğinize emin misiniz?', true);
     if (confirmed) cancelMutation.mutate(id);
   }, [cancelMutation]);
 

@@ -235,7 +235,7 @@ export default function Navbar({ onToggleSidebar }: { onToggleSidebar: () => voi
               {searchResults.sales.length > 0 && (
                 <div className="mb-6">
                   <p className="text-[10px] font-black text-rose-600 mb-3 uppercase tracking-[0.15em] flex items-center gap-2 px-1">
-                    <FiShoppingCart size={14} /> Satış Siparişleri
+                    <FiShoppingCart size={14} /> Satışlar
                   </p>
                   <div className="grid grid-cols-1 gap-1">
                     {searchResults.sales.map(sale => (
