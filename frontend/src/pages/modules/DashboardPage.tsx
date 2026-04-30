@@ -24,25 +24,14 @@ interface DashboardStats {
   profit: number;
 }
 
-interface RecentAction {
-  id: number;
-  code: string;
-  type: 'in' | 'out' | 'other';
-  amount: number;
-  date: string;
-  partyName: string;
-  referenceType: string;
-  description: string;
-}
+// Removed RecentAction interface
 
 interface DashboardData {
-  totalUsers: number;
-  totalParties: number;
-  totalItems: number;
+  totalCustomers: number;
+  totalSalesCount: number;
   todaySales: number;
   thisMonth: DashboardStats;
   lastMonth: DashboardStats;
-  recentActions: RecentAction[];
 }
 
 const motivationQuotes: Record<string, string[]> = {
@@ -266,9 +255,9 @@ export default function DashboardPage() {
         {/* Mini KPIs (Right - 1/3) */}
         <div className="flex flex-col gap-4">
            {[
-             { label: 'TOPLAM CARİ HESAP', value: data?.totalParties || 0, icon: <FiTarget />, color: 'text-blue-500', bg: 'bg-blue-50' },
-             { label: 'AKTİF ÜRÜN ÇEŞİDİ', value: data?.totalItems || 0, icon: <FiCheckCircle />, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-             { label: 'SİSTEM PERSONELİ', value: data?.totalUsers || 0, icon: <FiActivity />, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+             { label: 'TOPLAM MÜŞTERİ', value: data?.totalCustomers || 0, icon: <FiUsers />, color: 'text-blue-500', bg: 'bg-blue-50', isMoney: false },
+             { label: 'TOPLAM SATIŞ', value: data?.totalSalesCount || 0, icon: <FiShoppingCart />, color: 'text-emerald-500', bg: 'bg-emerald-50', isMoney: false },
+             { label: 'GÜNÜN CİROSU', value: data?.todaySales || 0, icon: <FiDollarSign />, color: 'text-indigo-500', bg: 'bg-indigo-50', isMoney: true },
            ].map((stat, i) => (
              <div key={i} className="flex-1 bg-white border border-slate-100 rounded-3xl p-5 shadow-sm flex items-center justify-between">
                <div className="flex items-center gap-4">
@@ -277,60 +266,11 @@ export default function DashboardPage() {
                  </div>
                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</div>
                </div>
-               <div className="text-xl font-black text-slate-800 tabular-nums">{stat.value}</div>
+               <div className="text-xl font-black text-slate-800 tabular-nums">
+                 {stat.isMoney ? formatCurrency(stat.value) : stat.value}
+               </div>
              </div>
            ))}
-        </div>
-      </div>
-
-      {/* 🔹 ROW 4: RECENT ACTIONS */}
-      <div className="bg-white border border-slate-100 rounded-3xl shadow-sm p-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h3 className="text-lg font-black tracking-tight text-slate-900">Son Finansal Hareketler</h3>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Sistemdeki en güncel 5 işlem</p>
-          </div>
-          <button 
-            className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
-            onClick={() => navigate('/transactions')}
-          >
-            Tümünü Gör <FiArrowUpRight />
-          </button>
-        </div>
-
-        <div className="flex flex-col divide-y divide-slate-50">
-          {data?.recentActions?.map((t) => (
-            <div 
-              key={t.id} 
-              onClick={() => navigate('/transactions')} 
-              className="group py-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors cursor-pointer -mx-4 px-4 rounded-2xl"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-500 group-hover:text-primary transition-colors">
-                  {t.type === 'in' ? <FiArrowDownRight className="text-emerald-500" /> : <FiArrowUpRight className="text-rose-500" />}
-                </div>
-                <div>
-                  <div className="font-black text-sm text-slate-800">{t.partyName}</div>
-                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
-                    {t.code} • {dayjs(t.date).format('DD MMM YYYY')}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-6">
-                <div className={`px-2 py-1 rounded-md text-[9px] font-black tracking-widest border ${
-                  t.type === 'in' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'
-                }`}>
-                  {t.type === 'in' ? 'GİRİŞ' : 'ÇIKIŞ'}
-                </div>
-                <div className={`text-base font-black tabular-nums tracking-tight min-w-[100px] text-right ${
-                  t.type === 'in' ? 'text-emerald-600' : 'text-slate-900'
-                }`}>
-                  {t.type === 'in' ? '+' : '-'}{formatCurrency(t.amount)}
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>
