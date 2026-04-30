@@ -15,6 +15,7 @@ import { QuantityType } from './items/entities/quantity-type.entity';
 import { Stock } from './stocks/entities/stock.entity';
 import { StockMovement } from './stocks/entities/stock-movement.entity';
 import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
+import { InventoryListener } from './listeners/inventory.listener';
 
 import { BomItem } from '../production/entities/bom-item.entity';
 
@@ -29,8 +30,7 @@ import { BomItem } from '../production/entities/bom-item.entity';
     LogsModule,
   ],
   controllers: [ItemsController, StocksController],
-  providers: [ItemsService, StocksService, SequenceGeneratorService],
+  providers: [ItemsService, StocksService, SequenceGeneratorService, InventoryListener],
   exports: [ItemsService, StocksService, SequenceGeneratorService],
 })
 export class InventoryModule {}
-

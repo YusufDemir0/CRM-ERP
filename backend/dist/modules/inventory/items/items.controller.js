@@ -11,9 +11,11 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var _a, _b;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ItemsController = void 0;
 const common_1 = require("@nestjs/common");
+const platform_express_1 = require("@nestjs/platform-express");
 const items_service_1 = require("./items.service");
 const inventory_dto_1 = require("../dto/inventory.dto");
 const current_user_decorator_1 = require("../../../common/decorators/current-user.decorator");
@@ -21,6 +23,11 @@ const permissions_decorator_1 = require("../../../common/decorators/permissions.
 let ItemsController = class ItemsController {
     constructor(itemsService) {
         this.itemsService = itemsService;
+    }
+    async importExcel(file, userId) {
+        if (!file)
+            throw new common_1.BadRequestException('Dosya bulunamadı.');
+        return this.itemsService.importExcel(file.buffer, userId);
     }
     getStatus() { return this.itemsService.getStatus(); }
     findAllItemTypes() { return this.itemsService.findAllItemTypes(); }
@@ -54,6 +61,16 @@ let ItemsController = class ItemsController {
     }
 };
 exports.ItemsController = ItemsController;
+__decorate([
+    (0, common_1.Post)('import/excel'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_CREATE'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file')),
+    __param(0, (0, common_1.UploadedFile)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [typeof (_b = typeof Express !== "undefined" && (_a = Express.Multer) !== void 0 && _a.File) === "function" ? _b : Object, Number]),
+    __metadata("design:returntype", Promise)
+], ItemsController.prototype, "importExcel", null);
 __decorate([
     (0, common_1.Get)('status'),
     (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW'),

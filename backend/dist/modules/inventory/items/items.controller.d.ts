@@ -3,6 +3,11 @@ import { CreateItemDto, UpdateItemDto, CreateItemTypeDto, CreateQuantityTypeDto,
 export declare class ItemsController {
     private readonly itemsService;
     constructor(itemsService: ItemsService);
+    importExcel(file: Express.Multer.File, userId: number): Promise<{
+        updatedCount: number;
+        insertedCount: number;
+        errors: string[];
+    }>;
     getStatus(): Promise<{
         active: number;
         passive: number;

@@ -4,6 +4,7 @@ import { SalesService } from './sales.service';
 import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto, SalesQueryDto, ShipSaleDto } from './dto/sale.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 
 @Controller('sales')
 export class SalesController {
@@ -28,7 +29,7 @@ export class SalesController {
   // ────── SALES ──────
   @Get()
   @RequirePermissions('SALES_VIEW')
-  findAll(@Query() query: SalesQueryDto, @CurrentUser() user: any) {
+  findAll(@Query() query: SalesQueryDto, @CurrentUser() user: JwtPayload) {
     return this.salesService.findAll(query, user);
   }
 

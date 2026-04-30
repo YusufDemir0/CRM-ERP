@@ -37,6 +37,7 @@ import { OutboxService } from '../../common/services/outbox.service';
 import dayjs from 'dayjs';
 import { getSafeSearchPattern } from '../../common/utils/sql.helper';
 import { SaleCalculator, ItemData } from './domain/sale-calculator';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 
 @Injectable()
 export class SalesService {
@@ -70,7 +71,7 @@ export class SalesService {
 
   // ────── SALES CRUD ──────
 
-  async findAll(query: PaginationDto & { status?: string; partyId?: number }, user?: any): Promise<PaginatedResult<Sale>> {
+  async findAll(query: PaginationDto & { status?: string; partyId?: number }, user?: JwtPayload): Promise<PaginatedResult<Sale>> {
     const qb = this.saleRepo.createQueryBuilder('sale')
       .leftJoinAndSelect('sale.party', 'party')
       .leftJoinAndSelect('sale.saleType', 'saleType')

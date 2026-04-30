@@ -67,6 +67,15 @@ export class UpdateItemDto {
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) state?: number;
 }
 
+export class ImportItemDto {
+  @IsString() @IsNotEmpty() code: string;
+  @IsString() @IsNotEmpty() name: string;
+  @IsOptional() @IsNumber() @Type(() => Number) purchasePrice?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) salePrice?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) criticalLimit?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) kdv?: number;
+}
+
 export class CreateItemTypeDto {
   @IsString() @IsNotEmpty() name: string;
   @IsString() @IsNotEmpty() abbreviation: string;

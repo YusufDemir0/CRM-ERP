@@ -26,6 +26,11 @@ export declare class ItemsService {
     update(id: number, dto: UpdateItemDto, userId?: number): Promise<Item>;
     softDelete(id: number, currentUserId?: number): Promise<void>;
     private validateUsage;
+    importExcel(fileBuffer: Buffer, userId: number): Promise<{
+        updatedCount: number;
+        insertedCount: number;
+        errors: string[];
+    }>;
     findAllItemTypes(): Promise<ItemType[]>;
     createItemType(dto: CreateItemTypeDto, userId?: number): Promise<ItemType>;
     updateItemType(id: number, dto: UpdateItemTypeDto, userId?: number): Promise<ItemType>;

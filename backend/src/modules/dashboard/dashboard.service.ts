@@ -11,6 +11,7 @@ import { DashboardSummaryDto } from './dto/dashboard-summary.dto';
 import { Sale } from '../sales/entities/sale.entity';
 import { Decimal } from 'decimal.js';
 import dayjs from 'dayjs';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 
 @Injectable()
 export class DashboardService {
@@ -23,7 +24,7 @@ export class DashboardService {
     @InjectRepository(Sale) private saleRepo: Repository<Sale>,
   ) {}
 
-  async getSummary(user: any) {
+  async getSummary(user: JwtPayload) {
     // Tarih Aralıkları (dayjs ile)
     const now = dayjs();
     

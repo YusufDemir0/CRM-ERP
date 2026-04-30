@@ -1,10 +1,43 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
@@ -27,6 +60,7 @@ const currencies_service_1 = require("../../finance/currencies/currencies.servic
 const decimal_js_1 = require("decimal.js");
 const transactional_1 = require("@nestjs-cls/transactional");
 const transaction_context_service_1 = require("../../../common/services/transaction-context.service");
+const xlsx = __importStar(require("xlsx"));
 const department_entity_1 = require("../../departments/entities/department.entity");
 const bom_item_entity_1 = require("../../production/entities/bom-item.entity");
 let ItemsService = class ItemsService {
@@ -210,6 +244,91 @@ let ItemsService = class ItemsService {
             throw new common_1.BadRequestException(`Bu ürün ${bomUsage} adet üretim reçetesinde (BOM) kullanılmaktadır.`);
         }
     }
+    async importExcel(fileBuffer, userId) {
+        const manager = this.transactionContext.manager;
+        const workbook = xlsx.read(fileBuffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const rows = xlsx.utils.sheet_to_json(worksheet);
+        let updatedCount = 0;
+        let insertedCount = 0;
+        const errors = [];
+        let defaultCurrencyId = null;
+        try {
+            const defaultCurrency = await this.currenciesService.getDefault();
+            if (defaultCurrency)
+                defaultCurrencyId = Number(defaultCurrency.id);
+        }
+        catch (e) {
+        }
+        const defaultItemType = await manager.findOne(item_type_entity_1.ItemType, { where: { state: 1 } });
+        const defaultQtyType = await manager.findOne(quantity_type_entity_1.QuantityType, { where: { state: 1 } });
+        if (!defaultItemType || !defaultQtyType) {
+            throw new common_1.BadRequestException('Sistemde tanımlı aktif Ürün Tipi veya Birim bulunamadı. Toplu ürün ekleme yapılamaz.');
+        }
+        const departments = await manager.find(department_entity_1.Department, { where: { state: 1 } });
+        for (const [index, row] of rows.entries()) {
+            try {
+                const sku = row['SKU'] || row['CODE'] || row['code'] || row['Kod'] || row['Ürün Kodu'];
+                if (!sku) {
+                    errors.push(`Satır ${index + 2}: SKU (ürün kodu) eksik.`);
+                    continue;
+                }
+                const name = row['NAME'] || row['name'] || row['Ürün Adı'] || row['Ad'];
+                if (!name) {
+                    errors.push(`Satır ${index + 2}: Ürün adı eksik.`);
+                    continue;
+                }
+                const existingItem = await manager.findOne(item_entity_1.Item, { where: { code: String(sku) } });
+                const purchasePrice = row['Alış Fiyatı'] || row['purchasePrice'] || 0;
+                const salePrice = row['Satış Fiyatı'] || row['salePrice'] || 0;
+                const criticalLimit = row['Kritik Limit'] || row['criticalLimit'] || 0;
+                const kdv = row['KDV'] || row['kdv'] || 20;
+                if (existingItem) {
+                    await manager.update(item_entity_1.Item, existingItem.id, {
+                        name: String(name).toLocaleUpperCase('tr-TR'),
+                        purchasePrice: new decimal_js_1.Decimal(purchasePrice),
+                        salePrice: new decimal_js_1.Decimal(salePrice),
+                        criticalLimit: new decimal_js_1.Decimal(criticalLimit),
+                        kdv: new decimal_js_1.Decimal(kdv),
+                        updatedBy: userId
+                    });
+                    updatedCount++;
+                }
+                else {
+                    const newItem = manager.create(item_entity_1.Item, {
+                        name: String(name).toLocaleUpperCase('tr-TR'),
+                        code: String(sku),
+                        itemTypeId: defaultItemType.id,
+                        quantityTypeId: defaultQtyType.id,
+                        currencyId: defaultCurrencyId,
+                        purchasePrice: new decimal_js_1.Decimal(purchasePrice),
+                        salePrice: new decimal_js_1.Decimal(salePrice),
+                        criticalLimit: new decimal_js_1.Decimal(criticalLimit),
+                        kdv: new decimal_js_1.Decimal(kdv),
+                        movingAverageCost: new decimal_js_1.Decimal(0),
+                        createdBy: userId,
+                    });
+                    const savedItem = await manager.save(item_entity_1.Item, newItem);
+                    const initialStocks = departments.map(dept => manager.create(stock_entity_1.Stock, {
+                        itemId: savedItem.id,
+                        departmentId: dept.id,
+                        quantity: new decimal_js_1.Decimal(0),
+                        reservedQuantity: new decimal_js_1.Decimal(0),
+                        createdBy: userId
+                    }));
+                    if (initialStocks.length > 0) {
+                        await manager.save(stock_entity_1.Stock, initialStocks);
+                    }
+                    insertedCount++;
+                }
+            }
+            catch (err) {
+                errors.push(`Satır ${index + 2}: İşlenemedi (${err instanceof Error ? err.message : String(err)})`);
+            }
+        }
+        return { updatedCount, insertedCount, errors };
+    }
     async findAllItemTypes() {
         return this.itemTypeRepo.find();
     }
@@ -333,6 +452,12 @@ __decorate([
     __metadata("design:paramtypes", [Number, inventory_dto_1.UpdateItemDto, Number]),
     __metadata("design:returntype", Promise)
 ], ItemsService.prototype, "update", null);
+__decorate([
+    (0, transactional_1.Transactional)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Buffer, Number]),
+    __metadata("design:returntype", Promise)
+], ItemsService.prototype, "importExcel", null);
 exports.ItemsService = ItemsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(item_entity_1.Item)),

@@ -1,6 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, BadRequestException } from '@nestjs/common';
 import { ItemsService } from './items.service';
-import { CreateItemDto, UpdateItemDto, CreateItemTypeDto, CreateQuantityTypeDto, CreateItemCodeGroupDto, ItemsQueryDto, UpdateItemTypeDto, UpdateQuantityTypeDto, UpdateItemCodeGroupDto } from '../dto/inventory.dto';
+import { CreateItemDto, UpdateItemDto, ImportItemDto, CreateItemTypeDto, CreateQuantityTypeDto, CreateItemCodeGroupDto, ItemsQueryDto, UpdateItemTypeDto, UpdateQuantityTypeDto, UpdateItemCodeGroupDto } from '../dto/inventory.dto';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
 
@@ -11,6 +11,13 @@ export class ItemsController {
   ) {}
 
   // ──── STATIC ROUTES MUST COME BEFORE :id ────
+
+  @Post('import')
+  @RequirePermissions('INVENTORY_CREATE')
+  async importItems(@Body() items: ImportItemDto[], @CurrentUser('sub') userId: number) {
+    if (!Array.isArray(items)) throw new BadRequestException('Veri formatı hatalı. Liste bekleniyor.');
+    return this.itemsService.importItems(items, userId);
+  }
 
   @Get('status')
   @RequirePermissions('INVENTORY_VIEW')

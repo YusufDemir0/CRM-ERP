@@ -13,6 +13,7 @@ import {
   CreateQuantityTypeDto,
   CreateItemCodeGroupDto,
   ItemsQueryDto,
+  ImportItemDto,
   UpdateItemTypeDto,
   UpdateQuantityTypeDto,
   UpdateItemCodeGroupDto
@@ -195,6 +196,88 @@ export class ItemsService {
 
     await this.itemRepo.update(id, updateData);
     return this.findOne(id);
+  }
+
+  @Transactional()
+  async importItems(items: ImportItemDto[], userId: number) {
+    const manager = this.transactionContext.manager;
+    
+    let updatedCount = 0;
+    let insertedCount = 0;
+    const errors: string[] = [];
+
+    // Pre-fetch defaults
+    const defaultCurrency = await this.currenciesService.getDefault();
+    const defaultCurrencyId = defaultCurrency ? Number(defaultCurrency.id) : null;
+    const defaultItemType = await manager.findOne(ItemType, { where: { state: 1 } });
+    const defaultQtyType = await manager.findOne(QuantityType, { where: { state: 1 } });
+    const departments = await manager.find(Department, { where: { state: 1 } });
+
+    if (!defaultItemType || !defaultQtyType) {
+      throw new BadRequestException('Sistemde tanımlı Ürün Tipi veya Birim bulunamadı. İçe aktarım yapılamaz.');
+    }
+
+    for (const [index, row] of items.entries()) {
+      try {
+        const { code, name, purchasePrice, salePrice, criticalLimit, kdv } = row;
+        
+        if (!code || !name) {
+          errors.push(`Satır ${index + 1}: Kod ve İsim zorunludur.`);
+          continue;
+        }
+
+        const existingItem = await manager.findOne(Item, { where: { code } });
+
+        if (existingItem) {
+          // UPDATE
+          await manager.update(Item, existingItem.id, {
+            name: name.toLocaleUpperCase('tr-TR'),
+            purchasePrice: purchasePrice !== undefined ? new Decimal(purchasePrice) : existingItem.purchasePrice,
+            salePrice: salePrice !== undefined ? new Decimal(salePrice) : existingItem.salePrice,
+            criticalLimit: criticalLimit !== undefined ? new Decimal(criticalLimit) : existingItem.criticalLimit,
+            kdv: kdv !== undefined ? new Decimal(kdv) : existingItem.kdv,
+            updatedBy: userId
+          });
+          updatedCount++;
+        } else {
+          // INSERT
+          const newItem = manager.create(Item, {
+            name: name.toLocaleUpperCase('tr-TR'),
+            code,
+            itemTypeId: defaultItemType.id,
+            quantityTypeId: defaultQtyType.id,
+            currencyId: defaultCurrencyId,
+            purchasePrice: new Decimal(purchasePrice || 0),
+            salePrice: new Decimal(salePrice || 0),
+            criticalLimit: new Decimal(criticalLimit || 0),
+            kdv: new Decimal(kdv || 20),
+            movingAverageCost: new Decimal(0),
+            createdBy: userId,
+          });
+          
+          const savedItem = await manager.save(Item, newItem);
+
+          // Auto-create stock records
+          const initialStocks = departments.map(dept => manager.create(Stock, {
+            itemId: savedItem.id,
+            departmentId: dept.id,
+            quantity: new Decimal(0),
+            reservedQuantity: new Decimal(0),
+            createdBy: userId
+          }));
+
+          if (initialStocks.length > 0) {
+            await manager.save(Stock, initialStocks);
+          }
+          
+          insertedCount++;
+        }
+      } catch (err) {
+        errors.push(`Satır ${index + 1}: İşlem hatası (${err instanceof Error ? err.message : String(err)})`);
+      }
+    }
+
+    return { updatedCount, insertedCount, errors };
   }
 
   async softDelete(id: number, currentUserId?: number): Promise<void> {
