@@ -77,11 +77,11 @@ export class ApproveSaleDto {
 
 export class SalesQueryDto extends PaginationDto {
   @IsOptional() @IsString() status?: string;
-  @IsOptional() @Type(() => Number) @IsNumber() partyId: string;
+  @IsOptional() @IsString() partyId?: string;
 }
 
 export class ShipSaleDto {
   @IsArray()
   @IsOptional()
-  items?: { itemId: string; quantity: number }[];
+  items?: { itemId: string; quantity: string | number }[];
 }
