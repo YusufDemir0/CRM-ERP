@@ -15,6 +15,8 @@ import { FinanceSaleListener } from './listeners/finance-sale.listener';
 import { AccountingLedger } from '../parties/entities/ledger.entity';
 import { Transaction } from '../finance/transactions/entities/transaction.entity';
 import { CommonModule } from '../../common/common.module';
+import { SalesReportsService } from './sales-reports.service';
+import { SalesTransactionsService } from './sales-transactions.service';
 
 @Module({
   imports: [
@@ -28,9 +30,11 @@ import { CommonModule } from '../../common/common.module';
   controllers: [SalesController],
   providers: [
     SalesService, 
+    SalesReportsService,
+    SalesTransactionsService,
     InventorySaleListener, 
     FinanceSaleListener
   ],
-  exports: [SalesService],
+  exports: [SalesService, SalesReportsService, SalesTransactionsService],
 })
 export class SalesModule {}
