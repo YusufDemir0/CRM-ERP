@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, memo } from 'react';
 import { FiPlus, FiInfo, FiCheck } from 'react-icons/fi';
 import { useFormContext, useWatch } from 'react-hook-form';
+import { formatDecimal, formatCurrency } from '../../../utils/formatters';
+import { Party, Staff, Account } from '../../../types';
 import { useSalesWizardStore } from '../../../store/useSalesWizardStore';
 import { useSalesWizard } from '../../../hooks/useSalesWizard';
 import { SearchableSelect } from '../../../components/common/SearchableSelect';
@@ -10,12 +12,11 @@ import { PhoneInput } from '../../../components/common/PhoneInput';
 import { FormField } from '../../../components/common/FormField';
 import { useTurkiyeCities, useTurkiyeDistricts } from '../../../hooks/useTurkiyeApi';
 import { useQuickCreateStore } from '../../../store/useQuickCreateStore';
-import { Party } from '../../../types';
 import { SalesWizardFormData } from './schema';
 
 // ─── OPTIMIZED SUB-COMPONENTS ───
 
-const CustomerSection = memo(({ customers, refreshLookups }: { customers: any[], refreshLookups: () => void }) => {
+const CustomerSection = memo(({ customers, refreshLookups }: { customers: Party[], refreshLookups: () => void }) => {
   const { setValue, watch, register, formState: { errors }, control } = useFormContext<SalesWizardFormData>();
   const { openCreate } = useQuickCreateStore();
   const store = useSalesWizardStore();
@@ -28,7 +29,7 @@ const CustomerSection = memo(({ customers, refreshLookups }: { customers: any[],
   const email = useWatch({ control, name: 'email' });
 
   const { cities } = useTurkiyeCities();
-  const { districts } = useTurkiyeDistricts(currentCityId ? Number(currentCityId) : null);
+  const { districts } = useTurkiyeDistricts(currentCityId ? Number(currentCityId) : null); // External API requires numeric province ID
 
   const customerOptions = useMemo(() => {
     const base = (customers || []).map(c => ({ id: String(c.id), label: c.name }));
@@ -59,7 +60,7 @@ const CustomerSection = memo(({ customers, refreshLookups }: { customers: any[],
                   setValue('email', customer.email || '');
                   setValue('taxId', customer.taxNumber || '');
                   setValue('address', customer.address || '');
-                  setValue('cityId', customer.cityId || 0);
+                  setValue('cityId', customer.cityId || '');
                   setValue('district', customer.districtName || '');
                 }
               }}
@@ -76,7 +77,7 @@ const CustomerSection = memo(({ customers, refreshLookups }: { customers: any[],
                 setValue('email', '');
                 setValue('taxId', '');
                 setValue('address', '');
-                setValue('cityId', 0);
+                setValue('cityId', '');
                 setValue('district', '');
               }}
               className={`px-3 py-1 text-[9px] font-black rounded-md transition-all ${isNewInfo ? 'bg-white shadow-sm text-[var(--primary)]' : 'text-slate-400 hover:text-slate-600'}`}
@@ -105,7 +106,7 @@ const CustomerSection = memo(({ customers, refreshLookups }: { customers: any[],
               email: customer?.email || '',
               taxId: customer?.taxNumber || '',
               address: customer?.address || '',
-              cityId: customer?.cityId || 0,
+              cityId: String(customer?.cityId || ''),
               district: customer?.districtName || '',
             });
 
@@ -115,7 +116,7 @@ const CustomerSection = memo(({ customers, refreshLookups }: { customers: any[],
               setValue('email', customer.email || '');
               setValue('taxId', customer.taxNumber || '');
               setValue('address', customer.address || '');
-              setValue('cityId', customer.cityId || 0);
+              setValue('cityId', String(customer.cityId || ''));
               setValue('district', customer.districtName || '');
             }
           }}
@@ -196,11 +197,11 @@ const CustomerSection = memo(({ customers, refreshLookups }: { customers: any[],
               className="input-premium h-8 text-xs font-black cursor-pointer"
               {...register('cityId', { valueAsNumber: true })}
               onChange={(e) => {
-                setValue('cityId', Number(e.target.value), { shouldValidate: true });
+                setValue('cityId', String(e.target.value), { shouldValidate: true });
                 setValue('district', '', { shouldValidate: true });
               }}
             >
-              <option value={0}>ŞEHİR SEÇİN...</option>
+              <option value="">ŞEHİR SEÇİN...</option>
               {(cities || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             {errors.cityId && <span className="text-[10px] text-[var(--error)] font-bold mt-1 block">{errors.cityId.message}</span>}
@@ -230,7 +231,7 @@ const CustomerSection = memo(({ customers, refreshLookups }: { customers: any[],
   );
 });
 
-const LogisticsSection = memo(({ staff, accounts }: { staff: any[], accounts: any[] }) => {
+const LogisticsSection = memo(({ staff, accounts }: { staff: Staff[], accounts: Account[] }) => {
   const store = useSalesWizardStore();
   const { register, setValue, control, formState: { errors }, watch } = useFormContext<SalesWizardFormData>();
   const isTaxed = useWatch({ control, name: 'isTaxed' });
@@ -271,7 +272,7 @@ const LogisticsSection = memo(({ staff, accounts }: { staff: any[], accounts: an
               placeholder="Temsilci"
               options={(staff || []).map(s => ({ id: String(s.id), label: `${s.firstName} ${s.lastName}` }))}
               value={staffId ? String(staffId) : null}
-              onChange={(opt) => setValue('staffId', opt ? Number(opt.id) : 0, { shouldValidate: true })}
+              onChange={(opt) => setValue('staffId', opt ? String(opt.id) : '', { shouldValidate: true })}
             />
             {errors.staffId && <span className="text-[10px] text-[var(--error)] font-bold mt-1 block">{errors.staffId.message}</span>}
           </div>
@@ -284,9 +285,9 @@ const LogisticsSection = memo(({ staff, accounts }: { staff: any[], accounts: an
             options={(accounts || []).map(a => ({ id: String(a.id), label: a.name }))}
             value={paymentAccountId ? String(paymentAccountId) : null}
             onChange={(opt) => {
-              const id = opt ? Number(opt.id) : 0;
+              const id = opt ? String(opt.id) : '';
               setValue('paymentAccountId', id, { shouldValidate: true });
-              const account = accounts.find(a => Number(a.id) === id) || null;
+              const account = accounts.find(a => String(a.id) === id) || null;
               store.setDraftData({ ...store.draftData, paymentAccount: account });
             }}
           />
@@ -504,11 +505,11 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
                    <div className="space-y-3">
                       <div className="flex justify-between items-center border-b border-slate-50 pb-2">
                          <span className="text-[10px] font-bold text-slate-500 uppercase">TEMSİLCİ:</span>
-                         <span className="text-xs font-black text-slate-800">{staff.find(s => Number(s.id) === Number(staffId))?.firstName || ''} {staff.find(s => Number(s.id) === Number(staffId))?.lastName || ''}</span>
+                         <span className="text-xs font-black text-slate-800">{staff.find(s => String(s.id) === String(staffId))?.firstName || ''} {staff.find(s => String(s.id) === String(staffId))?.lastName || ''}</span>
                       </div>
                       <div className="flex justify-between items-center border-b border-slate-50 pb-2">
                          <span className="text-[10px] font-bold text-slate-500 uppercase">ÖDEME KASASI:</span>
-                         <span className="text-xs font-black text-slate-800">{accounts.find(a => Number(a.id) === Number(paymentAccountId))?.name || 'BELİRTİLMEDİ'}</span>
+                         <span className="text-xs font-black text-slate-800">{accounts.find(a => String(a.id) === String(paymentAccountId))?.name || 'BELİRTİLMEDİ'}</span>
                       </div>
                       <div className="flex justify-between items-center">
                          <span className="text-[10px] font-bold text-slate-500 uppercase">ÜRÜN SAYISI:</span>

@@ -9,6 +9,20 @@ import { Item, Party, Sale } from '../types';
 import { formatDisplayDate } from '../utils/date.helper';
 import { NotificationCenter } from './NotificationCenter';
 
+interface NavItem {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+  roles?: string[];
+  permissions?: string[];
+}
+
+interface GlobalSearchData {
+  items: Item[];
+  parties: Party[];
+  sales: Sale[];
+}
+
 // ────── NAVBAR COMPONENT ──────
 
 const NavbarInner = ({ onToggleSidebar }: { onToggleSidebar: () => void }) => {
@@ -208,8 +222,8 @@ const SearchResults = memo(({
   onNavigate 
 }: { 
   searchQuery: string;
-  filteredNavItems: any[];
-  searchResults: any;
+  filteredNavItems: NavItem[];
+  searchResults: GlobalSearchData;
   isSearching: boolean;
   onNavigate: (to: string) => void;
 }) => {
@@ -246,7 +260,7 @@ const SearchResults = memo(({
             <FiBox size={14} /> Ürünler
           </p>
           <div className="grid grid-cols-1 gap-1">
-            {searchResults.items.map((item: any) => (
+            {searchResults.items.map((item) => (
               <div 
                 key={item.id} 
                 className="flex items-center justify-between p-3 rounded-xl hover:bg-emerald-50/50 cursor-pointer transition-all group border border-transparent hover:border-emerald-100"
@@ -277,7 +291,7 @@ const SearchResults = memo(({
             <FiUsers size={14} /> Cari Hesaplar
           </p>
           <div className="grid grid-cols-1 gap-1">
-            {searchResults.parties.map((party: any) => (
+            {searchResults.parties.map((party) => (
               <div 
                 key={party.id} 
                 className="flex items-center justify-between p-3 rounded-xl hover:bg-blue-50/50 cursor-pointer transition-all group border border-transparent hover:border-blue-100"
@@ -306,7 +320,7 @@ const SearchResults = memo(({
             <FiShoppingCart size={14} /> Satışlar
           </p>
           <div className="grid grid-cols-1 gap-1">
-            {searchResults.sales.map((sale: any) => (
+            {searchResults.sales.map((sale) => (
               <div 
                 key={sale.id} 
                 className="flex items-center justify-between p-3 rounded-xl hover:bg-rose-50/50 cursor-pointer transition-all group border border-transparent hover:border-rose-100"

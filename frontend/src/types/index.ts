@@ -456,35 +456,6 @@ export interface CartItem {
   maxQtyDesc?: number;
 }
 
-export interface SalesWizardState {
-  step: number;
-  partyId: string;
-  customerSearch: string;
-  isCustomerDropdownOpen: boolean;
-  saleTypeId: string;
-  currencyId: string;
-  deliveryDate: string;
-  repId: string;
-  invoiceType: 'billed' | 'unbilled' | null;
-  cart: CartItem[];
-  searchTerm: string;
-  genDiscountType: 'amount' | 'percent';
-  genDiscountValue: string;
-  deposit: string;
-  saleNotes: string;
-  // New fields for the single-page wizard
-  contactPhone1: string;
-  contactPhone2: string;
-  contactEmail: string;
-  contactTaxId: string;
-  leadSource: string;
-  addressType: 'same' | 'new';
-  cityId: string;
-  cityName: string;
-  districtName: string;
-  addressDetail: string;
-  isPartyModalOpen: boolean;
-}
 
 export interface ImportItemDto {
   code: string;

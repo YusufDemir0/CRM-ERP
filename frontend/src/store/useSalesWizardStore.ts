@@ -6,12 +6,12 @@ import dayjs from 'dayjs';
 
 export interface DraftSaleData {
   customer: Party | null;
-  staffId: number | string | null;
+  staffId: string;
   phone: string;
   phone2: string;
   address: string;
   city: string;
-  cityId: number | string;
+  cityId: string;
   district: string;
   date: string;
   deliveryDate: string;
@@ -20,8 +20,8 @@ export interface DraftSaleData {
   description: string;
   email: string;
   source: string;
-  deposit: number;
-  discountAmount: number;
+  deposit: string;
+  discountAmount: string;
   isTaxed: boolean;
   selectedItems: SelectedItem[];
   step: number;
@@ -29,12 +29,12 @@ export interface DraftSaleData {
 
 const initialDraft: DraftSaleData = {
   customer: null,
-  staffId: null,
+  staffId: '',
   phone: '',
   phone2: '',
   address: '',
   city: '',
-  cityId: 0,
+  cityId: '',
   district: '',
   date: dayjs().format('YYYY-MM-DD'),
   deliveryDate: dayjs().format('YYYY-MM-DD'),
@@ -43,8 +43,8 @@ const initialDraft: DraftSaleData = {
   description: '',
   email: '',
   source: '',
-  deposit: 0,
-  discountAmount: 0,
+  deposit: '0',
+  discountAmount: '0',
   isTaxed: true,
   selectedItems: [],
   step: 1,
@@ -72,7 +72,7 @@ export const useSalesWizardStore = create<SalesWizardState>()(
             email: customer?.email || '',
             address: customer?.address || '',
             taxId: customer?.taxNumber || '',
-            cityId: customer?.cityId || 0,
+            cityId: String(customer?.cityId || ''),
             district: customer?.districtName || '',
           }
         });

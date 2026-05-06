@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { authAPI, resolveFailedRequests, rejectFailedRequests } from '../services/api';
+import { authAPI } from '../services/api';
 import type { Role } from '../types';
 
 // ────── AUTH USER TYPE ──────
@@ -78,9 +78,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: true,
       isReAuthModalOpen: false,
     });
-    
-    // Resume queued requests
-    resolveFailedRequests();
   },
 
   logout: async () => {
@@ -90,8 +87,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.error('Logout error:', err);
     } finally {
       set({ user: null, isAuthenticated: false, isReAuthModalOpen: false });
-      // Cancel queued requests
-      rejectFailedRequests(new Error('Logged out during re-authentication'));
       // Clean logout with full page reload to clear memory
       window.location.href = '/login';
     }

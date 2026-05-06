@@ -100,7 +100,7 @@ export default function SalesPage() {
   const loading = salesLoading;
 
   const approveMutation = useMutation({
-    mutationFn: ({ id, params }: { id: string | number; params: { departmentId: number; commercialAccountId?: number } }) => salesAPI.approve(id, params),
+    mutationFn: ({ id, params }: { id: string | number; params: { departmentId: string | number; commercialAccountId?: string | number } }) => salesAPI.approve(id, params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all({}) });
       setApproveSaleId(null);
@@ -139,7 +139,7 @@ export default function SalesPage() {
     }
     approveMutation.mutate({ 
       id: approveSaleId!, 
-      params: { departmentId: Number(selectedDeptId) } 
+      params: { departmentId: selectedDeptId } 
     });
     setSelectedDeptId('');
   };

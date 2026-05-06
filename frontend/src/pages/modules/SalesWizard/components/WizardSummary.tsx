@@ -16,13 +16,19 @@ export const WizardSummary: React.FC = memo(() => {
     new Decimal(0)
   );
 
+  // Backend logic: discount is subtracted from matrah BEFORE KDV is calculated
+  const discountedMatrah = subtotal.sub(new Decimal(discountAmount || 0));
+
   const totalTax = items.reduce((acc, i) => {
     const rate = isTaxed ? new Decimal(i.taxRate || 20) : new Decimal(0);
     const lineAmount = new Decimal(i.unitPrice || 0).mul(i.quantity || 0);
-    return acc.add(lineAmount.mul(rate).div(100));
+    // Pro-rata: distribute discount proportionally across lines for KDV calculation
+    const lineRatio = subtotal.gt(0) ? lineAmount.div(subtotal) : new Decimal(0);
+    const lineMatrah = discountedMatrah.mul(lineRatio);
+    return acc.add(lineMatrah.mul(rate).div(100).toDecimalPlaces(2));
   }, new Decimal(0));
 
-  const grandTotal = subtotal.add(totalTax).sub(new Decimal(discountAmount || 0));
+  const grandTotal = discountedMatrah.add(totalTax);
 
   return (
     <div className="flex gap-3 h-[100px]">

@@ -1,18 +1,27 @@
 import { Decimal } from 'decimal.js';
 
 /**
+ * formatDecimal
+ * Formats a Decimal/number/string value as TR locale string without precision loss.
+ * Uses Decimal.toFixed() to get a safe string, then manually applies TR formatting.
+ * NEVER calls .toNumber() — prevents IEEE-754 rounding for large values.
+ */
+export const formatDecimal = (val: number | string | Decimal | null | undefined, decimals = 2): string => {
+  const d = new Decimal(val || 0);
+  const fixed = d.toFixed(decimals); // "1234567.89" — precision-safe string
+  const [intPart, fracPart] = fixed.split('.');
+  // TR locale: thousands separator is ".", decimal separator is ","
+  const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return fracPart ? `${formattedInt},${fracPart}` : formattedInt;
+};
+
+/**
  * formatCurrency
- * Formats a number or string as TRY currency.
+ * Formats a number or string as TRY currency with full precision.
  * [TASK-17]: Moved from DashboardPage.tsx to centralized utilities.
  */
-export const formatCurrency = (val: number | string | null | undefined) => {
-  const num = new Decimal(val || 0);
-  return new Intl.NumberFormat('tr-TR', { 
-    style: 'currency', 
-    currency: 'TRY',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(num.toNumber());
+export const formatCurrency = (val: number | string | Decimal | null | undefined, symbol = '₺', decimals = 2) => {
+  return `${formatDecimal(val, decimals)} ${symbol}`;
 };
 
 /**

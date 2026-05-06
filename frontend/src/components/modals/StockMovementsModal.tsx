@@ -79,10 +79,10 @@ export const StockMovementsModal: React.FC<StockMovementsModalProps> = ({
                         {Number(m.quantity).toLocaleString('tr-TR')}
                       </td>
                       <td className="px-4 py-4 text-right tabular-nums font-bold text-slate-400 text-sm">
-                        {Number(m.previousQuantity).toLocaleString('tr-TR')}
+                        {Number(m.quantityBefore).toLocaleString('tr-TR')}
                       </td>
                       <td className="px-4 py-4 text-right tabular-nums font-black text-primary text-base">
-                        {Number(m.newQuantity).toLocaleString('tr-TR')}
+                        {Number(m.quantityAfter).toLocaleString('tr-TR')}
                       </td>
                       <td className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-tight">
                         {m.description || '-'}

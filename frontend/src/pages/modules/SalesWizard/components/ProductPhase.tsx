@@ -27,19 +27,22 @@ export const ProductPhase: React.FC<ProductPhaseProps> = memo(({ items }) => {
   const handleAddItem = () => {
     if (!selectedItem) return toast.error("Lütfen bir ürün seçin.");
     
-    const existingIndex = fields.findIndex(i => (formItems[fields.indexOf(i)]?.id || (i as any).id)?.toString() === selectedItem.id?.toString());
+    const existingIndex = fields.findIndex(i => {
+      const fieldId = formItems[fields.indexOf(i)]?.id || (i as any).id;
+      return String(fieldId) === String(selectedItem.id);
+    });
     if (existingIndex > -1) {
       const existing = formItems[existingIndex];
       update(existingIndex, {
         ...existing,
-        quantity: Number(existing.quantity || 0) + quantity
+        quantity: new Decimal(existing.quantity || 0).add(quantity).toNumber()
       });
     } else {
       append({
         id: selectedItem.id,
         name: selectedItem.name,
         quantity: quantity,
-        unitPrice: Number(selectedItem.salePrice || 0),
+        unitPrice: new Decimal(selectedItem.salePrice || 0).toNumber(),
         taxRate: 20,
       });
     }
@@ -120,7 +123,7 @@ export const ProductPhase: React.FC<ProductPhaseProps> = memo(({ items }) => {
                     <div className="text-[9px] text-slate-400 font-bold">KDV: %{item.taxRate || 20}</div>
                   </td>
                   <td className="p-3 text-right text-xs font-bold tabular-nums text-slate-600">
-                    {Number(item.unitPrice || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
+                    {new Decimal(item.unitPrice || 0).toDecimalPlaces(2).toNumber().toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
                   </td>
                   <td className="p-3 text-center">
                     <span className="inline-block px-2 py-1 bg-slate-100 rounded-lg text-xs font-black tabular-nums">
@@ -160,7 +163,7 @@ export const ProductPhase: React.FC<ProductPhaseProps> = memo(({ items }) => {
       <div className="p-2 px-4 bg-slate-900 text-white flex justify-end gap-6 font-black shrink-0">
         <div className="flex items-center gap-2">
            <span className="text-[9px] text-white/40 uppercase tracking-widest">ADET:</span>
-           <span className="text-xs">{formItems.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0)}</span>
+           <span className="text-xs">{formItems.reduce((acc, i) => acc.add(new Decimal(i.quantity || 0)), new Decimal(0)).toNumber()}</span>
         </div>
         <div className="flex items-center gap-2">
            <span className="text-[9px] text-white/40 uppercase tracking-widest">MATRAH:</span>

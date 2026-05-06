@@ -23,17 +23,7 @@ interface SalesTableProps {
 
 import { FiClock, FiCheckCircle, FiTruck, FiXCircle, FiCheck } from 'react-icons/fi';
 
-// P0-7: Use native Intl.NumberFormat instead of Decimal.js for display-only formatting
-const trNumberFormatter = new Intl.NumberFormat('tr-TR', { 
-  minimumFractionDigits: 2, 
-  maximumFractionDigits: 2 
-});
-
-const formatCurrency = (val: string | number | undefined | null, symbol: string = '₺') => {
-  if (val === undefined || val === null) return '0.00 ' + symbol;
-  const num = new Decimal(val).toNumber();
-  return trNumberFormatter.format(num) + ' ' + symbol;
-};
+import { formatCurrency } from '../../utils/formatters';
 
 export const SalesTable: React.FC<SalesTableProps> = ({
   sales,

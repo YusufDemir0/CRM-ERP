@@ -98,7 +98,7 @@ export function BomsPage() {
         name: b.name || '', 
         targetItemId: String(b.targetItemId || ''),
         description: b.description || '',
-        items: b.items?.map((bi: BomItem) => ({ itemId: bi.itemId, quantity: Number(bi.quantity), description: bi.description || '' })) || []
+        items: b.items?.map((bi: BomItem) => ({ itemId: bi.itemId, quantity: String(bi.quantity), description: bi.description || '' })) || []
       },
       onSuccess: handleFormSuccess
     });
@@ -110,7 +110,7 @@ export function BomsPage() {
         name: `${b.name} (KOPYA)`, 
         targetItemId: String(b.targetItemId || ''),
         description: b.description || '',
-        items: b.items?.map((bi: BomItem) => ({ itemId: bi.itemId, quantity: Number(bi.quantity), description: bi.description || '' })) || []
+        items: b.items?.map((bi: BomItem) => ({ itemId: bi.itemId, quantity: String(bi.quantity), description: bi.description || '' })) || []
       },
       onSuccess: handleFormSuccess
     });

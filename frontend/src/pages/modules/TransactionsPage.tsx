@@ -153,11 +153,11 @@ export default function TransactionsPage() {
     
     createMutation.mutate({
       ...formData,
-      partyId: Number(formData.partyId),
-      commercialAccountId: Number(formData.commercialAccountId),
-      amount: new Decimal(formData.amount).toNumber(),
-      currencyId: Number(formData.currencyId),
-      referenceId: formData.referenceId ? Number(formData.referenceId) : undefined,
+      partyId: formData.partyId,
+      commercialAccountId: formData.commercialAccountId,
+      amount: new Decimal(formData.amount).toFixed(2),
+      currencyId: formData.currencyId,
+      referenceId: formData.referenceId || undefined,
     });
   };
 
