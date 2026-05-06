@@ -5,8 +5,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { partiesAPI, stocksAPI, itemsAPI, salesAPI, accountsAPI, transactionsAPI, bomsAPI, productionOrdersAPI } from '../services/api';
 import { queryKeys } from '../services/queryKeys';
 import logo from '../assets/images/logo.png';
+import { memo } from 'react';
 
-export default function Sidebar({ isCollapsed }: { isCollapsed: boolean }) {
+export const Sidebar = memo(({ isCollapsed }: { isCollapsed: boolean }) => {
   const { hasPermission } = useAuth();
   const queryClient = useQueryClient();
 
@@ -108,4 +109,6 @@ export default function Sidebar({ isCollapsed }: { isCollapsed: boolean }) {
 
     </aside>
   );
-}
+});
+
+export default Sidebar;

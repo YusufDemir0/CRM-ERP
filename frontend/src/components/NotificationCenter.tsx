@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FiBell, FiCheck, FiInfo, FiTrash2, FiClock } from 'react-icons/fi';
 import { logsAPI } from '../services/api';
@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 
 import { Log } from '../types';
 
-export const NotificationCenter: React.FC = () => {
+export const NotificationCenter = memo(() => {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -139,4 +139,4 @@ export const NotificationCenter: React.FC = () => {
       )}
     </div>
   );
-};
+});
