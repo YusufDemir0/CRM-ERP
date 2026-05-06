@@ -5,10 +5,10 @@ import { Permission } from './permission.entity';
 @Entity('user_permissions')
 export class UserPermission {
   @PrimaryColumn({ name: 'user_id', type: 'bigint' })
-  userId: number;
+  userId: string;
 
   @PrimaryColumn({ name: 'permission_id', type: 'bigint' })
-  permissionId: number;
+  permissionId: string;
 
   @PrimaryColumn({ name: 'scope_type', type: 'enum', enum: ['global', 'department', 'own'], default: 'global' })
   scopeType: 'global' | 'department' | 'own';
@@ -17,16 +17,16 @@ export class UserPermission {
   effect: 'allow' | 'deny';
 
   @Column({ name: 'scope_id', type: 'bigint', nullable: true })
-  scopeId: number | null;
+  scopeId: string | null;
 
   @Column({ name: 'created_by', type: 'bigint', nullable: true })
-  createdBy: number | null;
+  createdBy: string | null;
 
   @Column({ name: 'created_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
 
   @Column({ name: 'updated_by', type: 'bigint', nullable: true })
-  updatedBy: number | null;
+  updatedBy: string | null;
 
   @Column({ name: 'updated_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   updatedAt: Date;

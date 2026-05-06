@@ -16,7 +16,7 @@ import { queryKeys } from '../../services/queryKeys';
 export function CurrenciesPage() {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | number | null>(null);
   const [formData, setFormData] = useState({ code: '', name: '', symbol: '', exchangeRate: 1, isDefault: 0 });
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -70,7 +70,7 @@ export function CurrenciesPage() {
   );
 
   const mutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number | null; data: Partial<Currency> }) => {
+    mutationFn: async ({ id, data }: { id: string | number | null; data: Partial<Currency> }) => {
       if (id) return currenciesAPI.update(id, data);
       return currenciesAPI.create(data);
     },

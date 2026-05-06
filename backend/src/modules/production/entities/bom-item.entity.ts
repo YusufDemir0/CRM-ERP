@@ -8,10 +8,10 @@ import { DecimalTransformer } from '../../../common/transformers/decimal.transfo
 @Entity('bom_items')
 export class BomItem {
   @PrimaryColumn({ name: 'bom_id', type: 'bigint' })
-  bomId: number;
+  bomId: string;
 
   @PrimaryColumn({ name: 'item_id', type: 'bigint' })
-  itemId: number;
+  itemId: string;
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ type: 'decimal', precision: 15, scale: 4, transformer: new DecimalTransformer() })
@@ -21,7 +21,7 @@ export class BomItem {
   description: string | null;
 
   @Column({ name: 'created_by', type: 'bigint', nullable: true })
-  createdBy: number | null;
+  createdBy: string | null;
 
   @Column({ name: 'created_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;

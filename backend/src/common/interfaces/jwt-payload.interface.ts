@@ -1,6 +1,9 @@
 export interface JwtPayload {
   sub: number;
   username: string;
-  departmentId: number | null;
+  departmentId: string | null;
   tokenVersion: number;
+  isSystemAdmin?: boolean;
+  permissions?: string[];
+  role?: string;
 }

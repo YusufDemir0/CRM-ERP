@@ -1,13 +1,14 @@
 import { ItemsService } from './items.service';
-import { CreateItemDto, UpdateItemDto, CreateItemTypeDto, CreateQuantityTypeDto, CreateItemCodeGroupDto, ItemsQueryDto, UpdateItemTypeDto, UpdateQuantityTypeDto, UpdateItemCodeGroupDto } from '../dto/inventory.dto';
+import { CreateItemDto, UpdateItemDto, ImportItemDto, CreateItemTypeDto, CreateQuantityTypeDto, CreateItemCodeGroupDto, ItemsQueryDto, UpdateItemTypeDto, UpdateQuantityTypeDto, UpdateItemCodeGroupDto } from '../dto/inventory.dto';
 export declare class ItemsController {
     private readonly itemsService;
     constructor(itemsService: ItemsService);
-    importExcel(file: Express.Multer.File, userId: number): Promise<{
+    importItems(items: ImportItemDto[], userId: number): Promise<{
         updatedCount: number;
         insertedCount: number;
         errors: string[];
     }>;
+    exportItems(query: ItemsQueryDto): Promise<import("@nestjs/common").StreamableFile>;
     getStatus(): Promise<{
         active: number;
         passive: number;

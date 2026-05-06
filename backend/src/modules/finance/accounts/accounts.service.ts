@@ -44,17 +44,17 @@ export class AccountsService {
     };
   }
 
-  async findOne(id: number): Promise<CommercialAccount> {
-    const acc = await this.accRepo.findOne({ where: { id }, relations: ['currency'] });
+  async findOne(id: string): Promise<CommercialAccount> {
+    const acc = await this.accRepo.findOne({ where: { id: String(id) }, relations: ['currency'] });
     if (!acc) throw new NotFoundException('Hesap bulunamadı');
     return acc;
   }
 
-  async create(dto: CreateAccountDto, userId?: number): Promise<CommercialAccount> {
+  async create(dto: CreateAccountDto, userId: string): Promise<CommercialAccount> {
     if (!dto.currencyId) {
       try {
         const defaultCurrency = await this.currenciesService.getDefault();
-        dto.currencyId = Number(defaultCurrency.id);
+        dto.currencyId = String(defaultCurrency.id);
       } catch (error) {
         console.warn('Default currency not found in AccountsService, setting to null');
       }
@@ -67,7 +67,7 @@ export class AccountsService {
     return this.accRepo.save(acc);
   }
 
-  async update(id: number, dto: UpdateAccountDto, userId?: number): Promise<CommercialAccount> {
+  async update(id: string, dto: UpdateAccountDto, userId: string): Promise<CommercialAccount> {
     const acc = await this.findOne(id);
     if (dto.name !== undefined) acc.name = dto.name;
     if (dto.bankName !== undefined) acc.bankName = dto.bankName;
@@ -82,7 +82,7 @@ export class AccountsService {
     return this.accRepo.save(acc);
   }
 
-  async softDelete(id: number): Promise<void> {
+  async softDelete(id: string): Promise<void> {
     await this.findOne(id);
     await this.accRepo.softDelete(id);
   }

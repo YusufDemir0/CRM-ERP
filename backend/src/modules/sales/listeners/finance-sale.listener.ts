@@ -54,8 +54,8 @@ export class FinanceSaleListener implements OnModuleInit {
     sale: Sale, 
     tlGrandTotal: Decimal, 
     deposit: Decimal, 
-    commercialAccountId?: number,
-    userId?: number,
+    commercialAccountId: string,
+    userId: string,
   }) {
     const { sale, tlGrandTotal, deposit, commercialAccountId, userId } = payload;
     

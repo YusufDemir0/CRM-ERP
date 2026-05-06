@@ -84,7 +84,7 @@ export default function PartiesPage() {
   );
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, currentState }: { id: number; currentState: number }) => 
+    mutationFn: ({ id, currentState }: { id: string | number; currentState: number }) => 
       partiesAPI.toggleState(id, currentState),
     onMutate: async ({ id }) => {
       // FE-18: Optimistic Update — use fuzzy key match to target all paginated queries
@@ -99,7 +99,7 @@ export default function PartiesPage() {
           return {
             ...old,
             data: old.data.map((p: Party) => 
-              p.id === id ? { ...p, state: p.state === 1 ? 0 : 1 } : p
+              String(p.id) === String(id) ? { ...p, state: p.state === 1 ? 0 : 1 } : p
             )
           };
         }
@@ -166,8 +166,8 @@ export default function PartiesPage() {
     });
   };
 
-  const handleQuickSale = useCallback((partyId: number) => {
-    const party = parties.find(p => p.id === partyId);
+  const handleQuickSale = useCallback((partyId: string | number) => {
+    const party = parties.find(p => String(p.id) === String(partyId));
     if (party) {
       const salesStore = useSalesWizardStore.getState();
       salesStore.startQuickSale(party);

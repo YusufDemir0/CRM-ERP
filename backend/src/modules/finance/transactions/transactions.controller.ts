@@ -29,19 +29,19 @@ export class TransactionsController {
 
   @Get(':id')
   @RequirePermissions('FINANCE_VIEW')
-  findOne(@Param('id', ParseIntPipe) id: number) { 
+  findOne(@Param('id') id: string) { 
     return this.txService.findOne(id); 
   }
 
   @Post()
   @RequirePermissions('FINANCE_MANAGE')
-  create(@Body() dto: CreateTransactionDto, @CurrentUser('sub') userId: number) {
+  create(@Body() dto: CreateTransactionDto, @CurrentUser('sub') userId: string) {
     return this.txService.create(dto, userId);
   }
 
   @Post(':id/cancel')
   @RequirePermissions('FINANCE_MANAGE')
-  cancel(@Param('id', ParseIntPipe) id: number, @CurrentUser('sub') userId: number) {
+  cancel(@Param('id') id: string, @CurrentUser('sub') userId: string) {
     return this.txService.cancel(id, userId);
   }
 }

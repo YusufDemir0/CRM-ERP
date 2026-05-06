@@ -4,6 +4,7 @@ import {
   ExecutionContext,
   CallHandler,
   Logger,
+  BadRequestException,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
@@ -55,18 +56,31 @@ export class LogsInterceptor implements NestInterceptor {
 
   private sanitizeBody(body: unknown): unknown {
     if (!body || typeof body !== 'object') return body;
-    if (Array.isArray(body)) return '[ARRAY_CONTENT_HIDDEN]';
 
-    // Shallow sanitization for performance (O(N) operation, no recursion)
-    const sanitized = { ...body } as Record<string, unknown>;
-    const sensitiveKeys = ['password', 'token', 'secret', 'hash', 'iban', 'cc_', 'cvv', 'tax_number', 'tc_no'];
-
-    for (const key of Object.keys(sanitized)) {
-      if (sensitiveKeys.some(s => key.toLowerCase().includes(s))) {
-        sanitized[key] = '********';
+    // SEC-01: Prevent Event Loop blocking if the body is too large
+    // We roughly estimate the size before deep-redacting
+    try {
+      const estimatedSize = JSON.stringify(body).length;
+      if (estimatedSize > 51200) { // 50KB limit for redaction processing
+        return '[PAYLOAD_TOO_LARGE_FOR_REDACTION]';
       }
+    } catch (e) {
+      return '[CIRCULAR_STRUCTURE]';
     }
-    return sanitized;
+
+    const sensitiveKeys = ['password', 'token', 'secret', 'hash', 'iban', 'cc_', 'cvv', 'tax_number', 'tc_no', 'tcno'];
+    
+    try {
+      const redactedStr = JSON.stringify(body, (key, value) => {
+        if (typeof key === 'string' && sensitiveKeys.some(s => key.toLowerCase().includes(s))) {
+          return '********';
+        }
+        return value;
+      });
+      return JSON.parse(redactedStr);
+    } catch (e) {
+      return '[REDACTION_FAILED]';
+    }
   }
 
   private async saveLog(request: import('express').Request & { user?: Record<string, unknown>, id?: string }, status: string, responseData: unknown, durationMs: number) {
@@ -90,7 +104,7 @@ export class LogsInterceptor implements NestInterceptor {
       }
 
       await this.logsService.addLog({
-        userId: Number(user?.id || user?.sub || 0),
+        userId: String(user?.id || user?.sub || '0'),
         username: String(user?.username || 'SYSTEM'),
         fullName: String(user?.fullName || user?.full_name || ''),
         action: `${method} ${url}`,

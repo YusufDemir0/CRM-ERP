@@ -1,5 +1,6 @@
 
 import { Sale } from '../../types';
+import { Decimal } from 'decimal.js';
 import { DataTable, Column } from '../common/DataTable';
 import { useMemo } from 'react';
 import { formatDisplayDate } from '../../utils/date.helper';
@@ -14,10 +15,10 @@ interface SalesTableProps {
   onLimitChange: (limit: number) => void;
   sortConfigs: { key: string; direction: 'asc' | 'desc' }[];
   onSort: (key: string, multi: boolean) => void;
-  onView: (id: number) => void;
-  onApprove: (id: number) => void;
-  onShip: (id: number) => void;
-  onCancel: (id: number) => void;
+  onView: (id: string | number) => void;
+  onApprove: (id: string | number) => void;
+  onShip: (id: string | number) => void;
+  onCancel: (id: string | number) => void;
 }
 
 import { FiClock, FiCheckCircle, FiTruck, FiXCircle, FiCheck } from 'react-icons/fi';
@@ -28,8 +29,9 @@ const trNumberFormatter = new Intl.NumberFormat('tr-TR', {
   maximumFractionDigits: 2 
 });
 
-const formatCurrency = (val: string | number, symbol: string = '₺') => {
-  const num = typeof val === 'string' ? parseFloat(val) || 0 : val || 0;
+const formatCurrency = (val: string | number | undefined | null, symbol: string = '₺') => {
+  if (val === undefined || val === null) return '0.00 ' + symbol;
+  const num = new Decimal(val).toNumber();
   return trNumberFormatter.format(num) + ' ' + symbol;
 };
 

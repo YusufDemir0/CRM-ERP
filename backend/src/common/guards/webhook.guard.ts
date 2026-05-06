@@ -1,4 +1,4 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 
@@ -19,14 +19,16 @@ export class WebhookGuard implements CanActivate {
       throw new UnauthorizedException('WEBHOOK_SIGNATURE_MISSING');
     }
 
-    const secret = this.configService.get<string>('WEBHOOK_SECRET') || 'default-webhook-secret';
+    const secret = this.configService.get<string>('WEBHOOK_SECRET');
+    if (!secret) {
+      throw new UnauthorizedException('WEBHOOK_SECRET is not configured. Webhook verification is disabled for safety.');
+    }
 
-    // SEC-03: Use rawBody for accurate signature validation
     const rawBody = request.rawBody;
     if (!rawBody) {
-      this.configService.get<string>('NODE_ENV') !== 'production' && console.warn('WebhookGuard: rawBody is missing. Ensure NestFactory.create({ rawBody: true }) is set.');
+      throw new BadRequestException('WEBHOOK_RAW_BODY_MISSING');
     }
-    const body = rawBody || JSON.stringify(request.body);
+    const body = rawBody;
 
     // Verify HMAC SHA256
     const hmac = crypto.createHmac('sha256', secret);

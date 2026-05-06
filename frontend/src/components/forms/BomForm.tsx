@@ -9,14 +9,14 @@ import { PremiumNumberInput } from '../common/PremiumNumberInput';
 import { SearchableSelect } from '../common/SearchableSelect';
 
 export interface BomItemData {
-  itemId: number;
+  itemId: string | number;
   quantity: number;
   description: string;
 }
 
 interface BomFormProps {
   initialData?: Partial<Bom>;
-  editingId?: number | null;
+  editingId?: string | number | null;
   onSuccess: (data: unknown) => void;
   onCancel: () => void;
 }
@@ -61,7 +61,7 @@ export const BomForm: React.FC<BomFormProps> = ({
   const componentOptions = useMemo(() => 
     itemOptions.filter(o => {
       const isSelf = String(o.id) === String(formData.targetItemId);
-      const originalItem = itemsList.find(i => i.id === Number(o.id));
+      const originalItem = itemsList.find(i => String(i.id) === String(o.id));
       const isExcluded = originalItem?.itemType?.isExcludedFromBom;
       const isCommercial = originalItem?.itemType?.name?.toUpperCase().includes('TİCARİ');
       return !isSelf && !isExcluded && !isCommercial;
@@ -103,7 +103,7 @@ export const BomForm: React.FC<BomFormProps> = ({
     }
     const payload = {
       ...formData,
-      targetItemId: formData.targetItemId ? Number(formData.targetItemId) : undefined
+      targetItemId: formData.targetItemId ? String(formData.targetItemId) : undefined
     };
     try {
       if (editingId) {
@@ -122,10 +122,10 @@ export const BomForm: React.FC<BomFormProps> = ({
 
   const addBomItem = () => {
     setFormData((prev) => {
-      const usedIds = new Set(prev.items.map(i => Number(i.itemId)));
-      if (prev.targetItemId) usedIds.add(Number(prev.targetItemId));
+      const usedIds = new Set(prev.items.map(i => String(i.itemId)));
+      if (prev.targetItemId) usedIds.add(String(prev.targetItemId));
 
-      const nextCandidate = componentOptions.find(o => !usedIds.has(Number(o.id)));
+      const nextCandidate = componentOptions.find(o => !usedIds.has(String(o.id)));
       const finalItem = nextCandidate || componentOptions[0];
 
       if (!finalItem) {
@@ -135,7 +135,7 @@ export const BomForm: React.FC<BomFormProps> = ({
 
       return {
         ...prev,
-        items: [...prev.items, { itemId: Number(finalItem.id), quantity: 1, description: '' }]
+        items: [...prev.items, { itemId: String(finalItem.id), quantity: 1, description: '' }]
       };
     });
   };
@@ -163,14 +163,14 @@ export const BomForm: React.FC<BomFormProps> = ({
           value={formData.targetItemId}
           onChange={(opt) => {
             if (opt) {
-              const targetId = Number(opt.id);
-              const selectedItem = itemsList.find(i => i.id === targetId);
+              const targetId = String(opt.id);
+              const selectedItem = itemsList.find(i => String(i.id) === targetId);
               setFormData(prev => ({ 
                 ...prev, 
                 targetItemId: targetId,
                 name: selectedItem?.name ? selectedItem.name.toLocaleUpperCase('tr-TR') : prev.name,
                 // 🔥 Eğer seçilen ürün bileşen listesinde varsa onu oradan kaldır
-                items: prev.items.filter(i => Number(i.itemId) !== targetId)
+                items: prev.items.filter(i => String(i.itemId) !== targetId)
               }));
             } else {
               setFormData(prev => ({ ...prev, targetItemId: '' }));
@@ -202,8 +202,8 @@ export const BomForm: React.FC<BomFormProps> = ({
               <SearchableSelect 
                 placeholder="Bileşen seç..."
                 options={componentOptions}
-                value={item.itemId}
-                onChange={(opt) => updateBomItem(idx, 'itemId', opt ? Number(opt.id) : 0)}
+                value={String(item.itemId)}
+                onChange={(opt) => updateBomItem(idx, 'itemId', opt ? String(opt.id) : '')}
               />
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Miktar</label>

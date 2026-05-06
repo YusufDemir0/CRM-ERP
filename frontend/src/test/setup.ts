@@ -6,8 +6,8 @@ if (!window.requestIdleCallback) {
   (window as unknown as { requestIdleCallback: (cb: Function) => void }).requestIdleCallback = (cb: Function) => setTimeout(cb, 1);
 }
 
-// Mocking SessionStorage
-const storageMock = (() => {
+// Mocking Storage
+const createStorageMock = () => {
   let store: Record<string, string> = {};
   return {
     getItem: (key: string) => store[key] || null,
@@ -15,11 +15,16 @@ const storageMock = (() => {
     removeItem: (key: string) => { delete store[key]; },
     clear: () => { store = {}; },
   };
-})();
+};
 
-Object.defineProperty(window, 'sessionStorage', { value: storageMock });
+const sessionStorageMock = createStorageMock();
+const localStorageMock = createStorageMock();
+
+Object.defineProperty(window, 'sessionStorage', { value: sessionStorageMock });
+Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
 beforeEach(() => {
   window.sessionStorage.clear();
+  window.localStorage.clear();
   vi.clearAllMocks();
 });

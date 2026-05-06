@@ -48,12 +48,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setReAuthModal: (isOpen: boolean) => set({ isReAuthModalOpen: isOpen }),
 
   fetchProfile: async () => {
-    // Don't fetch profile on login page (avoids unnecessary 401)
-    if (window.location.pathname === '/login') {
-      set({ isLoading: false });
-      return;
-    }
-
     try {
       const res = await authAPI.profile();
       const u = res.data;

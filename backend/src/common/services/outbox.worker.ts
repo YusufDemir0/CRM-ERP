@@ -46,7 +46,7 @@ export class OutboxWorker {
    *   Phase 2: Publish to RabbitMQ (external side-effect — NO DB transaction)
    *   Phase 3: Update status to PROCESSED or retry (DB update)
    */
-  @Cron(CronExpression.EVERY_10_SECONDS)
+  @Cron('*/2 * * * * *')
   async handleOutbox() {
     if (this.isProcessing) return;
     if (!this.rabbitmq.isConnected()) {

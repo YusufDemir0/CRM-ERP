@@ -16,22 +16,13 @@ export class CreateDepartmentDto {
   abbreviation?: string;
 
   @IsOptional()
-  @IsNumber()
-  @IsInt()
-  @Type(() => Number)
-  departmentTypeId?: number;
+  @IsString() departmentTypeId: string;
 
   @IsOptional()
-  @IsNumber()
-  @IsInt()
-  @Type(() => Number)
-  commercialAccountId?: number;
+  @IsString() commercialAccountId: string;
 
   @IsOptional()
-  @IsNumber()
-  @IsInt()
-  @Type(() => Number)
-  cityId?: number;
+  @IsString() cityId: string;
 }
 
 export class UpdateDepartmentDto {
@@ -48,22 +39,13 @@ export class UpdateDepartmentDto {
   abbreviation?: string;
 
   @IsOptional()
-  @IsNumber()
-  @IsInt()
-  @Type(() => Number)
-  departmentTypeId?: number;
+  @IsString() departmentTypeId: string;
 
   @IsOptional()
-  @IsNumber()
-  @IsInt()
-  @Type(() => Number)
-  commercialAccountId?: number;
+  @IsString() commercialAccountId: string;
 
   @IsOptional()
-  @IsNumber()
-  @IsInt()
-  @Type(() => Number)
-  cityId?: number;
+  @IsString() cityId: string;
 
   @IsOptional()
   @IsNumber()
@@ -100,16 +82,10 @@ export class UpdateDepartmentTypeDto {
 
 export class DepartmentsQueryDto extends PaginationDto {
   @IsOptional()
-  @IsNumber()
-  @IsInt()
-  @Type(() => Number)
-  departmentTypeId?: number;
+  @IsString() departmentTypeId: string;
 
   @IsOptional()
-  @IsNumber()
-  @IsInt()
-  @Type(() => Number)
-  commercialAccountId?: number;
+  @IsString() commercialAccountId: string;
 
   @IsOptional()
   @IsNumber()

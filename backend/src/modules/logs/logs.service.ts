@@ -85,7 +85,7 @@ export class LogsService implements OnModuleInit {
     });
   }
 
-  async markAsRead(id: number): Promise<void> {
+  async markAsRead(id: string): Promise<void> {
     await this.logRepository.update(id, { isDeleted: true });
   }
 

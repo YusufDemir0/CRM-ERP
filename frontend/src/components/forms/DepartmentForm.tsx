@@ -10,7 +10,7 @@ import { FormField } from '../common/FormField';
 
 interface DepartmentFormProps {
   initialData?: Record<string, unknown>;
-  editingId?: number | null;
+  editingId?: string | number | null;
   onSuccess: (data: unknown) => void;
   onCancel: () => void;
 }
@@ -174,7 +174,6 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
             </button>
           </div>
         </FormField>
-      </div>
 
       <FormField label="Operasyonel Açıklama">
         <input 

@@ -18,10 +18,10 @@ export class Item extends BaseEntity {
 
   @Index()
   @Column({ name: 'item_type_id', type: 'bigint' })
-  itemTypeId: number;
+  itemTypeId: string;
 
   @Column({ name: 'item_code_group_id', type: 'bigint', nullable: true })
-  itemCodeGroupId: number | null;
+  itemCodeGroupId: string | null;
 
   @Index({ unique: true })
   @Column({ name: 'code', type: 'varchar', length: 50 })
@@ -58,10 +58,10 @@ export class Item extends BaseEntity {
 
   @Index()
   @Column({ name: 'currency_id', type: 'bigint', nullable: true })
-  currencyId: number | null;
+  currencyId: string | null;
 
   @Column({ name: 'quantity_type_id', type: 'bigint' })
-  quantityTypeId: number;
+  quantityTypeId: string;
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 20, transformer: new DecimalTransformer() })
@@ -87,7 +87,7 @@ export class Item extends BaseEntity {
 
   @Index()
   @Column({ name: 'provider_id', type: 'bigint', nullable: true })
-  providerId: number | null;
+  providerId: string | null;
 
   @ManyToOne(() => Party, { nullable: true })
   @JoinColumn({ name: 'provider_id' })

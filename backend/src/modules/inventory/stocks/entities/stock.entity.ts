@@ -11,11 +11,11 @@ import { DecimalTransformer } from '../../../../common/transformers/decimal.tran
 @Check(`"quantity" >= 0`)
 export class Stock extends BaseEntity {
   @Column({ name: 'item_id', type: 'bigint' })
-  itemId: number;
+  itemId: string;
 
   @Index()
   @Column({ name: 'department_id', type: 'bigint' })
-  departmentId: number;
+  departmentId: string;
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })

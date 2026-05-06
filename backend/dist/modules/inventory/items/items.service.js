@@ -47,6 +47,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ItemsService = void 0;
 const common_1 = require("@nestjs/common");
+const ExcelJS = __importStar(require("exceljs"));
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const item_entity_1 = require("./entities/item.entity");
@@ -60,7 +61,6 @@ const currencies_service_1 = require("../../finance/currencies/currencies.servic
 const decimal_js_1 = require("decimal.js");
 const transactional_1 = require("@nestjs-cls/transactional");
 const transaction_context_service_1 = require("../../../common/services/transaction-context.service");
-const xlsx = __importStar(require("xlsx"));
 const department_entity_1 = require("../../departments/entities/department.entity");
 const bom_item_entity_1 = require("../../production/entities/bom-item.entity");
 let ItemsService = class ItemsService {
@@ -145,7 +145,6 @@ let ItemsService = class ItemsService {
                 dto.currencyId = Number(defaultCurrency.id);
             }
             catch (error) {
-                console.warn('Default currency not found in ItemsService, setting to null');
             }
         }
         const code = await this.sequenceGenerator.generateItemCode(manager, dto.itemCodeGroupId);
@@ -220,6 +219,106 @@ let ItemsService = class ItemsService {
         await this.itemRepo.update(id, updateData);
         return this.findOne(id);
     }
+    async importItems(items, userId) {
+        const manager = this.transactionContext.manager;
+        let updatedCount = 0;
+        let insertedCount = 0;
+        const errors = [];
+        const defaultCurrency = await this.currenciesService.getDefault();
+        const defaultCurrencyId = defaultCurrency ? Number(defaultCurrency.id) : null;
+        const defaultItemType = await manager.findOne(item_type_entity_1.ItemType, { where: { state: 1 } });
+        const defaultQtyType = await manager.findOne(quantity_type_entity_1.QuantityType, { where: { state: 1 } });
+        const departments = await manager.find(department_entity_1.Department, { where: { state: 1 } });
+        if (!defaultItemType || !defaultQtyType) {
+            throw new common_1.BadRequestException('Sistemde tanımlı Ürün Tipi veya Birim bulunamadı. İçe aktarım yapılamaz.');
+        }
+        for (const [index, row] of items.entries()) {
+            try {
+                const { code, name, purchasePrice, salePrice, criticalLimit, kdv } = row;
+                if (!code || !name) {
+                    errors.push(`Satır ${index + 1}: Kod ve İsim zorunludur.`);
+                    continue;
+                }
+                const existingItem = await manager.findOne(item_entity_1.Item, { where: { code } });
+                if (existingItem) {
+                    await manager.update(item_entity_1.Item, existingItem.id, {
+                        name: name.toLocaleUpperCase('tr-TR'),
+                        purchasePrice: purchasePrice !== undefined ? new decimal_js_1.Decimal(purchasePrice) : existingItem.purchasePrice,
+                        salePrice: salePrice !== undefined ? new decimal_js_1.Decimal(salePrice) : existingItem.salePrice,
+                        criticalLimit: criticalLimit !== undefined ? new decimal_js_1.Decimal(criticalLimit) : existingItem.criticalLimit,
+                        kdv: kdv !== undefined ? new decimal_js_1.Decimal(kdv) : existingItem.kdv,
+                        updatedBy: userId
+                    });
+                    updatedCount++;
+                }
+                else {
+                    const newItem = manager.create(item_entity_1.Item, {
+                        name: name.toLocaleUpperCase('tr-TR'),
+                        code,
+                        itemTypeId: defaultItemType.id,
+                        quantityTypeId: defaultQtyType.id,
+                        currencyId: defaultCurrencyId,
+                        purchasePrice: new decimal_js_1.Decimal(purchasePrice || 0),
+                        salePrice: new decimal_js_1.Decimal(salePrice || 0),
+                        criticalLimit: new decimal_js_1.Decimal(criticalLimit || 0),
+                        kdv: new decimal_js_1.Decimal(kdv || 20),
+                        movingAverageCost: new decimal_js_1.Decimal(0),
+                        createdBy: userId,
+                    });
+                    const savedItem = await manager.save(item_entity_1.Item, newItem);
+                    const initialStocks = departments.map(dept => manager.create(stock_entity_1.Stock, {
+                        itemId: savedItem.id,
+                        departmentId: dept.id,
+                        quantity: new decimal_js_1.Decimal(0),
+                        reservedQuantity: new decimal_js_1.Decimal(0),
+                        createdBy: userId
+                    }));
+                    if (initialStocks.length > 0) {
+                        await manager.save(stock_entity_1.Stock, initialStocks);
+                    }
+                    insertedCount++;
+                }
+            }
+            catch (err) {
+                errors.push(`Satır ${index + 1}: İşlem hatası (${err instanceof Error ? err.message : String(err)})`);
+            }
+        }
+        return { updatedCount, insertedCount, errors };
+    }
+    async exportToExcel(query) {
+        query.limit = 10000;
+        const { data: items } = await this.findAll(query);
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Ürün Listesi');
+        worksheet.columns = [
+            { header: 'KOD', key: 'code', width: 20 },
+            { header: 'ÜRÜN ADI', key: 'name', width: 40 },
+            { header: 'TÜR', key: 'itemType', width: 20 },
+            { header: 'BİRİM', key: 'quantityType', width: 15 },
+            { header: 'STOK', key: 'totalStock', width: 15 },
+            { header: 'ALIŞ FİYATI', key: 'purchasePrice', width: 15 },
+            { header: 'SATIŞ FİYATI', key: 'salePrice', width: 15 },
+            { header: 'KDV', key: 'kdv', width: 10 },
+            { header: 'KRİTİK LİMİT', key: 'criticalLimit', width: 15 },
+        ];
+        items.forEach(item => {
+            worksheet.addRow({
+                code: item.code,
+                name: item.name,
+                itemType: item.itemType?.name || '',
+                quantityType: item.quantityType?.abbreviation || '',
+                totalStock: Number(item.totalStock || 0),
+                purchasePrice: Number(item.purchasePrice || 0),
+                salePrice: Number(item.salePrice || 0),
+                kdv: Number(item.kdv || 0),
+                criticalLimit: Number(item.criticalLimit || 0),
+            });
+        });
+        worksheet.getRow(1).font = { bold: true };
+        worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+        const buffer = await workbook.xlsx.writeBuffer();
+        return new common_1.StreamableFile(Buffer.from(buffer));
+    }
     async softDelete(id, currentUserId) {
         await this.findOne(id);
         await this.validateUsage(id);
@@ -243,91 +342,6 @@ let ItemsService = class ItemsService {
         if (bomUsage > 0) {
             throw new common_1.BadRequestException(`Bu ürün ${bomUsage} adet üretim reçetesinde (BOM) kullanılmaktadır.`);
         }
-    }
-    async importExcel(fileBuffer, userId) {
-        const manager = this.transactionContext.manager;
-        const workbook = xlsx.read(fileBuffer, { type: 'buffer' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const rows = xlsx.utils.sheet_to_json(worksheet);
-        let updatedCount = 0;
-        let insertedCount = 0;
-        const errors = [];
-        let defaultCurrencyId = null;
-        try {
-            const defaultCurrency = await this.currenciesService.getDefault();
-            if (defaultCurrency)
-                defaultCurrencyId = Number(defaultCurrency.id);
-        }
-        catch (e) {
-        }
-        const defaultItemType = await manager.findOne(item_type_entity_1.ItemType, { where: { state: 1 } });
-        const defaultQtyType = await manager.findOne(quantity_type_entity_1.QuantityType, { where: { state: 1 } });
-        if (!defaultItemType || !defaultQtyType) {
-            throw new common_1.BadRequestException('Sistemde tanımlı aktif Ürün Tipi veya Birim bulunamadı. Toplu ürün ekleme yapılamaz.');
-        }
-        const departments = await manager.find(department_entity_1.Department, { where: { state: 1 } });
-        for (const [index, row] of rows.entries()) {
-            try {
-                const sku = row['SKU'] || row['CODE'] || row['code'] || row['Kod'] || row['Ürün Kodu'];
-                if (!sku) {
-                    errors.push(`Satır ${index + 2}: SKU (ürün kodu) eksik.`);
-                    continue;
-                }
-                const name = row['NAME'] || row['name'] || row['Ürün Adı'] || row['Ad'];
-                if (!name) {
-                    errors.push(`Satır ${index + 2}: Ürün adı eksik.`);
-                    continue;
-                }
-                const existingItem = await manager.findOne(item_entity_1.Item, { where: { code: String(sku) } });
-                const purchasePrice = row['Alış Fiyatı'] || row['purchasePrice'] || 0;
-                const salePrice = row['Satış Fiyatı'] || row['salePrice'] || 0;
-                const criticalLimit = row['Kritik Limit'] || row['criticalLimit'] || 0;
-                const kdv = row['KDV'] || row['kdv'] || 20;
-                if (existingItem) {
-                    await manager.update(item_entity_1.Item, existingItem.id, {
-                        name: String(name).toLocaleUpperCase('tr-TR'),
-                        purchasePrice: new decimal_js_1.Decimal(purchasePrice),
-                        salePrice: new decimal_js_1.Decimal(salePrice),
-                        criticalLimit: new decimal_js_1.Decimal(criticalLimit),
-                        kdv: new decimal_js_1.Decimal(kdv),
-                        updatedBy: userId
-                    });
-                    updatedCount++;
-                }
-                else {
-                    const newItem = manager.create(item_entity_1.Item, {
-                        name: String(name).toLocaleUpperCase('tr-TR'),
-                        code: String(sku),
-                        itemTypeId: defaultItemType.id,
-                        quantityTypeId: defaultQtyType.id,
-                        currencyId: defaultCurrencyId,
-                        purchasePrice: new decimal_js_1.Decimal(purchasePrice),
-                        salePrice: new decimal_js_1.Decimal(salePrice),
-                        criticalLimit: new decimal_js_1.Decimal(criticalLimit),
-                        kdv: new decimal_js_1.Decimal(kdv),
-                        movingAverageCost: new decimal_js_1.Decimal(0),
-                        createdBy: userId,
-                    });
-                    const savedItem = await manager.save(item_entity_1.Item, newItem);
-                    const initialStocks = departments.map(dept => manager.create(stock_entity_1.Stock, {
-                        itemId: savedItem.id,
-                        departmentId: dept.id,
-                        quantity: new decimal_js_1.Decimal(0),
-                        reservedQuantity: new decimal_js_1.Decimal(0),
-                        createdBy: userId
-                    }));
-                    if (initialStocks.length > 0) {
-                        await manager.save(stock_entity_1.Stock, initialStocks);
-                    }
-                    insertedCount++;
-                }
-            }
-            catch (err) {
-                errors.push(`Satır ${index + 2}: İşlenemedi (${err instanceof Error ? err.message : String(err)})`);
-            }
-        }
-        return { updatedCount, insertedCount, errors };
     }
     async findAllItemTypes() {
         return this.itemTypeRepo.find();
@@ -434,7 +448,7 @@ let ItemsService = class ItemsService {
         const [active, passive, lowStock] = await Promise.all([
             this.itemRepo.count({ where: { state: 1 } }),
             this.itemRepo.count({ where: { state: 0 } }),
-            this.itemRepo.count({ where: { state: 1, criticalLimit: (0, typeorm_2.MoreThan)(0) } }),
+            this.itemRepo.createQueryBuilder('item').where('item.state = 1 AND item.criticalLimit > 0').getCount(),
         ]);
         return { active, passive, total: active + passive, lowStock };
     }
@@ -455,9 +469,9 @@ __decorate([
 __decorate([
     (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Buffer, Number]),
+    __metadata("design:paramtypes", [Array, Number]),
     __metadata("design:returntype", Promise)
-], ItemsService.prototype, "importExcel", null);
+], ItemsService.prototype, "importItems", null);
 exports.ItemsService = ItemsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(item_entity_1.Item)),

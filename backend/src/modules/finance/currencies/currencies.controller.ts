@@ -15,23 +15,23 @@ export class CurrenciesController {
   getDefault() { return this.currenciesService.getDefault(); }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) { return this.currenciesService.findOne(id); }
+  findOne(@Param('id') id: string) { return this.currenciesService.findOne(id); }
 
   @Post()
-  create(@Body() dto: CreateCurrencyDto, @CurrentUser('sub') userId: number) { return this.currenciesService.create(dto, userId); }
+  create(@Body() dto: CreateCurrencyDto, @CurrentUser('sub') userId: string) { return this.currenciesService.create(dto, userId); }
 
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCurrencyDto, @CurrentUser('sub') userId: number) {
+  update(@Param('id') id: string, @Body() dto: UpdateCurrencyDto, @CurrentUser('sub') userId: string) {
     return this.currenciesService.update(id, dto, userId);
   }
 
   @Put(':id/default')
-  setDefault(@Param('id', ParseIntPipe) id: number) {
+  setDefault(@Param('id') id: string) {
     return this.currenciesService.setDefault(id);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
+  remove(@Param('id') id: string) {
     return this.currenciesService.delete(id);
   }
 }

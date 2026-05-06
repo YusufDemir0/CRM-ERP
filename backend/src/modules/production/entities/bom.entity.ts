@@ -9,7 +9,7 @@ export class Bom extends BaseEntity {
   name: string;
 
   @Column({ name: 'target_item_id', type: 'bigint', nullable: true })
-  targetItemId: number | null;
+  targetItemId: string | null;
 
   @Column({ type: 'int', default: 1 })
   version: number;

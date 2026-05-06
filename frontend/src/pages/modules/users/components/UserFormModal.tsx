@@ -10,7 +10,7 @@ interface UserFormSubmitPayload {
   phone: string;
   email: string;
   fullPhone: string;
-  selectedRoles: number[];
+  selectedRoles: Array<string | number>;
 }
 
 interface UserFormInitialData {
@@ -20,7 +20,7 @@ interface UserFormInitialData {
   departmentId?: string;
   phone?: string;
   email?: string;
-  selectedRoles?: number[];
+  selectedRoles?: Array<string | number>;
 }
 
 interface UserFormModalProps {
@@ -52,7 +52,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
   availableRoles,
 }) => {
   const [countryCode, setCountryCode] = useState('+90');
-  const [selectedRoles, setSelectedRoles] = useState<number[]>(initialData.selectedRoles || []);
+  const [selectedRoles, setSelectedRoles] = useState<Array<string | number>>(initialData.selectedRoles || []);
 
   const { register, handleSubmit, reset } = useForm<UserFormData>({
     defaultValues: {
@@ -94,7 +94,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
     return res;
   };
 
-  const handleRoleToggle = (roleId: number) => {
+  const handleRoleToggle = (roleId: string | number) => {
     setSelectedRoles(prev => 
       prev.includes(roleId) ? prev.filter(id => id !== roleId) : [...prev, roleId]
     );

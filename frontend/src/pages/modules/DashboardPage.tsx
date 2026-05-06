@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { dashboardAPI } from '../../services/api';
 import { 
   FiActivity, FiArrowUpRight, FiArrowDownRight,

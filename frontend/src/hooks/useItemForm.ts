@@ -22,7 +22,7 @@ export type ItemFormData = {
 
 export const useItemForm = (
   initialData?: Partial<Item>,
-  editingId?: number | null,
+  editingId?: string | number | null,
   onSuccess?: (data: unknown) => void
 ) => {
   const { updateCache, getCache, clearCache } = useQuickCreateStore();
@@ -106,10 +106,10 @@ export const useItemForm = (
   const submit = async (data: ItemFormData) => {
     const payload: Partial<Item> = {
       ...data,
-      itemTypeId: data.itemTypeId ? Number(data.itemTypeId) : undefined,
-      itemCodeGroupId: data.itemCodeGroupId ? Number(data.itemCodeGroupId) : undefined,
-      currencyId: data.currencyId ? Number(data.currencyId) : undefined,
-      quantityTypeId: data.quantityTypeId ? Number(data.quantityTypeId) : undefined,
+      itemTypeId: data.itemTypeId ? String(data.itemTypeId) : undefined,
+      itemCodeGroupId: data.itemCodeGroupId ? String(data.itemCodeGroupId) : undefined,
+      currencyId: data.currencyId ? String(data.currencyId) : undefined,
+      quantityTypeId: data.quantityTypeId ? String(data.quantityTypeId) : undefined,
       kdv: data.kdv === 'custom' ? Number(customKdv || 0) : Number(data.kdv || 0),
       criticalLimit: Number(data.criticalLimit),
     };

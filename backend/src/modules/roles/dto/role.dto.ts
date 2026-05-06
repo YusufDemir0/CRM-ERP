@@ -7,8 +7,8 @@ export class CreateRoleDto {
 
   @IsOptional()
   @IsArray()
-  @IsNumber({}, { each: true })
-  permissionIds?: number[];
+  @IsString({ each: true })
+  permissionIds?: string[];
 }
 
 export class UpdateRoleDto {
@@ -18,8 +18,8 @@ export class UpdateRoleDto {
 
   @IsOptional()
   @IsArray()
-  @IsNumber({}, { each: true })
-  permissionIds?: number[];
+  @IsString({ each: true })
+  permissionIds?: string[];
 
   @IsOptional()
   @IsNumber()
@@ -42,19 +42,19 @@ export class CreatePermissionDto {
 }
 
 export class AssignRoleDto {
-  @IsNumber()
-  userId: number;
+  @IsString()
+  userId: string;
 
-  @IsNumber()
-  roleId: number;
+  @IsString()
+  roleId: string;
 }
 
 export class SetUserPermissionDto {
-  @IsNumber()
-  userId: number;
+  @IsString()
+  userId: string;
 
-  @IsNumber()
-  permissionId: number;
+  @IsString()
+  permissionId: string;
 
   @IsString()
   @IsIn(['allow', 'deny'])
@@ -64,7 +64,5 @@ export class SetUserPermissionDto {
   @IsIn(['global', 'department', 'own'])
   scopeType: 'global' | 'department' | 'own';
 
-  @IsOptional()
-  @IsNumber()
-  scopeId?: number;
+  @IsOptional() @IsString() scopeId?: string;
 }

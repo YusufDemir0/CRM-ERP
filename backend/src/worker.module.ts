@@ -77,6 +77,11 @@ import { OutboxEvent } from './common/entities/outbox-event.entity';
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.NODE_ENV !== 'production' ? 'debug' : 'info',
+        // SEC: Native C-based field redaction
+        redact: {
+          paths: ['req.headers.authorization', 'req.body.password', 'req.body.secret', 'req.body.token', 'req.body.creditCard', 'req.body.iban', 'req.body.cvv'],
+          censor: '********',
+        },
         transport: process.env.NODE_ENV !== 'production' ? {
           target: 'pino-pretty',
           options: { singleLine: true }

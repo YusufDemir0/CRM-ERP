@@ -10,19 +10,19 @@ export class NotesService {
     private readonly noteRepository: Repository<UserNote>,
   ) {}
 
-  async findAllByUser(userId: number): Promise<UserNote[]> {
+  async findAllByUser(userId: string): Promise<UserNote[]> {
     return this.noteRepository.find({
       where: { userId, state: 1 },
       order: { isPinned: 'DESC', createdAt: 'DESC' },
     });
   }
 
-  async create(userId: number, data: Partial<UserNote>): Promise<UserNote> {
+  async create(userId: string, data: Partial<UserNote>): Promise<UserNote> {
     const note = this.noteRepository.create({ ...data, userId });
     return this.noteRepository.save(note);
   }
 
-  async update(id: number, userId: number, data: Partial<UserNote>): Promise<UserNote> {
+  async update(id: string, userId: string, data: Partial<UserNote>): Promise<UserNote> {
     const note = await this.noteRepository.findOne({ where: { id, userId, state: 1 } });
     if (!note) {
       throw new NotFoundException('Note not found');
@@ -36,7 +36,7 @@ export class NotesService {
     return this.noteRepository.save(note);
   }
 
-  async remove(id: number, userId: number): Promise<void> {
+  async remove(id: string, userId: string): Promise<void> {
     const note = await this.noteRepository.findOne({ where: { id, userId, state: 1 } });
     if (!note) {
       throw new NotFoundException('Note not found');

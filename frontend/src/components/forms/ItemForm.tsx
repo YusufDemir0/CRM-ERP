@@ -7,7 +7,7 @@ import { useItemForm } from '../../hooks/useItemForm';
 
 interface ItemFormProps {
   initialData?: Partial<Item>;
-  editingId?: number | null;
+  editingId?: string | number | null;
   onSuccess: (data: unknown) => void;
   onCancel: () => void;
 }

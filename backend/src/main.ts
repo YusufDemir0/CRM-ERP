@@ -75,8 +75,8 @@ async function bootstrap() {
 
   // Use ConfigService for Port
   const port = configService.get<number>('APP_PORT') || 5143;
-  await app.listen(port);
-  logger.log(`🚀 ERP Backend API running on http://localhost:${port}/api`);
+  await app.listen(port, '0.0.0.0');
+  logger.log(`🚀 ERP Backend API running on http://0.0.0.0:${port}/api`);
   logger.log(`📊 Health check: http://localhost:${port}/api/health`);
 }
 bootstrap();

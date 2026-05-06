@@ -1,10 +1,11 @@
+import { StreamableFile } from '@nestjs/common';
 import { Repository, DataSource } from 'typeorm';
 import { Item } from './entities/item.entity';
 import { ItemType } from './entities/item-type.entity';
 import { QuantityType } from './entities/quantity-type.entity';
 import { ItemCodeGroup } from './entities/item-code-group.entity';
 import { Stock } from '../stocks/entities/stock.entity';
-import { CreateItemDto, UpdateItemDto, CreateItemTypeDto, CreateQuantityTypeDto, CreateItemCodeGroupDto, ItemsQueryDto, UpdateItemTypeDto, UpdateQuantityTypeDto, UpdateItemCodeGroupDto } from '../dto/inventory.dto';
+import { CreateItemDto, UpdateItemDto, CreateItemTypeDto, CreateQuantityTypeDto, CreateItemCodeGroupDto, ItemsQueryDto, ImportItemDto, UpdateItemTypeDto, UpdateQuantityTypeDto, UpdateItemCodeGroupDto } from '../dto/inventory.dto';
 import { SequenceGeneratorService } from '../../../common/services/sequence-generator.service';
 import { PaginatedResult } from '../../../common/dto/pagination.dto';
 import { CurrenciesService } from '../../finance/currencies/currencies.service';
@@ -24,13 +25,14 @@ export declare class ItemsService {
     findOne(id: number): Promise<Item>;
     create(dto: CreateItemDto, userId?: number): Promise<Item>;
     update(id: number, dto: UpdateItemDto, userId?: number): Promise<Item>;
-    softDelete(id: number, currentUserId?: number): Promise<void>;
-    private validateUsage;
-    importExcel(fileBuffer: Buffer, userId: number): Promise<{
+    importItems(items: ImportItemDto[], userId: number): Promise<{
         updatedCount: number;
         insertedCount: number;
         errors: string[];
     }>;
+    exportToExcel(query: ItemsQueryDto): Promise<StreamableFile>;
+    softDelete(id: number, currentUserId?: number): Promise<void>;
+    private validateUsage;
     findAllItemTypes(): Promise<ItemType[]>;
     createItemType(dto: CreateItemTypeDto, userId?: number): Promise<ItemType>;
     updateItemType(id: number, dto: UpdateItemTypeDto, userId?: number): Promise<ItemType>;

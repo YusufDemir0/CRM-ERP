@@ -6,12 +6,12 @@ import dayjs from 'dayjs';
 
 export interface DraftSaleData {
   customer: Party | null;
-  staffId: number | null;
+  staffId: number | string | null;
   phone: string;
   phone2: string;
   address: string;
   city: string;
-  cityId: number;
+  cityId: number | string;
   district: string;
   date: string;
   deliveryDate: string;
@@ -24,6 +24,7 @@ export interface DraftSaleData {
   discountAmount: number;
   isTaxed: boolean;
   selectedItems: SelectedItem[];
+  step: number;
 }
 
 const initialDraft: DraftSaleData = {
@@ -46,6 +47,7 @@ const initialDraft: DraftSaleData = {
   discountAmount: 0,
   isTaxed: true,
   selectedItems: [],
+  step: 1,
 };
 
 interface SalesWizardState {

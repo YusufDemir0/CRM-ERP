@@ -5,19 +5,19 @@ import { User } from '../../auth/entities/user.entity';
 @Entity('staff')
 export class Staff {
   @PrimaryGeneratedColumn({ type: 'bigint' })
-  id: number;
+  id: string;
 
   @Column({ default: 1 })
   state: number; // 1: Active, 0: Passive
 
   @Column({ name: 'created_by', nullable: true, type: 'bigint' })
-  createdBy: number;
+  createdBy: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
   @Column({ name: 'updated_by', nullable: true, type: 'bigint' })
-  updatedBy: number;
+  updatedBy: string;
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
@@ -44,7 +44,7 @@ export class Staff {
   tckn: string | null;
 
   @Column({ name: 'department_id', type: 'bigint' })
-  departmentId: number;
+  departmentId: string;
 
   @Column({ name: 'is_active', default: true })
   isActive: boolean;

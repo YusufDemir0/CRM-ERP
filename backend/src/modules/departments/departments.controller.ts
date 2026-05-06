@@ -10,7 +10,7 @@ export class DepartmentsController {
   constructor(private readonly deptService: DepartmentsService) {}
 
   @Get()
-  findAll(@Query() query: PaginationDto) { return this.deptService.findAll(query); }
+  findAll(@Query() query: PaginationDto) { return this.deptService.findAll(query as any); }
 
   @Get('status')
   getStatus() { return this.deptService.getStatus(); }
@@ -19,31 +19,31 @@ export class DepartmentsController {
   findAllTypes() { return this.deptService.findAllTypes(); }
 
   @Post('types')
-  createType(@Body() dto: CreateDepartmentTypeDto, @CurrentUser('sub') userId: number) { 
+  createType(@Body() dto: CreateDepartmentTypeDto, @CurrentUser('sub') userId: string) { 
     return this.deptService.createType(dto, userId); 
   }
 
   @Put('types/:id')
-  updateType(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateDepartmentTypeDto, @CurrentUser('sub') userId: number) {
+  updateType(@Param('id') id: string, @Body() dto: UpdateDepartmentTypeDto, @CurrentUser('sub') userId: string) {
     return this.deptService.updateType(id, dto, userId);
   }
 
   @Delete('types/:id')
-  removeType(@Param('id', ParseIntPipe) id: number) {
+  removeType(@Param('id') id: string) {
     return this.deptService.softDeleteType(id);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) { return this.deptService.findOne(id); }
+  findOne(@Param('id') id: string) { return this.deptService.findOne(id); }
 
   @Post()
-  create(@Body() dto: CreateDepartmentDto, @CurrentUser('sub') userId: number) { return this.deptService.create(dto, userId); }
+  create(@Body() dto: CreateDepartmentDto, @CurrentUser('sub') userId: string) { return this.deptService.create(dto, userId); }
 
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateDepartmentDto, @CurrentUser('sub') userId: number) {
+  update(@Param('id') id: string, @Body() dto: UpdateDepartmentDto, @CurrentUser('sub') userId: string) {
     return this.deptService.update(id, dto, userId);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) { return this.deptService.softDelete(id); }
+  remove(@Param('id') id: string) { return this.deptService.softDelete(id); }
 }

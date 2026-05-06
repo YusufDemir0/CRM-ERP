@@ -87,7 +87,7 @@ export class ProductionService {
     };
   }
 
-  async findOneBom(id: number): Promise<Bom> {
+  async findOneBom(id: string): Promise<Bom> {
     const bom = await this.transactionContext.manager.findOne(Bom, {
       where: { id },
       relations:['items', 'items.item', 'targetItem'],
@@ -97,7 +97,7 @@ export class ProductionService {
   }
 
   @Transactional()
-  async createBom(dto: CreateBomDto, userId?: number): Promise<Bom> {
+  async createBom(dto: CreateBomDto, userId: string): Promise<Bom> {
     const manager = this.transactionContext.manager;
 
     let version = 1;
@@ -113,7 +113,7 @@ export class ProductionService {
     }
 
     // Validate items and check for cycles BEFORE saving
-    const materialItemIds: number[] = [];
+    const materialItemIds: string[] = [];
     
     if (dto.items.length > 0) {
       const itemIdsToFetch = dto.items.map(i => i.itemId);
@@ -121,7 +121,7 @@ export class ProductionService {
       const itemMap = new Map(items.map(i => [i.id, i]));
 
       for (const itemDto of dto.items) {
-        if (dto.targetItemId && Number(itemDto.itemId) === Number(dto.targetItemId)) {
+        if (dto.targetItemId && String(itemDto.itemId) === String(dto.targetItemId)) {
           throw new BadRequestException('Üretilecek ürünün kendisi, reçete içeriğinde yer alamaz!');
         }
 
@@ -180,31 +180,40 @@ export class ProductionService {
    * For typical manufacturing BOMs (< 1000 items), this runs in < 10ms.
    */
   private async detectBomCycle(
-    targetItemId: number, 
-    materialItemIds: number[], 
+    targetItemId: string, 
+    materialItemIds: string[], 
     manager: import('typeorm').EntityManager
   ): Promise<boolean> {
-    const visited = new Set<number>();
+    // SEC-01: Optimization — Load ALL active BOMs into memory once
+    const allActiveBoms = await manager.find(Bom, {
+      where: { isActive: true },
+      relations: ['items'],
+    });
+
+    // Create a map for O(1) lookup: TargetItem ID -> List of Material Item IDs
+    const bomMap = new Map<string, string[]>();
+    for (const bom of allActiveBoms) {
+      if (bom.targetItemId) {
+        const materialIds = (bom.items || []).map(bi => bi.itemId);
+        bomMap.set(String(bom.targetItemId), materialIds);
+      }
+    }
+
+    const visited = new Set<string>();
     const stack = [...materialItemIds];
 
     while (stack.length > 0) {
       const currentId = stack.pop()!;
 
-      if (currentId === targetItemId) return true; // CYCLE DETECTED
+      if (String(currentId) === String(targetItemId)) return true; // CYCLE DETECTED
       if (visited.has(currentId)) continue;
       visited.add(currentId);
 
-      // Find all BOMs where this item is the target (i.e., this item is produced by a BOM)
-      const childBoms = await manager.find(Bom, {
-        where: { targetItemId: currentId, isActive: true },
-        relations: ['items'],
-      });
-
-      for (const childBom of childBoms) {
-        for (const bomItem of (childBom.items || [])) {
-          if (!visited.has(bomItem.itemId)) {
-            stack.push(bomItem.itemId);
-          }
+      // Get children from memory map instead of database
+      const children = bomMap.get(currentId) || [];
+      for (const childId of children) {
+        if (!visited.has(childId)) {
+          stack.push(childId);
         }
       }
     }
@@ -213,7 +222,7 @@ export class ProductionService {
   }
 
   @Transactional()
-  async updateBom(id: number, dto: UpdateBomDto, userId?: number): Promise<Bom> {
+  async updateBom(id: string, dto: UpdateBomDto, userId: string): Promise<Bom> {
     const manager = this.transactionContext.manager;
     const bom = await this.findOneBom(id);
 
@@ -238,7 +247,7 @@ export class ProductionService {
     return this.findOneBom(id);
   }
 
-  async deleteBom(id: number): Promise<void> {
+  async deleteBom(id: string): Promise<void> {
     const poCount = await this.poRepo.count({ where: { bomId: id } });
     if (poCount > 0) {
       throw new BadRequestException(`Bu reçete ${poCount} adet üretim emrinde kullanılmaktadır.`);
@@ -291,7 +300,7 @@ export class ProductionService {
     };
   }
 
-  async findOneOrder(id: number): Promise<ProductionOrder> {
+  async findOneOrder(id: string): Promise<ProductionOrder> {
     const po = await this.transactionContext.manager.findOne(ProductionOrder, {
       where: { id },
       relations:['bom', 'bom.items', 'bom.items.item', 'sourceDepartment', 'targetDepartment'],
@@ -301,7 +310,7 @@ export class ProductionService {
   }
 
   @Transactional()
-  async createOrder(dto: CreateProductionOrderDto, userId?: number): Promise<ProductionOrder> {
+  async createOrder(dto: CreateProductionOrderDto, userId: string): Promise<ProductionOrder> {
     const manager = this.transactionContext.manager;
     const bom = await this.findOneBom(dto.bomId);
     if (!bom.isActive) throw new BadRequestException('Sadece aktif reçeteler kullanılabilir.');
@@ -331,7 +340,7 @@ export class ProductionService {
   }
 
   @Transactional()
-  async updateOrder(id: number, dto: UpdateProductionOrderDto, userId?: number): Promise<ProductionOrder> {
+  async updateOrder(id: string, dto: UpdateProductionOrderDto, userId: string): Promise<ProductionOrder> {
     const po = await this.findOneOrder(id);
 
     if (po.status === 'completed' || po.status === 'cancelled') {
@@ -359,7 +368,7 @@ export class ProductionService {
     return this.poRepo.save(po);
   }
 
-  private async completeOrder(id: number, dto: UpdateProductionOrderDto, userId?: number): Promise<ProductionOrder> {
+  private async completeOrder(id: string, dto: UpdateProductionOrderDto, userId: string): Promise<ProductionOrder> {
     const manager = this.transactionContext.manager;
     
     const po = await manager.findOne(ProductionOrder, {
@@ -383,9 +392,9 @@ export class ProductionService {
     if (!targetItem) throw new BadRequestException('Hedef ürün bulunamadı.');
 
     // 1. Consumption
-    const itemsToDecrease: { itemId: number; quantity: Decimal }[] = [];
+    const itemsToDecrease: { itemId: string; quantity: Decimal }[] = [];
     let totalMaterialCost = new Decimal(0);
-    const sortedItems = [...po.bom.items].sort((a, b) => a.itemId - b.itemId);
+    const sortedItems = [...po.bom.items].sort((a, b) => String(a.itemId).localeCompare(String(b.itemId)));
 
     for (const bomItem of sortedItems) {
       const requiredQty = FH.mul(bomItem.quantity, producedQty);
@@ -433,7 +442,7 @@ export class ProductionService {
     return this.findOneOrder(po.id);
   }
 
-  async deleteOrder(id: number): Promise<void> {
+  async deleteOrder(id: string): Promise<void> {
     const po = await this.findOneOrder(id);
     if (po.status === 'completed' || po.status === 'in_progress') {
        throw new BadRequestException('Bu aşamadaki emirler silinemez.');

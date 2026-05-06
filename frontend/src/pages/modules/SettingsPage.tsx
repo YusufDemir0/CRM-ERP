@@ -101,7 +101,7 @@ export default function SettingsPage() {
   });
 
   const currencyDefaultMutation = useMutation({
-    mutationFn: (id: number) => currenciesAPI.setDefault(id),
+    mutationFn: (id: string | number) => currenciesAPI.setDefault(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.currencies.all });
       toast.success('Varsayılan güncellendi');
@@ -109,7 +109,7 @@ export default function SettingsPage() {
   });
 
   const currencyDeleteMutation = useMutation({
-    mutationFn: (id: number) => currenciesAPI.delete(id),
+    mutationFn: (id: string | number) => currenciesAPI.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.currencies.all });
       toast.success('Silindi');

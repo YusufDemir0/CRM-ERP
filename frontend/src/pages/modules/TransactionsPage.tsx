@@ -135,7 +135,7 @@ export default function TransactionsPage() {
   });
 
   const cancelMutation = useMutation({
-    mutationFn: (id: number) => transactionsAPI.cancel(id),
+    mutationFn: (id: string | number) => transactionsAPI.cancel(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all({}) });
       queryClient.invalidateQueries({ queryKey: queryKeys.parties.all({}) });
@@ -161,7 +161,7 @@ export default function TransactionsPage() {
     });
   };
 
-  const handleCancelTransaction = async (id: number) => {
+  const handleCancelTransaction = async (id: string | number) => {
     const confirmed = await confirmDialog("Bu işlemi iptal etmek (ters kayıt oluşturmak) istediğinize emin misiniz?", true);
     if (confirmed) {
       cancelMutation.mutate(id);

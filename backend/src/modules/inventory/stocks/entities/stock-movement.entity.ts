@@ -8,7 +8,7 @@ import { DecimalTransformer } from '../../../../common/transformers/decimal.tran
 export class StockMovement extends BaseEntity {
   @Index()
   @Column({ name: 'stock_id', type: 'bigint' })
-  stockId: number;
+  stockId: string;
 
   @Column({ type: 'decimal', precision: 15, scale: 4, transformer: new DecimalTransformer() })
   quantity: Decimal;
@@ -34,7 +34,7 @@ export class StockMovement extends BaseEntity {
 
   @Index()
   @Column({ name: 'reference_id', type: 'bigint', nullable: true })
-  referenceId: number | null;
+  referenceId: string | null;
 
   @Column({ type: 'text', nullable: true })
   description: string | null;

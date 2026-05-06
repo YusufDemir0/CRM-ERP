@@ -82,9 +82,9 @@ export class UsersService {
   }
 
 
-  async findOne(id: number): Promise<User> {
+  async findOne(id: string): Promise<User> {
     const user = await this.userRepo.findOne({
-      where: { id },
+      where: { id: String(id) },
       relations: ['department', 'roles'],
     });
     if (!user) throw new NotFoundException('Kullanıcı bulunamadı');
@@ -92,7 +92,7 @@ export class UsersService {
   }
 
   @Transactional()
-  async create(dto: CreateUserDto, currentUserId?: number): Promise<User> {
+  async create(dto: CreateUserDto, currentUserId: string): Promise<User> {
     const manager = this.transactionContext.manager;
 
     const salt = await bcrypt.genSalt(12);
@@ -124,18 +124,18 @@ export class UsersService {
     }
   }
 
-  async update(id: number, dto: UpdateUserDto, currentUserId?: number): Promise<User> {
+  async update(id: string, dto: UpdateUserDto, currentUserId: string): Promise<User> {
     const user = await this.findOne(id);
     
     if (dto.username && dto.username !== user.username) {
       const existing = await this.userRepo.findOne({ where: { username: dto.username } });
-      if (existing && existing.id !== id) throw new ConflictException('Kullanıcı adı zaten mevcut');
+      if (existing && existing.id !== String(id)) throw new ConflictException('Kullanıcı adı zaten mevcut');
       user.username = dto.username;
     }
 
     if (dto.email && dto.email !== user.email) {
       const existing = await this.userRepo.findOne({ where: { email: dto.email } });
-      if (existing && existing.id !== id) throw new ConflictException('Email zaten mevcut');
+      if (existing && existing.id !== String(id)) throw new ConflictException('Email zaten mevcut');
       user.email = dto.email;
     }
 
@@ -191,8 +191,8 @@ export class UsersService {
     return savedUser;
   }
 
-  async softDelete(id: number, currentUserId?: number): Promise<void> {
-    const user = await this.userRepo.findOne({ where: { id } });
+  async softDelete(id: string, currentUserId: string): Promise<void> {
+    const user = await this.userRepo.findOne({ where: { id: String(id) } });
     if (!user) throw new NotFoundException('Kullanıcı bulunamadı');
 
     // Unique alanları UUID ile damgala — substring kırpma çakışması riski sıfır

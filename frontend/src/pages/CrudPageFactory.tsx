@@ -40,8 +40,8 @@ interface ColumnDef<T extends BaseEntity> {
 interface CrudApiModule<T extends BaseEntity> {
   getAll: (params?: PaginationParams, config?: AxiosRequestConfig) => Promise<AxiosResponse<PaginatedResult<T>>>;
   create?: (data: Partial<T>, config?: AxiosRequestConfig) => Promise<AxiosResponse>;
-  update?: (id: number, data: Partial<T>, config?: AxiosRequestConfig) => Promise<AxiosResponse>;
-  delete?: (id: number, config?: AxiosRequestConfig) => Promise<AxiosResponse>;
+  update?: (id: string | number, data: Partial<T>, config?: AxiosRequestConfig) => Promise<AxiosResponse>;
+  delete?: (id: string | number, config?: AxiosRequestConfig) => Promise<AxiosResponse>;
 }
 
 interface CrudConfig<T extends BaseEntity> {

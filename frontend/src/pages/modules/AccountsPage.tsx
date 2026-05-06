@@ -83,7 +83,7 @@ export default function AccountsPage() {
   );
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, state }: { id: number; state: number }) => accountsAPI.toggleState(id, state),
+    mutationFn: ({ id, state }: { id: string | number; state: number }) => accountsAPI.toggleState(id, state),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all({}) });
       toast.success("Durum güncellendi");
@@ -112,7 +112,7 @@ export default function AccountsPage() {
     });
   };
 
-  const toggleState = async (id: number, currentState: number) => {
+  const toggleState = async (id: string | number, currentState: number) => {
     const confirmed = await confirmDialog(currentState === 1 ? 'Hesap pasife alınacak (arşivlenecek). Emin misiniz?' : 'Hesap tekrar aktifleştirilecek. Emin misiniz?', currentState === 1);
     if (confirmed) {
       toggleMutation.mutate({ id, state: currentState });

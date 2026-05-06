@@ -24,25 +24,25 @@ export class RolesController {
 
   @Get(':id')
   @RequirePermissions('ROLE_VIEW')
-  findOneRole(@Param('id', ParseIntPipe) id: number) {
+  findOneRole(@Param('id') id: string) {
     return this.rolesService.findOneRole(id);
   }
 
   @Post()
   @RequirePermissions('ROLE_CREATE')
-  createRole(@Body() dto: CreateRoleDto, @CurrentUser('sub') userId: number) {
+  createRole(@Body() dto: CreateRoleDto, @CurrentUser('sub') userId: string) {
     return this.rolesService.createRole(dto, userId);
   }
 
   @Put(':id')
   @RequirePermissions('ROLE_EDIT')
-  updateRole(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateRoleDto, @CurrentUser('sub') userId: number) {
+  updateRole(@Param('id') id: string, @Body() dto: UpdateRoleDto, @CurrentUser('sub') userId: string) {
     return this.rolesService.updateRole(id, dto, userId);
   }
 
   @Delete(':id')
   @RequirePermissions('ROLE_DELETE')
-  deleteRole(@Param('id', ParseIntPipe) id: number) {
+  deleteRole(@Param('id') id: string) {
     return this.rolesService.deleteRole(id);
   }
 
@@ -55,7 +55,7 @@ export class RolesController {
 
   @Post('permissions')
   @RequirePermissions('ROLE_CREATE')
-  createPermission(@Body() dto: CreatePermissionDto, @CurrentUser('sub') userId: number) {
+  createPermission(@Body() dto: CreatePermissionDto, @CurrentUser('sub') userId: string) {
     return this.rolesService.createPermission(dto, userId);
   }
 
@@ -75,19 +75,19 @@ export class RolesController {
   // ────── USER PERMISSION OVERRIDE ──────
   @Post('user-permissions')
   @RequirePermissions('PERMISSION_ASSIGN')
-  setUserPermission(@Body() dto: SetUserPermissionDto, @CurrentUser('sub') userId: number) {
+  setUserPermission(@Body() dto: SetUserPermissionDto, @CurrentUser('sub') userId: string) {
     return this.rolesService.setUserPermission(dto, userId);
   }
 
   @Get('user-permissions/:userId')
   @RequirePermissions('PERMISSION_VIEW')
-  getUserPermissions(@Param('userId', ParseIntPipe) userId: number) {
+  getUserPermissions(@Param('userId', ParseIntPipe) userId: string) {
     return this.rolesService.getUserPermissions(userId);
   }
 
   @Delete('user-permissions')
   @RequirePermissions('PERMISSION_ASSIGN')
-  removeUserPermission(@Body() dto: { userId: number; permissionId: number }) {
+  removeUserPermission(@Body() dto: { userId: string; permissionId: string }) {
     return this.rolesService.removeUserPermission(dto);
   }
 }

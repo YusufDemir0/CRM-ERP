@@ -62,7 +62,7 @@ export default function SalesPage() {
   const setSort = (key: string, order: 'ASC' | 'DESC') => updateParams({ sortBy: key, sortOrder: order, page: 1 });
 
   // Modals
-  const [approveSaleId, setApproveSaleId] = useState<number | null>(null);
+  const [approveSaleId, setApproveSaleId] = useState<string | number | null>(null);
   const [selectedDeptId, setSelectedDeptId] = useState('');
 
   // View/Ship Modal State
@@ -100,7 +100,7 @@ export default function SalesPage() {
   const loading = salesLoading;
 
   const approveMutation = useMutation({
-    mutationFn: ({ id, params }: { id: number; params: { departmentId: number; commercialAccountId?: number } }) => salesAPI.approve(id, params),
+    mutationFn: ({ id, params }: { id: string | number; params: { departmentId: number; commercialAccountId?: number } }) => salesAPI.approve(id, params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all({}) });
       setApproveSaleId(null);
@@ -114,7 +114,7 @@ export default function SalesPage() {
   });
 
   const cancelMutation = useMutation({
-    mutationFn: (id: number) => salesAPI.cancel(id),
+    mutationFn: (id: string | number) => salesAPI.cancel(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all({}) });
       toast.success("Satış iptal edildi.");
@@ -123,7 +123,7 @@ export default function SalesPage() {
   });
 
   const shipMutation = useMutation({
-    mutationFn: (id: number) => salesAPI.ship(id, { items: [] }), 
+    mutationFn: (id: string | number) => salesAPI.ship(id, { items: [] }), 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all({}) });
       toast.success("Sevkiyat başarıyla gerçekleştirildi.");
@@ -149,17 +149,17 @@ export default function SalesPage() {
     setSelectedDeptId('');
   };
 
-  const handleCancelSale = useCallback(async (id: number) => {
+  const handleCancelSale = useCallback(async (id: string | number) => {
     const confirmed = await confirmDialog('Bu satışı iptal etmek istediğinize emin misiniz?', true);
     if (confirmed) cancelMutation.mutate(id);
   }, [cancelMutation]);
 
-  const handleShipSale = useCallback(async (id: number) => {
+  const handleShipSale = useCallback(async (id: string | number) => {
     const confirmed = await confirmDialog('Tüm ürünlerin sevkiyatı yapılsın mı?', false);
     if (confirmed) shipMutation.mutate(id);
   }, [shipMutation]);
 
-  const openViewModal = useCallback(async (id: number) => {
+  const openViewModal = useCallback(async (id: string | number) => {
     try {
       const res = await salesAPI.getOne(id);
       setViewSaleData(res.data);

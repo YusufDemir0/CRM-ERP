@@ -20,11 +20,9 @@ export class CreateStaffDto {
   @IsOptional()
   entryDate?: string;
 
-  @IsNumber()
-  @IsInt()
+  @IsString()
   @IsNotEmpty()
-  @Type(() => Number)
-  departmentId: number;
+  departmentId: string;
 
   @IsBoolean()
   @IsOptional()

@@ -16,16 +16,16 @@ export class AccountsController {
   getStatus() { return this.accService.getStatus(); }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) { return this.accService.findOne(id); }
+  findOne(@Param('id') id: string) { return this.accService.findOne(id); }
 
   @Post()
-  create(@Body() dto: CreateAccountDto, @CurrentUser('sub') userId: number) { return this.accService.create(dto, userId); }
+  create(@Body() dto: CreateAccountDto, @CurrentUser('sub') userId: string) { return this.accService.create(dto, userId); }
 
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateAccountDto, @CurrentUser('sub') userId: number) {
+  update(@Param('id') id: string, @Body() dto: UpdateAccountDto, @CurrentUser('sub') userId: string) {
     return this.accService.update(id, dto, userId);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) { return this.accService.softDelete(id); }
+  remove(@Param('id') id: string) { return this.accService.softDelete(id); }
 }

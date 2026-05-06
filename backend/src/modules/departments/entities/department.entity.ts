@@ -15,19 +15,19 @@ export class Department extends BaseEntity {
   abbreviation: string | null;
 
   @Column({ name: 'department_type_id', type: 'bigint', nullable: true })
-  departmentTypeId: number | null;
+  departmentTypeId: string | null;
 
   @ManyToOne(() => DepartmentType, { nullable: true })
   @JoinColumn({ name: 'department_type_id' })
   departmentType: DepartmentType;
 
   @Column({ name: 'commercial_account_id', type: 'bigint', nullable: true })
-  commercialAccountId: number | null;
+  commercialAccountId: string | null;
 
   @ManyToOne(() => CommercialAccount, { nullable: true })
   @JoinColumn({ name: 'commercial_account_id' })
   commercialAccount: CommercialAccount;
 
   @Column({ name: 'city_id', type: 'int', nullable: true })
-  cityId: number | null;
+  cityId: string | null;
 }

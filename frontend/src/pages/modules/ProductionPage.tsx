@@ -24,7 +24,7 @@ export function ProductionPage() {
   const [sort, setSort] = useState<{ key: string; order: 'ASC' | 'DESC' }>({ key: 'createdAt', order: 'DESC' });
   
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | number | null>(null);
 
   const { data: ordersData, isLoading: loading } = useQuery({
     queryKey: queryKeys.productionOrders.all({ page, limit, deferredSearch, sort }),
@@ -74,7 +74,7 @@ export function ProductionPage() {
   });
 
   const mutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number | null; data: Partial<ProductionOrder> }) => {
+    mutationFn: async ({ id, data }: { id: string | number | null; data: Partial<ProductionOrder> }) => {
       if (id) return productionOrdersAPI.update(id, data);
       return productionOrdersAPI.create(data);
     },
@@ -102,7 +102,7 @@ export function ProductionPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const currentOrder = orders.find((o: ProductionOrder) => o.id === editingId);
+    const currentOrder = orders.find((o: ProductionOrder) => String(o.id) === String(editingId));
     if ((!currentOrder || currentOrder.status !== 'completed') && formData.status === 'completed') {
        if(!formData.sourceDepartmentId || !formData.targetDepartmentId) {
          toast.error("Üretimi TAMAMLA işlemini bitirmek için depo seçmelisiniz.", { duration: 5000 });
@@ -115,14 +115,14 @@ export function ProductionPage() {
     }
     const payload = editingId ? {
       ...formData,
-      bomId: Number(formData.bomId),
+      bomId: String(formData.bomId),
       plannedQuantity: Number(formData.plannedQuantity),
       producedQuantity: Number(formData.producedQuantity),
       wastageQuantity: Number(formData.wastageQuantity),
-      sourceDepartmentId: formData.sourceDepartmentId ? Number(formData.sourceDepartmentId) : undefined,
-      targetDepartmentId: formData.targetDepartmentId ? Number(formData.targetDepartmentId) : undefined
+      sourceDepartmentId: formData.sourceDepartmentId ? String(formData.sourceDepartmentId) : undefined,
+      targetDepartmentId: formData.targetDepartmentId ? String(formData.targetDepartmentId) : undefined
     } : {
-      bomId: Number(formData.bomId),
+      bomId: String(formData.bomId),
       plannedQuantity: Number(formData.plannedQuantity),
       startDate: formData.startDate,
       endDate: formData.endDate || undefined,

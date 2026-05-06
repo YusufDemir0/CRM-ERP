@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, In } from 'typeorm';
 import { User } from '../auth/entities/user.entity';
 import { Party } from '../parties/entities/party.entity';
 import { Item } from '../inventory/items/entities/item.entity';
@@ -52,13 +52,13 @@ export class DashboardService {
         where: { 
           state: 1, 
           type: 'customer',
-          createdBy: user?.id 
+          createdBy: user?.sub ? String(user.sub) : undefined
         } 
       }),
       
       // Toplam Satış Miktarı
       this.saleRepo.count({ 
-        where: { status: Between('approved', 'shipped') } 
+        where: { status: In(['approved', 'shipped', 'invoiced']) } 
       }),
       
       // Günün Cirosu
@@ -68,9 +68,9 @@ export class DashboardService {
         .andWhere("sale.status != 'cancelled'")
         .getRawOne(),
 
-      // 🔥 HIGH PERFORMANCE: Use SQL aggregates instead of loading all entities into memory
       this.saleRepo.createQueryBuilder('sale')
         .select("SUM(sale.grandTotal * sale.exchangeRate - sale.kdv * sale.exchangeRate)", "revenue")
+        .addSelect("SUM(sale.profit * sale.exchangeRate)", "profit")
         .addSelect("COUNT(*)", "count")
         .where("sale.createdAt BETWEEN :start AND :end", { start: thisMonthStart, end: thisMonthEnd })
         .andWhere("sale.status != 'cancelled'")
@@ -78,6 +78,7 @@ export class DashboardService {
 
       this.saleRepo.createQueryBuilder('sale')
         .select("SUM(sale.grandTotal * sale.exchangeRate - sale.kdv * sale.exchangeRate)", "revenue")
+        .addSelect("SUM(sale.profit * sale.exchangeRate)", "profit")
         .addSelect("COUNT(*)", "count")
         .where("sale.createdAt BETWEEN :start AND :end", { start: lastMonthStart, end: lastMonthEnd })
         .andWhere("sale.status != 'cancelled'")
@@ -91,12 +92,12 @@ export class DashboardService {
       thisMonth: {
         revenue: thisMonthStats.revenue || 0,
         count: thisMonthStats.count || 0,
-        profit: 0
+        profit: thisMonthStats.profit || 0
       },
       lastMonth: {
         revenue: lastMonthStats.revenue || 0,
         count: lastMonthStats.count || 0,
-        profit: 0
+        profit: lastMonthStats.profit || 0
       }
     };
   }

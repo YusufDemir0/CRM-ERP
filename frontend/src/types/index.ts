@@ -1,10 +1,10 @@
 export interface BaseEntity {
-  id: number;
+  id: string;
   state: number;
   createdAt: string;
   updatedAt: string;
-  createdBy?: number;
-  updatedBy?: number;
+  createdBy?: string;
+  updatedBy?: string;
   deletedAt?: string | null;
 }
 
@@ -13,7 +13,7 @@ export interface User extends BaseEntity {
   fullName: string;
   email: string;
   phone?: string;
-  departmentId?: number;
+  departmentId?: string;
   department?: Department;
   roles?: Role[];
   failedLoginAttempts?: number;
@@ -29,9 +29,9 @@ export interface Department extends BaseEntity {
   name: string;
   description?: string;
   abbreviation?: string;
-  departmentTypeId?: number;
+  departmentTypeId?: string;
   departmentType?: DepartmentType;
-  commercialAccountId?: number;
+  commercialAccountId?: string;
   commercialAccount?: Account;
 }
 
@@ -41,7 +41,7 @@ export interface Staff extends BaseEntity {
   phone?: string;
   entryDate?: string;
   lastDeactivationDate?: string;
-  departmentId: number;
+  departmentId: string;
   department?: Department;
   isActive: boolean;
   tckn?: string;
@@ -52,7 +52,7 @@ export interface CreateStaffDto {
   lastName: string;
   phone?: string;
   entryDate?: string;
-  departmentId: number;
+  departmentId: string;
   isActive?: boolean;
   tckn?: string;
 }
@@ -91,14 +91,16 @@ export interface Party extends BaseEntity {
   email?: string | null;
   address?: string | null;
   addressDetail?: string; // UI only
-  cityId?: number | null;
+  cityId?: string | null;
   districtName?: string; // UI only
   balance: string; // DB-03: Decimal → JSON string
   creditLimit: string; // DB-03: Decimal → JSON string
   paymentTerms?: string | null;
   notes?: string | null;
-  currencyId?: number | null;
+  currencyId?: string | null;
   currency?: Currency;
+  totalSalesCount?: number;
+  lastSaleDate?: string | Date;
 }
 
 export interface Account extends BaseEntity {
@@ -106,7 +108,7 @@ export interface Account extends BaseEntity {
   bankName: string | null;
   iban: string | null;
   ibanName: string | null;
-  currencyId: number | null;
+  currencyId: string | null;
   currency?: Currency;
   criticalLimit: string; // DB-03: Decimal → JSON string
   description: string | null;
@@ -130,9 +132,9 @@ export interface QuantityType extends BaseEntity {
 
 export interface Item extends BaseEntity {
   name: string;
-  itemTypeId: number;
+  itemTypeId: string;
   itemType?: ItemType;
-  itemCodeGroupId: number | null;
+  itemCodeGroupId: string | null;
   itemCodeGroup?: ItemCodeGroup;
   code: string;
   code1?: string | null;
@@ -142,15 +144,15 @@ export interface Item extends BaseEntity {
   purchasePrice: string | null; // DB-03: Decimal → JSON string
   salePrice: string | null; // DB-03: Decimal → JSON string
   netPrice: string | null; // DB-03: Decimal → JSON string
-  currencyId: number | null;
+  currencyId: string | null;
   currency?: Currency;
-  quantityTypeId: number;
+  quantityTypeId: string;
   quantityType?: QuantityType;
   totalStock?: number;
   kdv: number;
   description?: string | null;
   notes?: string | null;
-  providerId?: number | null;
+  providerId?: string | null;
   provider?: Party;
 }
 
@@ -161,11 +163,11 @@ export interface SaleType extends BaseEntity {
 
 export interface Sale extends BaseEntity {
   code: string;
-  partyId: number;
+  partyId: string;
   party?: Party;
-  saleTypeId: number;
+  saleTypeId: string;
   saleType?: SaleType;
-  currencyId: number | null;
+  currencyId: string | null;
   currency?: Currency;
   exchangeRate: string; // DB-03: Decimal → JSON string
   totalAmount: string; // DB-03: Decimal → JSON string
@@ -174,6 +176,8 @@ export interface Sale extends BaseEntity {
   kdv: string; // DB-03: Decimal → JSON string
   grandTotal: string; // DB-03: Decimal → JSON string
   deposit: string; // DB-03: Decimal → JSON string
+  totalCost?: string; // NEW: Financial tracking
+  profit?: string; // NEW: Financial tracking
   status: 'draft' | 'approved' | 'shipped' | 'invoiced' | 'cancelled';
   notes?: string | null;
   phone?: string | null;
@@ -186,14 +190,15 @@ export interface Sale extends BaseEntity {
 }
 
 export interface SaleItem extends BaseEntity {
-  saleId: number;
-  itemId: number;
+  saleId: string;
+  itemId: string;
   item?: Item;
   quantity: string; // DB-03: Decimal → JSON string
   price: string; // DB-03: Decimal → JSON string
   discountAmount: string; // DB-03: Decimal → JSON string
   discountPercent: string; // DB-03: Decimal → JSON string
   netPrice: string; // DB-03: Decimal → JSON string
+  costPrice?: string; // NEW: Financial tracking
   kdvRate: string; // DB-03: Decimal → JSON string
   kdvAmount: string; // DB-03: Decimal → JSON string
   lineTotal: string; // DB-03: Decimal → JSON string
@@ -201,9 +206,9 @@ export interface SaleItem extends BaseEntity {
 }
 
 export interface BomItem extends BaseEntity {
-  bomId: number;
+  bomId: string;
   bom?: Bom;
-  itemId: number;
+  itemId: string;
   item?: Item;
   quantity: number;
   description?: string | null;
@@ -211,7 +216,7 @@ export interface BomItem extends BaseEntity {
 
 export interface Bom extends BaseEntity {
   name: string;
-  targetItemId: number | null;
+  targetItemId: string | null;
   targetItem?: Item;
   description?: string | null;
   version: number;
@@ -221,14 +226,14 @@ export interface Bom extends BaseEntity {
 
 export interface ProductionOrder extends BaseEntity {
   code: string;
-  bomId: number;
+  bomId: string;
   bom?: Bom;
   plannedQuantity: number;
   producedQuantity: number;
   wastageQuantity: number;
-  sourceDepartmentId: number | null;
+  sourceDepartmentId: string | null;
   sourceDepartment?: Department;
-  targetDepartmentId: number | null;
+  targetDepartmentId: string | null;
   targetDepartment?: Department;
   startDate?: string | null;
   endDate?: string | null;
@@ -245,17 +250,17 @@ export interface ProductionOrder extends BaseEntity {
 
 export interface Transaction extends BaseEntity {
   code: string;
-  partyId: number | null;
+  partyId: string | null;
   party?: Party;
-  commercialAccountId: number | null;
+  commercialAccountId: string | null;
   commercialAccount?: Account;
   amount: string; // DB-03: Decimal → JSON string
-  currencyId: number | null;
+  currencyId: string | null;
   currency?: Currency;
   exchangeRate: string; // DB-03: Decimal → JSON string
   type: 'in' | 'out';
   referenceType?: string;
-  referenceId?: number;
+  referenceId?: string;
   date: string;
   description?: string;
   status: 'completed' | 'cancelled';
@@ -266,7 +271,7 @@ export interface Log extends BaseEntity {
   action: string;
   message: string;
   tag: 'INFO' | 'WARNING' | 'ERROR' | 'SUCCESS' | string;
-  userId?: number;
+  userId?: string;
   user?: User;
 }
 
@@ -284,26 +289,26 @@ export interface PaginatedResult<T> {
 
 
 export interface Stock extends BaseEntity {
-  itemId: number;
+  itemId: string;
   item?: Item;
-  departmentId: number;
+  departmentId: string;
   department?: Department;
   quantity: string; // DB-03: Decimal → JSON string
 }
 
 export interface StockMovement extends BaseEntity {
-  stockId: number;
-  itemId: number;
-  item?: Item;
-  departmentId: number;
-  department?: Department;
-  quantity: number;
+  stockId: string;
+  stock?: Stock;
+  quantity: string | number;
+  quantityBefore: string | number;
+  quantityAfter: string | number;
   type: 'in' | 'out';
-  referenceType?: string;
-  referenceId?: number;
-  description?: string;
-  previousQuantity: number;
-  newQuantity: number;
+  unitCost: string | number;
+  totalCost: string | number;
+  referenceType: 'sale' | 'purchase' | 'production' | 'adjustment' | 'return' | 'manual' | 'revert' | 'shipment' | 'transfer' | 'reserve';
+  referenceId: string | null;
+  description?: string | null;
+  notes?: string | null;
 }
 
 export interface PaginationParams {
@@ -329,7 +334,7 @@ export interface CreateUserDto {
   fullName: string;
   email: string;
   phone?: string;
-  departmentId?: number;
+  departmentId?: string | number;
 }
 
 export interface UpdateUserDto extends Partial<Omit<CreateUserDto, 'password'>> {
@@ -348,26 +353,26 @@ export interface CreatePartyDto {
   creditLimit?: string | number;
   paymentTerms?: string;
   notes?: string;
-  currencyId?: number;
+  currencyId?: string | number;
 }
 
 export type UpdatePartyDto = Partial<CreatePartyDto> & { state?: number };
 
 export interface CreateTransactionDto {
-  partyId?: number;
-  commercialAccountId?: number;
+  partyId?: string | number;
+  commercialAccountId?: string | number;
   amount: string | number;
-  currencyId?: number;
+  currencyId?: string | number;
   type: 'in' | 'out';
   referenceType?: string;
-  referenceId?: number;
+  referenceId?: string | number;
   date: string;
   description?: string;
 }
 
 export interface StockAdjustmentDto {
-  itemId: number;
-  departmentId: number;
+  itemId: string | number;
+  departmentId: string | number;
   quantity: string | number;
   type: 'in' | 'out';
   description?: string;
@@ -375,9 +380,9 @@ export interface StockAdjustmentDto {
 }
 
 export interface StockTransferDto {
-  itemId: number;
-  fromDepartmentId: number;
-  toDepartmentId: number;
+  itemId: string | number;
+  fromDepartmentId: string | number;
+  toDepartmentId: string | number;
   quantity: string | number;
   description?: string;
 }
@@ -397,7 +402,7 @@ export interface CreateNoteDto {
 export type UpdateNoteDto = Partial<CreateNoteDto>;
 
 export interface CreateSaleItemDto {
-  itemId: number;
+  itemId: string | number;
   quantity: string | number;
   price: string | number;
   discountAmount?: string | number;
@@ -407,9 +412,11 @@ export interface CreateSaleItemDto {
 }
 
 export interface CreateSaleDto {
-  partyId: number;
-  saleTypeId: number;
-  currencyId?: number;
+  partyId: string | number;
+  staffId?: string | number;
+  commercialAccountId?: string | number;
+  saleTypeId: string | number;
+  currencyId?: string | number;
   deliveryDate?: string;
   deposit?: string | number;
   discountAmount?: string | number;
@@ -476,4 +483,13 @@ export interface SalesWizardState {
   districtName: string;
   addressDetail: string;
   isPartyModalOpen: boolean;
+}
+
+export interface ImportItemDto {
+  code: string;
+  name: string;
+  purchasePrice?: number;
+  salePrice?: number;
+  criticalLimit?: number;
+  kdv?: number;
 }

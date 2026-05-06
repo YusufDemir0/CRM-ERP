@@ -10,7 +10,7 @@ import dayjs from 'dayjs';
 
 interface StaffFormProps {
   initialData?: Partial<Staff>;
-  editingId?: number | null;
+  editingId?: string | number | null;
   onSuccess: (data: Staff) => void;
   onCancel: () => void;
 }
@@ -46,7 +46,7 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
     // Strip spaces before sending
     const dataToSubmit = {
       ...formData,
-      departmentId: formData.departmentId ? Number(formData.departmentId) : undefined,
+      departmentId: formData.departmentId ? String(formData.departmentId) : undefined,
       phone: formData.phone.replace(/\s/g, ''),
       tckn: formData.tckn || undefined
     };
@@ -59,22 +59,6 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
     setFormData(prev => ({ ...prev, [field]: filtered.toLocaleUpperCase('tr-TR') }));
   };
 
-  const handlePhoneChange = (value: string) => {
-    // Only digits
-    const digits = value.replace(/\D/g, '').substring(0, 10);
-    
-    // Format: 5XX XXX XX XX
-    let formatted = digits;
-    if (digits.length > 3 && digits.length <= 6) {
-      formatted = `${digits.slice(0, 3)} ${digits.slice(3)}`;
-    } else if (digits.length > 6 && digits.length <= 8) {
-      formatted = `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
-    } else if (digits.length > 8) {
-      formatted = `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 8)} ${digits.slice(8, 10)}`;
-    }
-    
-    setFormData(prev => ({ ...prev, phone: formatted }));
-  };
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6 animate-in pb-4">
@@ -128,7 +112,7 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
             className="input-premium pl-12 font-black tabular-nums"
             value={formData.entryDate}
             onChange={(e) => setFormData(prev => ({ ...prev, entryDate: e.target.value }))}
-            min={new Date().toISOString().split('T')[0]}
+            min="2000-01-01"
           />
         </div>
       </FormField>

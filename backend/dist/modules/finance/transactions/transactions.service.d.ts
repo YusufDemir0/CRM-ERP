@@ -1,8 +1,8 @@
 import { Repository, DataSource } from 'typeorm';
 import { Transaction } from './entities/transaction.entity';
 import { SequenceGeneratorService } from '../../../common/services/sequence-generator.service';
-import { CreateTransactionDto } from '../dto/finance.dto';
-import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
+import { CreateTransactionDto, TransactionsQueryDto } from '../dto/finance.dto';
+import { PaginatedResult } from '../../../common/dto/pagination.dto';
 import { TransactionContextService } from '../../../common/services/transaction-context.service';
 export declare class TransactionsService {
     private txRepo;
@@ -10,11 +10,7 @@ export declare class TransactionsService {
     private sequenceGenerator;
     private transactionContext;
     constructor(txRepo: Repository<Transaction>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, transactionContext: TransactionContextService);
-    findAll(query: PaginationDto & {
-        partyId?: number;
-        type?: string;
-        status?: string;
-    }): Promise<PaginatedResult<Transaction>>;
+    findAll(query: TransactionsQueryDto): Promise<PaginatedResult<Transaction>>;
     findOne(id: number): Promise<Transaction>;
     create(dto: CreateTransactionDto, userId?: number): Promise<Transaction>;
     cancel(id: number, userId?: number): Promise<{

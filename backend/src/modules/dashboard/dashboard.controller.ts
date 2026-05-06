@@ -3,6 +3,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { DashboardService } from './dashboard.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 
 @Controller('dashboard')
 export class DashboardController {

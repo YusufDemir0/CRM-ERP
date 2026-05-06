@@ -13,7 +13,7 @@ import { Cache } from 'cache-manager';
 export interface JwtPayload {
   sub: number;
   username: string;
-  departmentId: number | null;
+  departmentId: string | null;
   tokenVersion: number;
 }
 
@@ -44,7 +44,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     if (state === undefined || state === null) {
       const user = await this.dataSource.getRepository(User).findOne({
-        where: { id: payload.sub },
+        where: { id: String(payload.sub) },
         select: ['id', 'state', 'tokenVersion']
       });
 

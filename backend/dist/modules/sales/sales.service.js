@@ -1,10 +1,43 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
@@ -18,6 +51,7 @@ var SalesService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SalesService = void 0;
 const common_1 = require("@nestjs/common");
+const ExcelJS = __importStar(require("exceljs"));
 const stocks_service_1 = require("../inventory/stocks/stocks.service");
 const logs_service_1 = require("../logs/logs.service");
 const item_entity_1 = require("../inventory/items/entities/item.entity");
@@ -126,7 +160,11 @@ let SalesService = SalesService_1 = class SalesService {
             throw new common_1.NotFoundException(`Bazı ürünler bulunamadı veya pasif: ${missing.join(', ')}`);
         }
         const map = new Map();
-        items.forEach(i => map.set(i.id, { id: i.id, salePrice: i.salePrice || 0 }));
+        items.forEach(i => map.set(i.id, {
+            id: i.id,
+            salePrice: i.salePrice || 0,
+            purchasePrice: i.purchasePrice || 0
+        }));
         return map;
     }
     async create(dto, userId) {
@@ -156,12 +194,15 @@ let SalesService = SalesService_1 = class SalesService {
             discountPercent: calcResult.discountPercent,
             kdv: calcResult.kdv,
             grandTotal: calcResult.grandTotal,
+            totalCost: calcResult.totalCost,
+            profit: calcResult.profit,
             createdBy: userId,
         });
         const savedSale = await manager.save(sale);
         const saleItemEntities = calcResult.lines.map(line => manager.create(sale_item_entity_1.SaleItem, {
             ...line,
             saleId: savedSale.id,
+            costPrice: line.costPrice,
             createdBy: userId
         }));
         await manager.save(sale_item_entity_1.SaleItem, saleItemEntities);
@@ -190,12 +231,15 @@ let SalesService = SalesService_1 = class SalesService {
             sale.discountPercent = calcResult.discountPercent;
             sale.kdv = calcResult.kdv;
             sale.grandTotal = calcResult.grandTotal;
+            sale.totalCost = calcResult.totalCost;
+            sale.profit = calcResult.profit;
             if (dto.deposit !== undefined)
                 sale.deposit = new decimal_js_1.Decimal(dto.deposit);
             await manager.delete(sale_item_entity_1.SaleItem, { saleId: sale.id });
             const saleItemEntities = calcResult.lines.map(line => manager.create(sale_item_entity_1.SaleItem, {
                 ...line,
                 saleId: sale.id,
+                costPrice: line.costPrice,
                 updatedBy: userId
             }));
             await manager.save(sale_item_entity_1.SaleItem, saleItemEntities);
@@ -374,6 +418,54 @@ let SalesService = SalesService_1 = class SalesService {
             details: `Sevkiyat yapıldı: ${sale.code}`
         });
         return this.findOne(sale.id);
+    }
+    async exportToExcel(query, user, res) {
+        const qb = this.saleRepo.createQueryBuilder('sale')
+            .leftJoinAndSelect('sale.party', 'party')
+            .leftJoinAndSelect('sale.saleType', 'saleType')
+            .leftJoinAndSelect('sale.currency', 'currency')
+            .leftJoinAndSelect('sale.items', 'items')
+            .leftJoinAndSelect('items.item', 'item');
+        if (query.status)
+            qb.andWhere('sale.status = :status', { status: query.status });
+        if (user && !user.isSystemAdmin) {
+            const hasViewAll = user.permissions?.includes('SALES_VIEW_ALL');
+            if (!hasViewAll && user.departmentId) {
+                qb.andWhere('sale.departmentId = :userDeptId', { userDeptId: user.departmentId });
+            }
+        }
+        const sales = await qb.getMany();
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Satislar');
+        worksheet.columns = [
+            { header: 'Satış No', key: 'code', width: 15 },
+            { header: 'Tarih', key: 'date', width: 15 },
+            { header: 'Müşteri', key: 'party', width: 25 },
+            { header: 'Telefon', key: 'phone', width: 15 },
+            { header: 'Tutar', key: 'total', width: 15 },
+            { header: 'Döviz', key: 'currency', width: 10 },
+            { header: 'Durum', key: 'status', width: 15 },
+            { header: 'Teslimat', key: 'delivery', width: 15 },
+            { header: 'Kar/Zarar', key: 'profit', width: 15 },
+        ];
+        sales.forEach(s => {
+            worksheet.addRow({
+                code: s.code,
+                date: (0, dayjs_1.default)(s.createdAt).format('DD.MM.YYYY'),
+                party: s.party?.name || '—',
+                phone: s.phone || s.party?.phone1 || '—',
+                total: s.grandTotal.toNumber(),
+                currency: s.currency?.symbol || '₺',
+                status: s.status,
+                delivery: s.deliveryDate || '—',
+                profit: s.profit.toNumber(),
+            });
+        });
+        worksheet.getRow(1).font = { bold: true };
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename=Satis_Raporu_${(0, dayjs_1.default)().format('YYYYMMDD')}.xlsx`);
+        await workbook.xlsx.write(res);
+        res.end();
     }
 };
 exports.SalesService = SalesService;

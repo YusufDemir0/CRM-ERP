@@ -89,10 +89,10 @@ export class StocksService {
 
   private async updateMovingAverageCost(
     manager: EntityManager,
-    itemId: number,
+    itemId: string,
     inQty: Decimal,
     inUnitCost: Decimal,
-    userId?: number
+    userId: string
   ): Promise<Decimal> {
     const item = await manager.findOne(Item, {
       where: { id: itemId },
@@ -130,7 +130,7 @@ export class StocksService {
     return newMAC;
   }
 
-  private validateStock(itemId: number, deptId: number, currentQty: Decimal, delta: Decimal) {
+  private validateStock(itemId: string, deptId: string, currentQty: Decimal, delta: Decimal) {
     const margin = new Decimal(-100);
     const after = currentQty.sub(delta);
     if (after.lt(margin)) {
@@ -140,7 +140,32 @@ export class StocksService {
     }
   }
 
-  async getMovements(stockId: number, query: PaginationDto): Promise<PaginatedResult<StockMovement>> {
+  async findAllMovements(query: PaginationDto & { type?: string; search?: string }): Promise<PaginatedResult<StockMovement>> {
+    const qb = this.movementRepo.createQueryBuilder('sm')
+      .leftJoinAndSelect('sm.stock', 'stock')
+      .leftJoinAndSelect('stock.item', 'item')
+      .leftJoinAndSelect('stock.department', 'department')
+      .orderBy('sm.createdAt', 'DESC');
+
+    if (query.type) {
+      qb.andWhere('sm.type = :type', { type: query.type });
+    }
+
+    if (query.search) {
+      const s = getSafeSearchPattern(query.search);
+      qb.andWhere('(item.name LIKE :s OR item.code LIKE :s OR sm.description LIKE :s)', { s });
+    }
+
+    qb.skip(query.skip).take(query.limit);
+
+    const [data, total] = await qb.getManyAndCount();
+    return {
+      data,
+      meta: { total, page: query.page || 1, limit: query.limit || 20, totalPages: Math.ceil(total / (query.limit || 20)) },
+    };
+  }
+
+  async getMovements(stockId: string, query: PaginationDto): Promise<PaginatedResult<StockMovement>> {
     const qb = this.movementRepo.createQueryBuilder('sm')
       .where('sm.stockId = :stockId', { stockId })
       .orderBy('sm.createdAt', 'DESC')
@@ -154,12 +179,12 @@ export class StocksService {
   }
 
   async decreaseStock(
-    itemId: number, 
-    departmentId: number, 
+    itemId: string, 
+    departmentId: string, 
     quantity: number | Decimal, 
     manager: EntityManager = this.transactionContext.manager, 
-    referenceInfo?: { type: StockMovement['referenceType']; id: number; description: string },
-    userId?: number
+    referenceInfo?: { type: StockMovement['referenceType']; id: string; description: string },
+    userId?: string
   ): Promise<void> {
     const qty = new Decimal(quantity);
 
@@ -198,23 +223,25 @@ export class StocksService {
       description: referenceInfo?.description || 'Stok Çıkışı',
       createdBy: userId
     }));
+
+    await this.syncItemTotalStock([itemId], manager);
   }
 
   async decreaseStockBulk(
-    items: Array<{ itemId: number; quantity: number | Decimal }>,
-    departmentId: number,
+    items: Array<{ itemId: string; quantity: number | Decimal }>,
+    departmentId: string,
     manager: EntityManager = this.transactionContext.manager,
-    referenceInfo?: { type: StockMovement['referenceType']; id: number; description: string },
-    userId?: number
+    referenceInfo?: { type: StockMovement['referenceType']; id: string; description: string },
+    userId?: string
   ): Promise<void> {
     if (!items || items.length === 0) return;
 
-    const reducedItems = new Map<number, Decimal>();
+    const reducedItems = new Map<string, Decimal>();
     for (const item of items) {
       const q = new Decimal(item.quantity);
       reducedItems.set(item.itemId, (reducedItems.get(item.itemId) || new Decimal(0)).add(q));
     }
-    const uniqueItemIds = Array.from(reducedItems.keys()).sort((a, b) => a - b);
+    const uniqueItemIds = Array.from(reducedItems.keys()).sort();
 
     const stocks = await manager.find(Stock, {
       where: { itemId: In(uniqueItemIds), departmentId },
@@ -223,7 +250,7 @@ export class StocksService {
     });
 
     const movements: StockMovement[] = [];
-    const stockMap = new Map<number, Stock>();
+    const stockMap = new Map<string, Stock>();
     stocks.forEach((s: Stock) => stockMap.set(s.itemId, s));
 
     for (const itemId of uniqueItemIds) {
@@ -262,30 +289,32 @@ export class StocksService {
 
     await manager.save(Stock, stocks);
     await manager.save(StockMovement, movements);
+
+    await this.syncItemTotalStock(uniqueItemIds as string[], manager);
   }
 
   async reserveStockBulk(
-    items: Array<{ itemId: number; quantity: number | Decimal }>,
-    departmentId: number,
+    items: Array<{ itemId: string; quantity: number | Decimal }>,
+    departmentId: string,
     manager: EntityManager = this.transactionContext.manager,
-    referenceInfo?: { type: StockMovement['referenceType']; id: number; description: string },
-    userId?: number
+    referenceInfo?: { type: StockMovement['referenceType']; id: string; description: string },
+    userId?: string
   ): Promise<void> {
     if (!items || items.length === 0) return;
 
-    const reducedItems = new Map<number, Decimal>();
+    const reducedItems = new Map<string, Decimal>();
     for (const item of items) {
       const q = new Decimal(item.quantity);
       reducedItems.set(item.itemId, (reducedItems.get(item.itemId) || new Decimal(0)).add(q));
     }
-    const uniqueItemIds = Array.from(reducedItems.keys()).sort((a, b) => a - b);
+    const uniqueItemIds = Array.from(reducedItems.keys()).sort();
 
     const stocks = await manager.find(Stock, {
       where: { itemId: In(uniqueItemIds), departmentId },
       lock: { mode: 'pessimistic_write' }
     });
 
-    const stockMap = new Map<number, Stock>();
+    const stockMap = new Map<string, Stock>();
     stocks.forEach((s: Stock) => stockMap.set(s.itemId, s));
 
     const movements: StockMovement[] = [];
@@ -324,26 +353,26 @@ export class StocksService {
   }
 
   async unreserveStockBulk(
-    items: Array<{ itemId: number; quantity: number | Decimal }>,
-    departmentId: number,
+    items: Array<{ itemId: string; quantity: number | Decimal }>,
+    departmentId: string,
     manager: EntityManager = this.transactionContext.manager,
-    userId?: number
+    userId: string
   ): Promise<void> {
     if (!items || items.length === 0) return;
 
-    const reducedItems = new Map<number, Decimal>();
+    const reducedItems = new Map<string, Decimal>();
     for (const item of items) {
       const q = new Decimal(item.quantity);
       reducedItems.set(item.itemId, (reducedItems.get(item.itemId) || new Decimal(0)).add(q));
     }
-    const uniqueItemIds = Array.from(reducedItems.keys()).sort((a, b) => a - b);
+    const uniqueItemIds = Array.from(reducedItems.keys()).sort();
 
     const stocks = await manager.find(Stock, {
       where: { itemId: In(uniqueItemIds), departmentId },
       lock: { mode: 'pessimistic_write' }
     });
 
-    const stockMap = new Map<number, Stock>();
+    const stockMap = new Map<string, Stock>();
     stocks.forEach((s: Stock) => stockMap.set(s.itemId, s));
 
     for (const itemId of uniqueItemIds) {
@@ -360,20 +389,20 @@ export class StocksService {
   }
 
   async finalizeShipmentBulk(
-    items: Array<{ itemId: number; quantity: number | Decimal }>,
-    departmentId: number,
+    items: Array<{ itemId: string; quantity: number | Decimal }>,
+    departmentId: string,
     manager: EntityManager = this.transactionContext.manager,
-    referenceInfo?: { type: StockMovement['referenceType']; id: number; description: string },
-    userId?: number
+    referenceInfo?: { type: StockMovement['referenceType']; id: string; description: string },
+    userId?: string
   ): Promise<void> {
     if (!items || items.length === 0) return;
 
-    const reducedItems = new Map<number, Decimal>();
+    const reducedItems = new Map<string, Decimal>();
     for (const item of items) {
       const q = new Decimal(item.quantity);
       reducedItems.set(item.itemId, (reducedItems.get(item.itemId) || new Decimal(0)).add(q));
     }
-    const uniqueItemIds = Array.from(reducedItems.keys()).sort((a, b) => a - b);
+    const uniqueItemIds = Array.from(reducedItems.keys()).sort();
 
     const stocks = await manager.find(Stock, {
       where: { itemId: In(uniqueItemIds), departmentId },
@@ -381,7 +410,7 @@ export class StocksService {
       lock: { mode: 'pessimistic_write' }
     });
 
-    const stockMap = new Map<number, Stock>();
+    const stockMap = new Map<string, Stock>();
     stocks.forEach((s: Stock) => stockMap.set(s.itemId, s));
 
     const movements: StockMovement[] = [];
@@ -425,21 +454,23 @@ export class StocksService {
 
     await manager.save(Stock, stocks);
     await manager.save(StockMovement, movements);
+
+    await this.syncItemTotalStock(uniqueItemIds, manager);
   }
 
   async increaseStock(
-    itemId: number, 
-    departmentId: number, 
+    itemId: string, 
+    departmentId: string, 
     quantity: number | Decimal, 
     inUnitCost: number | Decimal = 0,
     manager: EntityManager = this.transactionContext.manager, 
-    referenceInfo?: { type: StockMovement['referenceType']; id: number; description: string },
-    userId?: number
+    referenceInfo?: { type: StockMovement['referenceType']; id: string; description: string },
+    userId?: string
   ): Promise<void> {
     const qty = new Decimal(quantity);
     const unitPrice = new Decimal(inUnitCost);
 
-    const newMAC = await this.updateMovingAverageCost(manager, itemId, qty, unitPrice, userId);
+    const newMAC = await this.updateMovingAverageCost(manager, itemId, qty, unitPrice, userId || '');
 
     let stock = await manager.findOne(Stock, {
       where: { itemId, departmentId },
@@ -474,10 +505,12 @@ export class StocksService {
       description: referenceInfo?.description || 'Stok Girişi',
       createdBy: userId
     }));
+
+    await this.syncItemTotalStock([itemId], manager);
   }
 
   @Transactional()
-  async adjustStock(dto: StockAdjustmentDto, userId?: number): Promise<StockMovement> {
+  async adjustStock(dto: StockAdjustmentDto, userId: string): Promise<StockMovement> {
     const manager = this.transactionContext.manager;
 
     const item = await manager.findOne(Item, { where: { id: dto.itemId } });
@@ -539,6 +572,8 @@ export class StocksService {
 
     const savedMovement = await manager.save(movement);
 
+    await this.syncItemTotalStock([dto.itemId], manager);
+
     const totalCostValue = savedMovement.totalCost;
 
     if (!totalCostValue.isZero()) {
@@ -576,15 +611,15 @@ export class StocksService {
   }
 
   @Transactional()
-  async transferStock(dto: TransferStockDto, userId?: number) {
+  async transferStock(dto: TransferStockDto, userId: string) {
     if (dto.fromDepartmentId === dto.toDepartmentId) {
       throw new BadRequestException('Kaynak depo ile Hedef depo aynı olamaz.');
     }
 
     const manager = this.transactionContext.manager;
 
-    const sortedDeptIds = [dto.fromDepartmentId, dto.toDepartmentId].sort((a, b) => a - b);
-    const stocks: Record<number, Stock> = {};
+    const sortedDeptIds = [dto.fromDepartmentId, dto.toDepartmentId].sort();
+    const stocks: Record<string, Stock> = {};
 
     for (const deptId of sortedDeptIds) {
       let s = await manager.findOne(Stock, {
@@ -670,9 +705,9 @@ export class StocksService {
 
   async revertStockMovementsByReference(
     referenceType: StockMovement['referenceType'],
-    referenceId: number,
+    referenceId: string,
     manager: EntityManager = this.transactionContext.manager,
-    userId?: number
+    userId: string
   ): Promise<void> {
     const movements = await manager.find(StockMovement, {
       where: { referenceType, referenceId },
@@ -681,7 +716,7 @@ export class StocksService {
 
     if (movements.length === 0) return;
 
-    const stockChanges = new Map<number, { stock: Stock; totalDelta: Decimal }>();
+    const stockChanges = new Map<string, { stock: Stock; totalDelta: Decimal }>();
 
     for (const mov of movements) {
       const stock = mov.stock;
@@ -699,14 +734,14 @@ export class StocksService {
       }
     }
 
-    const sortedStockIds = Array.from(stockChanges.keys()).sort((a, b) => a - b);
+    const sortedStockIds = Array.from(stockChanges.keys()).sort();
     
     const lockedStocks = await manager.find(Stock, {
       where: { id: In(sortedStockIds) },
       lock: { mode: 'pessimistic_write' }
     });
 
-    const lockedStockMap = new Map<number, Stock>();
+    const lockedStockMap = new Map<string, Stock>();
     lockedStocks.forEach((s: Stock) => lockedStockMap.set(s.id, s));
 
     const newMovements: StockMovement[] = [];
@@ -746,6 +781,9 @@ export class StocksService {
 
     await manager.save(Stock, stocksToUpload);
     await manager.save(StockMovement, newMovements);
+
+    const itemIdsToSync = stocksToUpload.map(s => s.itemId);
+    await this.syncItemTotalStock(itemIdsToSync, manager);
   }
 
   async getCriticalStocks(): Promise<Stock[]> {
@@ -776,5 +814,27 @@ export class StocksService {
       totalQuantity: new Decimal(total.quantity || 0).toFixed(2),
       criticalCount: Number(critical.count || 0),
     };
+  }
+
+  /**
+   * Syncs the denormalized total_stock field in the items table.
+   * This is called after stock operations to maintain data integrity
+   * without the overhead of database subscribers during bulk operations.
+   */
+  private async syncItemTotalStock(itemIds: string[], manager: EntityManager): Promise<void> {
+    if (!itemIds || itemIds.length === 0) return;
+    const uniqueIds = Array.from(new Set(itemIds));
+
+    // SEC-02: Optimized bulk update using subquery (MySQL compatible)
+    // This avoids N+1 queries by updating all items in a single statement.
+    await manager.query(`
+      UPDATE items 
+      SET total_stock = (
+        SELECT IFNULL(SUM(quantity), 0) 
+        FROM stocks 
+        WHERE stocks.item_id = items.id
+      )
+      WHERE items.id IN (${uniqueIds.join(',')})
+    `);
   }
 }

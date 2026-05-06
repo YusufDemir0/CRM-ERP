@@ -17,7 +17,7 @@ export class SalesController {
 
   @Post('types')
   @RequirePermissions('SALES_CREATE')
-  createSaleType(@Body() dto: CreateSaleTypeDto, @CurrentUser('sub') userId: number) {
+  createSaleType(@Body() dto: CreateSaleTypeDto, @CurrentUser('sub') userId: string) {
     return this.salesService.createSaleType(dto, userId);
   }
 
@@ -42,19 +42,19 @@ export class SalesController {
 
   @Get(':id')
   @RequirePermissions('SALES_VIEW')
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  findOne(@Param('id') id: string) {
     return this.salesService.findOne(id);
   }
 
   @Post()
   @RequirePermissions('SALES_CREATE')
-  create(@Body() dto: CreateSaleDto, @CurrentUser('sub') userId: number) {
+  create(@Body() dto: CreateSaleDto, @CurrentUser('sub') userId: string) {
     return this.salesService.create(dto, userId);
   }
 
   @Put(':id')
   @RequirePermissions('SALES_EDIT')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateSaleDto, @CurrentUser('sub') userId: number) {
+  update(@Param('id') id: string, @Body() dto: UpdateSaleDto, @CurrentUser('sub') userId: string) {
     return this.salesService.update(id, dto, userId);
   }
 
@@ -66,28 +66,28 @@ export class SalesController {
   @Post(':id/approve')
   @RequirePermissions('SALES_APPROVE')
   approve(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() dto: ApproveSaleDto,
-    @CurrentUser('sub') userId: number,
+    @CurrentUser('sub') userId: string,
   ) {
     return this.salesService.approveSale(id, dto, userId);
   }
 
   @Post(':id/cancel')
   @RequirePermissions('SALES_CANCEL')
-  cancel(@Param('id', ParseIntPipe) id: number, @CurrentUser('sub') userId: number) {
+  cancel(@Param('id') id: string, @CurrentUser('sub') userId: string) {
     return this.salesService.cancelSale(id, userId);
   }
 
   @Post(':id/ship')
   @RequirePermissions('SALES_APPROVE') // Reuse approval permission or add 'satis_sevk'
-  ship(@Param('id', ParseIntPipe) id: number, @Body() dto: ShipSaleDto, @CurrentUser('sub') userId: number) {
+  ship(@Param('id') id: string, @Body() dto: ShipSaleDto, @CurrentUser('sub') userId: string) {
     return this.salesService.shipSale(id, dto, userId);
   }
 
   @Delete(':id')
   @RequirePermissions('SALES_DELETE')
-  remove(@Param('id', ParseIntPipe) id: number) {
+  remove(@Param('id') id: string) {
     return this.salesService.softDelete(id);
   }
 }

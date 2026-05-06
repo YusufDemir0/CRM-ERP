@@ -48,7 +48,7 @@ let DashboardService = class DashboardService {
                 where: {
                     state: 1,
                     type: 'customer',
-                    createdBy: user?.id
+                    createdBy: user?.sub
                 }
             }),
             this.saleRepo.count({
@@ -61,12 +61,14 @@ let DashboardService = class DashboardService {
                 .getRawOne(),
             this.saleRepo.createQueryBuilder('sale')
                 .select("SUM(sale.grandTotal * sale.exchangeRate - sale.kdv * sale.exchangeRate)", "revenue")
+                .addSelect("SUM(sale.profit * sale.exchangeRate)", "profit")
                 .addSelect("COUNT(*)", "count")
                 .where("sale.createdAt BETWEEN :start AND :end", { start: thisMonthStart, end: thisMonthEnd })
                 .andWhere("sale.status != 'cancelled'")
                 .getRawOne(),
             this.saleRepo.createQueryBuilder('sale')
                 .select("SUM(sale.grandTotal * sale.exchangeRate - sale.kdv * sale.exchangeRate)", "revenue")
+                .addSelect("SUM(sale.profit * sale.exchangeRate)", "profit")
                 .addSelect("COUNT(*)", "count")
                 .where("sale.createdAt BETWEEN :start AND :end", { start: lastMonthStart, end: lastMonthEnd })
                 .andWhere("sale.status != 'cancelled'")
@@ -79,12 +81,12 @@ let DashboardService = class DashboardService {
             thisMonth: {
                 revenue: thisMonthStats.revenue || 0,
                 count: thisMonthStats.count || 0,
-                profit: 0
+                profit: thisMonthStats.profit || 0
             },
             lastMonth: {
                 revenue: lastMonthStats.revenue || 0,
                 count: lastMonthStats.count || 0,
-                profit: 0
+                profit: lastMonthStats.profit || 0
             }
         };
     }

@@ -19,21 +19,21 @@ export class Sale extends BaseEntity {
 
   @Index()
   @Column({ name: 'party_id', type: 'bigint' })
-  partyId: number;
+  partyId: string;
 
   @Column({ name: 'sale_type_id', type: 'bigint' })
-  saleTypeId: number;
+  saleTypeId: string;
 
   @Index()
   @Column({ name: 'department_id', type: 'bigint', nullable: true })
-  departmentId: number | null;
+  departmentId: string | null;
 
   @Index()
   @Column({ name: 'staff_id', type: 'bigint', nullable: true })
-  staffId: number | null;
+  staffId: string | null;
 
   @Column({ name: 'currency_id', type: 'bigint', nullable: true })
-  currencyId: number | null;
+  currencyId: string | null;
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'exchange_rate', type: 'decimal', precision: 15, scale: 6, default: 1, transformer: new DecimalTransformer() })
@@ -103,7 +103,7 @@ export class Sale extends BaseEntity {
   source: string | null;
 
   @Column({ name: 'commercial_account_id', type: 'bigint', nullable: true })
-  commercialAccountId: number | null;
+  commercialAccountId: string | null;
 
   @ManyToOne(() => Party)
   @JoinColumn({ name: 'party_id' })

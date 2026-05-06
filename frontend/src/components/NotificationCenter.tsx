@@ -23,7 +23,7 @@ export const NotificationCenter: React.FC = () => {
   });
 
   const markReadMutation = useMutation({
-    mutationFn: (id: number) => logsAPI.markAsRead(id),
+    mutationFn: (id: string | number) => logsAPI.markAsRead(Number(id)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },

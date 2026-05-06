@@ -20,7 +20,7 @@ export class CommercialAccount extends BaseEntity {
   ibanName: string | null;
 
   @Column({ name: 'currency_id', type: 'bigint' })
-  currencyId: number;
+  currencyId: string;
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'critical_limit', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })

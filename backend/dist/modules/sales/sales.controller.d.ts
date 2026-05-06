@@ -1,5 +1,7 @@
+import { Response } from 'express';
 import { SalesService } from './sales.service';
 import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto, SalesQueryDto, ShipSaleDto } from './dto/sale.dto';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 export declare class SalesController {
     private readonly salesService;
     constructor(salesService: SalesService);
@@ -10,7 +12,8 @@ export declare class SalesController {
         monthlyOrders: import("decimal.js").Decimal;
         pendingOrders: import("decimal.js").Decimal;
     }>;
-    findAll(query: SalesQueryDto, user: any): Promise<import("../../common/dto/pagination.dto").PaginatedResult<import("./entities/sale.entity").Sale>>;
+    export(query: SalesQueryDto, user: JwtPayload, res: Response): Promise<void>;
+    findAll(query: SalesQueryDto, user: JwtPayload): Promise<import("../../common/dto/pagination.dto").PaginatedResult<import("./entities/sale.entity").Sale>>;
     findOne(id: number): Promise<import("./entities/sale.entity").Sale>;
     create(dto: CreateSaleDto, userId: number): Promise<import("./entities/sale.entity").Sale>;
     update(id: number, dto: UpdateSaleDto, userId: number): Promise<import("./entities/sale.entity").Sale>;

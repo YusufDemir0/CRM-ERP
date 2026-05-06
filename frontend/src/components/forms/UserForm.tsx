@@ -16,12 +16,12 @@ interface UserFormData {
   email: string;
   phone: string;
   departmentId: string;
-  selectedRoles: number[];
+  selectedRoles: string[];
 }
 
 interface UserFormProps {
   initialData?: Partial<UserFormData>;
-  editingId?: number | null;
+  editingId?: string | number | null;
   onSuccess: (data: unknown) => void;
   onCancel: () => void;
 }
@@ -101,7 +101,7 @@ export const UserForm: React.FC<UserFormProps> = ({
     }
   }, [initialData, setValue]);
 
-  const handleRoleToggle = (roleId: number) => {
+  const handleRoleToggle = (roleId: string) => {
     const currentRoles = getValues('selectedRoles') || [];
     if (currentRoles.includes(roleId)) {
       setValue('selectedRoles', currentRoles.filter(id => id !== roleId));
@@ -262,17 +262,17 @@ export const UserForm: React.FC<UserFormProps> = ({
           <div className="flex flex-col gap-2 overflow-y-auto pr-1">
             {availableRoles.map((r) => (
               <label key={r.id} className={`flex items-center gap-3 cursor-pointer p-4 rounded-2xl border transition-all ${
-                selectedRoles.includes(r.id) ? 'bg-white border-primary shadow-xl scale-[1.02]' : 'bg-white/50 border-transparent text-slate-500 hover:bg-white'
+                selectedRoles.includes(String(r.id)) ? 'bg-white border-primary shadow-xl scale-[1.02]' : 'bg-white/50 border-transparent text-slate-500 hover:bg-white'
               }`}>
                 <input 
                   type="radio" 
                   name="roleSelection"
-                  checked={selectedRoles.includes(r.id)} 
-                  onChange={() => setValue('selectedRoles', [r.id])} 
+                  checked={selectedRoles.includes(String(r.id))} 
+                  onChange={() => setValue('selectedRoles', [String(r.id)])} 
                   className="hidden"
                 />
                 <div className={`w-5 h-5 rounded-full border-[5px] flex-shrink-0 transition-colors ${
-                  selectedRoles.includes(r.id) ? 'border-primary bg-white' : 'border-slate-300 bg-white'
+                  selectedRoles.includes(String(r.id)) ? 'border-primary bg-white' : 'border-slate-300 bg-white'
                 }`} />
                 <span className="font-black text-xs uppercase tracking-tight">{r.name}</span>
               </label>

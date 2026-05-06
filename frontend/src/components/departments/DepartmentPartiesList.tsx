@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSalesWizardStore } from '../../store/useSalesWizardStore';
 
 interface DepartmentPartiesListProps {
-  departmentId: number;
+  departmentId: string | number;
 }
 
 export const DepartmentPartiesList: React.FC<DepartmentPartiesListProps> = ({ departmentId }) => {
@@ -25,8 +25,8 @@ export const DepartmentPartiesList: React.FC<DepartmentPartiesListProps> = ({ de
 
   const parties = partiesData?.data || [];
 
-  const handleQuickSale = (partyId: number) => {
-    const party = parties.find(p => p.id === partyId);
+  const handleQuickSale = (partyId: string | number) => {
+    const party = parties.find(p => String(p.id) === String(partyId));
     if (party) {
       const salesStore = useSalesWizardStore.getState();
       salesStore.startQuickSale(party);

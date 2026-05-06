@@ -96,6 +96,16 @@ __decorate([
     __metadata("design:type", decimal_js_1.Decimal)
 ], Sale.prototype, "grandTotal", void 0);
 __decorate([
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'total_cost', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
+], Sale.prototype, "totalCost", void 0);
+__decorate([
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
+], Sale.prototype, "profit", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", Object)
 ], Sale.prototype, "notes", void 0);

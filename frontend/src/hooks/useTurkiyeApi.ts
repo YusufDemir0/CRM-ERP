@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { TURKIYE_CITIES } from '../constants/locations';
 
 export interface TurkiyeLocation {
   id: number;
@@ -7,32 +8,10 @@ export interface TurkiyeLocation {
 
 /**
  * useTurkiyeCities
- * Fetches and caches province data from turkiyeapi.dev
- * [FIX-TASK-08]: Migrated to React Query for global caching.
+ * Uses static local data for performance.
  */
 export function useTurkiyeCities() {
-  const { data: cities = [], isLoading: loading } = useQuery({
-    queryKey: ['turkiye-provinces'],
-    queryFn: async ({ signal }): Promise<TurkiyeLocation[]> => {
-      const CACHE_KEY = 'turkiye-provinces-cache';
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) return JSON.parse(cached);
-
-      const res = await fetch('https://turkiyeapi.dev/api/v1/provinces', { signal });
-      const data = await res.json();
-      if (!data.data) return [];
-      const result = data.data
-        .map((c: TurkiyeLocation) => ({ id: c.id, name: c.name }))
-        .sort((a: TurkiyeLocation, b: TurkiyeLocation) => a.name.localeCompare(b.name, 'tr'));
-      
-      localStorage.setItem(CACHE_KEY, JSON.stringify(result));
-      return result;
-    },
-    staleTime: 1000 * 60 * 60 * 24 * 7, // 1 week
-    gcTime: 1000 * 60 * 60 * 24 * 30, // 1 month
-  });
-
-  return { cities, loading };
+  return { cities: TURKIYE_CITIES, loading: false };
 }
 
 /**

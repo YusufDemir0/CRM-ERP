@@ -36,6 +36,14 @@ export declare class UpdateItemDto {
     notes?: string;
     state?: number;
 }
+export declare class ImportItemDto {
+    code: string;
+    name: string;
+    purchasePrice?: number;
+    salePrice?: number;
+    criticalLimit?: number;
+    kdv?: number;
+}
 export declare class CreateItemTypeDto {
     name: string;
     abbreviation: string;

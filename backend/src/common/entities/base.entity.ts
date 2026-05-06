@@ -16,19 +16,19 @@ import { RecordState } from '../enums/record-state.enum';
  */
 export abstract class BaseEntity {
   @PrimaryGeneratedColumn({ type: 'bigint' })
-  id: number;
+  id: string; // SEC-02: BigInt is returned as string to prevent rounding issues in JS
 
   @Column({ type: 'tinyint', default: RecordState.ACTIVE })
   state: RecordState;
 
   @Column({ name: 'created_by', type: 'bigint', nullable: true })
-  createdBy: number | null;
+  createdBy: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt: Date;
 
   @Column({ name: 'updated_by', type: 'bigint', nullable: true })
-  updatedBy: number | null;
+  updatedBy: string | null;
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
   updatedAt: Date;

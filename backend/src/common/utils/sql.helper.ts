@@ -6,7 +6,7 @@ export function escapeLike(input: string): string {
   if (!input) return '';
   // % -> \%
   // _ -> \_
-  return input.replace(/[%_]/g, '\\$&');
+  return input.replace(/([%_\\])/g, '\\$1');
 }
 
 /**

@@ -6,7 +6,7 @@ import { Transactional } from '@nestjs-cls/transactional';
 import { ConsumeMessage } from 'amqplib';
 
 interface SaleItemPayload {
-  itemId: number;
+  itemId: string;
   quantity: number;
 }
 

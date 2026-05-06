@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { FiSearch, FiBell, FiHelpCircle, FiChevronRight, FiCommand, FiZap, FiMenu, FiLogOut, FiBox, FiUsers, FiShoppingCart } from 'react-icons/fi';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { getAllNavItems } from '../config/navigation';
 import { useDebounce } from '../hooks/useDebounce';
 import { itemsAPI, partiesAPI, salesAPI } from '../services/api';

@@ -72,21 +72,21 @@ export class DepartmentsService {
     };
   }
 
-  async findOne(id: number): Promise<Department> {
+  async findOne(id: string): Promise<Department> {
     const dept = await this.deptRepo.findOne({ 
-      where: { id }, 
+      where: { id: String(id) }, 
       relations: ['commercialAccount', 'departmentType'] 
     });
     if (!dept) throw new NotFoundException('Departman bulunamadı');
     return dept;
   }
 
-  async create(dto: CreateDepartmentDto, userId?: number): Promise<Department> {
+  async create(dto: CreateDepartmentDto, userId: string): Promise<Department> {
     const dept = this.deptRepo.create({ ...dto, createdBy: userId });
     return this.deptRepo.save(dept);
   }
 
-  async update(id: number, dto: UpdateDepartmentDto, userId?: number): Promise<Department> {
+  async update(id: string, dto: UpdateDepartmentDto, userId: string): Promise<Department> {
     const dept = await this.findOne(id);
     
     if (dto.name !== undefined) dept.name = dto.name;
@@ -100,7 +100,7 @@ export class DepartmentsService {
     return this.deptRepo.save(dept);
   }
 
-  async softDelete(id: number): Promise<void> {
+  async softDelete(id: string): Promise<void> {
     await this.findOne(id);
 
     const hasUsers = await this.userRepo.count({ where: { departmentId: id } });
@@ -120,13 +120,13 @@ export class DepartmentsService {
     return this.typeRepo.find();
   }
 
-  async createType(dto: CreateDepartmentTypeDto, userId?: number): Promise<DepartmentType> {
+  async createType(dto: CreateDepartmentTypeDto, userId: string): Promise<DepartmentType> {
     const type = this.typeRepo.create({ ...dto, createdBy: userId });
     return this.typeRepo.save(type);
   }
 
-  async updateType(id: number, dto: UpdateDepartmentTypeDto, userId?: number): Promise<DepartmentType> {
-    const type = await this.typeRepo.findOne({ where: { id } });
+  async updateType(id: string, dto: UpdateDepartmentTypeDto, userId: string): Promise<DepartmentType> {
+    const type = await this.typeRepo.findOne({ where: { id: String(id) } });
     if (!type) throw new NotFoundException('Departman türü bulunamadı');
     
     if (dto.name !== undefined) type.name = dto.name;
@@ -136,8 +136,8 @@ export class DepartmentsService {
     return this.typeRepo.save(type);
   }
 
-  async softDeleteType(id: number): Promise<void> {
-    const type = await this.typeRepo.findOne({ where: { id } });
+  async softDeleteType(id: string): Promise<void> {
+    const type = await this.typeRepo.findOne({ where: { id: String(id) } });
     if (!type) throw new NotFoundException('Departman türü bulunamadı');
 
     const usedCount = await this.deptRepo.count({ where: { departmentTypeId: id } });

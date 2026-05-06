@@ -6,10 +6,11 @@ import { TransactionContextService } from './transaction-context.service';
 
 /**
  * SequenceGeneratorService — Benzersiz ve sıralı kodlar üretir.
- * ROAST COMPLIANCE & PHASE 0.2:
- * Memory tabanlı kilitler (Map) kaldırılmış, yerine %100 güvenli
- * Row-Level Lock (SELECT ... FOR UPDATE) yapısı getirilmiştir.
- * Böylece Kubernetes gibi çoklu-pod mimarilerinde sıfır hata ile çalışır.
+ * 
+ * RACE CONDITION FIX:
+ * Uses INSERT IGNORE + SELECT FOR UPDATE pattern to eliminate the
+ * concurrent-insert race that existed with the old INSERT-after-check approach.
+ * Safe for multi-pod (Kubernetes) deployments.
  */
 @Injectable()
 export class SequenceGeneratorService {
@@ -22,6 +23,11 @@ export class SequenceGeneratorService {
 
   /**
    * Veritabanı kilidi (Row-Level Lock) ile sıradaki numarayı verir.
+   * 
+   * Pattern: INSERT IGNORE → SELECT FOR UPDATE → UPDATE
+   * - INSERT IGNORE ensures the row exists without racing
+   * - SELECT FOR UPDATE serializes concurrent access
+   * - UPDATE increments atomically
    */
   private async getNextNumber(table: string, idField: string, idValue: number | string): Promise<number> {
     const queryRunner = this.dataSource.createQueryRunner();
@@ -29,44 +35,27 @@ export class SequenceGeneratorService {
     await queryRunner.startTransaction();
 
     try {
-      // Satırı okurken kilitle (Başka pod'lar bekler)
-      let [row] = await queryRunner.query(
+      // Step 1: Ensure the row exists (INSERT IGNORE = idempotent, no race)
+      await queryRunner.query(
+        `INSERT IGNORE INTO ${table} (${idField}, current_number) VALUES (?, 0)`,
+        [idValue]
+      );
+
+      // Step 2: Lock the row and read current value
+      const [row] = await queryRunner.query(
         `SELECT current_number as id FROM ${table} WHERE ${idField} = ? FOR UPDATE`,
         [idValue]
       );
 
-      let current = 1;
-
-      if (!row) {
-        // İlk defa oluşturuluyorsa (Eğer aynı anda 2 insert gelirse biri hata fırlatabilir, 
-        // ancak idField genelde uygulama kurulurken veya ilk kayıtta üretildiği için risk düşüktür)
-        try {
-          await queryRunner.query(
-            `INSERT INTO ${table} (${idField}, current_number) VALUES (?, ?)`,
-            [idValue, 1]
-          );
-        } catch (insertErr) {
-          // Eğer aynı anda başka bir thread insert ettiyse, tekrar kilitli oku
-          [row] = await queryRunner.query(
-            `SELECT current_number as id FROM ${table} WHERE ${idField} = ? FOR UPDATE`,
-            [idValue]
-          );
-          current = Number(row.id) + 1;
-          await queryRunner.query(
-            `UPDATE ${table} SET current_number = ? WHERE ${idField} = ?`,
-            [current, idValue]
-          );
-        }
-      } else {
-        current = Number(row.id) + 1;
-        await queryRunner.query(
-          `UPDATE ${table} SET current_number = ? WHERE ${idField} = ?`,
-          [current, idValue]
-        );
-      }
+      // Step 3: Increment and persist
+      const next = Number(row.id) + 1;
+      await queryRunner.query(
+        `UPDATE ${table} SET current_number = ? WHERE ${idField} = ?`,
+        [next, idValue]
+      );
 
       await queryRunner.commitTransaction();
-      return current;
+      return next;
     } catch (err) {
       await queryRunner.rollbackTransaction();
       this.logger.error(`Error generating sequence for ${table} (${idField}=${idValue}): ${err.message}`);
@@ -78,7 +67,7 @@ export class SequenceGeneratorService {
 
   async generateItemCode(
     manager: EntityManager = this.transactionContext.manager,
-    itemCodeGroupId: number,
+    itemCodeGroupId: string,
   ): Promise<string> {
     const codeGroup = await manager.findOne(ItemCodeGroup, { where: { id: itemCodeGroupId } });
     if (!codeGroup) throw new NotFoundException(`Item code group bulunamadı: ${itemCodeGroupId}`);
@@ -91,7 +80,7 @@ export class SequenceGeneratorService {
 
   async generateSaleCode(
     manager: EntityManager = this.transactionContext.manager,
-    departmentId: number,
+    departmentId: string,
   ): Promise<string> {
     const department = await manager.findOne(Department, { where: { id: departmentId } });
     if (!department) throw new NotFoundException(`Departman bulunamadı: ${departmentId}`);

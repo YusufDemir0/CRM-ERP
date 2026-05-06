@@ -19,12 +19,12 @@ export class PartiesService {
     private currenciesService: CurrenciesService,
   ) { }
 
-  async findAll(query: PaginationDto & { type?: string; departmentId?: number }): Promise<PaginatedResult<Party>> {
+  async findAll(query: PaginationDto & { type?: string; departmentId: string }): Promise<PaginatedResult<Party>> {
     const qb = this.partyRepo.createQueryBuilder('party')
       .leftJoinAndSelect('party.currency', 'currency');
 
     if (query.departmentId) {
-      qb.innerJoin('users', 'u', 'u.id = party.createdBy AND u.department_id = :departmentId', { departmentId: query.departmentId });
+      qb.innerJoin('users', 'u', 'u.id = party.created_by AND u.department_id = :departmentId', { departmentId: query.departmentId });
     }
 
     if (query.search) {
@@ -96,14 +96,17 @@ export class PartiesService {
     const { entities, raw } = await qb.getRawAndEntities();
     const count = await qb.getCount();
 
-    // Map raw data back to entities
+    // SEC-02: Optimized O(N) mapping using a Map for raw data lookups
+    const rawMap = new Map(raw.map(r => [r.party_id.toString(), r]));
+    
     entities.forEach(entity => {
-      const rawData = raw.find(r => r.party_id === entity.id.toString() || r.party_id === entity.id);
+      const rawData = rawMap.get(entity.id.toString());
       if (rawData) {
         entity.totalSalesCount = Number(rawData.total_sales_count || 0);
         entity.lastSaleDate = rawData.last_sale_date || null;
-        // The business rule is basically party.balance, but explicitly requested as 'calculatedBalance'
-        entity.calculatedBalance = entity.balance; 
+        // Business logic: In this ERP, balance is currently the calculated balance.
+        // We set it explicitly to satisfy the virtual field requirement.
+        entity.calculatedBalance = new Decimal(entity.balance || 0);
       }
     });
 
@@ -114,13 +117,13 @@ export class PartiesService {
   }
 
 
-  async findOne(id: number): Promise<Party> {
-    const party = await this.partyRepo.findOne({ where: { id }, relations: ['currency'] });
+  async findOne(id: string): Promise<Party> {
+    const party = await this.partyRepo.findOne({ where: { id: String(id) }, relations: ['currency'] });
     if (!party) throw new NotFoundException('Cari hesap bulunamadı');
     return party;
   }
 
-  async create(dto: CreatePartyDto, userId?: number): Promise<Party> {
+  async create(dto: CreatePartyDto, userId: string): Promise<Party> {
     if (dto.taxNumber) {
       const existing = await this.partyRepo.findOne({
         where: { taxNumber: dto.taxNumber },
@@ -134,7 +137,7 @@ export class PartiesService {
     if (!dto.currencyId) {
       try {
         const defaultCurrency = await this.currenciesService.getDefault();
-        dto.currencyId = Number(defaultCurrency.id);
+        dto.currencyId = String(defaultCurrency.id);
       } catch (error) {
         console.warn('Default currency not found, setting to null');
       }
@@ -143,13 +146,13 @@ export class PartiesService {
     return this.partyRepo.save(party);
   }
 
-  async update(id: number, dto: UpdatePartyDto, userId?: number): Promise<Party> {
+  async update(id: string, dto: UpdatePartyDto, userId: string): Promise<Party> {
     const party = await this.findOne(id);
 
     // DB-05: Uniqueness Check
     if (dto.taxNumber && dto.taxNumber !== party.taxNumber) {
       const existing = await this.partyRepo.findOne({ where: { taxNumber: dto.taxNumber } });
-      if (existing && existing.id !== id) {
+      if (existing && existing.id !== String(id)) {
         throw new BadRequestException(`'${dto.taxNumber}' vergi numarası ile başka bir cari mevcut (${existing.name}).`);
       }
     }
@@ -184,7 +187,7 @@ export class PartiesService {
     return this.partyRepo.save(party);
   }
 
-  async softDelete(id: number): Promise<void> {
+  async softDelete(id: string): Promise<void> {
     const party = await this.findOne(id);
 
     // DB-04: Bakiye varsa silmeyi engelle
@@ -217,7 +220,7 @@ export class PartiesService {
   }
 
 
-  async getBalance(id: number) {
+  async getBalance(id: string) {
     const party = await this.findOne(id);
     return {
       balance: new Decimal(party.balance || 0).toFixed(2),

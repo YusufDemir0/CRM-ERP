@@ -95,7 +95,7 @@ export default function ItemsPage() {
 
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, state }: { id: number; state: number }) => itemsAPI.toggleState(id, state),
+    mutationFn: ({ id, state }: { id: string | number; state: number }) => itemsAPI.toggleState(id, state),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items', 'list'] });
       toast.success("Durum güncellendi");
@@ -127,7 +127,7 @@ export default function ItemsPage() {
     });
   };
 
-  const toggleState = async (id: number, currentState: number) => {
+  const toggleState = async (id: string | number, currentState: number) => {
     const confirmed = await confirmDialog(
       currentState === 1 ? 'Ürünü pasife alıp arşivlemek istiyor musunuz?' : 'Ürünü yeniden aktif ediyorsunuz. Emin misiniz?', 
       currentState === 1
@@ -137,18 +137,31 @@ export default function ItemsPage() {
     }
   };
 
+  const handleExport = () => {
+    const params = new URLSearchParams();
+    if (deferredSearch) params.set('search', deferredSearch);
+    if (filterTab !== 'all') {
+      params.set('state', filterTab === 'active' || filterTab === 'critical' ? '1' : '0');
+    }
+    if (filterTab === 'critical') params.set('critical', 'true');
+    params.set('sortBy', sort.key);
+    params.set('sortOrder', sort.order);
+
+    window.open(`/api/items/export?${params.toString()}`, '_blank');
+  };
+
   const columns = useMemo(() => getItemColumns(() => ({ isOver: false, totalAvailable: 0 })), []);
 
   useEffect(() => {
     const id = searchParams.get('id');
     if (id) {
-      const existingItem = items.find(i => i.id === Number(id));
+      const existingItem = items.find(i => i.id === id);
       if (existingItem) {
         handleEdit(existingItem);
         updateParams({ id: undefined });
       } else {
         // Fetch from API if not in current page
-        itemsAPI.getOne(Number(id)).then(res => {
+        itemsAPI.getOne(id).then(res => {
           if (res.data) {
             handleEdit(res.data);
             updateParams({ id: undefined });
@@ -170,6 +183,7 @@ export default function ItemsPage() {
         openCreate={openCreate} 
         handleFormSuccess={handleFormSuccess} 
         onImport={() => setIsImportModalOpen(true)}
+        onExport={handleExport}
       />
 
       {isImportModalOpen && (

@@ -25,7 +25,7 @@ export const useSalesWizard = (onCompleted: () => void) => {
   const loadLookups = async () => {
     try {
       const [cRes, aRes, iRes, stRes, sRes, dRes] = await Promise.all([
-        partiesAPI.getAll({ limit: 100, type: 'customer,both' }),
+        partiesAPI.getAll({ limit: 100, type: 'customer' }),
         accountsAPI.getAll({ limit: 100 }),
         itemsAPI.getAll({ limit: 100 }),
         salesAPI.getTypes(),
@@ -65,26 +65,26 @@ export const useSalesWizard = (onCompleted: () => void) => {
   const submitForm = async (data: SalesWizardFormData) => {
     setLoading(true);
     try {
-      const customer = customers.find(c => c.id === data.customerId);
+      const customer = customers.find(c => String(c.id) === String(data.customerId));
       const currencyId = customer?.currencyId || 1;
 
       const payload = {
-        partyId: Number(data.customerId),
-        staffId: data.staffId ? Number(data.staffId) : null,
+        partyId: data.customerId ? String(data.customerId) : "",
+        staffId: data.staffId ? String(data.staffId) : undefined,
         phone: data.phone,
         address: `${data.address || ''} ${data.district || ''}`.trim(),
         deliveryDate: data.deliveryDate,
-        currencyId: Number(currencyId),
+        currencyId: currencyId ? String(currencyId) : "1",
         deposit: String(data.deposit || 0),
         discountAmount: String(data.discountAmount || 0),
-        commercialAccountId: data.paymentAccountId ? Number(data.paymentAccountId) : null,
+        commercialAccountId: data.paymentAccountId ? String(data.paymentAccountId) : undefined,
         taxNumber: data.taxId,
         notes: data.description,
         email: data.email,
         source: data.source,
-        saleTypeId: Number(saleTypes[0]?.id || 1),
+        saleTypeId: saleTypes[0]?.id ? String(saleTypes[0].id) : "1",
         items: data.items.map(item => ({
-          itemId: Number(item.id),
+          itemId: String(item.id),
           quantity: String(item.quantity),
           price: String(item.unitPrice),
           kdvRate: String(data.isTaxed ? (item.taxRate || 20) : 0)

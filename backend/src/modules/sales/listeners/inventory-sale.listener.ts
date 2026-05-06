@@ -42,7 +42,7 @@ export class InventorySaleListener implements OnModuleInit {
     trySubscribe();
   }
 
-  async handleSaleApproved(payload: { sale: Sale, departmentId: number, userId?: number }) {
+  async handleSaleApproved(payload: { sale: Sale, departmentId: string, userId: string }) {
     const { sale, departmentId, userId } = payload;
     
     await this.dataSource.transaction(async (manager) => {

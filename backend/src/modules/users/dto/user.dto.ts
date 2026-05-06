@@ -20,10 +20,7 @@ export class CreateUserDto {
   phone?: string;
 
   @IsOptional()
-  @IsNumber()
-  @IsInt()
-  @Type(() => Number)
-  departmentId?: number;
+  @IsString() departmentId: string;
 
   @IsOptional()
   @IsArray()
@@ -55,10 +52,7 @@ export class UpdateUserDto {
   phone?: string;
 
   @IsOptional()
-  @IsNumber()
-  @IsInt()
-  @Type(() => Number)
-  departmentId?: number;
+  @IsString() departmentId: string;
 
   @IsOptional()
   @IsArray()

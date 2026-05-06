@@ -21,7 +21,7 @@ export class LogsController {
   }
 
   @Post('notifications/:id/read')
-  async markAsRead(@Param('id', ParseIntPipe) id: number) {
+  async markAsRead(@Param('id') id: string) {
     return this.logsService.markAsRead(id);
   }
 

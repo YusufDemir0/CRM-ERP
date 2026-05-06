@@ -6,8 +6,8 @@ interface UserPermissionsModalProps {
   onClose: () => void;
   user: User | null;
   availablePermissions: Permission[];
-  userSpecificPerms: { permissionId: number; effect: 'allow' | 'deny'; scopeType: 'global' | 'department' }[];
-  onSetPermission: (permissionId: number, effect: 'allow' | 'deny' | null, scopeType: 'global' | 'department') => void;
+  userSpecificPerms: { permissionId: string | number; effect: 'allow' | 'deny'; scopeType: 'global' | 'department' }[];
+  onSetPermission: (permissionId: string | number, effect: 'allow' | 'deny' | null, scopeType: 'global' | 'department') => void;
 }
 
 export const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({
@@ -103,7 +103,7 @@ export const UserPermissionsModal: React.FC<UserPermissionsModalProps> = ({
                 
                 <div className="flex flex-col gap-3">
                   {groupedPermissions[moduleName].map((perm: Permission) => {
-                    const permOverride = userSpecificPerms.find((u) => u.permissionId === perm.id);
+                    const permOverride = userSpecificPerms.find((u) => String(u.permissionId) === String(perm.id));
                     const effect = permOverride?.effect || null;
 
                     return (

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { navItems } from '../config/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { partiesAPI, stocksAPI, itemsAPI, salesAPI, accountsAPI, transactionsAPI, bomsAPI, productionOrdersAPI } from '../services/api';

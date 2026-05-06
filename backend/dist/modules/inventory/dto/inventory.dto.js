@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.StocksQueryDto = exports.ItemsQueryDto = exports.TransferStockDto = exports.StockAdjustmentDto = exports.UpdateItemCodeGroupDto = exports.CreateItemCodeGroupDto = exports.UpdateQuantityTypeDto = exports.CreateQuantityTypeDto = exports.UpdateItemTypeDto = exports.CreateItemTypeDto = exports.UpdateItemDto = exports.CreateItemDto = void 0;
+exports.StocksQueryDto = exports.ItemsQueryDto = exports.TransferStockDto = exports.StockAdjustmentDto = exports.UpdateItemCodeGroupDto = exports.CreateItemCodeGroupDto = exports.UpdateQuantityTypeDto = exports.CreateQuantityTypeDto = exports.UpdateItemTypeDto = exports.CreateItemTypeDto = exports.ImportItemDto = exports.UpdateItemDto = exports.CreateItemDto = void 0;
 const class_validator_1 = require("class-validator");
 const pagination_dto_1 = require("../../../common/dto/pagination.dto");
 const class_transformer_1 = require("class-transformer");
@@ -199,6 +199,43 @@ __decorate([
     (0, class_transformer_1.Type)(() => Number),
     __metadata("design:type", Number)
 ], UpdateItemDto.prototype, "state", void 0);
+class ImportItemDto {
+}
+exports.ImportItemDto = ImportItemDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], ImportItemDto.prototype, "code", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], ImportItemDto.prototype, "name", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], ImportItemDto.prototype, "purchasePrice", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], ImportItemDto.prototype, "salePrice", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], ImportItemDto.prototype, "criticalLimit", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], ImportItemDto.prototype, "kdv", void 0);
 class CreateItemTypeDto {
 }
 exports.CreateItemTypeDto = CreateItemTypeDto;

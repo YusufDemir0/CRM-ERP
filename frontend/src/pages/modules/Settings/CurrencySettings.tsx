@@ -10,8 +10,8 @@ interface CurrencySettingsProps {
   newCurrency: { code: string; symbol: string; name: string };
   setNewCurrency: (curr: { code: string; symbol: string; name: string }) => void;
   onAdd: () => void;
-  onSetDefault: (id: number) => void;
-  onDelete: (id: number) => void;
+  onSetDefault: (id: string | number) => void;
+  onDelete: (id: string | number) => void;
 }
 
 export const CurrencySettings: React.FC<CurrencySettingsProps> = ({

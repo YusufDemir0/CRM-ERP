@@ -44,6 +44,11 @@ __decorate([
 ], SaleItem.prototype, "price", void 0);
 __decorate([
     (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'cost_price', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
+], SaleItem.prototype, "costPrice", void 0);
+__decorate([
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
     (0, typeorm_1.Column)({ name: 'discount_amount', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
     __metadata("design:type", decimal_js_1.Decimal)
 ], SaleItem.prototype, "discountAmount", void 0);

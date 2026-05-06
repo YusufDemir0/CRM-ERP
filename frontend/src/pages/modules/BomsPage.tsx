@@ -78,7 +78,7 @@ export function BomsPage() {
 
 
   const mutation = useMutation({
-    mutationFn: ({ id, state }: { id: number; state: number }) => bomsAPI.update(id, { state }),
+    mutationFn: ({ id, state }: { id: string | number; state: number }) => bomsAPI.update(id, { state }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.boms.all({}) });
       toast.success("Durum güncellendi");
@@ -117,7 +117,7 @@ export function BomsPage() {
     toast("Reçete kopyalandı. Değişiklik yapıp yeni olarak kaydedebilirsiniz.", { icon: 'ℹ️' });
   };
 
-  const toggleState = async (id: number, currentState: number) => {
+  const toggleState = async (id: string | number, currentState: number) => {
     const confirmed = await confirmDialog(currentState === 1 ? 'Reçeteyi pasife alıp arşivlemek istiyor musunuz?' : 'Reçeteyi yeniden aktif ediyorsunuz. Emin misiniz?', currentState === 1);
     if (confirmed) {
       mutation.mutate({ id, state: currentState === 1 ? 0 : 1 });

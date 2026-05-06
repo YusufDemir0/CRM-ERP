@@ -13,12 +13,6 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
   
   @Public()
-  @Get('csrf')
-  async getCsrf() {
-    return { success: true };
-  }
-
-  @Public()
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // SEC-05: Login throttle = hesap kilitleme limiti (5)
   @Post('login')
   async login(
@@ -30,14 +24,14 @@ export class AuthController {
     res.cookie('erp_token', access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // SEC-02: Changed from 'strict' for better dev port compatibility
+      sameSite: 'strict',
       maxAge: 15 * 60 * 1000, // 15 minutes
     });
 
     res.cookie('erp_refresh_token', refresh_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       path: '/api/auth/refresh', // only sent to refresh endpoint!
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
@@ -58,14 +52,14 @@ export class AuthController {
     res.cookie('erp_token', access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: 15 * 60 * 1000, // 15 minutes
     });
 
     res.cookie('erp_refresh_token', refresh_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       path: '/api/auth/refresh',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
@@ -91,7 +85,7 @@ export class AuthController {
   }
 
   @Get('profile')
-  async getProfile(@CurrentUser('sub') userId: number) {
+  async getProfile(@CurrentUser('sub') userId: string) {
     return this.authService.getProfile(userId);
   }
 
@@ -104,7 +98,7 @@ export class AuthController {
 
   @Throttle({ default: { limit: 5, ttl: 300000 } })
   @Post('change-password')
-  async changePassword(@CurrentUser('sub') userId: number, @Body() dto: ChangePasswordDto) {
+  async changePassword(@CurrentUser('sub') userId: string, @Body() dto: ChangePasswordDto) {
     return this.authService.changePassword(userId, dto);
   }
 }

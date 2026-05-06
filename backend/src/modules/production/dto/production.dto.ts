@@ -11,14 +11,14 @@ export class ProductionOrderQueryDto extends PaginationDto {
 }
 
 export class CreateBomItemDto {
-  @IsNumber() @IsInt() @Type(() => Number) itemId: number;
+  @IsString() itemId: string;
   @IsNumber() @Min(0.0001) @Type(() => Number) quantity: number;
   @IsOptional() @IsString() description?: string;
 }
 
 export class CreateBomDto {
   @IsString() @IsNotEmpty() name: string;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) targetItemId?: number;
+  @IsOptional() @IsString() targetItemId: string;
   @IsOptional() @IsString() description?: string;
 
   @IsArray()
@@ -29,7 +29,7 @@ export class CreateBomDto {
 
 export class UpdateBomDto {
   @IsOptional() @IsString() name?: string;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) targetItemId?: number;
+  @IsOptional() @IsString() targetItemId: string;
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) state?: number;
 
@@ -41,10 +41,10 @@ export class UpdateBomDto {
 }
 
 export class CreateProductionOrderDto {
-  @IsNumber() @IsInt() @Type(() => Number) bomId: number;
+  @IsString() bomId: string;
   @IsNumber() @Min(1) @Type(() => Number) plannedQuantity: number;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) sourceDepartmentId?: number;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) targetDepartmentId?: number;
+  @IsOptional() @IsString() sourceDepartmentId: string;
+  @IsOptional() @IsString() targetDepartmentId: string;
   @IsOptional() @IsDateString() startDate?: string;
   @IsOptional() @IsDateString() endDate?: string;
   @IsOptional() @IsString() notes?: string;
@@ -56,12 +56,12 @@ export class CreateProductionOrderDto {
 }
 
 export class UpdateProductionOrderDto {
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) bomId?: number;
+  @IsOptional() @IsString() bomId: string;
   @IsOptional() @IsNumber() @Min(1) @Type(() => Number) plannedQuantity?: number;
   @IsOptional() @IsNumber() @Type(() => Number) producedQuantity?: number;
   @IsOptional() @IsNumber() @Type(() => Number) wastageQuantity?: number;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) sourceDepartmentId?: number;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) targetDepartmentId?: number;
+  @IsOptional() @IsString() sourceDepartmentId: string;
+  @IsOptional() @IsString() targetDepartmentId: string;
   @IsOptional()
   @IsEnum(['draft', 'planned', 'in_progress', 'completed', 'cancelled']) 
   status?: 'draft' | 'planned' | 'in_progress' | 'completed' | 'cancelled';

@@ -2,7 +2,7 @@ import { Decimal } from 'decimal.js';
 import { FinanceHelper as FH } from '../../../common/utils/finance.helper';
 
 export interface CalculatedSaleLine {
-  itemId: number;
+  itemId: string;
   quantity: Decimal;
   price: Decimal;
   costPrice: Decimal;
@@ -27,7 +27,7 @@ export interface CalculationResult {
 }
 
 export interface InputSaleLine {
-  itemId: number;
+  itemId: string;
   quantity: number | Decimal | string;
   kdvRate?: number | Decimal | string;
   discountAmount?: number | Decimal | string;
@@ -36,7 +36,7 @@ export interface InputSaleLine {
 }
 
 export interface ItemData {
-  id: number;
+  id: string;
   salePrice: number | Decimal;
   purchasePrice: number | Decimal;
 }
@@ -48,7 +48,7 @@ export class SaleCalculator {
    */
   static calculate(
     inputLines: InputSaleLine[],
-    itemDataMap: Map<number, ItemData>,
+    itemDataMap: Map<string, ItemData>,
     headerDiscountAmount: number | Decimal | string = 0,
     headerDiscountPercent: number | Decimal | string = 0,
   ): CalculationResult {

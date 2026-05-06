@@ -33,7 +33,7 @@ export class Party extends BaseEntity {
   address: string | null;
 
   @Column({ name: 'city_id', type: 'int', nullable: true })
-  cityId: number | null;
+  cityId: string | null;
 
   @Column({ name: 'district_name', type: 'varchar', length: 100, nullable: true })
   districtName: string | null;
@@ -50,7 +50,7 @@ export class Party extends BaseEntity {
   paymentTerms: string | null;
 
   @Column({ name: 'currency_id', type: 'bigint', nullable: true })
-  currencyId: number | null;
+  currencyId: string | null;
 
   @Column({ type: 'text', nullable: true })
   notes: string | null;

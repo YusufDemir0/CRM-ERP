@@ -67,13 +67,13 @@ export class RolesService {
   }
 
 
-  async findOneRole(id: number): Promise<Role> {
-    const role = await this.roleRepo.findOne({ where: { id }, relations: ['permissions'] });
+  async findOneRole(id: string): Promise<Role> {
+    const role = await this.roleRepo.findOne({ where: { id: String(id) }, relations: ['permissions'] });
     if (!role) throw new NotFoundException('Rol bulunamadı');
     return role;
   }
 
-  async createRole(dto: CreateRoleDto, currentUserId?: number): Promise<Role> {
+  async createRole(dto: CreateRoleDto, currentUserId: string): Promise<Role> {
     const existing = await this.roleRepo.findOne({ where: { name: dto.name } });
     if (existing) throw new ConflictException('Bu isimde bir rol zaten mevcut');
 
@@ -86,7 +86,7 @@ export class RolesService {
     return this.roleRepo.save(role);
   }
 
-  async updateRole(id: number, dto: UpdateRoleDto, currentUserId?: number): Promise<Role> {
+  async updateRole(id: string, dto: UpdateRoleDto, currentUserId: string): Promise<Role> {
     const role = await this.findOneRole(id);
     if (dto.name) role.name = dto.name;
     
@@ -111,7 +111,7 @@ export class RolesService {
     return this.roleRepo.save(role);
   }
 
-  async deleteRole(id: number): Promise<void> {
+  async deleteRole(id: string): Promise<void> {
     await this.findOneRole(id);
     await this.roleRepo.softDelete(id);
   }
@@ -136,7 +136,7 @@ export class RolesService {
     };
   }
 
-  async createPermission(dto: CreatePermissionDto, currentUserId?: number): Promise<Permission> {
+  async createPermission(dto: CreatePermissionDto, currentUserId: string): Promise<Permission> {
     const existing = await this.permRepo.findOne({ where: { key: dto.key } });
     if (existing) throw new ConflictException('Bu key değerine sahip yetki zaten mevcut');
 
@@ -162,7 +162,7 @@ export class RolesService {
 
   // ────── USER PERMISSION OVERRIDE ──────
 
-  async setUserPermission(dto: SetUserPermissionDto, currentUserId?: number): Promise<UserPermission> {
+  async setUserPermission(dto: SetUserPermissionDto, currentUserId: string): Promise<UserPermission> {
     let up = await this.userPermRepo.findOne({
       where: { userId: dto.userId, permissionId: dto.permissionId, scopeType: dto.scopeType },
     });
@@ -185,14 +185,14 @@ export class RolesService {
     return this.userPermRepo.save(up);
   }
 
-  async getUserPermissions(userId: number): Promise<UserPermission[]> {
+  async getUserPermissions(userId: string): Promise<UserPermission[]> {
     return this.userPermRepo.find({
       where: { userId },
       relations: ['permission'],
     });
   }
 
-  async removeUserPermission(dto: { userId: number; permissionId: number }): Promise<void> {
+  async removeUserPermission(dto: { userId: string; permissionId: string }): Promise<void> {
     await this.userPermRepo.delete({ userId: dto.userId, permissionId: dto.permissionId });
   }
 

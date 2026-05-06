@@ -4,6 +4,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from './entities/user.entity';
+import { Role } from './entities/role.entity';
+import { UserProfile } from './interfaces/user-profile.interface';
 import { UserRole } from './entities/user-role.entity';
 import { RolePermission } from './entities/role-permission.entity';
 import { UserPermission } from './entities/user-permission.entity';
@@ -14,13 +16,7 @@ import { RecordState } from '../../common/enums/record-state.enum';
 export class AuthService implements OnModuleInit {
   private readonly logger = new Logger(AuthService.name);
 
-  /**
-   * SEC-07: Pre-generated valid bcrypt hash for timing attack prevention.
-   * Generated once at startup with the same cost factor (12) as real passwords.
-   * This ensures bcrypt.compare() runs with identical computational cost
-   * regardless of whether the user exists.
-   */
-  private dummyHash: string = '';
+
 
   constructor(
     @InjectRepository(User)
@@ -34,22 +30,16 @@ export class AuthService implements OnModuleInit {
     private jwtService: JwtService,
   ) { }
 
-  async onModuleInit(): Promise<void> {
-    // Generate a real bcrypt hash with cost factor 12 — same as production passwords
-    this.dummyHash = await bcrypt.hash('dummy-password-never-matches-anything', 12);
-    this.logger.debug('SEC-07: Timing-attack dummy hash generated');
+  onModuleInit(): void {
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto): Promise<{ access_token: string; refresh_token: string; user: UserProfile }> {
     const user = await this.userRepo.findOne({
       where: { username: dto.username },
       relations: ['roles'],
     });
 
     if (!user) {
-      // SEC-07: Perform a dummy comparison to normalize response time (prevents username enumeration)
-      // Uses a real bcrypt hash generated at startup — guaranteed valid structure.
-      await bcrypt.compare(dto.password, this.dummyHash);
       throw new UnauthorizedException('Kullanıcı adı veya şifre hatalı');
     }
 
@@ -100,7 +90,7 @@ export class AuthService implements OnModuleInit {
       tokenVersion: user.tokenVersion,
     };
 
-    const userProfile = await this.getProfile(user.id);
+    const userProfile = await this.getProfile(String(user.id));
     const access_token = this.jwtService.sign(payload, { expiresIn: '15m' });
     
     const refresh_token = this.jwtService.sign(
@@ -119,7 +109,7 @@ export class AuthService implements OnModuleInit {
     };
   }
 
-  async refreshToken(oldRefreshToken: string) {
+  async refreshToken(oldRefreshToken: string): Promise<{ access_token: string; refresh_token: string }> {
     if (!oldRefreshToken) throw new UnauthorizedException('Refresh token is missing');
 
     try {
@@ -166,7 +156,7 @@ export class AuthService implements OnModuleInit {
     }
   }
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto): Promise<{ id: string; username: string; fullName: string; email: string }> {
     const salt = await bcrypt.genSalt(12);
     const passwordHash = await bcrypt.hash(dto.password, salt);
 
@@ -195,36 +185,48 @@ export class AuthService implements OnModuleInit {
     }
   }
 
-  async getProfile(userId: number) {
+  async getProfile(userId: string | string): Promise<UserProfile> {
     const user = await this.userRepo.createQueryBuilder('user')
       .leftJoinAndSelect('user.department', 'department')
       .leftJoinAndSelect('user.roles', 'role')
       .leftJoinAndSelect('role.permissions', 'permission')
       .leftJoinAndSelect('user.userPermissions', 'userPerm')
       .leftJoinAndSelect('userPerm.permission', 'userPermData')
+      .select([
+        'user.id',
+        'user.username',
+        'user.fullName',
+        'user.email',
+        'user.phone',
+        'user.departmentId',
+        'user.state',
+        'department.id',
+        'department.name',
+        'role.id',
+        'role.name',
+        'permission.id',
+        'permission.key',
+        'permission.name',
+        'permission.module',
+        'userPerm.userId',
+        'userPerm.scopeType',
+        'userPerm.effect',
+        'userPerm.permissionId',
+        'userPermData.id',
+        'userPermData.key',
+        'userPermData.name'
+      ])
       .where('user.id = :userId', { userId })
       .getOne();
 
-    if (!user) {
-      throw new UnauthorizedException('Kullanıcı bulunamadı');
-    }
+    if (!user) throw new UnauthorizedException('Kullanıcı bulunamadı');
 
-    // Role tabanlı yetkiler
-    const rolePermissions = user.roles?.flatMap(r =>
-      r.permissions?.map(p => p.key) || []
-    ) || [];
-
-    // Kullanıcıya özel yetkiler (Allow/Deny)
-    const userAllowKeys = user.userPermissions
-      ?.filter(up => up.effect === 'allow')
-      .map(up => up.permission?.key) || [];
-
-    const userDenyKeys = user.userPermissions
-      ?.filter(up => up.effect === 'deny')
-      .map(up => up.permission?.key) || [];
+    const rolePermissions = user.roles?.flatMap(r => r.permissions?.map(p => p.key) || []) || [];
+    const userAllowKeys = user.userPermissions?.filter(up => up.effect === 'allow').map(up => up.permission?.key) || [];
+    const userDenyKeys = user.userPermissions?.filter(up => up.effect === 'deny').map(up => up.permission?.key) || [];
 
     const finalPermissions = Array.from(new Set([...rolePermissions, ...userAllowKeys]))
-      .filter(key => key && !userDenyKeys.includes(key));
+      .filter(key => key && !userDenyKeys.includes(key)) as string[];
 
     return {
       id: user.id,
@@ -234,25 +236,25 @@ export class AuthService implements OnModuleInit {
       phone: user.phone,
       departmentId: user.departmentId,
       department: user.department,
-      roles: user.roles?.map((r) => ({ id: r.id, name: r.name })) || [],
+      roles: user.roles?.map(r => ({ id: r.id, name: r.name })) || [],
       permissions: finalPermissions
     };
   }
 
-  async forgotPassword(dto: ForgotPasswordDto) {
+  async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {
     const user = await this.userRepo.findOne({ where: { email: dto.email, state: RecordState.ACTIVE } });
     if (!user) {
       // SEC-07: Don't reveal if user exists
       return { message: 'Şifre sıfırlama talimatları e-posta adresinize gönderildi (eğer hesap mevcutsa).' };
     }
 
-    // In a real app, send email with token. For now, just logging.
-    console.log(`[AUTH] Forgot password requested for ${dto.email}`);
+    // TODO: Implement actual email delivery (SMTP/SES). Currently no email is sent.
+    this.logger.warn(`Password reset requested for ${dto.email} — email delivery not configured`);
     return { message: 'Şifre sıfırlama talimatları e-posta adresinize gönderildi (eğer hesap mevcutsa).' };
   }
 
-  async changePassword(userId: number, dto: ChangePasswordDto) {
-    const user = await this.userRepo.findOne({ where: { id: userId } });
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ message: string }> {
+    const user = await this.userRepo.findOne({ where: { id: String(userId) } });
     if (!user) throw new UnauthorizedException('Kullanıcı bulunamadı');
 
     const isMatch = await bcrypt.compare(dto.currentPassword, user.passwordHash);

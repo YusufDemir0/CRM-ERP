@@ -28,6 +28,7 @@ import {
   CreateSaleTypeDto,
   ApproveSaleDto,
   ShipSaleDto,
+  SalesQueryDto,
 } from './dto/sale.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
 import { FinanceHelper as FH } from '../../common/utils/finance.helper';
@@ -64,7 +65,7 @@ export class SalesService {
     return this.saleTypeRepo.find();
   }
 
-  async createSaleType(dto: CreateSaleTypeDto, userId?: number): Promise<SaleType> {
+  async createSaleType(dto: CreateSaleTypeDto, userId: string): Promise<SaleType> {
     const type = new SaleType();
     type.name = dto.name;
     type.abbreviation = dto.abbreviation;
@@ -74,7 +75,7 @@ export class SalesService {
 
   // ────── SALES CRUD ──────
 
-  async findAll(query: PaginationDto & { status?: string; partyId?: number }, user?: JwtPayload): Promise<PaginatedResult<Sale>> {
+  async findAll(query: SalesQueryDto, user?: JwtPayload): Promise<PaginatedResult<Sale>> {
     const qb = this.saleRepo.createQueryBuilder('sale')
       .leftJoinAndSelect('sale.party', 'party')
       .leftJoinAndSelect('sale.saleType', 'saleType')
@@ -125,7 +126,7 @@ export class SalesService {
     };
   }
 
-  async findOne(id: number): Promise<Sale> {
+  async findOne(id: string): Promise<Sale> {
     const sale = await this.transactionContext.manager.findOne(Sale, {
       where: { id },
       relations: ['party', 'saleType', 'currency', 'items', 'items.item'],
@@ -134,7 +135,7 @@ export class SalesService {
     return sale;
   }
 
-  private async fetchItemData(manager: EntityManager, itemIds: number[]): Promise<Map<number, ItemData>> {
+  private async fetchItemData(manager: EntityManager, itemIds: string[]): Promise<Map<string, ItemData>> {
     const items = await manager.find(Item, {
       where: { id: In(itemIds), state: 1 }
     });
@@ -145,7 +146,7 @@ export class SalesService {
       throw new NotFoundException(`Bazı ürünler bulunamadı veya pasif: ${missing.join(', ')}`);
     }
 
-    const map = new Map<number, ItemData>();
+    const map = new Map<string, ItemData>();
     items.forEach(i => map.set(i.id, { 
       id: i.id, 
       salePrice: i.salePrice || 0,
@@ -155,7 +156,7 @@ export class SalesService {
   }
 
   @Transactional()
-  async create(dto: CreateSaleDto, userId?: number): Promise<Sale> {
+  async create(dto: CreateSaleDto, userId: string): Promise<Sale> {
     const manager = this.transactionContext.manager;
 
     const party = await manager.findOne(Party, { where: { id: dto.partyId } });
@@ -169,7 +170,7 @@ export class SalesService {
     const user = await manager.findOne(User, { where: { id: userId } });
     const userDeptId = user?.departmentId || 1;
 
-    const code = await this.sequenceGenerator.generateSaleCode(manager, Number(userDeptId));
+    const code = await this.sequenceGenerator.generateSaleCode(manager, String(userDeptId));
 
     // ─── DELEGATE TO DOMAIN CALCULATOR ───
     const itemDataMap = await this.fetchItemData(manager, dto.items.map(i => i.itemId));
@@ -210,7 +211,7 @@ export class SalesService {
   }
 
   @Transactional()
-  async update(id: number, dto: UpdateSaleDto, userId?: number): Promise<Sale> {
+  async update(id: string, dto: UpdateSaleDto, userId: string): Promise<Sale> {
     const manager = this.transactionContext.manager;
     const sale = await this.findOne(id);
     if (sale.status !== 'draft') {
@@ -262,7 +263,7 @@ export class SalesService {
   }
 
   @Transactional()
-  async approveSale(saleId: number, dto: ApproveSaleDto, userId?: number): Promise<Sale> {
+  async approveSale(saleId: string, dto: ApproveSaleDto, userId: string): Promise<Sale> {
     const manager = this.transactionContext.manager;
 
     const sale = await manager.findOne(Sale, { where: { id: saleId }, relations: ['items'], lock: { mode: 'pessimistic_write' } });
@@ -313,7 +314,7 @@ export class SalesService {
   }
 
   @Transactional()
-  async cancelSale(saleId: number, userId?: number): Promise<Sale> {
+  async cancelSale(saleId: string, userId: string): Promise<Sale> {
     const manager = this.transactionContext.manager;
 
     const sale = await manager.findOne(Sale, {
@@ -338,7 +339,7 @@ export class SalesService {
       })).filter(i => i.quantity.gt(0));
 
       if (itemsToUnreserve.length > 0) {
-        await this.stocksService.unreserveStockBulk(itemsToUnreserve, sale.departmentId || 1, manager, userId);
+        await this.stocksService.unreserveStockBulk(itemsToUnreserve, sale.departmentId || '1', manager, userId);
       }
 
       const tlGrandTotal = FH.mul(sale.grandTotal, sale.exchangeRate);
@@ -381,7 +382,7 @@ export class SalesService {
     return this.findOne(saleId);
   }
 
-  async softDelete(id: number): Promise<void> {
+  async softDelete(id: string): Promise<void> {
     const sale = await this.findOne(id);
     if (sale.status !== 'draft') {
       throw new BadRequestException('Sadece taslak siparişler kalıcı silinebilir.');
@@ -410,7 +411,7 @@ export class SalesService {
   }
 
   @Transactional()
-  async shipSale(saleId: number, dto: ShipSaleDto, userId?: number): Promise<Sale> {
+  async shipSale(saleId: string, dto: ShipSaleDto, userId: string): Promise<Sale> {
     const manager = this.transactionContext.manager;
 
     const sale = await manager.findOne(Sale, { where: { id: saleId }, relations: ['items'], lock: { mode: 'pessimistic_write' } });
@@ -421,10 +422,10 @@ export class SalesService {
 
     if (!sale.departmentId) throw new BadRequestException('Rezervasyon deposu bulunamadı.');
 
-    const shipItems = dto.items || sale.items.map(i => ({ itemId: Number(i.itemId), quantity: Number(i.quantity) }));
+    const shipItems = dto.items || sale.items.map(i => ({ itemId: String(i.itemId), quantity: Number(i.quantity) }));
 
     for (const reqItem of shipItems) {
-      const lineItem = sale.items.find(si => Number(si.itemId) === Number(reqItem.itemId));
+      const lineItem = sale.items.find(si => String(si.itemId) === String(reqItem.itemId));
       if (!lineItem) throw new BadRequestException(`Ürün ID ${reqItem.itemId} bu siparişte yok.`);
 
       const orderQty = new Decimal(lineItem.quantity);
@@ -447,7 +448,7 @@ export class SalesService {
 
     const saleItemsToUpdate: SaleItem[] = [];
     for (const item of shipItems) {
-      const saleItem = sale.items.find(si => Number(si.itemId) === Number(item.itemId));
+      const saleItem = sale.items.find(si => String(si.itemId) === String(item.itemId));
       if (saleItem) {
         saleItem.shippedQuantity = new Decimal(saleItem.shippedQuantity || 0).add(item.quantity);
         saleItemsToUpdate.push(saleItem);

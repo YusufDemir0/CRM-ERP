@@ -11,7 +11,7 @@ import { PremiumNumberInput } from '../common/PremiumNumberInput';
 
 interface AccountFormProps {
   initialData?: Partial<Account>;
-  editingId?: number | null;
+  editingId?: string | number | null;
   onSuccess: (data: unknown) => void;
   onCancel: () => void;
 }
@@ -109,7 +109,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({
     try {
       const payload = {
         ...data,
-        currencyId: Number(data.currencyId),
+        currencyId: data.currencyId ? String(data.currencyId) : undefined,
         criticalLimit: String(data.criticalLimit)
       };
       if (editingId) {

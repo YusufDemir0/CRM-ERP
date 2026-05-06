@@ -10,7 +10,7 @@ export enum OutboxStatus {
 @Entity('outbox_events')
 export class OutboxEvent {
   @PrimaryGeneratedColumn('increment')
-  id: number;
+  id: string;
 
   @Column()
   @Index()

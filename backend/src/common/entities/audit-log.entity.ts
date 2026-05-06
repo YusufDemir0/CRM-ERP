@@ -3,7 +3,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 
 @Entity('audit_logs')
 export class AuditLog {
   @PrimaryGeneratedColumn({ type: 'bigint' })
-  id: number;
+  id: string;
 
   @Index()
   @Column({ name: 'entity_name', type: 'varchar', length: 100 })
@@ -11,7 +11,7 @@ export class AuditLog {
 
   @Index()
   @Column({ name: 'entity_id', type: 'bigint', nullable: true })
-  entityId: number | null;
+  entityId: string | null;
 
   @Column({ type: 'varchar', length: 50 })
   action: 'insert' | 'update' | 'delete';
@@ -24,7 +24,7 @@ export class AuditLog {
 
   @Index()
   @Column({ name: 'user_id', type: 'bigint', nullable: true })
-  userId: number | null;
+  userId: string | null;
 
   @Column({ name: 'ip_address', type: 'varchar', length: 45, nullable: true })
   ipAddress: string | null;

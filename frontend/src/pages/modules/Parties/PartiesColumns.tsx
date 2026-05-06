@@ -4,7 +4,7 @@ import { Column } from '../../../components/common/DataTable';
 import { Party } from '../../../types';
 import { Decimal } from 'decimal.js';
 
-export const getPartiesColumns = (onQuickSale?: (partyId: number) => void): Column<Party>[] => [
+export const getPartiesColumns = (onQuickSale?: (partyId: string | number) => void): Column<Party>[] => [
   { 
     header: 'CARİ ADI', 
     accessor: (p) => (
@@ -30,7 +30,7 @@ export const getPartiesColumns = (onQuickSale?: (partyId: number) => void): Colu
           </div>
           <div className="flex items-center gap-2">
              <span className="text-[9px] text-slate-400 font-black tracking-widest uppercase opacity-70">
-               {p.type === 'customer' ? 'MÜŞTERİ' : (p.type === 'supplier' ? 'TEDARİKÇİ' : 'HİBRİT')}
+               {p.type === 'customer' ? 'MÜŞTERİ' : 'TEDARİKÇİ'}
              </span>
              {p.state === 0 && <span className="bg-danger/10 text-danger text-[8px] px-1.5 py-0.5 rounded font-black uppercase">PASİF</span>}
           </div>
@@ -70,6 +70,12 @@ export const getPartiesColumns = (onQuickSale?: (partyId: number) => void): Colu
            <span className="w-1 h-1 rounded-full bg-slate-300" />
            <strong className="text-sm text-slate-700 tracking-tight font-black tabular-nums">{p.phone1 || '—'}</strong>
         </div>
+        {p.phone2 && (
+          <div className="flex items-center gap-2">
+            <span className="w-1 h-1 rounded-full bg-slate-300" />
+            <strong className="text-[11px] text-slate-500 tracking-tight font-black tabular-nums">{p.phone2}</strong>
+          </div>
+        )}
         <span className="text-slate-400 text-[11px] font-bold pl-3 truncate max-w-[150px]">{p.email || '—'}</span>
       </div>
     ),

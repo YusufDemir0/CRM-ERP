@@ -13,13 +13,13 @@ export class ProductionOrder extends BaseEntity {
   code: string;
 
   @Column({ name: 'bom_id', type: 'bigint' })
-  bomId: number;
+  bomId: string;
 
   @Column({ name: 'source_department_id', type: 'bigint', nullable: true })
-  sourceDepartmentId: number | null;
+  sourceDepartmentId: string | null;
 
   @Column({ name: 'target_department_id', type: 'bigint', nullable: true })
-  targetDepartmentId: number | null;
+  targetDepartmentId: string | null;
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'planned_quantity', type: 'decimal', precision: 15, scale: 4, transformer: new DecimalTransformer() })

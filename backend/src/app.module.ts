@@ -30,10 +30,8 @@ import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { LogsInterceptor } from './common/interceptors/logs.interceptor';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
-import { CsrfGuard } from './common/guards/csrf.guard';
-import { CsrfMiddleware } from './common/middleware/csrf.middleware';
 import { AuditSubscriber } from './common/subscribers/audit.subscriber';
-import { StockSubscriber } from './modules/inventory/stocks/subscribers/stock.subscriber';
+
 import { CommonModule } from './common/common.module';
 import { StorageModule } from './common/services/storage/storage.module';
 
@@ -90,6 +88,11 @@ import { HealthModule } from './infrastructure/health/health.module';
       useFactory: (cls: ClsService) => ({
         pinoHttp: {
           level: process.env.NODE_ENV !== 'production' ? 'debug' : 'info',
+          // SEC: Native C-based field redaction — eliminates need for JS-level sanitizeBody
+          redact: {
+            paths: ['req.headers.authorization', 'req.body.password', 'req.body.secret', 'req.body.token', 'req.body.creditCard', 'req.body.iban', 'req.body.cvv'],
+            censor: '********',
+          },
           genReqId: (req: import('http').IncomingMessage) => {
             const reqId = req.headers['x-request-id'] || uuidv4();
             // Store it in CLS context so services can access it without passing req down
@@ -125,15 +128,12 @@ import { HealthModule } from './infrastructure/health/health.module';
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
     { provide: APP_INTERCEPTOR, useClass: LogsInterceptor },
     { provide: APP_GUARD, useClass: ThrottlerProxyGuard },
-    { provide: APP_GUARD, useClass: CsrfGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
     AuditSubscriber,
-    StockSubscriber,
   ],
 })
 export class AppModule {
   configure(consumer: import('@nestjs/common').MiddlewareConsumer) {
-    consumer.apply(CsrfMiddleware).forRoutes('*');
   }
 }

@@ -4,10 +4,10 @@ import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, Unique }
 @Unique(['itemTypeId'])
 export class ItemSequence {
   @PrimaryGeneratedColumn({ type: 'bigint' })
-  id: number;
+  id: string;
 
   @Column({ name: 'item_type_id', type: 'bigint' })
-  itemTypeId: number;
+  itemTypeId: string;
 
   @Column({ name: 'current_number', type: 'int', default: 1 })
   currentNumber: number;

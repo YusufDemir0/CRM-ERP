@@ -39,10 +39,7 @@ export class RegisterDto {
   phone?: string;
 
   @IsOptional()
-  @IsNumber()
-  @IsInt()
-  @Type(() => Number)
-  departmentId?: number;
+  @IsString() departmentId: string;
 }
 
 export class ForgotPasswordDto {

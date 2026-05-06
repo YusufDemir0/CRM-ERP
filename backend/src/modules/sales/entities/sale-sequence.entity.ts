@@ -4,10 +4,10 @@ import { Entity, Column, PrimaryGeneratedColumn, Unique } from 'typeorm';
 @Unique(['departmentId'])
 export class SaleSequence {
   @PrimaryGeneratedColumn({ type: 'bigint' })
-  id: number;
+  id: string;
 
   @Column({ name: 'department_id', type: 'bigint' })
-  departmentId: number;
+  departmentId: string;
 
   @Column({ name: 'current_number', type: 'int', default: 1 })
   currentNumber: number;

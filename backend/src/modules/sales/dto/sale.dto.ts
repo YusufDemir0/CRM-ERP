@@ -4,7 +4,7 @@ import { FinanceHelper } from '../../../common/utils/finance.helper';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 
 export class CreateSaleItemDto {
-  @IsNumber() @IsInt() @Type(() => Number) itemId: number;
+  @IsString() itemId: string;
   @IsNotEmpty() @Transform(FinanceHelper.transformString) @IsString() quantity: string;
   @IsNotEmpty() @Transform(FinanceHelper.transformString) @IsString() price: string;
   @IsOptional() @Transform(FinanceHelper.transformString) @IsString() discountAmount?: string;
@@ -14,10 +14,10 @@ export class CreateSaleItemDto {
 }
 
 export class CreateSaleDto {
-  @IsNumber() @IsInt() @Type(() => Number) partyId: number;
-  @IsNumber() @IsInt() @Type(() => Number) saleTypeId: number;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) currencyId?: number;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) staffId?: number;
+  @IsString() partyId: string;
+  @IsString() saleTypeId: string;
+  @IsOptional() @IsString() currencyId: string;
+  @IsOptional() @IsString() staffId: string;
   @IsOptional() @IsDateString() deliveryDate?: string;
   @IsOptional() @Transform(FinanceHelper.transformString) @IsString() deposit?: string;
   @IsOptional() @Transform(FinanceHelper.transformString) @IsString() discountAmount?: string;
@@ -30,7 +30,7 @@ export class CreateSaleDto {
   @IsOptional() @IsString() source?: string;
   @IsOptional() @IsString() city?: string;
   @IsOptional() @IsString() district?: string;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) commercialAccountId?: number;
+  @IsOptional() @IsString() commercialAccountId: string;
 
   @IsArray()
   @ValidateNested({ each: true })
@@ -40,9 +40,9 @@ export class CreateSaleDto {
 
 
 export class UpdateSaleDto {
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) partyId?: number;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) currencyId?: number;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) staffId?: number;
+  @IsOptional() @IsString() partyId: string;
+  @IsOptional() @IsString() currencyId: string;
+  @IsOptional() @IsString() staffId: string;
   @IsOptional() @IsDateString() deliveryDate?: string;
   @IsOptional() @Transform(FinanceHelper.transformString) @IsString() deposit?: string;
   @IsOptional() @Transform(FinanceHelper.transformString) @IsString() discountAmount?: string;
@@ -55,7 +55,7 @@ export class UpdateSaleDto {
   @IsOptional() @IsString() source?: string;
   @IsOptional() @IsString() city?: string;
   @IsOptional() @IsString() district?: string;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) commercialAccountId?: number;
+  @IsOptional() @IsString() commercialAccountId: string;
 
   @IsOptional()
   @IsArray()
@@ -71,17 +71,17 @@ export class CreateSaleTypeDto {
 }
 
 export class ApproveSaleDto {
-  @IsNumber() @IsInt() @Type(() => Number) departmentId: number;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) commercialAccountId?: number;
+  @IsString() departmentId: string;
+  @IsOptional() @IsString() commercialAccountId: string;
 }
 
 export class SalesQueryDto extends PaginationDto {
   @IsOptional() @IsString() status?: string;
-  @IsOptional() @Type(() => Number) @IsNumber() partyId?: number;
+  @IsOptional() @Type(() => Number) @IsNumber() partyId: string;
 }
 
 export class ShipSaleDto {
   @IsArray()
   @IsOptional()
-  items?: { itemId: number; quantity: number }[];
+  items?: { itemId: string; quantity: number }[];
 }

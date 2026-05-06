@@ -14,11 +14,11 @@ export class CreatePartyDto {
   @IsOptional() @IsString() taxNumber?: string;
   @IsOptional() @IsEmail() email?: string;
   @IsOptional() @IsString() address?: string;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) cityId?: number;
+  @IsOptional() @IsString() cityId: string;
   @IsOptional() @IsString() districtName?: string;
   @IsOptional() @IsNumber() @Type(() => Number) creditLimit?: number;
   @IsOptional() @IsString() paymentTerms?: string;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) currencyId?: number;
+  @IsOptional() @IsString() currencyId: string;
   @IsOptional() @IsString() notes?: string;
 }
 
@@ -31,11 +31,11 @@ export class UpdatePartyDto {
   @IsOptional() @IsString() taxNumber?: string;
   @IsOptional() @IsEmail() email?: string;
   @IsOptional() @IsString() address?: string;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) cityId?: number;
+  @IsOptional() @IsString() cityId: string;
   @IsOptional() @IsString() districtName?: string;
   @IsOptional() @IsNumber() @Type(() => Number) creditLimit?: number;
   @IsOptional() @IsString() paymentTerms?: string;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) currencyId?: number;
+  @IsOptional() @IsString() currencyId: string;
   @IsOptional() @IsString() notes?: string;
   @IsOptional()
   @IsNumber()
@@ -49,5 +49,5 @@ import { PaginationDto } from '../../../common/dto/pagination.dto';
 export class PartiesQueryDto extends PaginationDto {
   @IsOptional() @IsString() type?: string;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) state?: number;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) departmentId?: number;
+  @IsOptional() @IsString() departmentId: string;
 }

@@ -39,7 +39,7 @@ export declare class CreateTransactionDto {
     amount: string;
     currencyId?: number;
     type: 'in' | 'out';
-    referenceType?: 'sale' | 'purchase' | 'manual_adjustment' | 'manual';
+    referenceType?: 'sale' | 'purchase' | 'manual_adjustment' | 'manual' | 'sale_deposit';
     referenceId?: number;
     date: string;
     description?: string;

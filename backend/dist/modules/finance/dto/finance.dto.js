@@ -189,7 +189,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Transform)(({ value }) => (value === '' || value === null) ? undefined : value),
-    (0, class_validator_1.IsEnum)(['sale', 'purchase', 'manual_adjustment', 'manual']),
+    (0, class_validator_1.IsEnum)(['sale', 'purchase', 'manual_adjustment', 'manual', 'sale_deposit']),
     __metadata("design:type", String)
 ], CreateTransactionDto.prototype, "referenceType", void 0);
 __decorate([

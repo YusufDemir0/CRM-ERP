@@ -1,3 +1,4 @@
+import { Response } from 'express';
 import { StocksService } from '../inventory/stocks/stocks.service';
 import { LogsService } from '../logs/logs.service';
 import { Repository, DataSource } from 'typeorm';
@@ -6,10 +7,11 @@ import { SaleItem } from './entities/sale-item.entity';
 import { SaleType } from './entities/sale-type.entity';
 import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
 import { Decimal } from 'decimal.js';
-import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto, ShipSaleDto } from './dto/sale.dto';
-import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto, ShipSaleDto, SalesQueryDto } from './dto/sale.dto';
+import { PaginatedResult } from '../../common/dto/pagination.dto';
 import { TransactionContextService } from '../../common/services/transaction-context.service';
 import { OutboxService } from '../../common/services/outbox.service';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 export declare class SalesService {
     private saleRepo;
     private saleItemRepo;
@@ -24,10 +26,7 @@ export declare class SalesService {
     constructor(saleRepo: Repository<Sale>, saleItemRepo: Repository<SaleItem>, saleTypeRepo: Repository<SaleType>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, stocksService: StocksService, logsService: LogsService, transactionContext: TransactionContextService, outboxService: OutboxService);
     findAllSaleTypes(): Promise<SaleType[]>;
     createSaleType(dto: CreateSaleTypeDto, userId?: number): Promise<SaleType>;
-    findAll(query: PaginationDto & {
-        status?: string;
-        partyId?: number;
-    }, user?: any): Promise<PaginatedResult<Sale>>;
+    findAll(query: SalesQueryDto, user?: JwtPayload): Promise<PaginatedResult<Sale>>;
     findOne(id: number): Promise<Sale>;
     private fetchItemData;
     create(dto: CreateSaleDto, userId?: number): Promise<Sale>;
@@ -41,4 +40,5 @@ export declare class SalesService {
         pendingOrders: Decimal;
     }>;
     shipSale(saleId: number, dto: ShipSaleDto, userId?: number): Promise<Sale>;
+    exportToExcel(query: SalesQueryDto, user: JwtPayload, res: Response): Promise<void>;
 }

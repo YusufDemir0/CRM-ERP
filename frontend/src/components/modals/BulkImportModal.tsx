@@ -20,10 +20,10 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ onClose, onSuc
   };
 
   const handleDownloadTemplate = () => {
-    // In a real app, this would be a static file or an API call
-    // For now, we'll simulate the header structure
-    const headers = "ÜRÜN_KODU,ÜRÜN_ADI,BİRİM,SATIŞ_FİYATI,ALIŞ_FİYATI,STOK_MİKTARI,KDV_ORANI\n";
-    const blob = new Blob([headers], { type: 'text/csv;charset=utf-8;' });
+    // CSV Header matching ImportItemDto
+    const headers = "KOD,URUN_ADI,ALIS_FIYATI,SATIS_FIYATI,KRITIK_LIMIT,KDV_ORANI\n";
+    const example = "STK-001,ÖRNEK ÜRÜN,100,150,10,20\n";
+    const blob = new Blob([headers + example], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
@@ -42,26 +42,26 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ onClose, onSuc
 
     setIsUploading(true);
     try {
-      // Basic CSV Parser (for demo, real one should use a library or handle Excel)
       const reader = new FileReader();
       reader.onload = async (e) => {
         const text = e.target?.result as string;
         const lines = text.split('\n');
         const items = [];
         
-        // Skip header
         for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i].split(',');
-          if (cols.length < 2 || !cols[0]) continue;
+          const line = lines[i].trim();
+          if (!line) continue;
+          
+          const cols = line.split(',');
+          if (cols.length < 2) continue;
           
           items.push({
             code: cols[0].trim(),
             name: cols[1].trim(),
-            unit: cols[2]?.trim() || 'ADET',
+            purchasePrice: Number(cols[2]) || 0,
             salePrice: Number(cols[3]) || 0,
-            purchasePrice: Number(cols[4]) || 0,
-            initialStock: Number(cols[5]) || 0,
-            taxRate: Number(cols[6]) || 20
+            criticalLimit: Number(cols[4]) || 0,
+            kdv: Number(cols[5]) || 20
           });
         }
 

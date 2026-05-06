@@ -23,29 +23,29 @@ export class UsersController {
 
   @Get(':id')
   @RequirePermissions('USER_VIEW')
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
   }
 
   @Post()
   @RequirePermissions('USER_CREATE')
-  create(@Body() dto: CreateUserDto, @CurrentUser('sub') userId: number) {
+  create(@Body() dto: CreateUserDto, @CurrentUser('sub') userId: string) {
     return this.usersService.create(dto, userId);
   }
 
   @Put(':id')
   @RequirePermissions('USER_EDIT')
   update(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() dto: UpdateUserDto,
-    @CurrentUser('sub') userId: number,
+    @CurrentUser('sub') userId: string,
   ) {
     return this.usersService.update(id, dto, userId);
   }
 
   @Delete(':id')
   @RequirePermissions('USER_DELETE')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser('sub') userId: number) {
+  remove(@Param('id') id: string, @CurrentUser('sub') userId: string) {
     return this.usersService.softDelete(id, userId);
   }
 }

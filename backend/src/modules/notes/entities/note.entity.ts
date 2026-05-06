@@ -4,11 +4,11 @@ import { User } from '../../auth/entities/user.entity';
 @Entity('user_notes')
 export class UserNote {
   @PrimaryGeneratedColumn({ type: 'bigint' })
-  id: number;
+  id: string;
 
   @Index()
   @Column({ name: 'user_id', type: 'bigint' })
-  userId: number;
+  userId: string;
 
   @Column({ type: 'varchar', length: 200, nullable: true })
   title: string;

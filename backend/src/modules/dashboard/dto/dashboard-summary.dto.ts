@@ -1,7 +1,7 @@
 import { Expose, Type } from 'class-transformer';
 
 export class RecentActionDto {
-  @Expose() id: number;
+  @Expose() id: string;
   @Expose() code: string;
   @Expose() type: 'in' | 'out';
   @Expose() amount: number;

@@ -26,11 +26,11 @@ export const queryKeys = {
   },
   stocks: {
     all: (params: QueryParams) => ['stocks', 'list', params] as const,
-    movements: (itemId: number) => ['stocks', 'movements', itemId] as const,
+    movements: (itemId: string | number) => ['stocks', 'movements', itemId] as const,
   },
   sales: {
     all: (params: QueryParams) => ['sales', 'list', params] as const,
-    detail: (id: number) => ['sales', 'detail', id] as const,
+    detail: (id: string | number) => ['sales', 'detail', id] as const,
   },
   accounts: {
     all: (params: QueryParams) => ['accounts', 'list', params] as const,

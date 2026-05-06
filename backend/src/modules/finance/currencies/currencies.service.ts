@@ -25,18 +25,18 @@ export class CurrenciesService {
     };
   }
 
-  async findOne(id: number): Promise<Currency> {
-    const curr = await this.currencyRepo.findOne({ where: { id } });
+  async findOne(id: string): Promise<Currency> {
+    const curr = await this.currencyRepo.findOne({ where: { id: String(id) } });
     if (!curr) throw new NotFoundException('Para birimi bulunamadı');
     return curr;
   }
 
-  async create(dto: CreateCurrencyDto, userId?: number): Promise<Currency> {
+  async create(dto: CreateCurrencyDto, userId: string): Promise<Currency> {
     const curr = this.currencyRepo.create({ ...dto, createdBy: userId });
     return this.currencyRepo.save(curr);
   }
 
-  async update(id: number, dto: UpdateCurrencyDto, userId?: number): Promise<Currency> {
+  async update(id: string, dto: UpdateCurrencyDto, userId: string): Promise<Currency> {
     const curr = await this.findOne(id);
     
     if (dto.name !== undefined) curr.name = dto.name;
@@ -55,7 +55,7 @@ export class CurrenciesService {
     return curr;
   }
 
-  async setDefault(id: number): Promise<Currency> {
+  async setDefault(id: string): Promise<Currency> {
     await this.currencyRepo
       .createQueryBuilder()
       .update(Currency)
@@ -67,7 +67,7 @@ export class CurrenciesService {
     return this.currencyRepo.save(curr);
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: string): Promise<void> {
     const curr = await this.findOne(id);
     if (curr.isDefault) {
       throw new BadRequestException('Varsayılan para birimi silinemez');

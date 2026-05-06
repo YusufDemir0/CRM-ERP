@@ -40,7 +40,7 @@ export class User extends BaseEntity {
   phone: string | null;
 
   @Column({ name: 'department_id', type: 'bigint', nullable: true })
-  departmentId: number | null;
+  departmentId: string | null;
 
   @ManyToOne(() => Department, { nullable: true })
   @JoinColumn({ name: 'department_id' })

@@ -22,14 +22,14 @@ export interface QuickCreateResponse<T = unknown> {
 export interface QuickCreateStackItem {
   id: string;
   type: QuickCreateType;
-  editingId: number | null;
+  editingId: string | number | null;
   initialData: Record<string, unknown>;
   onSuccess: (res: QuickCreateResponse) => void;
   onCancel: () => void;
 }
 
 export interface QuickCreateOptions {
-  editingId?: number | null;
+  editingId?: string | number | null;
   initialData?: Record<string, unknown>;
   onSuccess?: (res: QuickCreateResponse) => void;
   onCancel?: () => void;

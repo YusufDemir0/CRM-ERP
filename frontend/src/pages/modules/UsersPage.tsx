@@ -130,7 +130,7 @@ export default function UsersPage() {
   };
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, state }: { id: number; state: number }) => usersAPI.toggleState(id, state),
+    mutationFn: ({ id, state }: { id: string | number; state: number }) => usersAPI.toggleState(id, state),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all({}) });
       toast.success("Kullanıcı durumu güncellendi.");
@@ -138,7 +138,7 @@ export default function UsersPage() {
     onError: () => toast.error("İşlem başarısız")
   });
 
-  const toggleState = async (id: number, currentState: number) => {
+  const toggleState = async (id: string | number, currentState: number) => {
     const question = currentState === 1
       ? 'Kullanıcının sisteme erişimini durdurmak ve arşivlemek istiyor musunuz?'
       : 'Kullanıcıyı tekrar aktif etmek istiyor musunuz?';
@@ -159,7 +159,7 @@ export default function UsersPage() {
     }
   };
 
-  const handleSetSpecificPermission = async (permId: number, effect: 'allow' | 'deny' | null, scope: 'global' | 'department') => {
+  const handleSetSpecificPermission = async (permId: string | number, effect: 'allow' | 'deny' | null, scope: 'global' | 'department') => {
     if (!selectedUserForPerms) return;
     try {
       if (effect === null) {

@@ -7,7 +7,7 @@ interface ProductionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (e: React.FormEvent) => void;
-  editingId: number | null;
+  editingId: string | number | null;
   formData: ProductionOrderFormData;
   setFormData: (data: ProductionOrderFormData) => void;
   boms: Bom[];

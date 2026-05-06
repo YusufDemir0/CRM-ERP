@@ -6,7 +6,7 @@ import { Transaction } from './entities/transaction.entity';
 import { Party } from '../../parties/entities/party.entity';
 import { Currency } from '../currencies/entities/currency.entity';
 import { SequenceGeneratorService } from '../../../common/services/sequence-generator.service';
-import { CreateTransactionDto } from '../dto/finance.dto';
+import { CreateTransactionDto, TransactionsQueryDto } from '../dto/finance.dto';
 import { AccountingLedger } from '../../parties/entities/ledger.entity';
 import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
 import { DateUtils } from '../../../common/utils/date.utils';
@@ -25,7 +25,7 @@ export class TransactionsService {
     private transactionContext: TransactionContextService,
   ) {}
 
-  async findAll(query: PaginationDto & { partyId?: number; type?: string; status?: string }): Promise<PaginatedResult<Transaction>> {
+  async findAll(query: TransactionsQueryDto): Promise<PaginatedResult<Transaction>> {
     const qb = this.txRepo.createQueryBuilder('tx')
       .leftJoinAndSelect('tx.party', 'party')
       .leftJoinAndSelect('tx.commercialAccount', 'commercialAccount')
@@ -57,9 +57,9 @@ export class TransactionsService {
     };
   }
 
-  async findOne(id: number): Promise<Transaction> {
+  async findOne(id: string): Promise<Transaction> {
     const tx = await this.transactionContext.manager.findOne(Transaction, {
-      where: { id },
+      where: { id: String(id) },
       relations: ['party', 'commercialAccount', 'currency'],
     });
     if (!tx) throw new NotFoundException('İşlem bulunamadı');
@@ -67,26 +67,26 @@ export class TransactionsService {
   }
 
   @Transactional()
-  async create(dto: CreateTransactionDto, userId?: number): Promise<Transaction> {
+  async create(dto: CreateTransactionDto, userId: string): Promise<Transaction> {
     const manager = this.transactionContext.manager;
 
     let party: Party | null = null;
     let exchangeRate = new Decimal(1);
     // Cari limit veya bakiye durumu
-    const p = await manager.findOne(Party, { where: { id: dto.partyId }});
+    const p = await manager.findOne(Party, { where: { id: dto.partyId ? String(dto.partyId) : undefined as any }});
     if (p && p.type === 'supplier' && dto.type === 'in') {
       // Tedarikçiden tahsilat (in) - belki fazla ödeme iadesi
       console.warn(`Tedarikçiden tahsilat işlemi yapılıyor: ${p.name}`);
     }
     if (dto.partyId) {
       party = await manager.findOne(Party, { 
-        where: { id: dto.partyId },
+        where: { id: String(dto.partyId) },
         lock: { mode: 'pessimistic_write' }
       });
       if (!party) throw new NotFoundException('Cari hesap bulunamadı');
     }
 
-    const currency = await manager.findOne(Currency, { where: { id: dto.currencyId }});
+    const currency = await manager.findOne(Currency, { where: { id: dto.currencyId ? String(dto.currencyId) : undefined as any }});
     exchangeRate = currency ? new Decimal(currency.exchangeRate) : new Decimal(1);
     const tlAmount = FH.mul(dto.amount, exchangeRate);
 
@@ -107,9 +107,9 @@ export class TransactionsService {
     const code = await this.sequenceGenerator.generateTransactionCode(manager, prefix);
 
     const tx = manager.create(Transaction, {
-      code, partyId: dto.partyId || undefined, commercialAccountId: dto.commercialAccountId,
-      amount: new Decimal(dto.amount), currencyId: dto.currencyId || undefined, exchangeRate,
-      type: dto.type, referenceType: dto.referenceType, referenceId: dto.referenceId || undefined,
+      code, partyId: dto.partyId ? String(dto.partyId) : undefined, commercialAccountId: dto.commercialAccountId ? String(dto.commercialAccountId) : undefined,
+      amount: new Decimal(dto.amount), currencyId: dto.currencyId ? String(dto.currencyId) : undefined, exchangeRate,
+      type: dto.type, referenceType: dto.referenceType, referenceId: dto.referenceId ? String(dto.referenceId) : undefined,
       date: dto.date, description: dto.description || undefined, status: 'completed', createdBy: userId,
     });
 
@@ -140,19 +140,19 @@ export class TransactionsService {
         .execute();
     }
 
-    return this.findOne(savedTx.id);
+    return this.findOne(String(savedTx.id));
   }
 
   @Transactional()
-  async cancel(id: number, userId?: number): Promise<{ success: boolean; message: string }> {
+  async cancel(id: string, userId: string): Promise<{ success: boolean; message: string }> {
     const manager = this.transactionContext.manager;
 
-    const tx = await manager.findOne(Transaction, { where: { id }});
+    const tx = await manager.findOne(Transaction, { where: { id: String(id) }});
     if (!tx || tx.status === 'cancelled') throw new BadRequestException('Sadece tamamlanmış aktif işlemler iptal edilebilir.');
 
     if (tx.partyId) {
       const party = await manager.findOne(Party, { 
-        where: { id: tx.partyId },
+        where: { id: tx.partyId ? String(tx.partyId) : undefined as any },
         lock: { mode: 'pessimistic_write' }
       });
       if (party) {

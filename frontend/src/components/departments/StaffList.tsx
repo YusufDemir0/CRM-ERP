@@ -9,7 +9,7 @@ import { confirmDialog } from '../../utils/confirmDialog';
 import dayjs from 'dayjs';
 
 interface StaffListProps {
-  departmentId: number;
+  departmentId: string | number;
 }
 
 export const StaffList: React.FC<StaffListProps> = ({ departmentId }) => {
@@ -27,7 +27,7 @@ export const StaffList: React.FC<StaffListProps> = ({ departmentId }) => {
   const staff = staffData?.data || [];
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => staffAPI.delete(id),
+    mutationFn: (id: string | number) => staffAPI.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
       toast.success('Personel silindi.');
@@ -35,7 +35,7 @@ export const StaffList: React.FC<StaffListProps> = ({ departmentId }) => {
   });
 
   const toggleMutation = useMutation({
-    mutationFn: (id: number) => staffAPI.toggleActive(id),
+    mutationFn: (id: string | number) => staffAPI.toggleActive(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
       toast.success('Durum güncellendi.');
@@ -57,7 +57,7 @@ export const StaffList: React.FC<StaffListProps> = ({ departmentId }) => {
     });
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string | number) => {
     const confirmed = await confirmDialog('Bu personeli silmek istediğinize emin misiniz?', true);
     if (confirmed) deleteMutation.mutate(id);
   };

@@ -3,11 +3,11 @@ import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, Index } from 
 @Entity('system_logs')
 export class SystemLog {
   @PrimaryGeneratedColumn({ type: 'bigint' })
-  id: number;
+  id: string;
 
   @Index()
   @Column({ name: 'user_id', type: 'bigint', nullable: true })
-  userId: number;
+  userId: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   username: string;

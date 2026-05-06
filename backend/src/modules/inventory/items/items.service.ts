@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, StreamableFile } from '@nestjs/common';
+import * as ExcelJS from 'exceljs';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, MoreThan } from 'typeorm';
 import { Item } from './entities/item.entity';
@@ -106,9 +107,9 @@ export class ItemsService {
     };
   }
 
-  async findOne(id: number): Promise<Item> {
+  async findOne(id: string): Promise<Item> {
     const item = await this.transactionContext.manager.findOne(Item, {
-      where: { id },
+      where: { id: String(id) },
       relations: ['itemType', 'itemCodeGroup', 'quantityType', 'provider', 'currency'],
     });
     if (!item) throw new NotFoundException('Ürün bulunamadı');
@@ -116,13 +117,13 @@ export class ItemsService {
   }
 
   @Transactional()
-  async create(dto: CreateItemDto, userId?: number): Promise<Item> {
+  async create(dto: CreateItemDto, userId: string): Promise<Item> {
     const manager = this.transactionContext.manager;
 
     if (!dto.currencyId) {
       try {
         const defaultCurrency = await this.currenciesService.getDefault();
-        dto.currencyId = Number(defaultCurrency.id);
+        dto.currencyId = String(defaultCurrency.id);
       } catch (error) {
         // Silently continue or handle as per business rules
       }
@@ -148,8 +149,8 @@ export class ItemsService {
     const departments = await manager.find(Department, { where: { state: 1 } });
     
     const initialStocks = departments.map(dept => manager.create(Stock, {
-      itemId: savedItem.id,
-      departmentId: dept.id,
+      itemId: String(savedItem.id),
+      departmentId: String(dept.id),
       quantity: new Decimal(0),
       reservedQuantity: new Decimal(0),
       createdBy: userId
@@ -163,7 +164,7 @@ export class ItemsService {
   }
 
   @Transactional()
-  async update(id: number, dto: UpdateItemDto, userId?: number): Promise<Item> {
+  async update(id: string, dto: UpdateItemDto, userId: string): Promise<Item> {
     const item = await this.findOne(id);
 
     const updateData: Partial<Item> = {
@@ -199,27 +200,36 @@ export class ItemsService {
   }
 
   @Transactional()
-  async importItems(items: ImportItemDto[], userId: number) {
+  async importItems(items: ImportItemDto[], userId: string) {
     const manager = this.transactionContext.manager;
     
     let updatedCount = 0;
     let insertedCount = 0;
     const errors: string[] = [];
 
-    // Pre-fetch defaults
-    const defaultCurrency = await this.currenciesService.getDefault();
-    const defaultCurrencyId = defaultCurrency ? Number(defaultCurrency.id) : null;
-    const defaultItemType = await manager.findOne(ItemType, { where: { state: 1 } });
-    const defaultQtyType = await manager.findOne(QuantityType, { where: { state: 1 } });
-    const departments = await manager.find(Department, { where: { state: 1 } });
+    // Pre-fetch all types and units for mapping
+    const [itemTypes, qtyTypes] = await Promise.all([
+      manager.find(ItemType, { where: { state: 1 } }),
+      manager.find(QuantityType, { where: { state: 1 } })
+    ]);
 
-    if (!defaultItemType || !defaultQtyType) {
+    if (itemTypes.length === 0 || qtyTypes.length === 0) {
       throw new BadRequestException('Sistemde tanımlı Ürün Tipi veya Birim bulunamadı. İçe aktarım yapılamaz.');
     }
 
+    const itemTypeMap = new Map(itemTypes.map(t => [t.name.trim().toLocaleLowerCase('tr-TR'), t.id.toString()]));
+    const qtyTypeMap = new Map(qtyTypes.map(t => [t.name.trim().toLocaleLowerCase('tr-TR'), t.id.toString()]));
+    
+    const defaultItemTypeId = itemTypes[0].id.toString();
+    const defaultQtyTypeId = qtyTypes[0].id.toString();
+
+    const defaultCurrency = await this.currenciesService.getDefault();
+    const defaultCurrencyId = defaultCurrency ? String(defaultCurrency.id) : null;
+    const departments = await manager.find(Department, { where: { state: 1 } });
+
     for (const [index, row] of items.entries()) {
       try {
-        const { code, name, purchasePrice, salePrice, criticalLimit, kdv } = row;
+        const { code, name, typeName, unitName, purchasePrice, salePrice, criticalLimit, kdv } = row;
         
         if (!code || !name) {
           errors.push(`Satır ${index + 1}: Kod ve İsim zorunludur.`);
@@ -228,10 +238,16 @@ export class ItemsService {
 
         const existingItem = await manager.findOne(Item, { where: { code } });
 
+        // Resolve IDs by name or fallback to default
+        const resolvedItemTypeId = typeName ? (itemTypeMap.get(typeName.trim().toLocaleLowerCase('tr-TR')) || defaultItemTypeId) : defaultItemTypeId;
+        const resolvedQtyTypeId = unitName ? (qtyTypeMap.get(unitName.trim().toLocaleLowerCase('tr-TR')) || defaultQtyTypeId) : defaultQtyTypeId;
+
         if (existingItem) {
           // UPDATE
           await manager.update(Item, existingItem.id, {
             name: name.toLocaleUpperCase('tr-TR'),
+            itemTypeId: resolvedItemTypeId,
+            quantityTypeId: resolvedQtyTypeId,
             purchasePrice: purchasePrice !== undefined ? new Decimal(purchasePrice) : existingItem.purchasePrice,
             salePrice: salePrice !== undefined ? new Decimal(salePrice) : existingItem.salePrice,
             criticalLimit: criticalLimit !== undefined ? new Decimal(criticalLimit) : existingItem.criticalLimit,
@@ -242,10 +258,10 @@ export class ItemsService {
         } else {
           // INSERT
           const newItem = manager.create(Item, {
-            name: name.toLocaleUpperCase('tr-TR'),
-            code,
-            itemTypeId: defaultItemType.id,
-            quantityTypeId: defaultQtyType.id,
+            name: name.trim().toLocaleUpperCase('tr-TR'),
+            code: code.trim(),
+            itemTypeId: resolvedItemTypeId,
+            quantityTypeId: resolvedQtyTypeId,
             currencyId: defaultCurrencyId,
             purchasePrice: new Decimal(purchasePrice || 0),
             salePrice: new Decimal(salePrice || 0),
@@ -259,8 +275,8 @@ export class ItemsService {
 
           // Auto-create stock records
           const initialStocks = departments.map(dept => manager.create(Stock, {
-            itemId: savedItem.id,
-            departmentId: dept.id,
+            itemId: String(savedItem.id),
+            departmentId: String(dept.id),
             quantity: new Decimal(0),
             reservedQuantity: new Decimal(0),
             createdBy: userId
@@ -280,7 +296,48 @@ export class ItemsService {
     return { updatedCount, insertedCount, errors };
   }
 
-  async softDelete(id: number, currentUserId?: number): Promise<void> {
+  async exportToExcel(query: ItemsQueryDto): Promise<StreamableFile> {
+    query.limit = 10000;
+    const { data: items } = await this.findAll(query);
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Ürün Listesi');
+
+    worksheet.columns = [
+      { header: 'KOD', key: 'code', width: 20 },
+      { header: 'ÜRÜN ADI', key: 'name', width: 40 },
+      { header: 'TÜR', key: 'itemType', width: 20 },
+      { header: 'BİRİM', key: 'quantityType', width: 15 },
+      { header: 'STOK', key: 'totalStock', width: 15 },
+      { header: 'ALIŞ FİYATI', key: 'purchasePrice', width: 15 },
+      { header: 'SATIŞ FİYATI', key: 'salePrice', width: 15 },
+      { header: 'KDV', key: 'kdv', width: 10 },
+      { header: 'KRİTİK LİMİT', key: 'criticalLimit', width: 15 },
+    ];
+
+    items.forEach(item => {
+      worksheet.addRow({
+        code: item.code,
+        name: item.name,
+        itemType: item.itemType?.name || '',
+        quantityType: item.quantityType?.abbreviation || '',
+        totalStock: Number(item.totalStock || 0),
+        purchasePrice: Number(item.purchasePrice || 0),
+        salePrice: Number(item.salePrice || 0),
+        kdv: Number(item.kdv || 0),
+        criticalLimit: Number(item.criticalLimit || 0),
+      });
+    });
+
+    // Formatting
+    worksheet.getRow(1).font = { bold: true };
+    worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new StreamableFile(Buffer.from(buffer));
+  }
+
+  async softDelete(id: string, currentUserId: string): Promise<void> {
     await this.findOne(id);
     await this.validateUsage(id);
 
@@ -294,7 +351,7 @@ export class ItemsService {
   /**
    * [SEC-03] Usage check before deactivation or deletion
    */
-  private async validateUsage(id: number) {
+  private async validateUsage(id: string) {
     const manager = this.transactionContext.manager;
     
     // 1. Stock check
@@ -321,13 +378,13 @@ export class ItemsService {
     return this.itemTypeRepo.find();
   }
 
-  async createItemType(dto: CreateItemTypeDto, userId?: number): Promise<ItemType> {
+  async createItemType(dto: CreateItemTypeDto, userId: string): Promise<ItemType> {
     const type = this.itemTypeRepo.create({ ...dto, createdBy: userId });
     return this.itemTypeRepo.save(type);
   }
 
-  async updateItemType(id: number, dto: UpdateItemTypeDto, userId?: number): Promise<ItemType> {
-    const type = await this.itemTypeRepo.findOne({ where: { id } });
+  async updateItemType(id: string, dto: UpdateItemTypeDto, userId: string): Promise<ItemType> {
+    const type = await this.itemTypeRepo.findOne({ where: { id: String(id) } });
     if (!type) throw new NotFoundException('Ürün tipi bulunamadı');
 
     if (dto.state === 0) {
@@ -346,7 +403,7 @@ export class ItemsService {
     return this.itemTypeRepo.save(type);
   }
 
-  async softDeleteItemType(id: number): Promise<void> {
+  async softDeleteItemType(id: string): Promise<void> {
     const activeItems = await this.itemRepo.count({ where: { itemTypeId: id, state: 1 } });
     if (activeItems > 0) {
       throw new BadRequestException('Bu türde aktif ürünler bulunduğu için silinemez.');
@@ -360,13 +417,13 @@ export class ItemsService {
     return this.codeGroupRepo.find();
   }
 
-  async createItemCodeGroup(dto: CreateItemCodeGroupDto, userId?: number): Promise<ItemCodeGroup> {
+  async createItemCodeGroup(dto: CreateItemCodeGroupDto, userId: string): Promise<ItemCodeGroup> {
     const group = this.codeGroupRepo.create({ ...dto, createdBy: userId });
     return this.codeGroupRepo.save(group);
   }
 
-  async updateItemCodeGroup(id: number, dto: UpdateItemCodeGroupDto, userId?: number): Promise<ItemCodeGroup> {
-    const group = await this.codeGroupRepo.findOne({ where: { id } });
+  async updateItemCodeGroup(id: string, dto: UpdateItemCodeGroupDto, userId: string): Promise<ItemCodeGroup> {
+    const group = await this.codeGroupRepo.findOne({ where: { id: String(id) } });
     if (!group) throw new NotFoundException('Ürün kod grubu bulunamadı');
 
     if (dto.state === 0) {
@@ -384,7 +441,7 @@ export class ItemsService {
     return this.codeGroupRepo.save(group);
   }
 
-  async softDeleteItemCodeGroup(id: number): Promise<void> {
+  async softDeleteItemCodeGroup(id: string): Promise<void> {
     const activeItems = await this.itemRepo.count({ where: { itemCodeGroupId: id, state: 1 } });
     if (activeItems > 0) {
       throw new BadRequestException('Bu grupta aktif ürünler bulunduğu için silinemez.');
@@ -398,13 +455,13 @@ export class ItemsService {
     return this.qtyTypeRepo.find();
   }
 
-  async createQuantityType(dto: CreateQuantityTypeDto, userId?: number): Promise<QuantityType> {
+  async createQuantityType(dto: CreateQuantityTypeDto, userId: string): Promise<QuantityType> {
     const type = this.qtyTypeRepo.create({ ...dto, createdBy: userId });
     return this.qtyTypeRepo.save(type);
   }
 
-  async updateQuantityType(id: number, dto: UpdateQuantityTypeDto, userId?: number): Promise<QuantityType> {
-    const type = await this.qtyTypeRepo.findOne({ where: { id } });
+  async updateQuantityType(id: string, dto: UpdateQuantityTypeDto, userId: string): Promise<QuantityType> {
+    const type = await this.qtyTypeRepo.findOne({ where: { id: String(id) } });
     if (!type) throw new NotFoundException('Birim bulunamadı');
 
     if (dto.state === 0) {
@@ -422,7 +479,7 @@ export class ItemsService {
     return this.qtyTypeRepo.save(type);
   }
 
-  async softDeleteQuantityType(id: number): Promise<void> {
+  async softDeleteQuantityType(id: string): Promise<void> {
     const activeItems = await this.itemRepo.count({ where: { quantityTypeId: id, state: 1 } });
     if (activeItems > 0) {
       throw new BadRequestException('Bu birimi kullanan aktif ürünler bulunduğu için silinemez.');

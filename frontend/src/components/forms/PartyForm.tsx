@@ -27,7 +27,7 @@ interface PartyFormData {
 
 interface PartyFormProps {
   initialData?: Partial<PartyFormData>;
-  editingId?: number | null;
+  editingId?: string | number | null;
   onSuccess: (data: Party) => void;
   onCancel: () => void;
 }

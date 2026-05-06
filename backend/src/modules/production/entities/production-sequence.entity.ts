@@ -4,7 +4,7 @@ import { Entity, Column, PrimaryGeneratedColumn, Unique } from 'typeorm';
 @Unique(['prefix'])
 export class ProductionSequence {
   @PrimaryGeneratedColumn({ type: 'bigint' })
-  id: number;
+  id: string;
 
   @Column({ type: 'varchar', length: 10 })
   prefix: string;

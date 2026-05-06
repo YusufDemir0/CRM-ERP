@@ -16,6 +16,7 @@ exports.DashboardController = void 0;
 const common_1 = require("@nestjs/common");
 const dashboard_service_1 = require("./dashboard.service");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
+const permissions_decorator_1 = require("../../common/decorators/permissions.decorator");
 let DashboardController = class DashboardController {
     constructor(dashboardService) {
         this.dashboardService = dashboardService;
@@ -27,6 +28,7 @@ let DashboardController = class DashboardController {
 exports.DashboardController = DashboardController;
 __decorate([
     (0, common_1.Get)('summary'),
+    (0, permissions_decorator_1.RequirePermissions)('DASHBOARD_VIEW'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),

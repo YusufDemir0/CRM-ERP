@@ -12,10 +12,10 @@ export class AccountingLedger extends BaseEntity {
   date: string;
 
   @Column({ name: 'party_id' })
-  partyId: number;
+  partyId: string;
 
   @Column({ name: 'account_id', type: 'bigint', nullable: true })
-  accountId: number | null;
+  accountId: string | null;
 
   @ManyToOne(() => CommercialAccount)
   @JoinColumn({ name: 'account_id' })
@@ -28,7 +28,7 @@ export class AccountingLedger extends BaseEntity {
   credit: Decimal;
 
   @Column({ name: 'transaction_id', nullable: true })
-  transactionId: number;
+  transactionId: string;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
   source: string;

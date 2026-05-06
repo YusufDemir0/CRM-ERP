@@ -7,6 +7,7 @@ export declare class SaleItem {
     quantity: Decimal;
     shippedQuantity: Decimal;
     price: Decimal;
+    costPrice: Decimal;
     discountAmount: Decimal;
     discountPercent: Decimal;
     netPrice: Decimal;

@@ -26,7 +26,7 @@ export class CreateAccountDto {
   @IsOptional() @IsString() bankName?: string;
   @IsOptional() @IsString() iban?: string;
   @IsOptional() @IsString() ibanName?: string;
-  @IsNumber() @Type(() => Number) currencyId: number;
+  @IsString() currencyId: string;
   @IsOptional() @Transform(FinanceHelper.transform) criticalLimit?: Decimal; 
   @IsOptional() @IsString() description?: string;
 }
@@ -37,26 +37,26 @@ export class UpdateAccountDto {
   @IsOptional() @IsString() iban?: string;
   @IsOptional() @IsString() ibanName?: string;
   @IsOptional() @Transform(FinanceHelper.transform) criticalLimit?: Decimal;
-  @IsOptional() @IsNumber() @Type(() => Number) currencyId?: number;
+  @IsOptional() @IsString() currencyId: string;
   @IsOptional() @IsString() description?: string;
   @IsOptional() @IsNumber() @Type(() => Number) state?: number;
 }
 
 export class CreateTransactionDto {
-  @IsOptional() @Type(() => Number) @IsNumber() partyId?: number;
-  @Type(() => Number) @IsNumber() commercialAccountId: number;
+  @IsOptional() @Type(() => Number) @IsNumber() partyId: string;
+  @Type(() => Number) @IsNumber() commercialAccountId: string;
   @IsNotEmpty() @Transform(FinanceHelper.transformString) @IsString() amount: string; 
-  @IsOptional() @Type(() => Number) @IsNumber() currencyId?: number;
+  @IsOptional() @Type(() => Number) @IsNumber() currencyId: string;
   @IsEnum(['in', 'out']) type: 'in' | 'out';
   @IsOptional() @Transform(({ value }) => (value === '' || value === null) ? undefined : value) @IsEnum(['sale', 'purchase', 'manual_adjustment', 'manual', 'sale_deposit']) referenceType?: 'sale' | 'purchase' | 'manual_adjustment' | 'manual' | 'sale_deposit';
-  @IsOptional() @Type(() => Number) @IsNumber() referenceId?: number;
+  @IsOptional() @Type(() => Number) @IsNumber() referenceId: string;
   @IsDateString() date: string;
   @IsOptional() @IsString() description?: string;
 }
 
 
 export class TransactionsQueryDto extends PaginationDto {
-  @IsOptional() @Type(() => Number) @IsNumber() partyId?: number;
+  @IsOptional() @Type(() => Number) @IsNumber() partyId: string;
   @IsOptional() @IsString() type?: string;
   @IsOptional() @IsString() status?: string;
 }

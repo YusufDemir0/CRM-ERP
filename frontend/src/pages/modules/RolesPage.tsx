@@ -7,6 +7,7 @@ import {
   FiActivity, FiGrid, FiX, FiFilter, FiArchive
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { confirmDialog } from '../../utils/confirmDialog';
 import { DataTable, Column } from '../../components/common/DataTable';
 import { Role, Permission } from '../../types';
 import { useSort } from '../../hooks/useSort';
@@ -24,8 +25,8 @@ export function RolesPage() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const deferredSearch = useDeferredValue(searchTerm);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [formData, setFormData] = useState({ name: '', permissionIds: [] as number[] });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState({ name: '', permissionIds: [] as string[] });
 
   const updateParams = useCallback((newParams: Record<string, string | number | undefined>) => {
     setSearchParams(prev => {
@@ -88,8 +89,8 @@ export function RolesPage() {
   });
 
   const mutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number | null; data: { name: string; permissionIds: number[] } }) => {
-      const payload = { ...data, permissionIds: data.permissionIds.map(Number) };
+    mutationFn: async ({ id, data }: { id: string | null; data: { name: string; permissionIds: string[] } }) => {
+      const payload = { ...data, permissionIds: data.permissionIds };
       if (id) return rolesAPI.update(id, payload);
       return rolesAPI.create(payload);
     },
@@ -116,7 +117,7 @@ export function RolesPage() {
   };
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, state }: { id: number; state: number }) => rolesAPI.toggleState(id, state),
+    mutationFn: ({ id, state }: { id: string | number; state: number }) => rolesAPI.toggleState(id, state),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.roles.all({}) });
       toast.success("Durum güncellendi.");
@@ -124,11 +125,17 @@ export function RolesPage() {
     onError: () => toast.error("Hata oluştu")
   });
 
-  const toggleState = (id: number, currentState: number) => {
-    toggleMutation.mutate({ id, state: currentState });
+  const toggleState = async (id: string | number, currentState: number) => {
+    const confirmed = await confirmDialog(
+      currentState === 1 ? 'Rolü pasife almak istediğinize emin misiniz?' : 'Rol tekrar aktif edilecektir.',
+      currentState === 1
+    );
+    if (confirmed) {
+      toggleMutation.mutate({ id, state: currentState });
+    }
   };
 
-  const togglePermission = (permId: number) => {
+  const togglePermission = (permId: string) => {
     setFormData(prev => ({
       ...prev,
       permissionIds: prev.permissionIds.includes(permId)
@@ -138,7 +145,7 @@ export function RolesPage() {
   };
 
   const applyFastRole = (type: string) => {
-    let ids: number[] = [];
+    let ids: string[] = [];
     switch (type) {
       case 'admin':
         ids = allPermissions.map((p: Permission) => p.id);

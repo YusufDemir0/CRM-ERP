@@ -86,7 +86,7 @@ export default function DepartmentsPage() {
   );
 
   const mutation = useMutation({
-    mutationFn: ({ id, state }: { id: number; state: number }) => departmentsAPI.toggleState(id, state),
+    mutationFn: ({ id, state }: { id: string | number; state: number }) => departmentsAPI.toggleState(id, state),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.departments.all({}) });
       toast.success("Durum güncellendi.");
@@ -113,7 +113,7 @@ export default function DepartmentsPage() {
     });
   };
 
-  const toggleState = async (id: number, currentState: number) => {
+  const toggleState = async (id: string | number, currentState: number) => {
     const confirmed = await confirmDialog(currentState === 1 ? 'Departmanı arşivlemek istediğinize emin misiniz?' : 'Departman tekrar aktif edilecektir. Onaylıyor musunuz?', currentState === 1);
     if (confirmed) {
       mutation.mutate({ id, state: currentState });

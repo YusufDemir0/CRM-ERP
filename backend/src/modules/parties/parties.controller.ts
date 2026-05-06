@@ -19,23 +19,23 @@ export class PartiesController {
 
   @Get(':id')
   @RequirePermissions('CUSTOMER_VIEW')
-  findOne(@Param('id', ParseIntPipe) id: number) { return this.partiesService.findOne(id); }
+  findOne(@Param('id') id: string) { return this.partiesService.findOne(id); }
 
   @Get(':id/balance')
   @RequirePermissions('CUSTOMER_VIEW')
-  getBalance(@Param('id', ParseIntPipe) id: number) { return this.partiesService.getBalance(id); }
+  getBalance(@Param('id') id: string) { return this.partiesService.getBalance(id); }
 
   @Post()
   @RequirePermissions('CUSTOMER_CREATE')
-  create(@Body() dto: CreatePartyDto, @CurrentUser('sub') userId: number) { return this.partiesService.create(dto, userId); }
+  create(@Body() dto: CreatePartyDto, @CurrentUser('sub') userId: string) { return this.partiesService.create(dto, userId); }
 
   @Put(':id')
   @RequirePermissions('CUSTOMER_EDIT')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePartyDto, @CurrentUser('sub') userId: number) {
+  update(@Param('id') id: string, @Body() dto: UpdatePartyDto, @CurrentUser('sub') userId: string) {
     return this.partiesService.update(id, dto, userId);
   }
 
   @Delete(':id')
   @RequirePermissions('CUSTOMER_DELETE')
-  remove(@Param('id', ParseIntPipe) id: number) { return this.partiesService.softDelete(id); }
+  remove(@Param('id') id: string) { return this.partiesService.softDelete(id); }
 }

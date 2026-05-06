@@ -8,22 +8,22 @@ export class NotesController {
   constructor(private readonly notesService: NotesService) {}
 
   @Get()
-  async findAll(@Request() req: { user: { id: number } }) {
+  async findAll(@Request() req: { user: { id: string } }) {
     return this.notesService.findAllByUser(req.user.id);
   }
 
   @Post()
-  async create(@Request() req: { user: { id: number } }, @Body() data: Partial<UserNote>) {
+  async create(@Request() req: { user: { id: string } }, @Body() data: Partial<UserNote>) {
     return this.notesService.create(req.user.id, data);
   }
 
   @Put(':id')
-  async update(@Request() req: { user: { id: number } }, @Param('id') id: string, @Body() data: Partial<UserNote>) {
-    return this.notesService.update(+id, req.user.id, data);
+  async update(@Request() req: { user: { id: string } }, @Param('id') id: string, @Body() data: Partial<UserNote>) {
+    return this.notesService.update(id, req.user.id, data);
   }
 
   @Delete(':id')
-  async remove(@Request() req: { user: { id: number } }, @Param('id') id: string) {
-    return this.notesService.remove(+id, req.user.id);
+  async remove(@Request() req: { user: { id: string } }, @Param('id') id: string) {
+    return this.notesService.remove(id, req.user.id);
   }
 }

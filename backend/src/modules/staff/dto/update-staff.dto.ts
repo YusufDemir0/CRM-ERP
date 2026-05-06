@@ -6,7 +6,7 @@ export class UpdateStaffDto {
   @IsOptional() @IsString() @MaxLength(20) lastName?: string;
   @IsOptional() @IsString() phone?: string;
   @IsOptional() @IsDateString() entryDate?: string;
-  @IsOptional() @IsNumber() @IsInt() @Type(() => Number) departmentId?: number;
+  @IsOptional() @IsString() departmentId: string;
   @IsOptional() @IsBoolean() isActive?: boolean;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) state?: number;
   @IsOptional() @IsString() @MaxLength(11) tckn?: string;

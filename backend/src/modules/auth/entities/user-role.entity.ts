@@ -5,10 +5,10 @@ import { Role } from './role.entity';
 @Entity('user_roles')
 export class UserRole {
   @PrimaryColumn({ name: 'user_id', type: 'bigint' })
-  userId: number;
+  userId: string;
 
   @PrimaryColumn({ name: 'role_id', type: 'bigint' })
-  roleId: number;
+  roleId: string;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'user_id' })

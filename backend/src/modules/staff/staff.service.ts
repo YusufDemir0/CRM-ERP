@@ -12,7 +12,7 @@ export class StaffService {
     private readonly staffRepository: Repository<Staff>,
   ) {}
 
-  async create(createStaffDto: CreateStaffDto, userId: number) {
+  async create(createStaffDto: CreateStaffDto, userId: string) {
     const staff = this.staffRepository.create({
       ...createStaffDto,
       entryDate: createStaffDto.entryDate || new Date().toISOString().split('T')[0],
@@ -22,7 +22,7 @@ export class StaffService {
     return await this.staffRepository.save(staff);
   }
 
-  async findAll(query: { departmentId?: number; page?: number; limit?: number; state?: number }) {
+  async findAll(query: { departmentId: string; page?: number; limit?: number; state?: number }) {
     const qb = this.staffRepository.createQueryBuilder('staff')
       .leftJoinAndSelect('staff.department', 'department')
       .where('staff.deletedAt IS NULL');
@@ -53,7 +53,7 @@ export class StaffService {
     };
   }
 
-  async findOne(id: number) {
+  async findOne(id: string) {
     const staff = await this.staffRepository.findOne({
       where: { id, deletedAt: IsNull() },
       relations: ['department'],
@@ -62,7 +62,7 @@ export class StaffService {
     return staff;
   }
 
-  async update(id: number, updateStaffDto: UpdateStaffDto, userId: number) {
+  async update(id: string, updateStaffDto: UpdateStaffDto, userId: string) {
     const staff = await this.findOne(id);
     if (updateStaffDto.state !== undefined && staff.state !== updateStaffDto.state) {
       const today = new Date().toISOString().split('T')[0];
@@ -80,14 +80,14 @@ export class StaffService {
     return await this.staffRepository.save(staff);
   }
 
-  async remove(id: number, userId: number) {
+  async remove(id: string, userId: string) {
     const staff = await this.findOne(id);
     staff.deletedAt = new Date();
     staff.updatedBy = userId;
     return await this.staffRepository.save(staff);
   }
 
-  async toggleActive(id: number, userId: number) {
+  async toggleActive(id: string, userId: string) {
     const staff = await this.findOne(id);
     staff.isActive = !staff.isActive;
     staff.state = staff.isActive ? 1 : 0;

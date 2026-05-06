@@ -3,7 +3,7 @@ import { Entity, Column, PrimaryGeneratedColumn, UpdateDateColumn, CreateDateCol
 @Entity('settings')
 export class Setting {
   @PrimaryGeneratedColumn({ type: 'bigint' })
-  id: number;
+  id: string;
 
   @Column({ name: 'setting_key', type: 'varchar', length: 100, unique: true })
   settingKey: string;

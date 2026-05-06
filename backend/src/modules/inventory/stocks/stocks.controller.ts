@@ -20,22 +20,28 @@ export class StocksController {
   @RequirePermissions('INVENTORY_VIEW')
   getCriticalStocks() { return this.stocksService.getCriticalStocks(); }
 
+  @Get('movements')
+  @RequirePermissions('INVENTORY_VIEW')
+  findAllMovements(@Query() query: PaginationDto & { type?: string; search?: string }) {
+    return this.stocksService.findAllMovements(query);
+  }
+
   @Get(':id/movements')
   @RequirePermissions('INVENTORY_VIEW')
-  getMovements(@Param('id', ParseIntPipe) id: number, @Query() query: PaginationDto) {
+  getMovements(@Param('id') id: string, @Query() query: PaginationDto) {
     return this.stocksService.getMovements(id, query);
   }
 
   @Post('adjust')
   @RequirePermissions('INVENTORY_EDIT')
-  adjustStock(@Body() dto: StockAdjustmentDto, @CurrentUser('sub') userId: number) {
+  adjustStock(@Body() dto: StockAdjustmentDto, @CurrentUser('sub') userId: string) {
     return this.stocksService.adjustStock(dto, userId);
   }
 
   // YENİ EKLENEN ENDPOINT
   @Post('transfer')
   @RequirePermissions('INVENTORY_EDIT')
-  transferStock(@Body() dto: TransferStockDto, @CurrentUser('sub') userId: number) {
+  transferStock(@Body() dto: TransferStockDto, @CurrentUser('sub') userId: string) {
     return this.stocksService.transferStock(dto, userId);
   }
 
