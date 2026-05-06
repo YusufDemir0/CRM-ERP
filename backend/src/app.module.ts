@@ -27,7 +27,7 @@ import { configValidationSchema } from './config/config.schema';
 
 // Common
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
-import { LogsInterceptor } from './common/interceptors/logs.interceptor';
+// LogsInterceptor REMOVED — Pino handles structured logging natively (see ADIM 1)
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 import { AuditSubscriber } from './common/subscribers/audit.subscriber';
@@ -126,7 +126,7 @@ import { HealthModule } from './infrastructure/health/health.module';
   ],
   providers:[
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
-    { provide: APP_INTERCEPTOR, useClass: LogsInterceptor },
+    // LogsInterceptor REMOVED — Self-DDoS risk eliminated (JSON.stringify on every request)
     { provide: APP_GUARD, useClass: ThrottlerProxyGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },

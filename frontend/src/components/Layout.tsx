@@ -2,16 +2,22 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
-import { useState, useCallback, useMemo } from 'react';
-import { useRealtimeSync } from '../hooks/useRealtimeSync';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { authEvents } from '../services/authEvents';
+import { useAuthStore } from '../store/useAuthStore';
 
 export default function Layout() {
   const { user, isLoading } = useAuth();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
   
-  // Real-time synchronization
-  useRealtimeSync();
+  // Listen for session-expired events from the API layer (decoupled from interceptor)
+  useEffect(() => {
+    const unsubscribe = authEvents.on('session-expired', () => {
+      useAuthStore.getState().setReAuthModal(true);
+    });
+    return unsubscribe;
+  }, []);
 
   if (isLoading) {
     return (

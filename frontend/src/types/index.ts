@@ -101,6 +101,7 @@ export interface Party extends BaseEntity {
   currency?: Currency;
   totalSalesCount?: number;
   lastSaleDate?: string | Date;
+  cityName?: string; // Resolved city name for display
 }
 
 export interface Account extends BaseEntity {
@@ -488,6 +489,8 @@ export interface SalesWizardState {
 export interface ImportItemDto {
   code: string;
   name: string;
+  typeName?: string;  // Name-based mapping for Excel import
+  unitName?: string;  // Name-based mapping for Excel import
   purchasePrice?: number;
   salePrice?: number;
   criticalLimit?: number;

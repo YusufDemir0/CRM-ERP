@@ -21,7 +21,7 @@ import {
   ImportItemDto,
   Log
 } from '../types';
-import { useAuthStore } from '../store/useAuthStore';
+import { authEvents } from './authEvents';
 import { useLoaderStore } from '../store/useLoaderStore';
 
 // ────── AXIOS INSTANCE ──────
@@ -124,7 +124,7 @@ api.interceptors.response.use(
               console.error('🛡️ Session: Refresh failed. Prompting re-auth modal...');
               isRefreshing = false;
               rejectFailedRequests(refreshError);
-              useAuthStore.getState().setReAuthModal(true);
+              authEvents.emit('session-expired');
               return Promise.reject(refreshError);
             });
         }

@@ -1,5 +1,4 @@
 
-import { parseTurkishDecimal } from '../../utils/number.helper';
 import { Item, Department } from '../../types';
 import { PremiumNumberInput } from '../common/PremiumNumberInput';
 import { SearchableSelect } from '../common/SearchableSelect';
