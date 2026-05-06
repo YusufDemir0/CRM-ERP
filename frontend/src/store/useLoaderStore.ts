@@ -17,7 +17,7 @@ interface LoaderState {
 }
 
 const DEFAULT_MESSAGE = 'İŞLEM YAPILIYOR...';
-const MIN_DURATION = 2000;
+const MIN_DURATION = 500;
 
 export const useLoaderStore = create<LoaderState>((set, get) => ({
   isLoading: false,
