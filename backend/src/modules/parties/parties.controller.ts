@@ -17,6 +17,10 @@ export class PartiesController {
   @RequirePermissions('CUSTOMER_VIEW')
   getStatus() { return this.partiesService.getStatus(); }
 
+  @Get('lookup')
+  @RequirePermissions('CUSTOMER_VIEW')
+  lookup(@Query('type') type?: string) { return this.partiesService.lookup(type); }
+
   @Get(':id')
   @RequirePermissions('CUSTOMER_VIEW')
   findOne(@Param('id') id: string) { return this.partiesService.findOne(id); }

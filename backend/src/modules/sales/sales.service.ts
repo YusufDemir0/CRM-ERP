@@ -77,9 +77,17 @@ export class SalesService {
 
   async findAll(query: SalesQueryDto, user?: JwtPayload): Promise<PaginatedResult<Sale>> {
     const qb = this.saleRepo.createQueryBuilder('sale')
-      .leftJoinAndSelect('sale.party', 'party')
-      .leftJoinAndSelect('sale.saleType', 'saleType')
-      .leftJoinAndSelect('sale.currency', 'currency');
+      .select([
+        'sale.id', 'sale.code', 'sale.status', 'sale.totalAmount', 'sale.subtotal',
+        'sale.taxAmount', 'sale.discountAmount', 'sale.createdAt', 'sale.updatedAt',
+        'sale.deliveryDate', 'sale.phone', 'sale.address'
+      ])
+      .leftJoin('sale.party', 'party')
+      .addSelect(['party.id', 'party.name', 'party.type'])
+      .leftJoin('sale.saleType', 'saleType')
+      .addSelect(['saleType.id', 'saleType.name', 'saleType.abbreviation'])
+      .leftJoin('sale.currency', 'currency')
+      .addSelect(['currency.id', 'currency.symbol', 'currency.code']);
 
     if (query.search) {
       const searchPattern = query.search.replace(/[+><()~*\"@\-]/g, ' ').trim();

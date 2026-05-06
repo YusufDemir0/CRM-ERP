@@ -220,6 +220,7 @@ export const partiesAPI = {
   update: (id: string | number, data: UpdatePartyDto, config?: AxiosRequestConfig) => api.put(`/parties/${id}`, data, config),
   toggleState: (id: string | number, currentState: number, config?: AxiosRequestConfig) => api.put(`/parties/${id}`, { state: currentState === 1 ? 0 : 1 }, config),
   delete: (id: string | number, config?: AxiosRequestConfig) => api.delete(`/parties/${id}`, config),
+  lookup: (type?: string, config?: AxiosRequestConfig) => api.get<Party[]>('/parties/lookup', { params: { type }, ...config }),
 };
 
 // ────── ITEMS API ──────

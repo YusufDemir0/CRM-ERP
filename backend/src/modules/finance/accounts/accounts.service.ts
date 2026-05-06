@@ -19,7 +19,12 @@ export class AccountsService {
 
   async findAll(query: PaginationDto): Promise<PaginatedResult<CommercialAccount>> {
     const qb = this.accRepo.createQueryBuilder('acc')
-      .leftJoinAndSelect('acc.currency', 'currency');
+      .select([
+        'acc.id', 'acc.name', 'acc.bankName', 'acc.iban', 'acc.state', 
+        'acc.createdAt'
+      ])
+      .leftJoin('acc.currency', 'currency')
+      .addSelect(['currency.id', 'currency.symbol', 'currency.code']);
 
     if (query.search) {
       const s = getSafeSearchPattern(query.search);

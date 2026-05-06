@@ -44,31 +44,31 @@ export default function SaleWizardPage() {
     mode: 'onChange' // Validate as user types
   });
 
-  // Auto-save draft on every change
+  // Auto-save draft on every change (Debounced for performance)
   useEffect(() => {
     const subscription = methods.watch((value) => {
-      // Safely update draftData by merging only primitive fields
-      // and preserving complex objects like 'customer' and 'paymentAccount'
-      // which are handled within the components themselves for accuracy.
-      setDraftData({
-        ...draftData,
-        phone: value.phone || draftData.phone,
-        phone2: value.phone2 || draftData.phone2,
-        email: value.email || draftData.email,
-        taxId: value.taxId || draftData.taxId,
-        cityId: value.cityId || draftData.cityId,
-        district: value.district || draftData.district,
-        address: value.address || draftData.address,
-        date: value.date || draftData.date,
-        deliveryDate: value.deliveryDate || draftData.deliveryDate,
-        deposit: value.deposit !== undefined ? value.deposit : draftData.deposit,
-        discountAmount: value.discountAmount !== undefined ? value.discountAmount : draftData.discountAmount,
-        source: value.source || draftData.source,
-        isTaxed: value.isTaxed !== undefined ? value.isTaxed : draftData.isTaxed,
-        description: value.description || draftData.description,
-        staffId: value.staffId || draftData.staffId,
-        selectedItems: (value.items as any) || draftData.selectedItems // items are complex but we can pass them if they follow the type
-      });
+      const timeoutId = setTimeout(() => {
+        setDraftData({
+          ...draftData,
+          phone: value.phone || draftData.phone,
+          phone2: value.phone2 || draftData.phone2,
+          email: value.email || draftData.email,
+          taxId: value.taxId || draftData.taxId,
+          cityId: value.cityId || draftData.cityId,
+          district: value.district || draftData.district,
+          address: value.address || draftData.address,
+          date: value.date || draftData.date,
+          deliveryDate: value.deliveryDate || draftData.deliveryDate,
+          deposit: value.deposit !== undefined ? value.deposit : draftData.deposit,
+          discountAmount: value.discountAmount !== undefined ? value.discountAmount : draftData.discountAmount,
+          source: value.source || draftData.source,
+          isTaxed: value.isTaxed !== undefined ? value.isTaxed : draftData.isTaxed,
+          description: value.description || draftData.description,
+          staffId: value.staffId || draftData.staffId,
+          selectedItems: (value.items as any) || draftData.selectedItems
+        });
+      }, 1000); // 1s debounce
+      return () => clearTimeout(timeoutId);
     });
     return () => subscription.unsubscribe();
   }, [methods, setDraftData, draftData]);

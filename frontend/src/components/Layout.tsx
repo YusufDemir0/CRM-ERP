@@ -2,7 +2,7 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
 
 export default function Layout() {
@@ -24,13 +24,15 @@ export default function Layout() {
 
   if (!user) return <Navigate to="/login" replace />;
 
+  const toggleSidebar = useCallback(() => setIsCollapsed(prev => !prev), []);
   const sidebarWidth = isCollapsed ? '80px' : '256px';
+  const layoutStyle = useMemo(() => ({ '--sidebar-w': sidebarWidth } as React.CSSProperties), [sidebarWidth]);
 
   return (
-    <div className="app-layout" style={{ '--sidebar-w': sidebarWidth } as React.CSSProperties}>
+    <div className="app-layout" style={layoutStyle}>
       <Sidebar isCollapsed={isCollapsed} />
       <div className="flex flex-col flex-1 min-h-screen">
-        <Navbar onToggleSidebar={() => setIsCollapsed(!isCollapsed)} />
+        <Navbar onToggleSidebar={toggleSidebar} />
         <main className="main-content">
           <Outlet />
         </main>

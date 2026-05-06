@@ -21,9 +21,9 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ onClose, onSuc
 
   const handleDownloadTemplate = () => {
     // CSV Header matching ImportItemDto
-    const headers = "KOD,URUN_ADI,ALIS_FIYATI,SATIS_FIYATI,KRITIK_LIMIT,KDV_ORANI\n";
-    const example = "STK-001,ÖRNEK ÜRÜN,100,150,10,20\n";
-    const blob = new Blob([headers + example], { type: 'text/csv;charset=utf-8;' });
+    const headers = "KOD,URUN_ADI,URUN_TIPI,BIRIM,ALIS_FIYATI,SATIS_FIYATI,KRITIK_LIMIT,KDV_ORANI\n";
+    const example = "STK-001,ÖRNEK ÜRÜN,MAMÜL,ADET,100,150,10,20\n";
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), headers + example], { type: 'text/csv;charset=utf-8;' }); // Added BOM for Excel UTF-8 support
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
@@ -56,12 +56,14 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ onClose, onSuc
           if (cols.length < 2) continue;
           
           items.push({
-            code: cols[0].trim(),
-            name: cols[1].trim(),
-            purchasePrice: Number(cols[2]) || 0,
-            salePrice: Number(cols[3]) || 0,
-            criticalLimit: Number(cols[4]) || 0,
-            kdv: Number(cols[5]) || 20
+            code: cols[0]?.trim(),
+            name: cols[1]?.trim(),
+            typeName: cols[2]?.trim(),
+            unitName: cols[3]?.trim(),
+            purchasePrice: Number(cols[4]) || 0,
+            salePrice: Number(cols[5]) || 0,
+            criticalLimit: Number(cols[6]) || 0,
+            kdv: Number(cols[7]) || 20
           });
         }
 

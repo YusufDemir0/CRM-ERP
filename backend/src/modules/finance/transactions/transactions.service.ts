@@ -27,9 +27,16 @@ export class TransactionsService {
 
   async findAll(query: TransactionsQueryDto): Promise<PaginatedResult<Transaction>> {
     const qb = this.txRepo.createQueryBuilder('tx')
-      .leftJoinAndSelect('tx.party', 'party')
-      .leftJoinAndSelect('tx.commercialAccount', 'commercialAccount')
-      .leftJoinAndSelect('tx.currency', 'currency');
+      .select([
+        'tx.id', 'tx.code', 'tx.type', 'tx.amount', 'tx.date', 
+        'tx.status', 'tx.description', 'tx.exchangeRate', 'tx.createdAt'
+      ])
+      .leftJoin('tx.party', 'party')
+      .addSelect(['party.id', 'party.name'])
+      .leftJoin('tx.commercialAccount', 'commercialAccount')
+      .addSelect(['commercialAccount.id', 'commercialAccount.name', 'commercialAccount.bankName'])
+      .leftJoin('tx.currency', 'currency')
+      .addSelect(['currency.id', 'currency.symbol', 'currency.code']);
 
     if (query.search) {
       const s = getSafeSearchPattern(query.search);

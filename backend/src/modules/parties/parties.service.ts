@@ -18,10 +18,28 @@ export class PartiesService {
     private partyRepo: Repository<Party>,
     private currenciesService: CurrenciesService,
   ) { }
+  
+  async lookup(type?: string): Promise<Partial<Party>[]> {
+    const qb = this.partyRepo.createQueryBuilder('party')
+      .select(['party.id', 'party.name', 'party.type', 'party.currencyId'])
+      .where('party.state = :state', { state: 1 });
+
+    if (type) {
+      qb.andWhere('party.type = :type', { type });
+    }
+
+    return qb.orderBy('party.name', 'ASC').getMany();
+  }
 
   async findAll(query: PaginationDto & { type?: string; departmentId: string }): Promise<PaginatedResult<Party>> {
     const qb = this.partyRepo.createQueryBuilder('party')
-      .leftJoinAndSelect('party.currency', 'currency');
+      .select([
+        'party.id', 'party.name', 'party.type', 'party.state', 
+        'party.taxNumber', 'party.phone1', 'party.phone2', 
+        'party.email', 'party.balance', 'party.address'
+      ])
+      .leftJoin('party.currency', 'currency')
+      .addSelect(['currency.id', 'currency.symbol', 'currency.code']);
 
     if (query.departmentId) {
       qb.innerJoin('users', 'u', 'u.id = party.created_by AND u.department_id = :departmentId', { departmentId: query.departmentId });

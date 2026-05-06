@@ -79,6 +79,7 @@ export class LogsService implements OnModuleInit {
 
   async getNotifications(limit: number = 20): Promise<SystemLog[]> {
     return this.logRepository.find({
+      select: ['id', 'action', 'module', 'tag', 'details', 'createdAt'],
       where: { isDeleted: false },
       order: { createdAt: 'DESC' },
       take: limit

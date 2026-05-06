@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { partiesAPI, accountsAPI, salesAPI, itemsAPI, staffAPI, departmentsAPI } from '../services/api';
 import { Party, Item, SaleType, Account, Staff, Department } from '../types';
 import { useSalesWizardStore } from '../store/useSalesWizardStore';
+import { queryKeys } from '../services/queryKeys';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/useAuthStore';
 import { SalesWizardFormData } from '../pages/modules/SalesWizard/schema';
@@ -9,58 +11,55 @@ import { SalesWizardFormData } from '../pages/modules/SalesWizard/schema';
 export const useSalesWizard = (onCompleted: () => void) => {
   const store = useSalesWizardStore();
   const { user } = useAuthStore();
-  const [customers, setCustomers] = useState<Party[]>([]);
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [staff, setStaff] = useState<Staff[]>([]);
-  const [items, setItems] = useState<Item[]>([]);
-  const [saleTypes, setSaleTypes] = useState<SaleType[]>([]);
-  const [department, setDepartment] = useState<Department | null>(null);
-  const [searchCustomer, setSearchCustomer] = useState('');
+  const { data: customers = [] } = useQuery({
+    queryKey: queryKeys.parties.lookup,
+    queryFn: () => partiesAPI.lookup('customer').then(r => r.data)
+  });
+
+  const { data: accounts = [] } = useQuery({
+    queryKey: queryKeys.accounts.lookup,
+    queryFn: () => accountsAPI.getAll({ limit: 100 }).then(r => r.data.data)
+  });
+
+  const { data: staff = [] } = useQuery({
+    queryKey: ['staff', 'lookup'],
+    queryFn: () => staffAPI.getAll({ limit: 200 }).then(r => r.data.data)
+  });
+
+  const { data: items = [] } = useQuery({
+    queryKey: queryKeys.items.lookup,
+    queryFn: () => itemsAPI.getAll({ limit: 100 }).then(r => r.data.data)
+  });
+
+  const { data: saleTypes = [] } = useQuery({
+    queryKey: ['saleTypes'],
+    queryFn: () => salesAPI.getTypes().then(r => r.data)
+  });
+
+  const { data: departments = [] } = useQuery({
+    queryKey: queryKeys.departments.lookup,
+    queryFn: () => departmentsAPI.getAll({ limit: 100 }).then(r => r.data.data)
+  });
+
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadLookups();
-  }, []);
-
-  const loadLookups = async () => {
-    try {
-      const [cRes, aRes, iRes, stRes, sRes, dRes] = await Promise.all([
-        partiesAPI.getAll({ limit: 100, type: 'customer' }),
-        accountsAPI.getAll({ limit: 100 }),
-        itemsAPI.getAll({ limit: 100 }),
-        salesAPI.getTypes(),
-        staffAPI.getAll({ limit: 200 }),
-        departmentsAPI.getAll({ limit: 100 })
-      ]);
-      
-      setCustomers(cRes.data.data);
-      setAccounts(aRes.data.data);
-      setItems(iRes.data.data);
-      setSaleTypes(stRes.data);
-
-      const allStaff = sRes.data.data;
-      if (user?.departmentId) {
-        setStaff(allStaff.filter(s => Number(s.departmentId) === Number(user.departmentId)));
-      } else {
-        setStaff(allStaff);
-      }
-
-      if (user?.departmentId) {
-        const userDept = dRes.data.data.find(d => Number(d.id) === Number(user.departmentId));
-        if (userDept) {
-          setDepartment(userDept);
-          // Auto-select payment account is handled at form initialization via draftData if null
-        }
-      }
-
-    } catch (error) {
-      toast.error("Veriler yüklenirken hata oluştu.");
+  const filteredStaff = useMemo(() => {
+    if (user?.departmentId) {
+      return staff.filter(s => Number(s.departmentId) === Number(user.departmentId));
     }
-  };
+    return staff;
+  }, [staff, user?.departmentId]);
 
-  const refreshLookups = async () => {
-    await loadLookups();
-  };
+  const department = useMemo(() => {
+    if (user?.departmentId) {
+      return departments.find(d => Number(d.id) === Number(user.departmentId)) || null;
+    }
+    return null;
+  }, [departments, user?.departmentId]);
+
+  const refreshLookups = () => {};
+  const searchCustomer = '';
+  const setSearchCustomer = () => {};
 
   const submitForm = async (data: SalesWizardFormData) => {
     setLoading(true);
@@ -105,7 +104,7 @@ export const useSalesWizard = (onCompleted: () => void) => {
   return {
     customers,
     accounts,
-    staff,
+    staff: filteredStaff,
     items,
     saleTypes,
     department,
