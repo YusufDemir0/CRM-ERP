@@ -18,6 +18,10 @@ import { SequenceGeneratorService } from '../../common/services/sequence-generat
 import { InventoryListener } from './listeners/inventory.listener';
 
 import { BomItem } from '../production/entities/bom-item.entity';
+import { StocksReportsService } from './stocks/stocks-reports.service';
+import { StocksTransactionsService } from './stocks/stocks-transactions.service';
+import { ItemsReportsService } from './items/items-reports.service';
+import { ItemsTransactionsService } from './items/items-transactions.service';
 
 @Module({
   imports: [
@@ -30,7 +34,15 @@ import { BomItem } from '../production/entities/bom-item.entity';
     LogsModule,
   ],
   controllers: [ItemsController, StocksController],
-  providers: [ItemsService, StocksService, SequenceGeneratorService, InventoryListener],
-  exports: [ItemsService, StocksService, SequenceGeneratorService],
+  providers: [
+    ItemsService, ItemsReportsService, ItemsTransactionsService,
+    StocksService, StocksReportsService, StocksTransactionsService, 
+    SequenceGeneratorService, InventoryListener
+  ],
+  exports: [
+    ItemsService, ItemsReportsService, ItemsTransactionsService,
+    StocksService, StocksReportsService, StocksTransactionsService, 
+    SequenceGeneratorService
+  ],
 })
 export class InventoryModule {}
