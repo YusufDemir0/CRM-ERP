@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, StreamableFile } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, MoreThan } from 'typeorm';
+import { Repository, DataSource, MoreThan, In } from 'typeorm';
 import { Item } from './entities/item.entity';
 import { ItemType } from './entities/item-type.entity';
 import { QuantityType } from './entities/quantity-type.entity';
@@ -202,94 +202,111 @@ export class ItemsService {
   @Transactional()
   async importItems(items: ImportItemDto[], userId: string) {
     const manager = this.transactionContext.manager;
-    
     let updatedCount = 0;
     let insertedCount = 0;
     const errors: string[] = [];
 
-    // Pre-fetch all types and units for mapping
-    const [itemTypes, qtyTypes] = await Promise.all([
+    // 1. Get all codes
+    const itemCodes = items.map(i => i.code?.trim()).filter(Boolean);
+    
+    if (itemCodes.length === 0) {
+      throw new BadRequestException('Aktarılacak geçerli ürün kodu bulunamadı.');
+    }
+
+    // 2. Fetch lookups to RAM (avoids N+1)
+    const [existingItems, itemTypes, qtyTypes, departments, defaultCurrency] = await Promise.all([
+      manager.find(Item, { where: { code: In(itemCodes) } }),
       manager.find(ItemType, { where: { state: 1 } }),
-      manager.find(QuantityType, { where: { state: 1 } })
+      manager.find(QuantityType, { where: { state: 1 } }),
+      manager.find(Department, { where: { state: 1 } }),
+      this.currenciesService.getDefault()
     ]);
+
+    const defaultCurrencyId = defaultCurrency ? String(defaultCurrency.id) : null;
 
     if (itemTypes.length === 0 || qtyTypes.length === 0) {
       throw new BadRequestException('Sistemde tanımlı Ürün Tipi veya Birim bulunamadı. İçe aktarım yapılamaz.');
     }
 
-    const itemTypeMap = new Map(itemTypes.map(t => [t.name.trim().toLocaleLowerCase('tr-TR'), t.id.toString()]));
-    const qtyTypeMap = new Map(qtyTypes.map(t => [t.name.trim().toLocaleLowerCase('tr-TR'), t.id.toString()]));
-    
-    const defaultItemTypeId = itemTypes[0].id.toString();
-    const defaultQtyTypeId = qtyTypes[0].id.toString();
+    const existingMap = new Map(existingItems.map(i => [i.code, i]));
+    const typeMap = new Map(itemTypes.map(t => [t.name.trim().toLocaleLowerCase('tr-TR'), String(t.id)]));
+    const qtyMap = new Map(qtyTypes.map(q => [q.name.trim().toLocaleLowerCase('tr-TR'), String(q.id)]));
 
-    const defaultCurrency = await this.currenciesService.getDefault();
-    const defaultCurrencyId = defaultCurrency ? String(defaultCurrency.id) : null;
-    const departments = await manager.find(Department, { where: { state: 1 } });
+    const defaultTypeId = String(itemTypes[0]?.id);
+    const defaultQtyId = String(qtyTypes[0]?.id);
 
+    const newItemsToSave: Item[] = [];
+    const itemsToUpdate: Item[] = [];
+
+    // 3. Match in memory O(1)
     for (const [index, row] of items.entries()) {
-      try {
-        const { code, name, typeName, unitName, purchasePrice, salePrice, criticalLimit, kdv } = row;
-        
-        if (!code || !name) {
-          errors.push(`Satır ${index + 1}: Kod ve İsim zorunludur.`);
-          continue;
-        }
+      if (!row.code || !row.name) {
+        errors.push(`Satır ${index + 1}: Kod ve İsim zorunludur.`);
+        continue;
+      }
 
-        const existingItem = await manager.findOne(Item, { where: { code } });
+      const typeId = row.typeName ? typeMap.get(row.typeName.trim().toLocaleLowerCase('tr-TR')) || defaultTypeId : defaultTypeId;
+      const qtyId = row.unitName ? qtyMap.get(row.unitName.trim().toLocaleLowerCase('tr-TR')) || defaultQtyId : defaultQtyId;
 
-        // Resolve IDs by name or fallback to default
-        const resolvedItemTypeId = typeName ? (itemTypeMap.get(typeName.trim().toLocaleLowerCase('tr-TR')) || defaultItemTypeId) : defaultItemTypeId;
-        const resolvedQtyTypeId = unitName ? (qtyTypeMap.get(unitName.trim().toLocaleLowerCase('tr-TR')) || defaultQtyTypeId) : defaultQtyTypeId;
+      const existing = existingMap.get(row.code.trim());
 
-        if (existingItem) {
-          // UPDATE
-          await manager.update(Item, existingItem.id, {
-            name: name.toLocaleUpperCase('tr-TR'),
-            itemTypeId: resolvedItemTypeId,
-            quantityTypeId: resolvedQtyTypeId,
-            purchasePrice: purchasePrice !== undefined ? new Decimal(purchasePrice) : existingItem.purchasePrice,
-            salePrice: salePrice !== undefined ? new Decimal(salePrice) : existingItem.salePrice,
-            criticalLimit: criticalLimit !== undefined ? new Decimal(criticalLimit) : existingItem.criticalLimit,
-            kdv: kdv !== undefined ? new Decimal(kdv) : existingItem.kdv,
-            updatedBy: userId
-          });
-          updatedCount++;
-        } else {
-          // INSERT
-          const newItem = manager.create(Item, {
-            name: name.trim().toLocaleUpperCase('tr-TR'),
-            code: code.trim(),
-            itemTypeId: resolvedItemTypeId,
-            quantityTypeId: resolvedQtyTypeId,
-            currencyId: defaultCurrencyId,
-            purchasePrice: new Decimal(purchasePrice || 0),
-            salePrice: new Decimal(salePrice || 0),
-            criticalLimit: new Decimal(criticalLimit || 0),
-            kdv: new Decimal(kdv || 20),
-            movingAverageCost: new Decimal(0),
-            createdBy: userId,
-          });
-          
-          const savedItem = await manager.save(Item, newItem);
+      if (existing) {
+        // PREPARE UPDATE
+        existing.name = row.name.toLocaleUpperCase('tr-TR');
+        existing.itemTypeId = typeId;
+        existing.quantityTypeId = qtyId;
+        if (row.purchasePrice !== undefined) existing.purchasePrice = new Decimal(row.purchasePrice);
+        if (row.salePrice !== undefined) existing.salePrice = new Decimal(row.salePrice);
+        if (row.kdv !== undefined) existing.kdv = new Decimal(row.kdv);
+        if (row.criticalLimit !== undefined) existing.criticalLimit = new Decimal(row.criticalLimit);
+        existing.updatedBy = userId;
+        itemsToUpdate.push(existing);
+        updatedCount++;
+      } else {
+        // PREPARE INSERT
+        const newItem = manager.create(Item, {
+          code: row.code.trim(),
+          name: row.name.trim().toLocaleUpperCase('tr-TR'),
+          itemTypeId: typeId,
+          quantityTypeId: qtyId,
+          currencyId: defaultCurrencyId,
+          purchasePrice: new Decimal(row.purchasePrice || 0),
+          salePrice: new Decimal(row.salePrice || 0),
+          kdv: new Decimal(row.kdv ?? 20),
+          criticalLimit: new Decimal(row.criticalLimit || 0),
+          movingAverageCost: new Decimal(0),
+          createdBy: userId,
+        });
+        newItemsToSave.push(newItem);
+        insertedCount++;
+      }
+    }
 
-          // Auto-create stock records
-          const initialStocks = departments.map(dept => manager.create(Stock, {
-            itemId: String(savedItem.id),
+    // 4. Bulk DB Operations (Very Fast)
+    if (itemsToUpdate.length > 0) {
+      await manager.save(Item, itemsToUpdate);
+    }
+    
+    if (newItemsToSave.length > 0) {
+      const savedNewItems = await manager.save(Item, newItemsToSave);
+      
+      // Open stock records for new items with 0 quantity across all departments
+      const initialStocks = [];
+      for (const item of savedNewItems) {
+        for (const dept of departments) {
+          initialStocks.push(manager.create(Stock, {
+            itemId: String(item.id),
             departmentId: String(dept.id),
             quantity: new Decimal(0),
             reservedQuantity: new Decimal(0),
             createdBy: userId
           }));
-
-          if (initialStocks.length > 0) {
-            await manager.save(Stock, initialStocks);
-          }
-          
-          insertedCount++;
         }
-      } catch (err) {
-        errors.push(`Satır ${index + 1}: İşlem hatası (${err instanceof Error ? err.message : String(err)})`);
+      }
+      
+      if (initialStocks.length > 0) {
+        // Bulk save stocks with chunking for performance
+        await manager.save(Stock, initialStocks, { chunk: 100 }); 
       }
     }
 

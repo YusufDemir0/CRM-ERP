@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In, EntityManager } from 'typeorm';
 import dayjs from 'dayjs';
@@ -25,6 +25,7 @@ import { getSafeSearchPattern } from '../../../common/utils/sql.helper';
 
 @Injectable()
 export class StocksService {
+  private readonly logger = new Logger(StocksService.name);
   constructor(
     @InjectRepository(Stock) private stockRepo: Repository<Stock>,
     @InjectRepository(StockMovement) private movementRepo: Repository<StockMovement>,
@@ -130,21 +131,32 @@ export class StocksService {
     return newMAC;
   }
 
+  /**
+   * Validates stock levels after an outbound operation.
+   * TODO: Make margin configurable per-item or per-department via SettingsService.
+   * Currently allows unlimited negative stock but logs a warning for audit trail.
+   */
   private validateStock(itemId: string, deptId: string, currentQty: Decimal, delta: Decimal) {
-    const margin = new Decimal(-100);
     const after = currentQty.sub(delta);
-    if (after.lt(margin)) {
-      throw new BadRequestException(
-        `Yetersiz stok! En fazla -100 birime kadar izin verilmektedir. (Ürün ID: ${itemId}, Depo ID: ${deptId}, Mevcut: ${currentQty.toString()}, Talep: ${delta.toString()}, Kalan: ${after.toString()})`
+    if (after.isNeg()) {
+      this.logger.warn(
+        `Negatif stok uyarısı — Ürün: ${itemId}, Depo: ${deptId}, Mevcut: ${currentQty.toString()}, Talep: ${delta.toString()}, Kalan: ${after.toString()}`
       );
     }
   }
 
   async findAllMovements(query: PaginationDto & { type?: string; search?: string }): Promise<PaginatedResult<StockMovement>> {
     const qb = this.movementRepo.createQueryBuilder('sm')
-      .leftJoinAndSelect('sm.stock', 'stock')
-      .leftJoinAndSelect('stock.item', 'item')
-      .leftJoinAndSelect('stock.department', 'department')
+      .leftJoin('sm.stock', 'stock')
+      .leftJoin('stock.item', 'item')
+      .leftJoin('stock.department', 'department')
+      .select([
+        'sm.id', 'sm.quantity', 'sm.type', 'sm.referenceType', 'sm.referenceId', 'sm.createdAt', 'sm.notes',
+        'sm.quantityBefore', 'sm.quantityAfter', 'sm.unitCost', 'sm.totalCost',
+        'stock.id', 'stock.quantity',
+        'item.id', 'item.code', 'item.name',
+        'department.id', 'department.name'
+      ])
       .orderBy('sm.createdAt', 'DESC');
 
     if (query.type) {
@@ -788,8 +800,13 @@ export class StocksService {
 
   async getCriticalStocks(): Promise<Stock[]> {
     return this.stockRepo.createQueryBuilder('stock')
-      .leftJoinAndSelect('stock.item', 'item')
-      .leftJoinAndSelect('stock.department', 'department')
+      .leftJoin('stock.item', 'item')
+      .leftJoin('stock.department', 'department')
+      .select([
+        'stock.id', 'stock.quantity',
+        'item.id', 'item.code', 'item.name', 'item.criticalLimit',
+        'department.id', 'department.name'
+      ])
       .where('stock.quantity <= item.criticalLimit')
       .andWhere('item.criticalLimit > 0')
       .getMany();
