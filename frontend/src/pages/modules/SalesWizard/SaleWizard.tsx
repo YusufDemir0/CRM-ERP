@@ -333,18 +333,32 @@ const LogisticsSection = memo(({ staff, accounts }: { staff: any[], accounts: an
 
 // ─── MAIN PAGE COMPONENT ───
 
+export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted }) => {
+  const store = useSalesWizardStore();
+  const { customers, accounts, staff, items, submitForm, refreshLookups, department, loading } = useSalesWizard(onCompleted);
+  
+  const { control, handleSubmit, watch, setValue, register, formState: { errors } } = useFormContext<SalesWizardFormData>();
+  
+  const currentCustomerId = useWatch({ control, name: 'customerId' });
+  const staffId = useWatch({ control, name: 'staffId' });
+  const paymentAccountId = useWatch({ control, name: 'paymentAccountId' });
+  const phone = useWatch({ control, name: 'phone' });
+  const cityId = useWatch({ control, name: 'cityId' });
+  const district = useWatch({ control, name: 'district' });
+  const selectedItems = useWatch({ control, name: 'items' }) || [];
+
   const [step, setStep] = useState(1);
 
-  const isStep1Filled = !!(
+  const isStep1Filled = useMemo(() => !!(
     currentCustomerId && 
     staffId && 
     paymentAccountId && 
     phone && 
     cityId && 
     district?.trim()
-  );
+  ), [currentCustomerId, staffId, paymentAccountId, phone, cityId, district]);
 
-  const isStep2Filled = selectedItems.length > 0;
+  const isStep2Filled = useMemo(() => selectedItems.length > 0, [selectedItems.length]);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -497,7 +511,7 @@ const LogisticsSection = memo(({ staff, accounts }: { staff: any[], accounts: an
                          <span className="text-xs font-black text-slate-800">{accounts.find(a => Number(a.id) === Number(paymentAccountId))?.name || 'BELİRTİLMEDİ'}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                         <span className="text-[10px] font-bold text-slate-500 uppercase">ÜMÜN SAYISI:</span>
+                         <span className="text-[10px] font-bold text-slate-500 uppercase">ÜRÜN SAYISI:</span>
                          <span className="text-xs font-black text-slate-800">{selectedItems.length} KALEM</span>
                       </div>
                    </div>

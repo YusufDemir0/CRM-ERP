@@ -19,21 +19,21 @@ export default function SaleWizardPage() {
       customerId: draftData.customer?.id || '',
       staffId: draftData.staffId || '',
       paymentAccountId: draftData.paymentAccount?.id || null,
-      phone: draftData.phone,
-      phone2: draftData.phone2,
-      email: draftData.email,
-      taxId: draftData.taxId,
+      phone: draftData.phone || '',
+      phone2: draftData.phone2 || '',
+      email: draftData.email || '',
+      taxId: draftData.taxId || '',
       cityId: draftData.cityId || '',
-      district: draftData.district,
-      address: draftData.address,
-      date: draftData.date,
-      deliveryDate: draftData.deliveryDate,
-      deposit: draftData.deposit,
-      discountAmount: draftData.discountAmount,
-      source: draftData.source,
-      isTaxed: draftData.isTaxed,
-      description: draftData.description,
-      items: draftData.selectedItems.map(i => ({
+      district: draftData.district || '',
+      address: draftData.address || '',
+      date: draftData.date || new Date().toISOString().split('T')[0],
+      deliveryDate: draftData.deliveryDate || new Date().toISOString().split('T')[0],
+      deposit: draftData.deposit || 0,
+      discountAmount: draftData.discountAmount || 0,
+      source: draftData.source || '',
+      isTaxed: draftData.isTaxed ?? true,
+      description: draftData.description || '',
+      items: (draftData.selectedItems || []).map(i => ({
         id: i.id,
         name: i.name,
         quantity: i.quantity,
@@ -41,36 +41,40 @@ export default function SaleWizardPage() {
         taxRate: i.taxRate || 20
       }))
     },
-    mode: 'onChange' // Validate as user types
+    mode: 'onChange'
   });
 
-  // Auto-save draft on every change (Debounced for performance)
+  // Auto-save draft on every change (Fixed Debounce)
   useEffect(() => {
+    let timeoutId: any;
     const subscription = methods.watch((value) => {
-      const timeoutId = setTimeout(() => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
         setDraftData({
           ...draftData,
-          phone: value.phone || draftData.phone,
-          phone2: value.phone2 || draftData.phone2,
-          email: value.email || draftData.email,
-          taxId: value.taxId || draftData.taxId,
-          cityId: value.cityId || draftData.cityId,
-          district: value.district || draftData.district,
-          address: value.address || draftData.address,
-          date: value.date || draftData.date,
-          deliveryDate: value.deliveryDate || draftData.deliveryDate,
-          deposit: value.deposit !== undefined ? value.deposit : draftData.deposit,
-          discountAmount: value.discountAmount !== undefined ? value.discountAmount : draftData.discountAmount,
-          source: value.source || draftData.source,
-          isTaxed: value.isTaxed !== undefined ? value.isTaxed : draftData.isTaxed,
-          description: value.description || draftData.description,
-          staffId: value.staffId || draftData.staffId,
-          selectedItems: (value.items as any) || draftData.selectedItems
+          phone: value.phone || '',
+          phone2: value.phone2 || '',
+          email: value.email || '',
+          taxId: value.taxId || '',
+          cityId: value.cityId || '',
+          district: value.district || '',
+          address: value.address || '',
+          date: value.date || '',
+          deliveryDate: value.deliveryDate || '',
+          deposit: Number(value.deposit) || 0,
+          discountAmount: Number(value.discountAmount) || 0,
+          source: value.source || '',
+          isTaxed: !!value.isTaxed,
+          description: value.description || '',
+          staffId: value.staffId || '',
+          selectedItems: (value.items as any[]) || []
         });
-      }, 1000); // 1s debounce
-      return () => clearTimeout(timeoutId);
+      }, 1000);
     });
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [methods, setDraftData, draftData]);
 
   return (
