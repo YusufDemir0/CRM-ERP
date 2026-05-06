@@ -481,11 +481,14 @@ export class SalesService {
 
   async exportToExcel(query: SalesQueryDto, user: JwtPayload, res: Response) {
     const qb = this.saleRepo.createQueryBuilder('sale')
-      .leftJoinAndSelect('sale.party', 'party')
-      .leftJoinAndSelect('sale.saleType', 'saleType')
-      .leftJoinAndSelect('sale.currency', 'currency')
-      .leftJoinAndSelect('sale.items', 'items')
-      .leftJoinAndSelect('items.item', 'item');
+      .leftJoin('sale.party', 'party')
+      .leftJoin('sale.currency', 'currency')
+      .select([
+        'sale.id', 'sale.code', 'sale.createdAt', 'sale.phone',
+        'sale.grandTotal', 'sale.status', 'sale.deliveryDate', 'sale.profit',
+        'party.id', 'party.name', 'party.phone1',
+        'currency.id', 'currency.symbol'
+      ]);
 
     // Reuse filter logic (simplification for this turn: just basic filters)
     if (query.status) qb.andWhere('sale.status = :status', { status: query.status });
