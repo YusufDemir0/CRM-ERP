@@ -44,6 +44,7 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import { QuickCreateManager } from './components/common/QuickCreateManager';
 import { ReAuthModal } from './components/common/ReAuthModal';
 import { CommandPalette } from './components/common/CommandPalette';
+import GlobalConfirmModal from './components/modals/GlobalConfirmModal';
 
 export default function App() {
   const fetchProfile = useAuthStore(s => s.fetchProfile);
@@ -90,6 +91,7 @@ export default function App() {
             <QuickCreateManager />
             <ReAuthModal />
             <CommandPalette />
+            <GlobalConfirmModal />
             <Toaster
               position="top-right"
               toastOptions={{

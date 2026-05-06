@@ -1,0 +1,48 @@
+import api from './core';
+import { AxiosRequestConfig } from 'axios';
+import {
+  PaginationParams,
+  PaginatedResult,
+  User, CreateUserDto, UpdateUserDto,
+  Role, Permission,
+  Department,
+  Party, CreatePartyDto, UpdatePartyDto,
+  Item,
+  Stock, StockMovement, StockAdjustmentDto, StockTransferDto,
+  Sale, SaleType,
+  Currency,
+  Account,
+  Transaction, CreateTransactionDto,
+  Bom,
+  ProductionOrder,
+  CreateNoteDto, UpdateNoteDto,
+  CreateSaleDto,
+  Staff, CreateStaffDto, UpdateStaffDto,
+  ImportItemDto,
+  Log
+} from '../../types';
+
+export const itemsAPI = {
+  getAll: (params?: PaginationParams, config?: AxiosRequestConfig) => api.get<PaginatedResult<Item>>('/items', { params, ...config }),
+  getOne: (id: string | number, config?: AxiosRequestConfig) => api.get<Item>(`/items/${id}`, config),
+  getStatus: (config?: AxiosRequestConfig) => api.get('/items/status', config),
+  create: (data: Partial<Item>, config?: AxiosRequestConfig) => api.post('/items', data, config),
+  update: (id: string | number, data: Partial<Item>, config?: AxiosRequestConfig) => api.put(`/items/${id}`, data, config),
+  toggleState: (id: string | number, currentState: number, config?: AxiosRequestConfig) => api.put(`/items/${id}`, { state: currentState === 1 ? 0 : 1 }, config),
+  delete: (id: string | number, config?: AxiosRequestConfig) => api.delete(`/items/${id}`, config),
+  findAllItemTypes: (config?: AxiosRequestConfig) => api.get('/items/types', config),
+  getTypes: (config?: AxiosRequestConfig) => api.get('/items/types', config),
+  createItemType: (data: { name: string }, config?: AxiosRequestConfig) => api.post('/items/types', data, config),
+  updateItemType: (id: string | number, data: { name: string }, config?: AxiosRequestConfig) => api.put(`/items/types/${id}`, data, config),
+  deleteItemType: (id: string | number, config?: AxiosRequestConfig) => api.delete(`/items/types/${id}`, config),
+  getCodeGroups: (config?: AxiosRequestConfig) => api.get('/items/code-groups', config),
+  createCodeGroup: (data: { name: string; prefix: string }, config?: AxiosRequestConfig) => api.post('/items/code-groups', data, config),
+  updateCodeGroup: (id: string | number, data: { name: string; prefix: string }, config?: AxiosRequestConfig) => api.put(`/items/code-groups/${id}`, data, config),
+  deleteCodeGroup: (id: string | number, config?: AxiosRequestConfig) => api.delete(`/items/code-groups/${id}`, config),
+  getQuantityTypes: (config?: AxiosRequestConfig) => api.get('/items/quantity-types', config),
+  createQuantityType: (data: { name: string; abbreviation: string }, config?: AxiosRequestConfig) => api.post('/items/quantity-types', data, config),
+  updateQuantityType: (id: string | number, data: { name: string; abbreviation: string }, config?: AxiosRequestConfig) => api.put(`/items/quantity-types/${id}`, data, config),
+  deleteQuantityType: (id: string | number, config?: AxiosRequestConfig) => api.delete('/items/quantity-types', config),
+  import: (items: ImportItemDto[], config?: AxiosRequestConfig) => api.post('/items/import', items, config),
+  export: (params?: PaginationParams, config?: AxiosRequestConfig) => api.get('/items/export', { params, responseType: 'blob', ...config }),
+};
