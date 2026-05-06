@@ -13,7 +13,7 @@ services:
     container_name: ermay-db
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: ${DB_DATABASE:-benyaptim}
+      MYSQL_DATABASE: ${DB_DATABASE:-ERPCRMDB}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
       MYSQL_USER: ${DB_USERNAME:-erp_user}
       MYSQL_PASSWORD: ${DB_PASSWORD:-CHANGE_THIS_TO_A_STRONG_PASSWORD}
@@ -106,7 +106,7 @@ services:
       - DB_PORT=3306
       - DB_USERNAME=${DB_USERNAME:-root}
       - DB_PASSWORD=${DB_PASSWORD:?DB password required}
-      - DB_DATABASE=${DB_DATABASE:-benyaptim}
+      - DB_DATABASE=${DB_DATABASE:-ERPCRMDB}
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-8h}
       - REDIS_HOST=redis
@@ -155,12 +155,11 @@ services:
       - DB_PORT=3306
       - DB_USERNAME=${DB_USERNAME:-root}
       - DB_PASSWORD=${DB_PASSWORD:?DB password required}
-      - DB_DATABASE=${DB_DATABASE:-benyaptim}
+      - DB_DATABASE=${DB_DATABASE:-ERPCRMDB}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
       - RABBITMQ_URL=amqp://${RABBITMQ_USER:-erp_user}:${RABBITMQ_PASS:-changeme}@rabbitmq:5672/ermay
-      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - DB_LOGGING_ENABLED=${DB_LOGGING_ENABLED:-false}
       - METRICS_PORT=9465
       - SERVICE_NAME=ermay-worker
