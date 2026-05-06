@@ -58,7 +58,7 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
       transform: true,
       transformOptions: {
-        enableImplicitConversion: true,
+        enableImplicitConversion: false, // ROAST FIX: Kapalı, artık tipler string olarak kalacak (BigInt vs)
       },
     }),
   );

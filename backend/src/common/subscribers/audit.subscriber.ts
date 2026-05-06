@@ -73,9 +73,8 @@ export class AuditSubscriber implements EntitySubscriberInterface {
       entityId,
       userId: userId || null,
       changes: action === 'UPDATE' ? {
-        old: (event as UpdateEvent<unknown>).databaseEntity,
-        new: event.entity
-      } : event.entity
+        updatedFields: (event as UpdateEvent<unknown>).updatedColumns.map(c => c.propertyName)
+      } : { id: entityId }
     };
 
     // 🔥 RDBMS'den Çıkarıldı: Sadece Stdout/JSON

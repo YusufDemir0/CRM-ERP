@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, OnModuleInit, Logger, NotImplementedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
@@ -244,13 +244,14 @@ export class AuthService implements OnModuleInit {
   async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {
     const user = await this.userRepo.findOne({ where: { email: dto.email, state: RecordState.ACTIVE } });
     if (!user) {
-      // SEC-07: Don't reveal if user exists
-      return { message: 'Şifre sıfırlama talimatları e-posta adresinize gönderildi (eğer hesap mevcutsa).' };
+      // SEC-07: Don't reveal if user exists in normal conditions
+      // But since email is not implemented, we throw 501 directly.
+      throw new NotImplementedException('E-posta altyapısı (SMTP) henüz kurulmadığı için şifre sıfırlama işlemi yapılamıyor. Lütfen sistem yöneticinizle iletişime geçin.');
     }
 
-    // TODO: Implement actual email delivery (SMTP/SES). Currently no email is sent.
+    // TODO: Implement actual email delivery (SMTP/SES).
     this.logger.warn(`Password reset requested for ${dto.email} — email delivery not configured`);
-    return { message: 'Şifre sıfırlama talimatları e-posta adresinize gönderildi (eğer hesap mevcutsa).' };
+    throw new NotImplementedException('E-posta altyapısı (SMTP) henüz kurulmadığı için şifre sıfırlama işlemi yapılamıyor. Lütfen sistem yöneticinizle iletişime geçin.');
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ message: string }> {

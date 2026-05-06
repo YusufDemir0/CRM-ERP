@@ -39,33 +39,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
-    const cacheKey = `user_state_${payload.sub}`;
-    let state = await this.cacheManager.get<number>(cacheKey);
-
-    if (state === undefined || state === null) {
-      const user = await this.dataSource.getRepository(User).findOne({
-        where: { id: String(payload.sub) },
-        select: ['id', 'state', 'tokenVersion']
-      });
-
-      if (!user) {
-        throw new UnauthorizedException('Kullanıcı bulunamadı veya silinmiş');
-      }
-
-      // SEC-08: Reject tokens minted before password change / forced logout
-      if (user.tokenVersion !== payload.tokenVersion) {
-        throw new UnauthorizedException('Oturum geçersiz. Lütfen tekrar giriş yapınız.');
-      }
-
-      state = user.state;
-      // 30 seconds cache — balances security (ban propagation) vs performance (DB load)
-      await this.cacheManager.set(cacheKey, state, 30_000);
-    }
-
-    if (state !== RecordState.ACTIVE) {
-      throw new UnauthorizedException('Kullanıcı hesabı askıya alınmış veya pasif durumda');
-    }
-
+    // STATELESS JWT: Do not hit Redis/DB on every request.
+    // Token validity relies entirely on cryptographic signature and expiration.
+    // Account ban/suspend checks are offloaded to the Refresh Token flow.
     return {
       id: payload.sub,
       sub: payload.sub,
