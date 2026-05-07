@@ -32,6 +32,8 @@ export const navItems: NavSection[] = [
   { section: 'Üretim', items: [
     { to: '/boms', icon: <FiBox />, label: 'Ürün Reçeteleri', keywords: ['reçete', 'bom', 'üretim'], permission: 'PRODUCTION_VIEW' },
     { to: '/production', icon: <FiTool />, label: 'Üretim Emirleri', keywords: ['emir', 'üretim', 'iş emri'], permission: 'PRODUCTION_VIEW' },
+  ]},
+  { section: 'Stok', items: [
     { to: '/stocks', icon: <FiBox />, label: 'Stoklar', keywords: ['stok', 'envanter', 'depo'], permission: 'INVENTORY_VIEW' },
     { to: '/stocks/movements', icon: <FiRepeat />, label: 'Stok Hareketleri', keywords: ['stok', 'hareket', 'transfer'], permission: 'INVENTORY_VIEW' },
   ]},

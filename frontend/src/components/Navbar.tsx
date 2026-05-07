@@ -66,7 +66,7 @@ const NavbarInner = ({ onToggleSidebar }: { onToggleSidebar: () => void }) => {
   };
 
   return (
-    <header className="navbar" style={{ marginLeft: 'var(--sidebar-w)' }}>
+    <header className="navbar">
       <div className="navbar-left">
         <button className="nav-action-btn mr-6" onClick={onToggleSidebar} title="Menüyü Daralt/Genişlet">
           <FiMenu size={22} />
