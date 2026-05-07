@@ -36,10 +36,10 @@ export class ItemsReportsService {
       ]);
 
     if (query.search) {
-      const searchPattern = query.search.replace(/[+><()~*\"@\-]/g, ' ').trim();
-      if (searchPattern) {
-        qb.andWhere('MATCH(item.name, item.code, item.code1, item.code2, item.description, item.notes) AGAINST(:s IN BOOLEAN MODE)', { s: `*${searchPattern}*` });
-      }
+      qb.andWhere(
+        '(item.name LIKE :s OR item.code LIKE :s OR item.code1 LIKE :s OR item.code2 LIKE :s OR item.description LIKE :s OR item.notes LIKE :s)',
+        { s: `%${query.search}%` }
+      );
     }
 
     if (query.itemTypeId) qb.andWhere('item.itemTypeId = :typeId', { typeId: query.itemTypeId });

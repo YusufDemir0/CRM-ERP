@@ -46,10 +46,10 @@ export class PartiesService {
     }
 
     if (query.search) {
-      const searchPattern = query.search.replace(/[+><()~*\"@\-]/g, ' ').trim();
-      if (searchPattern) {
-        qb.andWhere('MATCH(party.name, party.phone1, party.phone2, party.taxOffice, party.taxNumber, party.email, party.address, party.districtName, party.notes) AGAINST(:s IN BOOLEAN MODE)', { s: `*${searchPattern}*` });
-      }
+      qb.andWhere(
+        '(party.name LIKE :s OR party.phone1 LIKE :s OR party.phone2 LIKE :s OR party.taxOffice LIKE :s OR party.taxNumber LIKE :s OR party.email LIKE :s OR party.address LIKE :s OR party.districtName LIKE :s OR party.notes LIKE :s)',
+        { s: `%${query.search}%` }
+      );
     }
 
     // DB-04: Dynamic Advanced Filters (Sidebar filters) with Map-based whitelist

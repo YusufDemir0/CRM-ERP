@@ -30,8 +30,8 @@ export class SalesReportsService {
   async findAll(query: SalesQueryDto, user?: JwtPayload): Promise<PaginatedResult<Sale>> {
     const qb = this.saleRepo.createQueryBuilder('sale')
       .select([
-        'sale.id', 'sale.code', 'sale.status', 'sale.totalAmount', 'sale.subtotal',
-        'sale.taxAmount', 'sale.discountAmount', 'sale.createdAt', 'sale.updatedAt',
+        'sale.id', 'sale.code', 'sale.status', 'sale.totalAmount', 'sale.grandTotal',
+        'sale.kdv', 'sale.discountAmount', 'sale.createdAt', 'sale.updatedAt',
         'sale.deliveryDate', 'sale.phone', 'sale.address'
       ])
       .leftJoin('sale.party', 'party')
@@ -42,14 +42,10 @@ export class SalesReportsService {
       .addSelect(['currency.id', 'currency.symbol', 'currency.code']);
 
     if (query.search) {
-      const searchPattern = query.search.replace(/[+><()~*\"@\-]/g, ' ').trim();
-      const safeLikePattern = getSafeSearchPattern(query.search);
-      if (searchPattern) {
-        qb.where(
-          '(MATCH(sale.code, sale.notes, sale.phone, sale.address, sale.city, sale.district, sale.taxNumber, sale.email, sale.source) AGAINST(:s IN BOOLEAN MODE) OR party.name LIKE :like)',
-          { s: `*${searchPattern}*`, like: safeLikePattern },
-        );
-      }
+      qb.andWhere(
+        '(sale.code LIKE :s OR sale.notes LIKE :s OR sale.phone LIKE :s OR sale.address LIKE :s OR sale.city LIKE :s OR sale.district LIKE :s OR sale.taxNumber LIKE :s OR sale.email LIKE :s OR sale.source LIKE :s OR party.name LIKE :s)',
+        { s: `%${query.search}%` }
+      );
     }
     if (query.status) qb.andWhere('sale.status = :status', { status: query.status });
     if (query.partyId) qb.andWhere('sale.partyId = :partyId', { partyId: query.partyId });
