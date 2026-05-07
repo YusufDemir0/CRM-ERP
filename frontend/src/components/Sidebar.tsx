@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { FiX } from 'react-icons/fi';
 import { useAuth } from '../hooks/useAuth';
 import { navItems } from '../config/navigation';
 import { useQueryClient } from '@tanstack/react-query';
@@ -7,7 +8,7 @@ import { queryKeys } from '../services/queryKeys';
 import logo from '../assets/images/logo.png';
 import { memo } from 'react';
 
-export const Sidebar = memo(({ isCollapsed }: { isCollapsed: boolean }) => {
+export const Sidebar = memo(({ isCollapsed, isMobileOpen, onClose }: { isCollapsed: boolean; isMobileOpen?: boolean; onClose?: () => void }) => {
   const { hasPermission } = useAuth();
   const queryClient = useQueryClient();
 
@@ -70,37 +71,47 @@ export const Sidebar = memo(({ isCollapsed }: { isCollapsed: boolean }) => {
   })).filter(section => section.items.length > 0);
 
   return (
-    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
-      <div className="sidebar-logo flex items-center justify-center py-6 px-4">
+    <aside className={`sidebar ${isCollapsed && !isMobileOpen ? 'collapsed' : ''} ${isMobileOpen ? 'mobile-open' : ''}`}>
+      <div className="sidebar-logo flex items-center justify-between py-6 px-4">
         {isCollapsed ? (
           <div className="w-10 h-10 bg-[var(--primary)] rounded-xl flex items-center justify-center shadow-lg shadow-[var(--primary-glow)] p-1.5">
             <img src={logo} alt="E" className="w-full h-full object-contain brightness-0 invert" />
           </div>
         ) : (
-          <div className="flex flex-col items-center">
-            <div className="w-28 h-14 bg-[var(--primary)] rounded-xl flex items-center justify-center shadow-lg shadow-[var(--primary-glow)] p-2 mb-3">
+          <div className="flex flex-col items-center flex-1">
+            <div className="w-24 h-12 bg-[var(--primary)] rounded-xl flex items-center justify-center shadow-lg shadow-[var(--primary-glow)] p-2 mb-2">
               <img src={logo} alt="Ermay ERP" className="w-full h-full object-contain brightness-0 invert" />
             </div>
-            <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] opacity-60">Enterprise System</span>
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] opacity-60">Enterprise System</span>
           </div>
+        )}
+        
+        {/* Mobile Close Button */}
+        {isMobileOpen && (
+          <button 
+            className="lg:hidden w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-white/40 hover:text-white transition-colors"
+            onClick={onClose}
+          >
+            <FiX size={20} />
+          </button>
         )}
       </div>
 
       <nav className="sidebar-nav">
         {filteredNavItems.map((section) => (
           <div className="nav-section" key={section.section}>
-            <div className="nav-section-title">{section.section}</div>
+            {(isMobileOpen || !isCollapsed) && <div className="nav-section-title">{section.section}</div>}
             {section.items.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
-                end={item.to === '/'}
+                end={item.to === '/' || item.to === '/stocks'}
                 className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
                 onMouseEnter={() => handlePrefetch(item.to)}
                 title={isCollapsed ? item.label : undefined}
               >
                 {item.icon}
-                {!isCollapsed && <span>{item.label}</span>}
+                {(isMobileOpen || !isCollapsed) && <span>{item.label}</span>}
               </NavLink>
             ))}
           </div>
