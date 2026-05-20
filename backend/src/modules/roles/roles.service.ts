@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { Role } from '../auth/entities/role.entity';
 import { Permission } from '../auth/entities/permission.entity';
 import { UserRole } from '../auth/entities/user-role.entity';
@@ -8,7 +10,7 @@ import { UserPermission } from '../auth/entities/user-permission.entity';
 import { RolePermission } from '../auth/entities/role-permission.entity';
 import {
   CreateRoleDto, UpdateRoleDto, CreatePermissionDto,
-  AssignRoleDto, SetUserPermissionDto,
+  AssignRoleDto, SetUserPermissionDto, RemoveUserPermissionDto,
 } from './dto/role.dto';
 import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
 import { getSafeSearchPattern } from '../../common/utils/sql.helper';
@@ -21,6 +23,7 @@ export class RolesService {
     @InjectRepository(UserRole) private userRoleRepo: Repository<UserRole>,
     @InjectRepository(UserPermission) private userPermRepo: Repository<UserPermission>,
     @InjectRepository(RolePermission) private rolePermRepo: Repository<RolePermission>,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   // ────── ROLES ──────
@@ -106,6 +109,11 @@ export class RolesService {
       } else {
         role.permissions = [];
       }
+      
+      const userRoles = await this.userRoleRepo.find({ where: { roleId: id } });
+      for (const ur of userRoles) {
+        await this.cacheManager.del(`user_perms_${ur.userId}`);
+      }
     }
 
     return this.roleRepo.save(role);
@@ -153,11 +161,14 @@ export class RolesService {
     if (existing) throw new ConflictException('Bu rol zaten atanmış');
 
     const ur = this.userRoleRepo.create(dto);
-    return this.userRoleRepo.save(ur);
+    const saved = await this.userRoleRepo.save(ur);
+    await this.cacheManager.del(`user_perms_${dto.userId}`);
+    return saved;
   }
 
   async removeRole(dto: AssignRoleDto): Promise<void> {
     await this.userRoleRepo.delete({ userId: dto.userId, roleId: dto.roleId });
+    await this.cacheManager.del(`user_perms_${dto.userId}`);
   }
 
   // ────── USER PERMISSION OVERRIDE ──────
@@ -182,7 +193,9 @@ export class RolesService {
       });
     }
 
-    return this.userPermRepo.save(up);
+    const saved = await this.userPermRepo.save(up);
+    await this.cacheManager.del(`user_perms_${dto.userId}`);
+    return saved;
   }
 
   async getUserPermissions(userId: string): Promise<UserPermission[]> {
@@ -192,8 +205,9 @@ export class RolesService {
     });
   }
 
-  async removeUserPermission(dto: { userId: string; permissionId: string }): Promise<void> {
+  async removeUserPermission(dto: RemoveUserPermissionDto): Promise<void> {
     await this.userPermRepo.delete({ userId: dto.userId, permissionId: dto.permissionId });
+    await this.cacheManager.del(`user_perms_${dto.userId}`);
   }
 
   // ────── V2 REFINEMENTS ──────

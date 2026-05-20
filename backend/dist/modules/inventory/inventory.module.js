@@ -24,7 +24,6 @@ const quantity_type_entity_1 = require("./items/entities/quantity-type.entity");
 const stock_entity_1 = require("./stocks/entities/stock.entity");
 const stock_movement_entity_1 = require("./stocks/entities/stock-movement.entity");
 const sequence_generator_service_1 = require("../../common/services/sequence-generator.service");
-const inventory_listener_1 = require("./listeners/inventory.listener");
 const bom_item_entity_1 = require("../production/entities/bom-item.entity");
 const stocks_reports_service_1 = require("./stocks/stocks-reports.service");
 const stocks_transactions_service_1 = require("./stocks/stocks-transactions.service");
@@ -48,7 +47,7 @@ exports.InventoryModule = InventoryModule = __decorate([
         providers: [
             items_service_1.ItemsService, items_reports_service_1.ItemsReportsService, items_transactions_service_1.ItemsTransactionsService,
             stocks_service_1.StocksService, stocks_reports_service_1.StocksReportsService, stocks_transactions_service_1.StocksTransactionsService,
-            sequence_generator_service_1.SequenceGeneratorService, inventory_listener_1.InventoryListener
+            sequence_generator_service_1.SequenceGeneratorService
         ],
         exports: [
             items_service_1.ItemsService, items_reports_service_1.ItemsReportsService, items_transactions_service_1.ItemsTransactionsService,

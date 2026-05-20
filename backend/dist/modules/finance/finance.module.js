@@ -15,7 +15,6 @@ const accounts_controller_1 = require("./accounts/accounts.controller");
 const accounts_service_1 = require("./accounts/accounts.service");
 const transactions_controller_1 = require("./transactions/transactions.controller");
 const transactions_service_1 = require("./transactions/transactions.service");
-const finance_listener_1 = require("./listeners/finance.listener");
 const currency_entity_1 = require("./currencies/entities/currency.entity");
 const commercial_account_entity_1 = require("./accounts/entities/commercial-account.entity");
 const transaction_entity_1 = require("./transactions/entities/transaction.entity");
@@ -32,7 +31,7 @@ exports.FinanceModule = FinanceModule = __decorate([
             common_module_1.CommonModule,
         ],
         controllers: [currencies_controller_1.CurrenciesController, accounts_controller_1.AccountsController, transactions_controller_1.TransactionsController],
-        providers: [currencies_service_1.CurrenciesService, accounts_service_1.AccountsService, transactions_service_1.TransactionsService, finance_listener_1.FinanceListener],
+        providers: [currencies_service_1.CurrenciesService, accounts_service_1.AccountsService, transactions_service_1.TransactionsService],
         exports: [currencies_service_1.CurrenciesService, accounts_service_1.AccountsService, transactions_service_1.TransactionsService],
     })
 ], FinanceModule);

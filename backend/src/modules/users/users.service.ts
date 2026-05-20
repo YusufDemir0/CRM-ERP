@@ -187,8 +187,9 @@ export class UsersService {
 
     // SEC-07: Immediate Cache Invalidation
     // If state or tokenVersion changed, clear the cache to enforce immediate redirection/logout
-    if (dto.password || dto.state !== undefined) {
+    if (dto.password || dto.state !== undefined || dto.roleIds !== undefined) {
       await this.cacheManager.del(`user_state_${id}`);
+      await this.cacheManager.del(`user_perms_${id}`);
     }
 
     return savedUser;

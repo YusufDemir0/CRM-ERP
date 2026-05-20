@@ -66,3 +66,13 @@ export class SetUserPermissionDto {
 
   @IsOptional() @IsString() scopeId?: string;
 }
+
+export class RemoveUserPermissionDto {
+  @IsString()
+  @IsNotEmpty()
+  userId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  permissionId: string;
+}

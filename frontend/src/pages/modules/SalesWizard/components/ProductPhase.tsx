@@ -76,7 +76,7 @@ const SubtotalPanel = memo(() => {
     <>
       <div className="p-4 bg-slate-50 border-t border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">TEKLİF EDİLEN TOPLAM (REVİZYON)</label>
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">TEKLİF EDİLEN TOPLAM</label>
           <div className="relative">
             <input 
               type="number" 

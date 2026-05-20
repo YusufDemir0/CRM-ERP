@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe } from '@nestjs/common';
 import { RolesService } from './roles.service';
-import { CreateRoleDto, UpdateRoleDto, CreatePermissionDto, AssignRoleDto, SetUserPermissionDto } from './dto/role.dto';
+import { CreateRoleDto, UpdateRoleDto, CreatePermissionDto, AssignRoleDto, SetUserPermissionDto, RemoveUserPermissionDto } from './dto/role.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -81,13 +81,13 @@ export class RolesController {
 
   @Get('user-permissions/:userId')
   @RequirePermissions('PERMISSION_VIEW')
-  getUserPermissions(@Param('userId', ParseIntPipe) userId: string) {
+  getUserPermissions(@Param('userId') userId: string) {
     return this.rolesService.getUserPermissions(userId);
   }
 
   @Delete('user-permissions')
   @RequirePermissions('PERMISSION_ASSIGN')
-  removeUserPermission(@Body() dto: { userId: string; permissionId: string }) {
+  removeUserPermission(@Body() dto: RemoveUserPermissionDto) {
     return this.rolesService.removeUserPermission(dto);
   }
 }
