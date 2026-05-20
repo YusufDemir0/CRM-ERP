@@ -2,7 +2,7 @@ import { Decimal } from 'decimal.js';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { Currency } from '../../finance/currencies/entities/currency.entity';
 export declare class Party extends BaseEntity {
-    type: 'customer' | 'supplier';
+    type: 'customer' | 'provider';
     name: string;
     phone1: string | null;
     phone2: string | null;
@@ -17,6 +17,7 @@ export declare class Party extends BaseEntity {
     paymentTerms: string | null;
     currencyId: string | null;
     notes: string | null;
+    departmentId: string | null;
     currency: Currency;
     totalSalesCount?: number;
     lastSaleDate?: Date;

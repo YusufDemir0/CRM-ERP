@@ -1,28 +1,28 @@
 import { StreamableFile } from '@nestjs/common';
-import { Repository, DataSource } from 'typeorm';
 import { Item } from './entities/item.entity';
 import { ItemType } from './entities/item-type.entity';
 import { QuantityType } from './entities/quantity-type.entity';
 import { ItemCodeGroup } from './entities/item-code-group.entity';
-import { Stock } from '../stocks/entities/stock.entity';
 import { CreateItemDto, UpdateItemDto, CreateItemTypeDto, CreateQuantityTypeDto, CreateItemCodeGroupDto, ItemsQueryDto, ImportItemDto, UpdateItemTypeDto, UpdateQuantityTypeDto, UpdateItemCodeGroupDto } from '../dto/inventory.dto';
-import { SequenceGeneratorService } from '../../../common/services/sequence-generator.service';
 import { PaginatedResult } from '../../../common/dto/pagination.dto';
-import { CurrenciesService } from '../../finance/currencies/currencies.service';
-import { TransactionContextService } from '../../../common/services/transaction-context.service';
+import { ItemsReportsService } from './items-reports.service';
+import { ItemsTransactionsService } from './items-transactions.service';
 export declare class ItemsService {
-    private itemRepo;
-    private itemTypeRepo;
-    private qtyTypeRepo;
-    private codeGroupRepo;
-    private stockRepo;
-    private dataSource;
-    private sequenceGenerator;
-    private currenciesService;
-    private transactionContext;
-    constructor(itemRepo: Repository<Item>, itemTypeRepo: Repository<ItemType>, qtyTypeRepo: Repository<QuantityType>, codeGroupRepo: Repository<ItemCodeGroup>, stockRepo: Repository<Stock>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, currenciesService: CurrenciesService, transactionContext: TransactionContextService);
+    private readonly reportsService;
+    private readonly transactionsService;
+    constructor(reportsService: ItemsReportsService, transactionsService: ItemsTransactionsService);
     findAll(query: ItemsQueryDto): Promise<PaginatedResult<Item>>;
     findOne(id: string): Promise<Item>;
+    getStatus(): Promise<{
+        active: number;
+        passive: number;
+        total: number;
+        lowStock: number;
+    }>;
+    exportToExcel(query: ItemsQueryDto): Promise<StreamableFile>;
+    findAllItemTypes(): Promise<ItemType[]>;
+    findAllItemCodeGroups(): Promise<ItemCodeGroup[]>;
+    findAllQuantityTypes(): Promise<QuantityType[]>;
     create(dto: CreateItemDto, userId: string): Promise<Item>;
     update(id: string, dto: UpdateItemDto, userId: string): Promise<Item>;
     importItems(items: ImportItemDto[], userId: string): Promise<{
@@ -30,25 +30,14 @@ export declare class ItemsService {
         insertedCount: number;
         errors: string[];
     }>;
-    exportToExcel(query: ItemsQueryDto): Promise<StreamableFile>;
     softDelete(id: string, currentUserId: string): Promise<void>;
-    private validateUsage;
-    findAllItemTypes(): Promise<ItemType[]>;
     createItemType(dto: CreateItemTypeDto, userId: string): Promise<ItemType>;
     updateItemType(id: string, dto: UpdateItemTypeDto, userId: string): Promise<ItemType>;
     softDeleteItemType(id: string): Promise<void>;
-    findAllItemCodeGroups(): Promise<ItemCodeGroup[]>;
     createItemCodeGroup(dto: CreateItemCodeGroupDto, userId: string): Promise<ItemCodeGroup>;
     updateItemCodeGroup(id: string, dto: UpdateItemCodeGroupDto, userId: string): Promise<ItemCodeGroup>;
     softDeleteItemCodeGroup(id: string): Promise<void>;
-    findAllQuantityTypes(): Promise<QuantityType[]>;
     createQuantityType(dto: CreateQuantityTypeDto, userId: string): Promise<QuantityType>;
     updateQuantityType(id: string, dto: UpdateQuantityTypeDto, userId: string): Promise<QuantityType>;
     softDeleteQuantityType(id: string): Promise<void>;
-    getStatus(): Promise<{
-        active: number;
-        passive: number;
-        total: number;
-        lowStock: number;
-    }>;
 }

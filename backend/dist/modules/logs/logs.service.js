@@ -58,7 +58,12 @@ let LogsService = class LogsService {
             timestamp: new Date().toISOString(),
             ...data,
         };
-        this.logger.log(JSON.stringify(logPayload));
+        try {
+            this.logger.log(JSON.stringify(logPayload));
+        }
+        catch {
+            this.logger.warn(`Log serialization failed for module: ${data.module}, action: ${data.action}`);
+        }
     }
     async addLog(data) {
         this.logActivity(data);

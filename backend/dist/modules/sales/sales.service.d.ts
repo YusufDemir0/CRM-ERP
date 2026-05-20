@@ -1,44 +1,30 @@
 import { Response } from 'express';
-import { StocksService } from '../inventory/stocks/stocks.service';
-import { LogsService } from '../logs/logs.service';
-import { Repository, DataSource } from 'typeorm';
 import { Sale } from './entities/sale.entity';
-import { SaleItem } from './entities/sale-item.entity';
 import { SaleType } from './entities/sale-type.entity';
-import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
-import { Decimal } from 'decimal.js';
+import { SalesReportsService } from './sales-reports.service';
+import { SalesTransactionsService } from './sales-transactions.service';
 import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto, ShipSaleDto, SalesQueryDto } from './dto/sale.dto';
 import { PaginatedResult } from '../../common/dto/pagination.dto';
-import { TransactionContextService } from '../../common/services/transaction-context.service';
-import { OutboxService } from '../../common/services/outbox.service';
 import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 export declare class SalesService {
-    private saleRepo;
-    private saleItemRepo;
-    private saleTypeRepo;
-    private dataSource;
-    private sequenceGenerator;
-    private stocksService;
-    private logsService;
-    private transactionContext;
-    private outboxService;
+    private readonly reportsService;
+    private readonly transactionsService;
     private readonly logger;
-    constructor(saleRepo: Repository<Sale>, saleItemRepo: Repository<SaleItem>, saleTypeRepo: Repository<SaleType>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, stocksService: StocksService, logsService: LogsService, transactionContext: TransactionContextService, outboxService: OutboxService);
+    constructor(reportsService: SalesReportsService, transactionsService: SalesTransactionsService);
     findAllSaleTypes(): Promise<SaleType[]>;
-    createSaleType(dto: CreateSaleTypeDto, userId: string): Promise<SaleType>;
     findAll(query: SalesQueryDto, user?: JwtPayload): Promise<PaginatedResult<Sale>>;
     findOne(id: string): Promise<Sale>;
-    private fetchItemData;
+    getStatus(): Promise<{
+        monthlyRevenue: import("decimal.js").Decimal;
+        monthlyOrders: import("decimal.js").Decimal;
+        pendingOrders: import("decimal.js").Decimal;
+    }>;
+    exportToExcel(query: SalesQueryDto, user: JwtPayload, res: Response): Promise<void>;
+    createSaleType(dto: CreateSaleTypeDto, userId: string): Promise<SaleType>;
     create(dto: CreateSaleDto, userId: string): Promise<Sale>;
     update(id: string, dto: UpdateSaleDto, userId: string): Promise<Sale>;
     approveSale(saleId: string, dto: ApproveSaleDto, userId: string): Promise<Sale>;
     cancelSale(saleId: string, userId: string): Promise<Sale>;
-    softDelete(id: string): Promise<void>;
-    getStatus(): Promise<{
-        monthlyRevenue: Decimal;
-        monthlyOrders: Decimal;
-        pendingOrders: Decimal;
-    }>;
     shipSale(saleId: string, dto: ShipSaleDto, userId: string): Promise<Sale>;
-    exportToExcel(query: SalesQueryDto, user: JwtPayload, res: Response): Promise<void>;
+    softDelete(id: string): Promise<void>;
 }

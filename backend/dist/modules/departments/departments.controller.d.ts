@@ -1,10 +1,9 @@
 import { DepartmentsService } from './departments.service';
-import { CreateDepartmentDto, UpdateDepartmentDto, CreateDepartmentTypeDto, UpdateDepartmentTypeDto } from './dto/department.dto';
-import { PaginationDto } from '../../common/dto/pagination.dto';
+import { CreateDepartmentDto, UpdateDepartmentDto, CreateDepartmentTypeDto, UpdateDepartmentTypeDto, DepartmentsQueryDto } from './dto/department.dto';
 export declare class DepartmentsController {
     private readonly deptService;
     constructor(deptService: DepartmentsService);
-    findAll(query: PaginationDto): Promise<import("../../common/dto/pagination.dto").PaginatedResult<import("./entities/department.entity").Department>>;
+    findAll(query: DepartmentsQueryDto): Promise<import("../../common/dto/pagination.dto").PaginatedResult<import("./entities/department.entity").Department>>;
     getStatus(): Promise<{
         active: number;
         passive: number;

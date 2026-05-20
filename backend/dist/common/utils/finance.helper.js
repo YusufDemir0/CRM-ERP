@@ -47,7 +47,8 @@ class FinanceHelper {
     }
     static calculateKdv(amount, rate) {
         const amt = new decimal_js_1.Decimal(amount);
-        return amt.mul(rate).div(100).toDecimalPlaces(2, decimal_js_1.Decimal.ROUND_HALF_UP);
+        const r = new decimal_js_1.Decimal(rate);
+        return amt.mul(r).div(100).toDecimalPlaces(2, decimal_js_1.Decimal.ROUND_HALF_UP);
     }
 }
 exports.FinanceHelper = FinanceHelper;

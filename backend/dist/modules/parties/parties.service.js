@@ -62,7 +62,11 @@ let PartiesService = class PartiesService {
     }
     async lookup(type) {
         const qb = this.partyRepo.createQueryBuilder('party')
-            .select(['party.id', 'party.name', 'party.type', 'party.currencyId'])
+            .select([
+            'party.id', 'party.name', 'party.type', 'party.currencyId',
+            'party.phone1', 'party.phone2', 'party.email', 'party.taxNumber',
+            'party.address', 'party.cityId', 'party.districtName'
+        ])
             .where('party.state = :state', { state: 1 });
         if (type) {
             qb.andWhere('party.type = :type', { type });
@@ -73,8 +77,9 @@ let PartiesService = class PartiesService {
         const qb = this.partyRepo.createQueryBuilder('party')
             .select([
             'party.id', 'party.name', 'party.type', 'party.state',
-            'party.taxNumber', 'party.phone1', 'party.phone2',
-            'party.email', 'party.balance', 'party.address'
+            'party.taxNumber', 'party.taxOffice', 'party.phone1', 'party.phone2',
+            'party.email', 'party.balance', 'party.address', 'party.cityId',
+            'party.districtName', 'party.creditLimit', 'party.currencyId', 'party.notes'
         ])
             .leftJoin('party.currency', 'currency')
             .addSelect(['currency.id', 'currency.symbol', 'currency.code']);
@@ -82,10 +87,7 @@ let PartiesService = class PartiesService {
             qb.innerJoin('users', 'u', 'u.id = party.created_by AND u.department_id = :departmentId', { departmentId: query.departmentId });
         }
         if (query.search) {
-            const searchPattern = query.search.replace(/[+><()~*\"@\-]/g, ' ').trim();
-            if (searchPattern) {
-                qb.andWhere('MATCH(party.name, party.phone1, party.phone2, party.taxOffice, party.taxNumber, party.email, party.address, party.districtName, party.notes) AGAINST(:s IN BOOLEAN MODE)', { s: `*${searchPattern}*` });
-            }
+            qb.andWhere('(party.name LIKE :s OR party.phone1 LIKE :s OR party.phone2 LIKE :s OR party.taxOffice LIKE :s OR party.taxNumber LIKE :s OR party.email LIKE :s OR party.address LIKE :s OR party.districtName LIKE :s OR party.notes LIKE :s)', { s: `%${query.search}%` });
         }
         const partyFilterMap = {
             name: 'party.name',
@@ -177,7 +179,7 @@ let PartiesService = class PartiesService {
                 console.warn('Default currency not found, setting to null');
             }
         }
-        const party = this.partyRepo.create({ ...dto, balance: new decimal_js_1.Decimal(0), createdBy: userId });
+        const party = this.partyRepo.create({ ...dto, balance: new decimal_js_1.Decimal(0), createdBy: userId, departmentId: dto.departmentId });
         return this.partyRepo.save(party);
     }
     async update(id, dto, userId) {
@@ -190,7 +192,7 @@ let PartiesService = class PartiesService {
         }
         const fields = [
             'name', 'type', 'phone1', 'phone2', 'taxOffice', 'taxNumber', 'email',
-            'address', 'cityId', 'districtName', 'paymentTerms', 'currencyId', 'notes', 'state'
+            'address', 'cityId', 'districtName', 'paymentTerms', 'currencyId', 'notes', 'state', 'departmentId'
         ];
         fields.forEach((field) => {
             const dtoValue = dto[field];
@@ -238,43 +240,41 @@ let PartiesService = class PartiesService {
         };
     }
     async getStatus() {
-        const [active, passive, all] = await Promise.all([
-            this.partyRepo.count({ where: { state: 1 } }),
-            this.partyRepo.count({ where: { state: 0 } }),
-            this.partyRepo.find({ relations: ['currency'] }),
-        ]);
-        const totalReceivable = all.reduce((sum, p) => {
-            const exchangeRate = new decimal_js_1.Decimal(p.currency?.exchangeRate || 1);
-            return sum.plus(new decimal_js_1.Decimal(p.balance || 0).mul(exchangeRate));
-        }, new decimal_js_1.Decimal(0));
-        const totalCreditLimit = all.reduce((sum, p) => {
-            const exchangeRate = new decimal_js_1.Decimal(p.currency?.exchangeRate || 1);
-            return sum.plus(new decimal_js_1.Decimal(p.creditLimit || 0).mul(exchangeRate));
-        }, new decimal_js_1.Decimal(0));
-        const atRisk = all.filter(p => {
-            const exchangeRate = new decimal_js_1.Decimal(p.currency?.exchangeRate || 1);
-            const tlBalance = new decimal_js_1.Decimal(p.balance || 0).mul(exchangeRate);
-            const tlLimit = new decimal_js_1.Decimal(p.creditLimit || 0).mul(exchangeRate);
-            return p.state === 1 && tlLimit.gt(0) && tlBalance.abs().gte(tlLimit.mul(0.9));
-        });
+        const stats = await this.partyRepo.createQueryBuilder('party')
+            .leftJoin('party.currency', 'currency')
+            .select([
+            "COUNT(CASE WHEN party.state = 1 THEN 1 END) as active",
+            "COUNT(CASE WHEN party.state = 0 THEN 1 END) as passive",
+            "SUM(party.balance * COALESCE(currency.exchangeRate, 1)) as total_receivable",
+            "SUM(party.creditLimit * COALESCE(currency.exchangeRate, 1)) as total_credit_limit"
+        ])
+            .getRawOne();
+        const atRiskCount = await this.partyRepo.createQueryBuilder('party')
+            .leftJoin('party.currency', 'currency')
+            .where('party.state = 1')
+            .andWhere('party.credit_limit > 0')
+            .andWhere('ABS(party.balance * COALESCE(currency.exchangeRate, 1)) >= (party.credit_limit * COALESCE(currency.exchangeRate, 1) * 0.9)')
+            .getCount();
+        const totalReceivable = new decimal_js_1.Decimal(stats.total_receivable || 0);
+        const totalCreditLimit = new decimal_js_1.Decimal(stats.total_credit_limit || 0);
         return {
-            active,
-            passive,
+            active: Number(stats.active || 0),
+            passive: Number(stats.passive || 0),
             totalReceivable: totalReceivable.toFixed(2),
             exposurePercentage: totalCreditLimit.gt(0) ? totalReceivable.div(totalCreditLimit).mul(100).toDecimalPlaces(0).toNumber() : 0,
-            atRiskCount: atRisk.length
+            atRiskCount
         };
     }
     async getGlobalExposure() {
-        const all = await this.partyRepo.find({ relations: ['currency'] });
-        const totalReceivable = all.reduce((sum, p) => {
-            const exchangeRate = p.currency?.exchangeRate || new decimal_js_1.Decimal(1);
-            return sum.plus(new decimal_js_1.Decimal(p.balance || 0).mul(exchangeRate));
-        }, new decimal_js_1.Decimal(0));
-        const totalCreditLimit = all.reduce((sum, p) => {
-            const exchangeRate = p.currency?.exchangeRate || new decimal_js_1.Decimal(1);
-            return sum.plus(new decimal_js_1.Decimal(p.creditLimit || 0).mul(exchangeRate));
-        }, new decimal_js_1.Decimal(0));
+        const stats = await this.partyRepo.createQueryBuilder('party')
+            .leftJoin('party.currency', 'currency')
+            .select([
+            "SUM(party.balance * COALESCE(currency.exchangeRate, 1)) as total_receivable",
+            "SUM(party.creditLimit * COALESCE(currency.exchangeRate, 1)) as total_credit_limit"
+        ])
+            .getRawOne();
+        const totalReceivable = new decimal_js_1.Decimal(stats.total_receivable || 0);
+        const totalCreditLimit = new decimal_js_1.Decimal(stats.total_credit_limit || 0);
         return {
             totalReceivable: totalReceivable.toFixed(2),
             totalCreditLimit: totalCreditLimit.toFixed(2),
@@ -282,15 +282,16 @@ let PartiesService = class PartiesService {
         };
     }
     async getHealthMetrics() {
-        const all = await this.partyRepo.find({ where: { state: 1 }, relations: ['currency'] });
-        const atRisk = all.filter(p => {
-            const exchangeRate = p.currency?.exchangeRate || new decimal_js_1.Decimal(1);
-            const tlBalance = new decimal_js_1.Decimal(p.balance || 0).mul(exchangeRate);
-            const tlLimit = new decimal_js_1.Decimal(p.creditLimit || 0).mul(exchangeRate);
-            return tlLimit.gt(0) && tlBalance.gte(tlLimit.mul(0.9));
-        });
+        const allCount = await this.partyRepo.count({ where: { state: 1 } });
+        const atRisk = await this.partyRepo.createQueryBuilder('party')
+            .leftJoin('party.currency', 'currency')
+            .select(['party.id', 'party.name', 'party.balance', 'party.creditLimit'])
+            .where('party.state = 1')
+            .andWhere('party.credit_limit > 0')
+            .andWhere('(party.balance * COALESCE(currency.exchangeRate, 1)) >= (party.credit_limit * COALESCE(currency.exchangeRate, 1) * 0.9)')
+            .getMany();
         return {
-            healthyCount: all.length - atRisk.length,
+            healthyCount: allCount - atRisk.length,
             atRiskCount: atRisk.length,
             requiresAttention: atRisk.map(p => ({ id: p.id, name: p.name, balance: p.balance, limit: p.creditLimit }))
         };

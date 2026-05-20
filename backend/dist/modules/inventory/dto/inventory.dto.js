@@ -24,9 +24,11 @@ __decorate([
 ], CreateItemDto.prototype, "name", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateItemDto.prototype, "itemTypeId", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateItemDto.prototype, "itemCodeGroupId", void 0);
@@ -37,7 +39,7 @@ __decorate([
 ], CreateItemDto.prototype, "providerId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_transformer_1.Transform)(({ value }) => value ? new decimal_js_1.Decimal(value) : new decimal_js_1.Decimal(0)),
+    (0, class_transformer_1.Transform)(({ value }) => (value !== undefined && value !== null) ? new decimal_js_1.Decimal(value) : new decimal_js_1.Decimal(0)),
     __metadata("design:type", decimal_js_1.Decimal)
 ], CreateItemDto.prototype, "criticalLimit", void 0);
 __decorate([
@@ -67,6 +69,7 @@ __decorate([
 ], CreateItemDto.prototype, "currencyId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateItemDto.prototype, "quantityTypeId", void 0);
 __decorate([
@@ -124,7 +127,7 @@ __decorate([
 ], UpdateItemDto.prototype, "providerId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_transformer_1.Transform)(({ value }) => value ? new decimal_js_1.Decimal(value) : undefined),
+    (0, class_transformer_1.Transform)(({ value }) => (value !== undefined && value !== null) ? new decimal_js_1.Decimal(value) : undefined),
     __metadata("design:type", decimal_js_1.Decimal)
 ], UpdateItemDto.prototype, "criticalLimit", void 0);
 __decorate([
@@ -134,17 +137,17 @@ __decorate([
 ], UpdateItemDto.prototype, "image", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_transformer_1.Transform)(({ value }) => value ? new decimal_js_1.Decimal(value) : undefined),
+    (0, class_transformer_1.Transform)(({ value }) => (value !== undefined && value !== null) ? new decimal_js_1.Decimal(value) : undefined),
     __metadata("design:type", decimal_js_1.Decimal)
 ], UpdateItemDto.prototype, "purchasePrice", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_transformer_1.Transform)(({ value }) => value ? new decimal_js_1.Decimal(value) : undefined),
+    (0, class_transformer_1.Transform)(({ value }) => (value !== undefined && value !== null) ? new decimal_js_1.Decimal(value) : undefined),
     __metadata("design:type", decimal_js_1.Decimal)
 ], UpdateItemDto.prototype, "salePrice", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_transformer_1.Transform)(({ value }) => value ? new decimal_js_1.Decimal(value) : undefined),
+    (0, class_transformer_1.Transform)(({ value }) => (value !== undefined && value !== null) ? new decimal_js_1.Decimal(value) : undefined),
     __metadata("design:type", decimal_js_1.Decimal)
 ], UpdateItemDto.prototype, "netPrice", void 0);
 __decorate([
@@ -159,7 +162,7 @@ __decorate([
 ], UpdateItemDto.prototype, "quantityTypeId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_transformer_1.Transform)(({ value }) => value ? new decimal_js_1.Decimal(value) : undefined),
+    (0, class_transformer_1.Transform)(({ value }) => (value !== undefined && value !== null) ? new decimal_js_1.Decimal(value) : undefined),
     __metadata("design:type", decimal_js_1.Decimal)
 ], UpdateItemDto.prototype, "kdv", void 0);
 __decorate([

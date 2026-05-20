@@ -11,9 +11,9 @@ export declare class UpdateDepartmentDto {
     name?: string;
     description?: string;
     abbreviation?: string;
-    departmentTypeId: string;
-    commercialAccountId: string;
-    cityId: string;
+    departmentTypeId: string | null;
+    commercialAccountId: string | null;
+    cityId: string | null;
     state?: number;
 }
 export declare class CreateDepartmentTypeDto {

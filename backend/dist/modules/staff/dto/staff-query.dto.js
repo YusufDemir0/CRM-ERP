@@ -31,8 +31,7 @@ __decorate([
 ], StaffQueryDto.prototype, "search", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_transformer_1.Transform)(({ value }) => parseInt(value)),
-    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], StaffQueryDto.prototype, "departmentId", void 0);
 __decorate([

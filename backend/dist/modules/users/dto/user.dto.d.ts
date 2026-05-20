@@ -2,10 +2,10 @@ export declare class CreateUserDto {
     username: string;
     password: string;
     fullName: string;
-    email: string;
-    phone?: string;
+    email?: string;
+    phone: string;
     departmentId: string;
-    roleIds?: number[];
+    roleIds: string[];
 }
 export declare class UpdateUserDto {
     username?: string;
@@ -14,6 +14,6 @@ export declare class UpdateUserDto {
     email?: string;
     phone?: string;
     departmentId: string;
-    roleIds?: number[];
+    roleIds?: string[];
     state?: number;
 }

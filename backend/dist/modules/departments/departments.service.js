@@ -89,10 +89,16 @@ let DepartmentsService = class DepartmentsService {
             dept.abbreviation = dto.abbreviation;
         if (dto.description !== undefined)
             dept.description = dto.description;
-        if (dto.departmentTypeId !== undefined)
+        if (dto.departmentTypeId !== undefined) {
             dept.departmentTypeId = dto.departmentTypeId;
-        if (dto.commercialAccountId !== undefined)
+            Reflect.deleteProperty(dept, 'departmentType');
+        }
+        if (dto.commercialAccountId !== undefined) {
             dept.commercialAccountId = dto.commercialAccountId;
+            Reflect.deleteProperty(dept, 'commercialAccount');
+        }
+        if (dto.cityId !== undefined)
+            dept.cityId = dto.cityId;
         if (dto.state !== undefined)
             dept.state = dto.state;
         dept.updatedBy = userId || null;

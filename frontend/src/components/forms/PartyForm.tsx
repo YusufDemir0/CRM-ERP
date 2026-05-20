@@ -45,14 +45,14 @@ export const PartyForm: React.FC<PartyFormProps> = ({
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const { cities } = useTurkiyeCities();
   const { updateCache, getCache, clearCache } = useQuickCreateStore();
-  const user = useAuthStore(state => state.user);
+  const userDepartmentCityId = useAuthStore(s => s.user?.department?.cityId);
   
   const cacheKey = editingId ? `party_edit_${editingId}` : 'party_create';
   
   // Default cityId: from initialData, else from user's department, else empty
   const defaultCityId = initialData?.cityId 
     ? String(initialData.cityId) 
-    : (user?.department?.cityId ? String(user.department.cityId) : '');
+    : (userDepartmentCityId ? String(userDepartmentCityId) : '');
 
   const { register, handleSubmit, watch, setValue, getValues, control, formState: { errors, isSubmitting } } = useForm<PartyFormData>({
     defaultValues: (editingId ? null : getCache(cacheKey) as PartyFormData | null) || {

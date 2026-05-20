@@ -30,6 +30,7 @@ let FinanceSaleListener = FinanceSaleListener_1 = class FinanceSaleListener {
     }
     async onModuleInit() {
         this.setupConsumer();
+        this.setupCancelConsumer();
     }
     setupConsumer() {
         const trySubscribe = async () => {
@@ -115,6 +116,86 @@ let FinanceSaleListener = FinanceSaleListener_1 = class FinanceSaleListener {
             }
             catch (err) {
                 this.logger.error(`Failed to process finance for sale ${payload.sale.code}: ${err.message}`);
+                throw err;
+            }
+        });
+    }
+    setupCancelConsumer() {
+        const trySubscribe = async () => {
+            if (this.rabbitMQService.isConnected()) {
+                await this.rabbitMQService.subscribe('ermay.finance.sale_cancelled', 'sale.cancelled', async (msg) => {
+                    try {
+                        const payload = JSON.parse(msg.content.toString());
+                        payload.tlGrandTotal = new decimal_js_1.Decimal(payload.tlGrandTotal || 0);
+                        payload.tlDeposit = new decimal_js_1.Decimal(payload.tlDeposit || 0);
+                        await this.handleFinanceCancelLogic(payload);
+                    }
+                    catch (err) {
+                        this.logger.error(`Error processing finance cancel logic: ${err.message}`);
+                        throw err;
+                    }
+                });
+            }
+            else {
+                setTimeout(trySubscribe, 2000);
+            }
+        };
+        trySubscribe();
+    }
+    async handleFinanceCancelLogic(payload) {
+        const { sale, tlGrandTotal, tlDeposit, userId } = payload;
+        await this.dataSource.transaction(async (qr) => {
+            const exists = await qr.findOne(ledger_entity_1.AccountingLedger, {
+                where: { source: 'CANCEL_SALE', transactionId: sale.id }
+            });
+            if (exists) {
+                this.logger.warn(`Idempotency: Finance cancel logic for sale.id=${sale.id} already processed. Skipping.`);
+                return;
+            }
+            try {
+                const party = await qr.findOne(party_entity_1.Party, {
+                    where: { id: sale.partyId },
+                    lock: { mode: 'pessimistic_write' }
+                });
+                if (party) {
+                    const targetBalance = finance_helper_1.FinanceHelper.add(finance_helper_1.FinanceHelper.sub(party.balance, tlGrandTotal), tlDeposit);
+                    await qr.save(qr.create(ledger_entity_1.AccountingLedger, {
+                        date: date_utils_1.DateUtils.getToday(),
+                        partyId: party.id,
+                        debit: new decimal_js_1.Decimal(0),
+                        credit: tlGrandTotal,
+                        transactionId: sale.id,
+                        source: 'CANCEL_SALE',
+                        description: `${sale.code} Satış İptali - Borç Revert`
+                    }));
+                    if (tlDeposit.gt(0)) {
+                        const depositTx = await qr.findOne(transaction_entity_1.Transaction, {
+                            where: { referenceType: 'sale', referenceId: sale.id, type: 'in' }
+                        });
+                        await qr.save(qr.create(ledger_entity_1.AccountingLedger, {
+                            date: date_utils_1.DateUtils.getToday(),
+                            partyId: party.id,
+                            accountId: depositTx?.commercialAccountId,
+                            debit: tlDeposit,
+                            credit: new decimal_js_1.Decimal(0),
+                            transactionId: sale.id,
+                            source: 'CANCEL_DEPOSIT',
+                            description: `${sale.code} Kapora İptali - Alacak Revert`
+                        }));
+                        if (depositTx) {
+                            depositTx.status = 'cancelled';
+                            depositTx.updatedBy = userId;
+                            await qr.save(transaction_entity_1.Transaction, depositTx);
+                        }
+                    }
+                    party.balance = targetBalance;
+                    party.updatedBy = userId || null;
+                    await qr.save(party_entity_1.Party, party);
+                }
+                this.logger.log(`Finance cancel logic completed for sale ${sale.code}`);
+            }
+            catch (err) {
+                this.logger.error(`Failed to process finance cancel for sale ${payload.sale.code}: ${err.message}`);
                 throw err;
             }
         });

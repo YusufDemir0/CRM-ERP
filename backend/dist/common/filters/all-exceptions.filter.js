@@ -49,7 +49,7 @@ let AllExceptionsFilter = AllExceptionsFilter_1 = class AllExceptionsFilter {
                 default:
                     clientMessage = 'Veritabanı işlemi sırasında bir hata oluştu.';
             }
-            this.logger.error(`[DB_ERROR] ${errorCode}: ${exception.message} | reqId=${reqId}`);
+            this.logger.error(`[DB_ERROR] ${errorCode}: ${exception.message}`, exception.stack);
         }
         else {
             const msg = exception instanceof Error ? exception.message : 'Unknown';

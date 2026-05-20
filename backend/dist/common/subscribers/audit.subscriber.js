@@ -59,10 +59,17 @@ let AuditSubscriber = class AuditSubscriber {
             entityId,
             userId: userId || null,
             changes: action === 'UPDATE' ? {
-                updatedFields: event.updatedColumns.map(c => c.propertyName)
+                updatedFields: event.updatedColumns
+                    .slice(0, 20)
+                    .map(c => c.propertyName)
             } : { id: entityId }
         };
-        this.logger.log(JSON.stringify(logPayload));
+        try {
+            this.logger.log(JSON.stringify(logPayload));
+        }
+        catch {
+            this.logger.warn(`Audit log serialization failed for ${entityName}:${entityId}`);
+        }
     }
 };
 exports.AuditSubscriber = AuditSubscriber;

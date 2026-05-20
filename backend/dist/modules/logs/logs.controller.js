@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.LogsController = void 0;
 const common_1 = require("@nestjs/common");
 const logs_service_1 = require("./logs.service");
+const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
 const permissions_decorator_1 = require("../../common/decorators/permissions.decorator");
 const logs_query_dto_1 = require("./dto/logs-query.dto");
 let LogsController = class LogsController {
@@ -64,6 +65,7 @@ __decorate([
 ], LogsController.prototype, "markAllAsRead", null);
 exports.LogsController = LogsController = __decorate([
     (0, common_1.Controller)('logs'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __metadata("design:paramtypes", [logs_service_1.LogsService])
 ], LogsController);
 //# sourceMappingURL=logs.controller.js.map

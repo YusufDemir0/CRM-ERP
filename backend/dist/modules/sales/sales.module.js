@@ -23,6 +23,8 @@ const finance_sale_listener_1 = require("./listeners/finance-sale.listener");
 const ledger_entity_1 = require("../parties/entities/ledger.entity");
 const transaction_entity_1 = require("../finance/transactions/entities/transaction.entity");
 const common_module_1 = require("../../common/common.module");
+const sales_reports_service_1 = require("./sales-reports.service");
+const sales_transactions_service_1 = require("./sales-transactions.service");
 let SalesModule = class SalesModule {
 };
 exports.SalesModule = SalesModule;
@@ -39,10 +41,12 @@ exports.SalesModule = SalesModule = __decorate([
         controllers: [sales_controller_1.SalesController],
         providers: [
             sales_service_1.SalesService,
+            sales_reports_service_1.SalesReportsService,
+            sales_transactions_service_1.SalesTransactionsService,
             inventory_sale_listener_1.InventorySaleListener,
             finance_sale_listener_1.FinanceSaleListener
         ],
-        exports: [sales_service_1.SalesService],
+        exports: [sales_service_1.SalesService, sales_reports_service_1.SalesReportsService, sales_transactions_service_1.SalesTransactionsService],
     })
 ], SalesModule);
 //# sourceMappingURL=sales.module.js.map

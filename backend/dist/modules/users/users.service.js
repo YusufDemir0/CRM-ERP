@@ -72,6 +72,7 @@ let UsersService = class UsersService {
             .select([
             'user.id', 'user.username', 'user.fullName', 'user.email',
             'user.phone', 'user.departmentId', 'user.state', 'user.createdAt',
+            'user.entryDate', 'user.lastDeactivationDate',
             'department.id', 'department.name',
             'roles.id', 'roles.name',
         ]);
@@ -111,7 +112,7 @@ let UsersService = class UsersService {
     async findOne(id) {
         const user = await this.userRepo.findOne({
             where: { id: String(id) },
-            relations: ['department', 'roles'],
+            relations: ['department', 'roles', 'roles.permissions'],
         });
         if (!user)
             throw new common_1.NotFoundException('Kullanıcı bulunamadı');
@@ -121,6 +122,7 @@ let UsersService = class UsersService {
         const manager = this.transactionContext.manager;
         const salt = await bcrypt.genSalt(12);
         const passwordHash = await bcrypt.hash(dto.password, salt);
+        const today = new Date().toISOString().split('T')[0];
         const user = manager.create(user_entity_1.User, {
             username: dto.username,
             passwordHash,
@@ -129,6 +131,7 @@ let UsersService = class UsersService {
             phone: dto.phone || null,
             departmentId: dto.departmentId || null,
             createdBy: currentUserId || null,
+            entryDate: today,
         });
         if (dto.roleIds && dto.roleIds.length > 0) {
             user.roles = await manager.find(role_entity_1.Role, {
@@ -194,7 +197,7 @@ let UsersService = class UsersService {
                 user.lastDeactivationDate = today;
             }
             else if (dto.state === 1) {
-                user.entryDate = today;
+                user.lastDeactivationDate = null;
             }
         }
         user.updatedBy = currentUserId || null;

@@ -17,7 +17,7 @@ export declare class StocksService {
         search?: string;
     }): Promise<PaginatedResult<StockMovement>>;
     getMovements(stockId: string, query: PaginationDto): Promise<PaginatedResult<StockMovement>>;
-    getCriticalStocks(query?: PaginationDto): Promise<PaginatedResult<Stock> | Stock[]>;
+    getCriticalStocks(query?: Partial<PaginationDto>): Promise<PaginatedResult<Stock> | Stock[]>;
     getStockReport(): Promise<any>;
     getStatus(): Promise<{
         totalItems: number;
@@ -31,7 +31,7 @@ export declare class StocksService {
     }, userId?: string): Promise<void>;
     decreaseStockBulk(items: Array<{
         itemId: string;
-        quantity: number | Decimal;
+        quantity: number | Decimal | string;
     }>, departmentId: string, manager?: EntityManager, referenceInfo?: {
         type: StockMovement['referenceType'];
         id: string;
@@ -39,7 +39,7 @@ export declare class StocksService {
     }, userId?: string): Promise<void>;
     reserveStockBulk(items: Array<{
         itemId: string;
-        quantity: number | Decimal;
+        quantity: number | Decimal | string;
     }>, departmentId: string, manager?: EntityManager, referenceInfo?: {
         type: StockMovement['referenceType'];
         id: string;
@@ -47,11 +47,11 @@ export declare class StocksService {
     }, userId?: string): Promise<void>;
     unreserveStockBulk(items: Array<{
         itemId: string;
-        quantity: number | Decimal;
+        quantity: number | Decimal | string;
     }>, departmentId: string, manager?: EntityManager, userId?: string): Promise<void>;
     finalizeShipmentBulk(items: Array<{
         itemId: string;
-        quantity: number | Decimal;
+        quantity: number | Decimal | string;
     }>, departmentId: string, manager?: EntityManager, referenceInfo?: {
         type: StockMovement['referenceType'];
         id: string;

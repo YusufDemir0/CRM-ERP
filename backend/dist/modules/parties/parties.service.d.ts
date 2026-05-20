@@ -1,7 +1,7 @@
 import { Repository } from 'typeorm';
 import { Party } from './entities/party.entity';
-import { CreatePartyDto, UpdatePartyDto } from './dto/party.dto';
-import { PaginationDto, PaginatedResult } from '../../common/dto/pagination.dto';
+import { CreatePartyDto, UpdatePartyDto, PartiesQueryDto } from './dto/party.dto';
+import { PaginatedResult } from '../../common/dto/pagination.dto';
 import { CurrenciesService } from '../finance/currencies/currencies.service';
 import { Decimal } from 'decimal.js';
 export declare class PartiesService {
@@ -9,10 +9,7 @@ export declare class PartiesService {
     private currenciesService;
     constructor(partyRepo: Repository<Party>, currenciesService: CurrenciesService);
     lookup(type?: string): Promise<Partial<Party>[]>;
-    findAll(query: PaginationDto & {
-        type?: string;
-        departmentId: string;
-    }): Promise<PaginatedResult<Party>>;
+    findAll(query: PartiesQueryDto): Promise<PaginatedResult<Party>>;
     findOne(id: string): Promise<Party>;
     create(dto: CreatePartyDto, userId: string): Promise<Party>;
     update(id: string, dto: UpdatePartyDto, userId: string): Promise<Party>;

@@ -16,7 +16,6 @@ exports.DepartmentsController = void 0;
 const common_1 = require("@nestjs/common");
 const departments_service_1 = require("./departments.service");
 const department_dto_1 = require("./dto/department.dto");
-const pagination_dto_1 = require("../../common/dto/pagination.dto");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 let DepartmentsController = class DepartmentsController {
     constructor(deptService) {
@@ -46,7 +45,7 @@ __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [pagination_dto_1.PaginationDto]),
+    __metadata("design:paramtypes", [department_dto_1.DepartmentsQueryDto]),
     __metadata("design:returntype", void 0)
 ], DepartmentsController.prototype, "findAll", null);
 __decorate([

@@ -7,7 +7,6 @@ import { useSalesWizardStore } from '../../../../store/useSalesWizardStore';
 import { formatCurrency } from '../../../../utils/formatters';
 
 export const WizardSummary: React.FC = memo(() => {
-  const store = useSalesWizardStore();
   const { control } = useFormContext<SalesWizardFormData>();
   
   const items = useWatch<SalesWizardFormData, 'items'>({ control, name: 'items' }) || [];

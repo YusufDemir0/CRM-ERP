@@ -43,50 +43,73 @@ let DashboardService = class DashboardService {
         const thisMonthEnd = now.toDate();
         const lastMonthStart = now.subtract(1, 'month').startOf('month').toDate();
         const lastMonthEnd = now.subtract(1, 'month').toDate();
+        const isSystemAdmin = user.isSystemAdmin === true;
+        const userDeptId = user.departmentId ? String(user.departmentId) : null;
+        const userId = user.sub ? String(user.sub) : null;
+        const todayQb = this.saleRepo.createQueryBuilder('sale')
+            .where("sale.createdAt BETWEEN :start AND :end", { start: todayStart, end: todayEnd })
+            .andWhere("sale.status != 'cancelled'");
+        const thisMonthQb = this.saleRepo.createQueryBuilder('sale')
+            .where("sale.createdAt BETWEEN :start AND :end", { start: thisMonthStart, end: thisMonthEnd })
+            .andWhere("sale.status != 'cancelled'");
+        const lastMonthQb = this.saleRepo.createQueryBuilder('sale')
+            .where("sale.createdAt BETWEEN :start AND :end", { start: lastMonthStart, end: lastMonthEnd })
+            .andWhere("sale.status != 'cancelled'");
+        const countQb = this.saleRepo.createQueryBuilder('sale')
+            .where("sale.status IN ('approved', 'shipped', 'invoiced')");
+        if (!isSystemAdmin) {
+            if (userDeptId) {
+                todayQb.andWhere("sale.departmentId = :deptId", { deptId: userDeptId });
+                thisMonthQb.andWhere("sale.departmentId = :deptId", { deptId: userDeptId });
+                lastMonthQb.andWhere("sale.departmentId = :deptId", { deptId: userDeptId });
+                countQb.andWhere("sale.departmentId = :deptId", { deptId: userDeptId });
+            }
+            else {
+                todayQb.andWhere("sale.createdBy = :userId", { userId });
+                thisMonthQb.andWhere("sale.createdBy = :userId", { userId });
+                lastMonthQb.andWhere("sale.createdBy = :userId", { userId });
+                countQb.andWhere("sale.createdBy = :userId", { userId });
+            }
+        }
+        const partyWhere = {
+            state: 1,
+            type: 'customer'
+        };
+        if (!isSystemAdmin) {
+            if (userId) {
+                partyWhere.createdBy = userId;
+            }
+        }
         const [totalCustomers, totalSalesCount, todayRevenueStats, thisMonthStats, lastMonthStats,] = await Promise.all([
-            this.partyRepo.count({
-                where: {
-                    state: 1,
-                    type: 'customer',
-                    createdBy: user?.sub ? String(user.sub) : undefined
-                }
-            }),
-            this.saleRepo.count({
-                where: { status: (0, typeorm_2.In)(['approved', 'shipped', 'invoiced']) }
-            }),
-            this.saleRepo.createQueryBuilder('sale')
+            this.partyRepo.count({ where: partyWhere }),
+            countQb.getCount(),
+            todayQb
                 .select("SUM(sale.grandTotal * sale.exchangeRate)", "revenue")
-                .where("sale.createdAt BETWEEN :start AND :end", { start: todayStart, end: todayEnd })
-                .andWhere("sale.status != 'cancelled'")
                 .getRawOne(),
-            this.saleRepo.createQueryBuilder('sale')
+            thisMonthQb
                 .select("SUM(sale.grandTotal * sale.exchangeRate - sale.kdv * sale.exchangeRate)", "revenue")
                 .addSelect("SUM(sale.profit * sale.exchangeRate)", "profit")
                 .addSelect("COUNT(*)", "count")
-                .where("sale.createdAt BETWEEN :start AND :end", { start: thisMonthStart, end: thisMonthEnd })
-                .andWhere("sale.status != 'cancelled'")
                 .getRawOne(),
-            this.saleRepo.createQueryBuilder('sale')
+            lastMonthQb
                 .select("SUM(sale.grandTotal * sale.exchangeRate - sale.kdv * sale.exchangeRate)", "revenue")
                 .addSelect("SUM(sale.profit * sale.exchangeRate)", "profit")
                 .addSelect("COUNT(*)", "count")
-                .where("sale.createdAt BETWEEN :start AND :end", { start: lastMonthStart, end: lastMonthEnd })
-                .andWhere("sale.status != 'cancelled'")
                 .getRawOne()
         ]);
         return {
             totalCustomers,
             totalSalesCount,
-            todaySales: todayRevenueStats.revenue || 0,
+            todaySales: todayRevenueStats?.revenue || 0,
             thisMonth: {
-                revenue: thisMonthStats.revenue || 0,
-                count: thisMonthStats.count || 0,
-                profit: thisMonthStats.profit || 0
+                revenue: thisMonthStats?.revenue || 0,
+                count: thisMonthStats?.count || 0,
+                profit: thisMonthStats?.profit || 0
             },
             lastMonth: {
-                revenue: lastMonthStats.revenue || 0,
-                count: lastMonthStats.count || 0,
-                profit: lastMonthStats.profit || 0
+                revenue: lastMonthStats?.revenue || 0,
+                count: lastMonthStats?.count || 0,
+                profit: lastMonthStats?.profit || 0
             }
         };
     }

@@ -7,9 +7,8 @@ export class StaffQueryDto {
   search?: string;
 
   @IsOptional()
-  @Transform(({ value }) => parseInt(value))
-  @IsNumber()
-  departmentId: string;
+  @IsString()
+  departmentId?: string;
 
   @IsOptional()
   @Transform(({ value }) => parseInt(value))

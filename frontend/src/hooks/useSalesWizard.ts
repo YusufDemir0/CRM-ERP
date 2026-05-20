@@ -12,7 +12,7 @@ import { useCallback } from 'react';
 
 export const useSalesWizard = (onCompleted: () => void) => {
   const store = useSalesWizardStore();
-  const { user } = useAuthStore();
+  const userDepartmentId = useAuthStore(s => s.user?.departmentId);
   const queryClient = useQueryClient();
   
   // FETCH ALL PARTIES (Customers + Suppliers)
@@ -56,18 +56,18 @@ export const useSalesWizard = (onCompleted: () => void) => {
   const [loading, setLoading] = useState(false);
 
   const filteredStaff = useMemo(() => {
-    if (user?.departmentId) {
-      return staff.filter(s => Number(s.departmentId) === Number(user.departmentId));
+    if (userDepartmentId) {
+      return staff.filter(s => Number(s.departmentId) === Number(userDepartmentId));
     }
     return staff;
-  }, [staff, user?.departmentId]);
+  }, [staff, userDepartmentId]);
 
   const department = useMemo(() => {
-    if (user?.departmentId) {
-      return departments.find(d => Number(d.id) === Number(user.departmentId)) || null;
+    if (userDepartmentId) {
+      return departments.find(d => Number(d.id) === Number(userDepartmentId)) || null;
     }
     return null;
-  }, [departments, user?.departmentId]);
+  }, [departments, userDepartmentId]);
 
   const refreshLookups = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: queryKeys.parties.lookup });

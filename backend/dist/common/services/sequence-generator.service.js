@@ -56,7 +56,7 @@ let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGenera
         if (!department)
             throw new common_1.NotFoundException(`Departman bulunamadı: ${departmentId}`);
         const deptPrefix = (department.abbreviation || 'GEN').toUpperCase();
-        const finalPrefix = `M${deptPrefix}`;
+        const finalPrefix = deptPrefix;
         const currentNumber = await this.getNextNumber('sale_sequences', 'department_id', departmentId);
         const code = `${finalPrefix}${String(currentNumber).padStart(5, '0')}`;
         return code;

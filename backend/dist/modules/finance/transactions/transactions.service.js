@@ -88,8 +88,8 @@ let TransactionsService = class TransactionsService {
         const manager = this.transactionContext.manager;
         let party = null;
         let exchangeRate = new decimal_js_1.Decimal(1);
-        const p = await manager.findOne(party_entity_1.Party, { where: { id: dto.partyId ? String(dto.partyId) : undefined } });
-        if (p && p.type === 'supplier' && dto.type === 'in') {
+        const p = dto.partyId ? await manager.findOne(party_entity_1.Party, { where: { id: String(dto.partyId) } }) : null;
+        if (p && p.type === 'provider' && dto.type === 'in') {
             console.warn(`Tedarikçiden tahsilat işlemi yapılıyor: ${p.name}`);
         }
         if (dto.partyId) {
@@ -100,11 +100,11 @@ let TransactionsService = class TransactionsService {
             if (!party)
                 throw new common_1.NotFoundException('Cari hesap bulunamadı');
         }
-        const currency = await manager.findOne(currency_entity_1.Currency, { where: { id: dto.currencyId ? String(dto.currencyId) : undefined } });
+        const currency = dto.currencyId ? await manager.findOne(currency_entity_1.Currency, { where: { id: String(dto.currencyId) } }) : null;
         exchangeRate = currency ? new decimal_js_1.Decimal(currency.exchangeRate) : new decimal_js_1.Decimal(1);
         const tlAmount = finance_helper_1.FinanceHelper.mul(dto.amount, exchangeRate);
         if (party) {
-            const isSupplierRefund = dto.type === 'in' && party.type === 'supplier';
+            const isSupplierRefund = dto.type === 'in' && party.type === 'provider';
             const isDebit = dto.type === 'out' || isSupplierRefund;
             const newBalance = isDebit
                 ? finance_helper_1.FinanceHelper.add(new decimal_js_1.Decimal(party.balance), tlAmount)
@@ -123,7 +123,7 @@ let TransactionsService = class TransactionsService {
         });
         const savedTx = await manager.save(tx);
         if (party) {
-            const isSupplierRefund = dto.type === 'in' && party.type === 'supplier';
+            const isSupplierRefund = dto.type === 'in' && party.type === 'provider';
             const isCredit = dto.type === 'in' && !isSupplierRefund;
             const entryDebit = isCredit ? new decimal_js_1.Decimal(0) : tlAmount;
             const entryCredit = isCredit ? tlAmount : new decimal_js_1.Decimal(0);
@@ -153,11 +153,11 @@ let TransactionsService = class TransactionsService {
             throw new common_1.BadRequestException('Sadece tamamlanmış aktif işlemler iptal edilebilir.');
         if (tx.partyId) {
             const party = await manager.findOne(party_entity_1.Party, {
-                where: { id: tx.partyId ? String(tx.partyId) : undefined },
+                where: { id: String(tx.partyId) },
                 lock: { mode: 'pessimistic_write' }
             });
             if (party) {
-                const isSupplierRefund = tx.type === 'in' && party.type === 'supplier';
+                const isSupplierRefund = tx.type === 'in' && party.type === 'provider';
                 const isReverseCredit = (tx.type === 'in' && !isSupplierRefund) ? false : true;
                 const tlAmount = finance_helper_1.FinanceHelper.mul(tx.amount, tx.exchangeRate);
                 const revDebit = isReverseCredit ? new decimal_js_1.Decimal(0) : tlAmount;

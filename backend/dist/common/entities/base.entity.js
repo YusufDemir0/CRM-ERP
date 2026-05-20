@@ -20,6 +20,7 @@ __decorate([
     __metadata("design:type", String)
 ], BaseEntity.prototype, "id", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ type: 'tinyint', default: record_state_enum_1.RecordState.ACTIVE }),
     __metadata("design:type", Number)
 ], BaseEntity.prototype, "state", void 0);

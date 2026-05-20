@@ -21,7 +21,20 @@ const sale_item_entity_1 = require("./sale-item.entity");
 const decimal_transformer_1 = require("../../../common/transformers/decimal.transformer");
 const staff_entity_1 = require("../../staff/entities/staff.entity");
 const commercial_account_entity_1 = require("../../finance/accounts/entities/commercial-account.entity");
+const department_entity_1 = require("../../departments/entities/department.entity");
 let Sale = class Sale extends base_entity_1.BaseEntity {
+    constructor() {
+        super(...arguments);
+        this.exchangeRate = new decimal_js_1.Decimal(1);
+        this.deposit = new decimal_js_1.Decimal(0);
+        this.totalAmount = new decimal_js_1.Decimal(0);
+        this.discountAmount = new decimal_js_1.Decimal(0);
+        this.discountPercent = new decimal_js_1.Decimal(0);
+        this.kdv = new decimal_js_1.Decimal(0);
+        this.grandTotal = new decimal_js_1.Decimal(0);
+        this.totalCost = new decimal_js_1.Decimal(0);
+        this.profit = new decimal_js_1.Decimal(0);
+    }
 };
 exports.Sale = Sale;
 __decorate([
@@ -34,6 +47,7 @@ __decorate([
     __metadata("design:type", String)
 ], Sale.prototype, "partyId", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'sale_type_id', type: 'bigint' }),
     __metadata("design:type", String)
 ], Sale.prototype, "saleTypeId", void 0);
@@ -48,6 +62,7 @@ __decorate([
     __metadata("design:type", Object)
 ], Sale.prototype, "staffId", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'currency_id', type: 'bigint', nullable: true }),
     __metadata("design:type", Object)
 ], Sale.prototype, "currencyId", void 0);
@@ -57,6 +72,7 @@ __decorate([
     __metadata("design:type", decimal_js_1.Decimal)
 ], Sale.prototype, "exchangeRate", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'delivery_date', type: 'date', nullable: true }),
     __metadata("design:type", Object)
 ], Sale.prototype, "deliveryDate", void 0);
@@ -67,7 +83,7 @@ __decorate([
 ], Sale.prototype, "status", void 0);
 __decorate([
     (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    (0, typeorm_1.Column)({ name: 'deposit', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
     __metadata("design:type", decimal_js_1.Decimal)
 ], Sale.prototype, "deposit", void 0);
 __decorate([
@@ -87,7 +103,7 @@ __decorate([
 ], Sale.prototype, "discountPercent", void 0);
 __decorate([
     (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    (0, typeorm_1.Column)({ name: 'kdv', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
     __metadata("design:type", decimal_js_1.Decimal)
 ], Sale.prototype, "kdv", void 0);
 __decorate([
@@ -102,7 +118,7 @@ __decorate([
 ], Sale.prototype, "totalCost", void 0);
 __decorate([
     (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    (0, typeorm_1.Column)({ name: 'profit', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
     __metadata("design:type", decimal_js_1.Decimal)
 ], Sale.prototype, "profit", void 0);
 __decorate([
@@ -166,6 +182,11 @@ __decorate([
     (0, typeorm_1.JoinColumn)({ name: 'commercial_account_id' }),
     __metadata("design:type", Object)
 ], Sale.prototype, "commercialAccount", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => department_entity_1.Department, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: 'department_id' }),
+    __metadata("design:type", Object)
+], Sale.prototype, "department", void 0);
 __decorate([
     (0, typeorm_1.OneToMany)(() => sale_item_entity_1.SaleItem, (si) => si.sale),
     __metadata("design:type", Array)

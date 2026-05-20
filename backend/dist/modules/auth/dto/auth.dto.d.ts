@@ -6,7 +6,7 @@ export declare class RegisterDto {
     username: string;
     password: string;
     fullName: string;
-    email: string;
+    email?: string;
     phone?: string;
     departmentId: string;
 }

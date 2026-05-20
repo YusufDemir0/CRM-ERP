@@ -19,4 +19,11 @@ export declare class FinanceSaleListener implements OnModuleInit {
         commercialAccountId: string;
         userId: string;
     }): Promise<void>;
+    private setupCancelConsumer;
+    handleFinanceCancelLogic(payload: {
+        sale: Sale;
+        tlGrandTotal: Decimal;
+        tlDeposit: Decimal;
+        userId: string;
+    }): Promise<void>;
 }

@@ -17,6 +17,18 @@ const sale_entity_1 = require("./sale.entity");
 const item_entity_1 = require("../../inventory/items/entities/item.entity");
 const decimal_transformer_1 = require("../../../common/transformers/decimal.transformer");
 let SaleItem = class SaleItem {
+    constructor() {
+        this.quantity = new decimal_js_1.Decimal(0);
+        this.shippedQuantity = new decimal_js_1.Decimal(0);
+        this.price = new decimal_js_1.Decimal(0);
+        this.costPrice = new decimal_js_1.Decimal(0);
+        this.discountAmount = new decimal_js_1.Decimal(0);
+        this.discountPercent = new decimal_js_1.Decimal(0);
+        this.netPrice = new decimal_js_1.Decimal(0);
+        this.kdvRate = new decimal_js_1.Decimal(20);
+        this.kdvAmount = new decimal_js_1.Decimal(0);
+        this.lineTotal = new decimal_js_1.Decimal(0);
+    }
 };
 exports.SaleItem = SaleItem;
 __decorate([
@@ -29,7 +41,7 @@ __decorate([
 ], SaleItem.prototype, "itemId", void 0);
 __decorate([
     (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 4, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    (0, typeorm_1.Column)({ name: 'quantity', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
     __metadata("design:type", decimal_js_1.Decimal)
 ], SaleItem.prototype, "quantity", void 0);
 __decorate([
@@ -39,7 +51,7 @@ __decorate([
 ], SaleItem.prototype, "shippedQuantity", void 0);
 __decorate([
     (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
-    (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 2, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    (0, typeorm_1.Column)({ name: 'price', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
     __metadata("design:type", decimal_js_1.Decimal)
 ], SaleItem.prototype, "price", void 0);
 __decorate([
@@ -59,7 +71,7 @@ __decorate([
 ], SaleItem.prototype, "discountPercent", void 0);
 __decorate([
     (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
-    (0, typeorm_1.Column)({ name: 'net_price', type: 'decimal', precision: 15, scale: 2, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    (0, typeorm_1.Column)({ name: 'net_price', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
     __metadata("design:type", decimal_js_1.Decimal)
 ], SaleItem.prototype, "netPrice", void 0);
 __decorate([
@@ -74,7 +86,7 @@ __decorate([
 ], SaleItem.prototype, "kdvAmount", void 0);
 __decorate([
     (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
-    (0, typeorm_1.Column)({ name: 'line_total', type: 'decimal', precision: 15, scale: 2, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    (0, typeorm_1.Column)({ name: 'line_total', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
     __metadata("design:type", decimal_js_1.Decimal)
 ], SaleItem.prototype, "lineTotal", void 0);
 __decorate([
@@ -86,7 +98,7 @@ __decorate([
     __metadata("design:type", Object)
 ], SaleItem.prototype, "createdBy", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'created_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' }),
+    (0, typeorm_1.CreateDateColumn)({ name: 'created_at', type: 'timestamp' }),
     __metadata("design:type", Date)
 ], SaleItem.prototype, "createdAt", void 0);
 __decorate([
@@ -94,11 +106,11 @@ __decorate([
     __metadata("design:type", Object)
 ], SaleItem.prototype, "updatedBy", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'updated_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' }),
+    (0, typeorm_1.UpdateDateColumn)({ name: 'updated_at', type: 'timestamp' }),
     __metadata("design:type", Date)
 ], SaleItem.prototype, "updatedAt", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'deleted_at', type: 'timestamp', nullable: true }),
+    (0, typeorm_1.DeleteDateColumn)({ name: 'deleted_at', type: 'timestamp', nullable: true }),
     __metadata("design:type", Object)
 ], SaleItem.prototype, "deletedAt", void 0);
 __decorate([

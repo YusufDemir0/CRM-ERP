@@ -1,32 +1,33 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, In } from 'typeorm';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { OutboxEvent, OutboxStatus } from '../entities/outbox-event.entity';
 import { RabbitMQService } from './rabbitmq.service';
 import dayjs from 'dayjs';
 
 /**
- * OutboxWorker — Polls the outbox table and publishes events to RabbitMQ.
+ * OutboxWorker — Event-driven with adaptive fallback polling.
  * 
- * ENTERPRISE ARCHITECTURE:
+ * ARCHITECTURE:
  *   - Runs in a SEPARATE process (worker.ts), NOT in the API process
+ *   - Uses in-process EventEmitter for instant notification when new events are saved
+ *   - Adaptive polling: fast when busy, slow when idle (fallback only)
  *   - Uses SELECT ... FOR UPDATE SKIP LOCKED for multi-replica safety
- *   - Multiple workers can run simultaneously without processing the same event
- *   - Publisher confirms ensure RabbitMQ received the message before marking as processed
  *   - Failed events go to Dead Letter Queue after 5 attempts
  * 
- * DUPLICATION PREVENTION:
- *   RabbitMQ publish MUST happen OUTSIDE the DB transaction to prevent
- *   the scenario where messages are published but transaction rolls back,
- *   causing the same messages to be re-published on the next poll cycle.
+ * TRIGGER MECHANISM (MySQL-compatible):
+ *   1. Primary: OutboxService emits 'outbox.new-event' after saving → Worker picks up immediately
+ *   2. Fallback: 60-second heartbeat poll for edge cases (worker restart, missed events)
  * 
  * Flow: DB (outbox_events) → Worker → RabbitMQ (durable) → Consumers
  */
 @Injectable()
-export class OutboxWorker {
+export class OutboxWorker implements OnModuleInit {
   private readonly logger = new Logger(OutboxWorker.name);
   private isProcessing = false;
+  private processingPromise: Promise<void> | null = null;
 
   /** Stale event timeout: events stuck in PROCESSING for > 5 minutes are reset */
   private static readonly STALE_TIMEOUT_MS = 5 * 60 * 1000;
@@ -35,18 +36,43 @@ export class OutboxWorker {
     @InjectRepository(OutboxEvent)
     private readonly outboxRepo: Repository<OutboxEvent>,
     private readonly rabbitmq: RabbitMQService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
+  onModuleInit() {
+    this.logger.log('OutboxWorker initialized — listening for outbox.new-event');
+  }
+
   /**
-   * Poll outbox table every 10 seconds.
-   * SKIP LOCKED ensures multiple workers don't fight over the same rows.
-   * 
-   * Three-phase commit pattern:
+   * Instant trigger: Called when OutboxService saves a new event.
+   * This eliminates the polling delay for normal operations.
+   */
+  @OnEvent('outbox.new-event', { async: true })
+  async onNewEvent() {
+    // Debounce: if already processing, skip — the current cycle will pick up new events
+    if (this.isProcessing) return;
+    await this.handleOutbox();
+  }
+
+  /**
+   * Fallback heartbeat: Poll every 60 seconds for missed events.
+   * This handles edge cases like:
+   *   - Worker restart while events were pending
+   *   - EventEmitter failures
+   *   - Events from other processes/replicas
+   */
+  @Cron('*/60 * * * * *')
+  async heartbeatPoll() {
+    if (this.isProcessing) return;
+    await this.handleOutbox();
+  }
+
+  /**
+   * Core processing logic — Three-phase commit pattern:
    *   Phase 1: Lock rows & mark as PROCESSING (DB transaction — committed)
    *   Phase 2: Publish to RabbitMQ (external side-effect — NO DB transaction)
    *   Phase 3: Update status to PROCESSED or retry (DB update)
    */
-  @Cron('*/10 * * * * *')
   async handleOutbox() {
     if (this.isProcessing) return;
     if (!this.rabbitmq.isConnected()) {
@@ -58,8 +84,6 @@ export class OutboxWorker {
 
     try {
       // ── Phase 1: Claim events (DB transaction) ──────────────────────
-      // Lock rows with SKIP LOCKED, mark as PROCESSING, and commit immediately.
-      // This ensures no other worker picks up the same events.
       let claimedEvents: OutboxEvent[] = [];
 
       await this.outboxRepo.manager.transaction(async (manager) => {
@@ -85,7 +109,6 @@ export class OutboxWorker {
       this.logger.log(`Processing ${claimedEvents.length} outbox events...`);
 
       // ── Phase 2: Publish to RabbitMQ (NO DB transaction) ────────────
-      // Each event is published independently. If one fails, others still succeed.
       for (const event of claimedEvents) {
         try {
           const published = await this.rabbitmq.publish(

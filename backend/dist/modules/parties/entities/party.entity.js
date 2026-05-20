@@ -20,7 +20,8 @@ let Party = class Party extends base_entity_1.BaseEntity {
 };
 exports.Party = Party;
 __decorate([
-    (0, typeorm_1.Column)({ type: 'enum', enum: ['customer', 'supplier'], default: 'customer' }),
+    (0, typeorm_1.Index)(),
+    (0, typeorm_1.Column)({ type: 'enum', enum: ['customer', 'provider'], default: 'customer' }),
     __metadata("design:type", String)
 ], Party.prototype, "type", void 0);
 __decorate([
@@ -52,6 +53,7 @@ __decorate([
     __metadata("design:type", Object)
 ], Party.prototype, "address", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'city_id', type: 'int', nullable: true }),
     __metadata("design:type", Object)
 ], Party.prototype, "cityId", void 0);
@@ -74,6 +76,7 @@ __decorate([
     __metadata("design:type", Object)
 ], Party.prototype, "paymentTerms", void 0);
 __decorate([
+    (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'currency_id', type: 'bigint', nullable: true }),
     __metadata("design:type", Object)
 ], Party.prototype, "currencyId", void 0);
@@ -81,6 +84,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", Object)
 ], Party.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'department_id', type: 'bigint', nullable: true }),
+    __metadata("design:type", Object)
+], Party.prototype, "departmentId", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => currency_entity_1.Currency, { nullable: true }),
     (0, typeorm_1.JoinColumn)({ name: 'currency_id' }),

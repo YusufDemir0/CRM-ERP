@@ -267,7 +267,7 @@ export class SalesTransactionsService {
 
     if (!sale.departmentId) throw new BadRequestException('Rezervasyon deposu bulunamadı.');
 
-    const shipItems = dto.items || sale.items.map(i => ({ itemId: String(i.itemId), quantity: Number(i.quantity) }));
+    const shipItems = dto.items || sale.items.map(i => ({ itemId: String(i.itemId), quantity: new Decimal(i.quantity).toNumber() }));
 
     for (const reqItem of shipItems) {
       const lineItem = sale.items.find(si => String(si.itemId) === String(reqItem.itemId));

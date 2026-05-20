@@ -203,6 +203,7 @@ let AuthService = AuthService_1 = class AuthService {
             'user.state',
             'department.id',
             'department.name',
+            'department.cityId',
             'role.id',
             'role.name',
             'permission.id',

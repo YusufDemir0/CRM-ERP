@@ -66,18 +66,21 @@ __decorate([
 ], UpdateDepartmentDto.prototype, "abbreviation", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.ValidateIf)((_o, value) => value !== null),
     (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], UpdateDepartmentDto.prototype, "departmentTypeId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.ValidateIf)((_o, value) => value !== null),
     (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], UpdateDepartmentDto.prototype, "commercialAccountId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.ValidateIf)((_o, value) => value !== null),
     (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], UpdateDepartmentDto.prototype, "cityId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),

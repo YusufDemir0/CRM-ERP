@@ -130,14 +130,14 @@ export class SaleCalculator {
         maxLineIndex = index;
       }
 
-      const lineKdv = FH.calculateKdv(lineMatrah, Number(line.kdvRate));
+      const lineKdv = FH.calculateKdv(lineMatrah, line.kdvRate);
       line.kdvAmount = lineKdv;
       line.lineTotal = FH.add(lineMatrah, lineKdv);
       totalKdv = FH.add(totalKdv, lineKdv);
     });
 
     // 4. Penny Rounding Logic (Correct for floating point discrepancies in KDV distribution)
-    const avgKdvRate = lines.length > 0 ? Number(lines[0].kdvRate) : 20;
+    const avgKdvRate = lines.length > 0 ? lines[0].kdvRate : new Decimal(20);
     const expectedKdv = FH.calculateKdv(discountedMatrah, avgKdvRate);
     const difference = expectedKdv.sub(totalKdv);
 

@@ -73,11 +73,17 @@ export class AuditSubscriber implements EntitySubscriberInterface {
       entityId,
       userId: userId || null,
       changes: action === 'UPDATE' ? {
-        updatedFields: (event as UpdateEvent<unknown>).updatedColumns.map(c => c.propertyName)
+        updatedFields: (event as UpdateEvent<unknown>).updatedColumns
+          .slice(0, 20) // Cap at 20 fields to prevent oversized payloads
+          .map(c => c.propertyName)
       } : { id: entityId }
     };
 
-    // 🔥 RDBMS'den Çıkarıldı: Sadece Stdout/JSON
-    this.logger.log(JSON.stringify(logPayload));
+    // Safe serialization: payload is metadata-only (no entity data), so size is bounded
+    try {
+      this.logger.log(JSON.stringify(logPayload));
+    } catch {
+      this.logger.warn(`Audit log serialization failed for ${entityName}:${entityId}`);
+    }
   }
 }

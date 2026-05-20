@@ -16,4 +16,9 @@ export declare class InventorySaleListener implements OnModuleInit {
         departmentId: string;
         userId: string;
     }): Promise<void>;
+    private setupCancelConsumer;
+    handleSaleCancelled(payload: {
+        sale: Sale;
+        userId: string;
+    }): Promise<void>;
 }

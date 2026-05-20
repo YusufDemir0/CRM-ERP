@@ -149,6 +149,9 @@ export const ProductPhase: React.FC<ProductPhaseProps> = memo(({ items }) => {
     control,
     name: 'items'
   });
+  const handleRemove = useCallback((index: number) => {
+    remove(index);
+  }, [remove]);
 
   const isInvoiced = useWatch({ control, name: 'isInvoiced' }) ?? true;
 
@@ -249,7 +252,7 @@ export const ProductPhase: React.FC<ProductPhaseProps> = memo(({ items }) => {
                 key={field.id}
                 index={index}
                 isInvoiced={isInvoiced}
-                onRemove={remove}
+                onRemove={handleRemove}
               />
             ))}
             {fields.length === 0 && (

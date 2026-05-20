@@ -16,7 +16,7 @@ class CreatePartyDto {
 }
 exports.CreatePartyDto = CreatePartyDto;
 __decorate([
-    (0, class_validator_1.IsEnum)(['customer', 'supplier']),
+    (0, class_validator_1.IsEnum)(['customer', 'provider']),
     __metadata("design:type", String)
 ], CreatePartyDto.prototype, "type", void 0);
 __decorate([
@@ -46,7 +46,9 @@ __decorate([
 ], CreatePartyDto.prototype, "taxNumber", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEmail)(),
+    (0, class_validator_1.ValidateIf)((o) => o.email !== undefined && o.email !== null && o.email !== ''),
+    (0, class_validator_1.IsEmail)({}, { message: 'Geçerli bir e-posta adresi giriniz' }),
+    (0, class_transformer_1.Transform)(({ value }) => (value === '' ? undefined : value)),
     __metadata("design:type", String)
 ], CreatePartyDto.prototype, "email", void 0);
 __decorate([
@@ -56,6 +58,7 @@ __decorate([
 ], CreatePartyDto.prototype, "address", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(({ value }) => value?.toString()),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreatePartyDto.prototype, "cityId", void 0);
@@ -85,12 +88,17 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreatePartyDto.prototype, "notes", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreatePartyDto.prototype, "departmentId", void 0);
 class UpdatePartyDto {
 }
 exports.UpdatePartyDto = UpdatePartyDto;
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEnum)(['customer', 'supplier']),
+    (0, class_validator_1.IsEnum)(['customer', 'provider']),
     __metadata("design:type", String)
 ], UpdatePartyDto.prototype, "type", void 0);
 __decorate([
@@ -120,7 +128,9 @@ __decorate([
 ], UpdatePartyDto.prototype, "taxNumber", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEmail)(),
+    (0, class_validator_1.ValidateIf)((o) => o.email !== undefined && o.email !== null && o.email !== ''),
+    (0, class_validator_1.IsEmail)({}, { message: 'Geçerli bir e-posta adresi giriniz' }),
+    (0, class_transformer_1.Transform)(({ value }) => (value === '' ? undefined : value)),
     __metadata("design:type", String)
 ], UpdatePartyDto.prototype, "email", void 0);
 __decorate([
@@ -130,6 +140,7 @@ __decorate([
 ], UpdatePartyDto.prototype, "address", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(({ value }) => value?.toString()),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdatePartyDto.prototype, "cityId", void 0);
@@ -159,6 +170,11 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdatePartyDto.prototype, "notes", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdatePartyDto.prototype, "departmentId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),

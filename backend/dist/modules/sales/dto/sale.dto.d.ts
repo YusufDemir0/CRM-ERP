@@ -25,7 +25,7 @@ export declare class CreateSaleDto {
     source?: string;
     city?: string;
     district?: string;
-    commercialAccountId: string;
+    commercialAccountId?: string;
     items: CreateSaleItemDto[];
 }
 export declare class UpdateSaleDto {
@@ -44,7 +44,7 @@ export declare class UpdateSaleDto {
     source?: string;
     city?: string;
     district?: string;
-    commercialAccountId: string;
+    commercialAccountId?: string;
     items?: CreateSaleItemDto[];
 }
 export declare class CreateSaleTypeDto {
@@ -57,11 +57,11 @@ export declare class ApproveSaleDto {
 }
 export declare class SalesQueryDto extends PaginationDto {
     status?: string;
-    partyId: string;
+    partyId?: string;
 }
 export declare class ShipSaleDto {
     items?: {
         itemId: string;
-        quantity: number;
+        quantity: string | number;
     }[];
 }

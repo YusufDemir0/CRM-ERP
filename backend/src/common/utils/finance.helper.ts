@@ -57,8 +57,9 @@ export class FinanceHelper {
     return new Decimal(value).toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP);
   }
 
-  static calculateKdv(amount: Decimal | number | string, rate: number): Decimal {
+  static calculateKdv(amount: Decimal | number | string, rate: Decimal | number | string): Decimal {
     const amt = new Decimal(amount);
-    return amt.mul(rate).div(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+    const r = new Decimal(rate);
+    return amt.mul(r).div(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
   }
 }

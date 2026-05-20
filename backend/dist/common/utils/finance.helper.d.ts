@@ -12,5 +12,5 @@ export declare class FinanceHelper {
     }): Decimal;
     static toDecimal(value: unknown): Decimal;
     static round(value: Decimal | number | string, decimals?: number): Decimal;
-    static calculateKdv(amount: Decimal | number | string, rate: number): Decimal;
+    static calculateKdv(amount: Decimal | number | string, rate: Decimal | number | string): Decimal;
 }

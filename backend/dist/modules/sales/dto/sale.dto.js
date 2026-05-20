@@ -279,8 +279,7 @@ __decorate([
 ], SalesQueryDto.prototype, "status", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_transformer_1.Type)(() => Number),
-    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], SalesQueryDto.prototype, "partyId", void 0);
 class ShipSaleDto {

@@ -26,7 +26,7 @@ export default function UsersPage() {
 
   const deferredSearch = useDeferredValue(searchTerm);
   const { openCreate } = useQuickCreateStore();
-  const { user: currentUser } = useAuthStore();
+  const currentUser = useAuthStore(s => s.user);
 
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [selectedUserForPerms, setSelectedUserForPerms] = useState<User | null>(null);

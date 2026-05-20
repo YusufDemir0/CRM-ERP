@@ -53,7 +53,7 @@ const WizardControls = memo(({
   const { control } = useFormContext<SalesWizardFormData>();
   const currentCustomerId = useWatch({ control, name: 'customerId' });
   const selectedItems = useWatch({ control, name: 'items' }) || [];
-  const store = useSalesWizardStore();
+  const reset = useSalesWizardStore(s => s.reset);
 
   return (
     <div className="flex items-center gap-3">
@@ -80,7 +80,7 @@ const WizardControls = memo(({
           <div className="flex items-center gap-3">
             <button 
               type="button"
-              onClick={() => { store.reset(); onCompleted(); }}
+              onClick={() => { reset(); onCompleted(); }}
               className="h-10 px-5 text-[10px] font-black text-slate-400 hover:text-slate-600 active:scale-95 transition-all uppercase"
             >
               İPTAL
@@ -129,6 +129,37 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
     console.error("Sales Wizard Validation Errors:", errors);
   };
 
+  const saveDraftToStore = () => {
+    const values = getValues();
+    const setDraftData = useSalesWizardStore.getState().setDraftData;
+    setDraftData({
+      phone: values.phone || '',
+      phone2: values.phone2 || '',
+      email: values.email || '',
+      taxId: values.taxId || '',
+      cityId: values.cityId || '',
+      district: values.district || '',
+      address: values.address || '',
+      date: values.date || '',
+      deliveryDate: values.deliveryDate || '',
+      deposit: String(values.deposit || 0),
+      discountAmount: String(values.discountAmount || 0),
+      source: values.source || '',
+      isTaxed: !!values.isTaxed,
+      isInvoiced: values.isInvoiced ?? true,
+      representativePrice: values.representativePrice || '0',
+      description: values.description || '',
+      staffId: values.staffId || '',
+      selectedItems: (values.items || []).map(item => ({
+        id: String(item.id),
+        name: item.name || '',
+        quantity: item.quantity || 0,
+        unitPrice: item.unitPrice || 0,
+        taxRate: item.taxRate || 20,
+      })) as import('./types').SelectedItem[]
+    });
+  };
+
   const handleNext = async () => {
     if (phase === 'customer') {
       const isValid = await trigger(['customerId', 'cityId', 'district', 'phone']);
@@ -136,6 +167,7 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
         toast.error("Lütfen müşteri ve iletişim bilgilerini eksiksiz doldurun.");
         return;
       }
+      saveDraftToStore();
       setPhase('logistics');
       setStep(2);
     } else if (phase === 'logistics') {
@@ -144,12 +176,14 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
         toast.error("Lütfen lojistik ve personel bilgilerini eksiksiz doldurun.");
         return;
       }
+      saveDraftToStore();
       setPhase('products');
       setStep(8);
     }
   };
 
   const handleBack = () => {
+    saveDraftToStore();
     if (phase === 'products') {
       setPhase('logistics');
       setStep(7);

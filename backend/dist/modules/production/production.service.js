@@ -50,15 +50,10 @@ let ProductionService = ProductionService_1 = class ProductionService {
         const qb = this.bomRepo.createQueryBuilder('bom')
             .leftJoin('bom.targetItem', 'targetItem')
             .select([
-            'bom.id', 'bom.name', 'bom.version', 'bom.isActive', 'bom.state', 'bom.createdAt',
+            'bom.id', 'bom.name', 'bom.version', 'bom.isActive', 'bom.state', 'bom.createdAt', 'bom.description',
             'targetItem.id', 'targetItem.name', 'targetItem.code'
         ])
-            .addSelect(subQuery => {
-            return subQuery
-                .select('COUNT(*)', 'count')
-                .from(bom_item_entity_1.BomItem, 'bi')
-                .where('bi.bomId = bom.id');
-        }, 'bom_itemCount');
+            .loadRelationCountAndMap('bom.itemCount', 'bom.items');
         if (query.search) {
             const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
             qb.andWhere('(bom.name LIKE :s OR targetItem.name LIKE :s OR targetItem.code LIKE :s)', { s });
@@ -182,15 +177,6 @@ let ProductionService = ProductionService_1 = class ProductionService {
     async updateBom(id, dto, userId) {
         const manager = this.transactionContext.manager;
         const bom = await this.findOneBom(id);
-        if (dto.items && dto.items.length > 0) {
-            await manager.update(bom_entity_1.Bom, id, { isActive: false, updatedBy: userId });
-            return this.createBom({
-                name: dto.name ?? bom.name,
-                description: dto.description ?? bom.description ?? undefined,
-                targetItemId: dto.targetItemId ?? bom.targetItemId ?? undefined,
-                items: dto.items,
-            }, userId);
-        }
         if (dto.name !== undefined)
             bom.name = dto.name;
         if (dto.description !== undefined)
@@ -200,6 +186,16 @@ let ProductionService = ProductionService_1 = class ProductionService {
         if (dto.state !== undefined)
             bom.state = dto.state;
         bom.updatedBy = userId || null;
+        if (dto.items && dto.items.length > 0) {
+            await manager.delete(bom_item_entity_1.BomItem, { bomId: id });
+            const newItems = dto.items.map((item) => manager.create(bom_item_entity_1.BomItem, {
+                bomId: id,
+                itemId: item.itemId,
+                quantity: item.quantity,
+                description: item.description || '',
+            }));
+            await manager.save(newItems);
+        }
         await manager.save(bom);
         return this.findOneBom(id);
     }

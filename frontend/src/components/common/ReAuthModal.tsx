@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useShallow } from 'zustand/react/shallow';
 import { FiLock, FiAlertCircle, FiArrowRight } from 'react-icons/fi';
 
 export const ReAuthModal: React.FC = () => {
-  const { isReAuthModalOpen, login, user, logout } = useAuthStore();
+  const { isReAuthModalOpen, login, user, logout } = useAuthStore(useShallow(s => ({
+    isReAuthModalOpen: s.isReAuthModalOpen,
+    login: s.login,
+    user: s.user,
+    logout: s.logout,
+  })));
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);

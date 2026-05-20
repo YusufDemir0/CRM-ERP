@@ -30,8 +30,9 @@ let AccountsService = class AccountsService {
     async findAll(query) {
         const qb = this.accRepo.createQueryBuilder('acc')
             .select([
-            'acc.id', 'acc.name', 'acc.bankName', 'acc.iban', 'acc.state',
-            'acc.createdAt'
+            'acc.id', 'acc.name', 'acc.bankName', 'acc.iban', 'acc.ibanName',
+            'acc.currencyId', 'acc.criticalLimit', 'acc.description',
+            'acc.state', 'acc.createdAt'
         ])
             .leftJoin('acc.currency', 'currency')
             .addSelect(['currency.id', 'currency.symbol', 'currency.code']);
