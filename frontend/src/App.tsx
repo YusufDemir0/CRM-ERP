@@ -75,7 +75,7 @@ export default function App() {
                   <Route path="stocks" element={<ErrorBoundary><ProtectedRoute requiredPermission="INVENTORY_VIEW"><StocksPage /></ProtectedRoute></ErrorBoundary>} />
                   <Route path="stocks/movements" element={<ErrorBoundary><ProtectedRoute requiredPermission="INVENTORY_VIEW"><StockMovementsPage /></ProtectedRoute></ErrorBoundary>} />
                   <Route path="sales" element={<ErrorBoundary><ProtectedRoute requiredPermission="SALES_VIEW"><SalesPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="sales/wizard" element={<ErrorBoundary><ProtectedRoute requiredPermission="SALES_VIEW"><SaleWizardPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="sales/wizard" element={<ErrorBoundary><ProtectedRoute requiredPermission="SALES_CREATE"><SaleWizardPage /></ProtectedRoute></ErrorBoundary>} />
 
                   <Route path="accounts" element={<ErrorBoundary><ProtectedRoute requiredPermission="FINANCE_VIEW"><AccountsPage /></ProtectedRoute></ErrorBoundary>} />
                   <Route path="transactions" element={<ErrorBoundary><ProtectedRoute requiredPermission="FINANCE_VIEW"><TransactionsPage /></ProtectedRoute></ErrorBoundary>} />

@@ -630,7 +630,56 @@ export class FixMissingTablesV61715760000006 implements MigrationInterface {
             `INSERT IGNORE INTO \`sale_types\` (id, name, abbreviation, state) VALUES (2,'Perakende Satış','PRK',1)`,
             `INSERT IGNORE INTO \`sale_types\` (id, name, abbreviation, state) VALUES (3,'İhracat','IHR',1)`,
             `INSERT IGNORE INTO \`settings\` (setting_key, setting_value, description) VALUES ('default_currency','TRY','Varsayılan sistem para birimi')`,
-            `INSERT IGNORE INTO \`settings\` (setting_key, setting_value, description) VALUES ('company_name','ERMAY ERP','Şirket adı')`
+            `INSERT IGNORE INTO \`settings\` (setting_key, setting_value, description) VALUES ('company_name','ERMAY ERP','Şirket adı')`,
+
+            // ─── PERMISSION SEEDS: Hiyerarşik Yetki Tanımları ───
+            // Satış Modülü
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('SALES_VIEW','Satışları Görüntüle','sales','read')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('SALES_CREATE','Satış Oluştur','sales','create')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('SALES_EDIT','Satış Düzenle','sales','update')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('SALES_APPROVE','Satış Onayla','sales','manage')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('SALES_CANCEL','Satış İptal Et','sales','manage')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('SALES_DELETE','Satış Sil','sales','delete')`,
+
+            // Cari Modülü
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('CUSTOMER_VIEW','Carileri Görüntüle','parties','read')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('CUSTOMER_CREATE','Cari Ekle','parties','create')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('CUSTOMER_EDIT','Cari Düzenle','parties','update')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('CUSTOMER_DELETE','Cari Sil','parties','delete')`,
+
+            // Stok & Ürün Modülü
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('INVENTORY_VIEW','Stok/Ürün Görüntüle','inventory','read')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('INVENTORY_CREATE','Ürün Ekle','inventory','create')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('INVENTORY_EDIT','Stok/Ürün Düzenle','inventory','update')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('INVENTORY_DELETE','Ürün Sil','inventory','delete')`,
+
+            // Finans Modülü
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('FINANCE_VIEW','Hesap Hareketlerini Gör','finance','read')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('FINANCE_MANAGE','Hesap İşlemi Yap','finance','manage')`,
+
+            // Üretim Modülü
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('PRODUCTION_VIEW','Üretim Emirlerini Gör','production','read')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('PRODUCTION_CREATE','Üretim Emri Oluştur','production','create')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('PRODUCTION_EDIT','Üretim Emri Düzenle','production','update')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('PRODUCTION_DELETE','Üretim Emri Sil','production','delete')`,
+
+            // Kullanıcı Yönetimi
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('USER_VIEW','Kullanıcıları Gör','users','read')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('USER_CREATE','Kullanıcı Oluştur','users','create')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('USER_EDIT','Kullanıcı Düzenle','users','update')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('USER_DELETE','Kullanıcı Sil','users','delete')`,
+
+            // Rol & Yetki Yönetimi
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('ROLE_VIEW','Rolleri Gör','roles','read')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('ROLE_CREATE','Rol Oluştur','roles','create')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('ROLE_EDIT','Rol Düzenle','roles','update')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('ROLE_DELETE','Rol Sil','roles','delete')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('ROLE_ASSIGN','Rol Ata','roles','manage')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('PERMISSION_VIEW','Yetkileri Gör','roles','read')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('PERMISSION_ASSIGN','Yetki Override','roles','manage')`,
+
+            // Sistem
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('SYSTEM_MANAGE','Sistem Yönetimi','system','manage')`
         ];
 
         for (const seed of seeds) {
