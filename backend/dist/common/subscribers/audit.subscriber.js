@@ -59,9 +59,8 @@ let AuditSubscriber = class AuditSubscriber {
             entityId,
             userId: userId || null,
             changes: action === 'UPDATE' ? {
-                old: event.databaseEntity,
-                new: event.entity
-            } : event.entity
+                updatedFields: event.updatedColumns.map(c => c.propertyName)
+            } : { id: entityId }
         };
         this.logger.log(JSON.stringify(logPayload));
     }

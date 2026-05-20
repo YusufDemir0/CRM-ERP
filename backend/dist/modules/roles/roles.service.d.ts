@@ -14,19 +14,19 @@ export declare class RolesService {
     private rolePermRepo;
     constructor(roleRepo: Repository<Role>, permRepo: Repository<Permission>, userRoleRepo: Repository<UserRole>, userPermRepo: Repository<UserPermission>, rolePermRepo: Repository<RolePermission>);
     findAllRoles(query: PaginationDto): Promise<PaginatedResult<Role>>;
-    findOneRole(id: number): Promise<Role>;
-    createRole(dto: CreateRoleDto, currentUserId?: number): Promise<Role>;
-    updateRole(id: number, dto: UpdateRoleDto, currentUserId?: number): Promise<Role>;
-    deleteRole(id: number): Promise<void>;
+    findOneRole(id: string): Promise<Role>;
+    createRole(dto: CreateRoleDto, currentUserId: string): Promise<Role>;
+    updateRole(id: string, dto: UpdateRoleDto, currentUserId: string): Promise<Role>;
+    deleteRole(id: string): Promise<void>;
     findAllPermissions(query: PaginationDto): Promise<PaginatedResult<Permission>>;
-    createPermission(dto: CreatePermissionDto, currentUserId?: number): Promise<Permission>;
+    createPermission(dto: CreatePermissionDto, currentUserId: string): Promise<Permission>;
     assignRole(dto: AssignRoleDto): Promise<UserRole>;
     removeRole(dto: AssignRoleDto): Promise<void>;
-    setUserPermission(dto: SetUserPermissionDto, currentUserId?: number): Promise<UserPermission>;
-    getUserPermissions(userId: number): Promise<UserPermission[]>;
+    setUserPermission(dto: SetUserPermissionDto, currentUserId: string): Promise<UserPermission>;
+    getUserPermissions(userId: string): Promise<UserPermission[]>;
     removeUserPermission(dto: {
-        userId: number;
-        permissionId: number;
+        userId: string;
+        permissionId: string;
     }): Promise<void>;
     getStatus(): Promise<{
         active: number;

@@ -1,8 +1,8 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, IsEmail, IsInt, IsIn } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, IsEmail, IsInt, IsIn, ValidateIf } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
 export class CreatePartyDto {
-  @IsEnum(['customer', 'supplier'])
-  type: 'customer' | 'supplier';
+  @IsEnum(['customer', 'provider'])
+  type: 'customer' | 'provider';
 
   @IsString()
   @IsNotEmpty()
@@ -12,31 +12,41 @@ export class CreatePartyDto {
   @IsOptional() @IsString() phone2?: string;
   @IsOptional() @IsString() taxOffice?: string;
   @IsOptional() @IsString() taxNumber?: string;
-  @IsOptional() @IsEmail() email?: string;
+  @IsOptional()
+  @ValidateIf((o) => o.email !== undefined && o.email !== null && o.email !== '')
+  @IsEmail({}, { message: 'Geçerli bir e-posta adresi giriniz' })
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  email?: string;
   @IsOptional() @IsString() address?: string;
-  @IsOptional() @IsString() cityId: string;
+  @IsOptional() @Transform(({ value }) => value?.toString()) @IsString() cityId?: string;
   @IsOptional() @IsString() districtName?: string;
   @IsOptional() @IsNumber() @Type(() => Number) creditLimit?: number;
   @IsOptional() @IsString() paymentTerms?: string;
-  @IsOptional() @IsString() currencyId: string;
+  @IsOptional() @IsString() currencyId?: string;
   @IsOptional() @IsString() notes?: string;
+  @IsOptional() @IsString() departmentId?: string;
 }
 
 export class UpdatePartyDto {
-  @IsOptional() @IsEnum(['customer', 'supplier']) type?: 'customer' | 'supplier';
+  @IsOptional() @IsEnum(['customer', 'provider']) type?: 'customer' | 'provider';
   @IsOptional() @IsString() name?: string;
   @IsOptional() @IsString() phone1?: string;
   @IsOptional() @IsString() phone2?: string;
   @IsOptional() @IsString() taxOffice?: string;
   @IsOptional() @IsString() taxNumber?: string;
-  @IsOptional() @IsEmail() email?: string;
+  @IsOptional()
+  @ValidateIf((o) => o.email !== undefined && o.email !== null && o.email !== '')
+  @IsEmail({}, { message: 'Geçerli bir e-posta adresi giriniz' })
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  email?: string;
   @IsOptional() @IsString() address?: string;
-  @IsOptional() @IsString() cityId: string;
+  @IsOptional() @Transform(({ value }) => value?.toString()) @IsString() cityId?: string;
   @IsOptional() @IsString() districtName?: string;
   @IsOptional() @IsNumber() @Type(() => Number) creditLimit?: number;
   @IsOptional() @IsString() paymentTerms?: string;
-  @IsOptional() @IsString() currencyId: string;
+  @IsOptional() @IsString() currencyId?: string;
   @IsOptional() @IsString() notes?: string;
+  @IsOptional() @IsString() departmentId?: string;
   @IsOptional()
   @IsNumber()
   @IsInt()
@@ -49,5 +59,5 @@ import { PaginationDto } from '../../../common/dto/pagination.dto';
 export class PartiesQueryDto extends PaginationDto {
   @IsOptional() @IsString() type?: string;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) state?: number;
-  @IsOptional() @IsString() departmentId: string;
+  @IsOptional() @IsString() departmentId?: string;
 }

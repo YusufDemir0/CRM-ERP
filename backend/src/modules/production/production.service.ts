@@ -45,15 +45,10 @@ export class ProductionService {
     const qb = this.bomRepo.createQueryBuilder('bom')
       .leftJoin('bom.targetItem', 'targetItem')
       .select([
-        'bom.id', 'bom.name', 'bom.version', 'bom.isActive', 'bom.state', 'bom.createdAt',
+        'bom.id', 'bom.name', 'bom.version', 'bom.isActive', 'bom.state', 'bom.createdAt', 'bom.description',
         'targetItem.id', 'targetItem.name', 'targetItem.code'
       ])
-      .addSelect(subQuery => {
-        return subQuery
-          .select('COUNT(*)', 'count')
-          .from(BomItem, 'bi')
-          .where('bi.bomId = bom.id');
-      }, 'bom_itemCount');
+      .loadRelationCountAndMap('bom.itemCount', 'bom.items');
 
     if (query.search) {
       const s = getSafeSearchPattern(query.search);
@@ -226,23 +221,29 @@ export class ProductionService {
     const manager = this.transactionContext.manager;
     const bom = await this.findOneBom(id);
 
-    if (dto.items && dto.items.length > 0) {
-      // Create new version
-      await manager.update(Bom, id, { isActive: false, updatedBy: userId });
-      return this.createBom({
-        name: dto.name ?? bom.name,
-        description: dto.description ?? bom.description ?? undefined,
-        targetItemId: dto.targetItemId ?? bom.targetItemId ?? undefined,
-        items: dto.items,
-      }, userId);
-    }
-
     if (dto.name !== undefined) bom.name = dto.name;
     if (dto.description !== undefined) bom.description = dto.description;
     if (dto.targetItemId !== undefined) bom.targetItemId = dto.targetItemId;
     if (dto.state !== undefined) bom.state = dto.state;
     bom.updatedBy = userId || null;
-    
+
+    // If items are provided, replace them in-place (delete old + insert new)
+    if (dto.items && dto.items.length > 0) {
+      // Remove existing items
+      await manager.delete(BomItem, { bomId: id });
+
+      // Insert new items
+      const newItems = dto.items.map((item) =>
+        manager.create(BomItem, {
+          bomId: id,
+          itemId: item.itemId,
+          quantity: item.quantity,
+          description: item.description || '',
+        })
+      );
+      await manager.save(newItems);
+    }
+
     await manager.save(bom);
     return this.findOneBom(id);
   }

@@ -48,11 +48,11 @@ let DashboardService = class DashboardService {
                 where: {
                     state: 1,
                     type: 'customer',
-                    createdBy: user?.sub
+                    createdBy: user?.sub ? String(user.sub) : undefined
                 }
             }),
             this.saleRepo.count({
-                where: { status: (0, typeorm_2.Between)('approved', 'shipped') }
+                where: { status: (0, typeorm_2.In)(['approved', 'shipped', 'invoiced']) }
             }),
             this.saleRepo.createQueryBuilder('sale')
                 .select("SUM(sale.grandTotal * sale.exchangeRate)", "revenue")

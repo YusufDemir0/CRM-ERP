@@ -1,6 +1,6 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useDeferredValue } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { FiSearch, FiChevronDown, FiX } from 'react-icons/fi';
+import { FiSearch, FiChevronDown, FiX, FiPlus } from 'react-icons/fi';
 
 interface Option {
   id: number | string;
@@ -16,6 +16,7 @@ interface SearchableSelectProps {
   label?: string;
   className?: string;
   required?: boolean;
+  onQuickAdd?: () => void;
 }
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -26,6 +27,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   label,
   className = '',
   required,
+  onQuickAdd,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -47,9 +49,13 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filteredOptions = options.filter((o) =>
-    o.label.toLowerCase().includes(search.toLowerCase())
-  );
+  const deferredSearch = useDeferredValue(search);
+
+  const filteredOptions = useMemo(() => {
+    if (!deferredSearch) return options;
+    const lowerSearch = deferredSearch.toLowerCase();
+    return options.filter((o) => o.label.toLowerCase().includes(lowerSearch));
+  }, [options, deferredSearch]);
 
   const virtualizer = useVirtualizer({
     count: filteredOptions.length,
@@ -61,9 +67,21 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   return (
     <div className={`form-group ${className}`} ref={containerRef}>
       {label && (
-        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">
-          {label} {required && <span className="text-red-500 ml-0.5">*</span>}
-        </label>
+        <div className="flex items-center justify-between mb-1.5 ml-1">
+          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+            {label} {required && <span className="text-red-500 ml-0.5">*</span>}
+          </label>
+          {onQuickAdd && (
+            <button 
+              type="button" 
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuickAdd(); }}
+              className="text-emerald-500 hover:text-emerald-600 flex items-center justify-center p-1 bg-emerald-50 hover:bg-emerald-100 rounded-md transition-colors shadow-sm"
+              title="Hızlı Ekle"
+            >
+              <FiPlus size={14} className="stroke-[3px]" />
+            </button>
+          )}
+        </div>
       )}
       <div className="relative">
         <div

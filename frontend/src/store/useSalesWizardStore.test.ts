@@ -28,8 +28,8 @@ describe('useSalesWizardStore', () => {
 
   it('should update discount amount', () => {
     const { setDraftData, draftData } = useSalesWizardStore.getState();
-    setDraftData({ ...draftData, discountAmount: 150 });
-    expect(new Decimal(useSalesWizardStore.getState().draftData.discountAmount).equals(150)).toBe(true);
+    setDraftData({ ...draftData, discountAmount: '150' });
+    expect(new Decimal(useSalesWizardStore.getState().draftData.discountAmount).equals('150')).toBe(true);
   });
 
   it('should reset the wizard state', () => {

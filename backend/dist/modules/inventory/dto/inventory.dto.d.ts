@@ -2,35 +2,35 @@ import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { Decimal } from 'decimal.js';
 export declare class CreateItemDto {
     name: string;
-    itemTypeId: number;
-    itemCodeGroupId: number;
-    providerId?: number;
+    itemTypeId: string;
+    itemCodeGroupId: string;
+    providerId: string;
     criticalLimit?: Decimal;
     image?: string;
     purchasePrice?: Decimal;
     salePrice?: Decimal;
     netPrice?: Decimal;
-    currencyId?: number;
-    quantityTypeId: number;
+    currencyId: string;
+    quantityTypeId: string;
     kdv?: Decimal;
     description?: string;
     notes?: string;
 }
 export declare class UpdateItemDto {
     name?: string;
-    itemTypeId?: number;
-    itemCodeGroupId?: number;
+    itemTypeId: string;
+    itemCodeGroupId: string;
     code?: string;
     code1?: string;
     code2?: string;
-    providerId?: number;
+    providerId: string;
     criticalLimit?: Decimal;
     image?: string;
     purchasePrice?: Decimal;
     salePrice?: Decimal;
     netPrice?: Decimal;
-    currencyId?: number;
-    quantityTypeId?: number;
+    currencyId: string;
+    quantityTypeId: string;
     kdv?: Decimal;
     description?: string;
     notes?: string;
@@ -39,6 +39,8 @@ export declare class UpdateItemDto {
 export declare class ImportItemDto {
     code: string;
     name: string;
+    typeName?: string;
+    unitName?: string;
     purchasePrice?: number;
     salePrice?: number;
     criticalLimit?: number;
@@ -74,8 +76,8 @@ export declare class UpdateItemCodeGroupDto {
     state?: number;
 }
 export declare class StockAdjustmentDto {
-    itemId: number;
-    departmentId: number;
+    itemId: string;
+    departmentId: string;
     quantity: number;
     type: 'in' | 'out';
     unitCost?: number;
@@ -83,20 +85,20 @@ export declare class StockAdjustmentDto {
     notes?: string;
 }
 export declare class TransferStockDto {
-    itemId: number;
-    fromDepartmentId: number;
-    toDepartmentId: number;
+    itemId: string;
+    fromDepartmentId: string;
+    toDepartmentId: string;
     quantity: number;
     description?: string;
 }
 export declare class ItemsQueryDto extends PaginationDto {
-    itemTypeId?: number;
-    providerId?: number;
-    currencyId?: number;
+    itemTypeId: string;
+    providerId: string;
+    currencyId: string;
     critical?: string;
 }
 export declare class StocksQueryDto extends PaginationDto {
-    departmentId?: number;
-    itemId?: number;
+    departmentId: string;
+    itemId: string;
     isCritical?: string;
 }

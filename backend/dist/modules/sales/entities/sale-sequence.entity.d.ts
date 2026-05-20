@@ -1,6 +1,6 @@
 export declare class SaleSequence {
-    id: number;
-    departmentId: number;
+    id: string;
+    departmentId: string;
     currentNumber: number;
     createdBy: number | null;
     createdAt: Date;

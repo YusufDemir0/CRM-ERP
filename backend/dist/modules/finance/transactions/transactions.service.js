@@ -41,9 +41,16 @@ let TransactionsService = class TransactionsService {
     }
     async findAll(query) {
         const qb = this.txRepo.createQueryBuilder('tx')
-            .leftJoinAndSelect('tx.party', 'party')
-            .leftJoinAndSelect('tx.commercialAccount', 'commercialAccount')
-            .leftJoinAndSelect('tx.currency', 'currency');
+            .select([
+            'tx.id', 'tx.code', 'tx.type', 'tx.amount', 'tx.date',
+            'tx.status', 'tx.description', 'tx.exchangeRate', 'tx.createdAt'
+        ])
+            .leftJoin('tx.party', 'party')
+            .addSelect(['party.id', 'party.name'])
+            .leftJoin('tx.commercialAccount', 'commercialAccount')
+            .addSelect(['commercialAccount.id', 'commercialAccount.name', 'commercialAccount.bankName'])
+            .leftJoin('tx.currency', 'currency')
+            .addSelect(['currency.id', 'currency.symbol', 'currency.code']);
         if (query.search) {
             const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
             qb.andWhere('(tx.code LIKE :s OR party.name LIKE :s OR tx.description LIKE :s OR commercialAccount.name LIKE :s OR commercialAccount.bankName LIKE :s)', { s });
@@ -70,7 +77,7 @@ let TransactionsService = class TransactionsService {
     }
     async findOne(id) {
         const tx = await this.transactionContext.manager.findOne(transaction_entity_1.Transaction, {
-            where: { id },
+            where: { id: String(id) },
             relations: ['party', 'commercialAccount', 'currency'],
         });
         if (!tx)
@@ -81,19 +88,19 @@ let TransactionsService = class TransactionsService {
         const manager = this.transactionContext.manager;
         let party = null;
         let exchangeRate = new decimal_js_1.Decimal(1);
-        const p = await manager.findOne(party_entity_1.Party, { where: { id: dto.partyId } });
+        const p = await manager.findOne(party_entity_1.Party, { where: { id: dto.partyId ? String(dto.partyId) : undefined } });
         if (p && p.type === 'supplier' && dto.type === 'in') {
             console.warn(`Tedarikçiden tahsilat işlemi yapılıyor: ${p.name}`);
         }
         if (dto.partyId) {
             party = await manager.findOne(party_entity_1.Party, {
-                where: { id: dto.partyId },
+                where: { id: String(dto.partyId) },
                 lock: { mode: 'pessimistic_write' }
             });
             if (!party)
                 throw new common_1.NotFoundException('Cari hesap bulunamadı');
         }
-        const currency = await manager.findOne(currency_entity_1.Currency, { where: { id: dto.currencyId } });
+        const currency = await manager.findOne(currency_entity_1.Currency, { where: { id: dto.currencyId ? String(dto.currencyId) : undefined } });
         exchangeRate = currency ? new decimal_js_1.Decimal(currency.exchangeRate) : new decimal_js_1.Decimal(1);
         const tlAmount = finance_helper_1.FinanceHelper.mul(dto.amount, exchangeRate);
         if (party) {
@@ -109,9 +116,9 @@ let TransactionsService = class TransactionsService {
         const prefix = dto.type === 'in' ? 'MKB' : 'TDY';
         const code = await this.sequenceGenerator.generateTransactionCode(manager, prefix);
         const tx = manager.create(transaction_entity_1.Transaction, {
-            code, partyId: dto.partyId || undefined, commercialAccountId: dto.commercialAccountId,
-            amount: new decimal_js_1.Decimal(dto.amount), currencyId: dto.currencyId || undefined, exchangeRate,
-            type: dto.type, referenceType: dto.referenceType, referenceId: dto.referenceId || undefined,
+            code, partyId: dto.partyId ? String(dto.partyId) : undefined, commercialAccountId: dto.commercialAccountId ? String(dto.commercialAccountId) : undefined,
+            amount: new decimal_js_1.Decimal(dto.amount), currencyId: dto.currencyId ? String(dto.currencyId) : undefined, exchangeRate,
+            type: dto.type, referenceType: dto.referenceType, referenceId: dto.referenceId ? String(dto.referenceId) : undefined,
             date: dto.date, description: dto.description || undefined, status: 'completed', createdBy: userId,
         });
         const savedTx = await manager.save(tx);
@@ -137,16 +144,16 @@ let TransactionsService = class TransactionsService {
                 .where('id = :id', { id: party.id })
                 .execute();
         }
-        return this.findOne(savedTx.id);
+        return this.findOne(String(savedTx.id));
     }
     async cancel(id, userId) {
         const manager = this.transactionContext.manager;
-        const tx = await manager.findOne(transaction_entity_1.Transaction, { where: { id } });
+        const tx = await manager.findOne(transaction_entity_1.Transaction, { where: { id: String(id) } });
         if (!tx || tx.status === 'cancelled')
             throw new common_1.BadRequestException('Sadece tamamlanmış aktif işlemler iptal edilebilir.');
         if (tx.partyId) {
             const party = await manager.findOne(party_entity_1.Party, {
-                where: { id: tx.partyId },
+                where: { id: tx.partyId ? String(tx.partyId) : undefined },
                 lock: { mode: 'pessimistic_write' }
             });
             if (party) {
@@ -209,13 +216,13 @@ exports.TransactionsService = TransactionsService;
 __decorate([
     (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [finance_dto_1.CreateTransactionDto, Number]),
+    __metadata("design:paramtypes", [finance_dto_1.CreateTransactionDto, String]),
     __metadata("design:returntype", Promise)
 ], TransactionsService.prototype, "create", null);
 __decorate([
     (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Number]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], TransactionsService.prototype, "cancel", null);
 exports.TransactionsService = TransactionsService = __decorate([

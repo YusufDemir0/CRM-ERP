@@ -88,14 +88,14 @@ export default function DepartmentsPage() {
   const mutation = useMutation({
     mutationFn: ({ id, state }: { id: string | number; state: number }) => departmentsAPI.toggleState(id, state),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.departments.all({}) });
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
       toast.success("Durum güncellendi.");
     },
     onError: () => toast.error("Hata oluştu.")
   });
 
   const handleFormSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.departments.all({}) });
+    queryClient.invalidateQueries({ queryKey: ['departments'] });
     toast.success("Departman bilgileri kaydedildi.");
   };
 
@@ -107,7 +107,8 @@ export default function DepartmentsPage() {
         description: dept.description || '',
         abbreviation: dept.abbreviation || '',
         departmentTypeId: dept.departmentTypeId || '',
-        commercialAccountId: dept.commercialAccountId || ''
+        commercialAccountId: dept.commercialAccountId || '',
+        cityId: dept.cityId || ''
       },
       onSuccess: handleFormSuccess
     });

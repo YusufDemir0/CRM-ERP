@@ -4,6 +4,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   DeleteDateColumn,
+  Index,
 } from 'typeorm';
 import { RecordState } from '../enums/record-state.enum';
 
@@ -18,6 +19,7 @@ export abstract class BaseEntity {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: string; // SEC-02: BigInt is returned as string to prevent rounding issues in JS
 
+  @Index()
   @Column({ type: 'tinyint', default: RecordState.ACTIVE })
   state: RecordState;
 

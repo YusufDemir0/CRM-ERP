@@ -1,5 +1,5 @@
 export declare class ItemCodeSequence {
-    id: number;
-    itemCodeGroupId: number;
+    id: string;
+    itemCodeGroupId: string;
     currentNumber: number;
 }

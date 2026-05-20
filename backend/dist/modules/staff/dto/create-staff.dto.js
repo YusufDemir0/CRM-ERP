@@ -11,7 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateStaffDto = void 0;
 const class_validator_1 = require("class-validator");
-const class_transformer_1 = require("class-transformer");
 class CreateStaffDto {
 }
 exports.CreateStaffDto = CreateStaffDto;
@@ -38,11 +37,9 @@ __decorate([
     __metadata("design:type", String)
 ], CreateStaffDto.prototype, "entryDate", void 0);
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], CreateStaffDto.prototype, "departmentId", void 0);
 __decorate([
     (0, class_validator_1.IsBoolean)(),

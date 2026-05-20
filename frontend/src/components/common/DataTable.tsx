@@ -35,7 +35,7 @@ export const ActionButton = ({
 
   return (
     <button 
-      className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${variants[variant]} disabled:opacity-30`}
+      className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors duration-200 ${variants[variant]} disabled:opacity-30`}
       onClick={(e) => { e.stopPropagation(); onClick(); }} 
       title={tooltip}
       disabled={disabled}
@@ -85,6 +85,8 @@ interface DataTableProps<T> {
   getRowOpacity?: (item: T) => number;
   isPinned?: (item: T) => boolean;
   hasState?: (item: T) => boolean;
+  isArchivable?: (item: T) => boolean;
+  isRestorable?: (item: T) => boolean;
   customIcons?: {
     edit?: (item: T) => ReactNode;
     delete?: (item: T) => ReactNode;
@@ -183,7 +185,7 @@ const DataTableInner = <T,>({
                 </button>
               )}
 
-              {rowProps.onRestore && (!rowProps.hasState || !isActive) && (
+              {rowProps.onRestore && (!rowProps.hasState || !isActive) && (!rowProps.isRestorable || rowProps.isRestorable(item)) && (
                 <button 
                   className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-green-50 text-slate-400 hover:text-green-500"
                   onClick={() => rowProps.onRestore!(item)} 
@@ -193,7 +195,7 @@ const DataTableInner = <T,>({
                 </button>
               )}
 
-              {rowProps.onArchive && (rowProps.hasState ? isActive : true) && (
+              {rowProps.onArchive && (rowProps.hasState ? isActive : true) && (!rowProps.isArchivable || rowProps.isArchivable(item)) && (
                 <button 
                   className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-red-50 text-slate-400 hover:text-red-500"
                   onClick={() => rowProps.onArchive!(item)} 
@@ -234,6 +236,7 @@ const DataTableInner = <T,>({
     getCoreRowModel: getCoreRowModel(),
     manualSorting: true,
     manualPagination: true,
+    getRowId: (originalRow) => String(getRowKey(originalRow)),
   });
 
   const { rows } = table.getRowModel();
@@ -259,7 +262,7 @@ const DataTableInner = <T,>({
               placeholder={placeholder}
               value={search || ''}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full h-12 pl-12 pr-4 bg-slate-50 border-2 border-transparent focus:border-primary/10 focus:bg-white rounded-2xl text-sm font-bold text-slate-700 transition-colors outline-none"
+              className="w-full h-12 pl-12 pr-4 bg-slate-50 border-2 border-transparent focus:border-primary/10 focus:bg-white rounded-2xl text-sm font-bold text-slate-700 transition-[border-color,background-color] duration-200 outline-none"
             />
           </div>
         </div>
@@ -282,7 +285,7 @@ const DataTableInner = <T,>({
                   return (
                     <th 
                       key={header.id} 
-                      className={`${meta?.className || ''} py-5 px-6 first:pl-10 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 ${isSortable ? 'cursor-pointer select-none hover:text-primary' : ''} transition-colors`}
+                      className={`${meta?.className || ''} py-5 px-6 first:pl-10 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 ${isSortable ? 'cursor-pointer select-none hover:text-primary' : ''} transition-colors duration-200`}
                       onClick={isSortable ? () => onSort!(sortKey!, false) : undefined}
                     >
                       <div className="flex items-center gap-2">
@@ -326,7 +329,7 @@ const DataTableInner = <T,>({
                   return (
                     <tr
                       key={row.id}
-                      className="group hover:bg-slate-50/50 transition-colors"
+                      className="group hover:bg-white hover:shadow-lg hover:shadow-slate-100 hover:-translate-y-[1px] transition-[background-color,box-shadow,transform] duration-200"
                       style={{ height: `${virtualRow.size}px` }}
                     >
                       {row.getVisibleCells().map(cell => {
@@ -344,7 +347,7 @@ const DataTableInner = <T,>({
               </>
             ) : (
               rows.map(row => (
-                <tr key={row.id} className="group hover:bg-slate-50/50 transition-colors">
+                <tr key={row.id} className="group hover:bg-white hover:shadow-lg hover:shadow-slate-100 hover:-translate-y-[1px] transition-[background-color,box-shadow,transform] duration-200">
                   {row.getVisibleCells().map(cell => {
                     const meta = cell.column.columnDef.meta as { className?: string } | undefined;
                     return (

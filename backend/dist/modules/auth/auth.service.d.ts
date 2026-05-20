@@ -2,6 +2,7 @@ import { OnModuleInit } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
+import { UserProfile } from './interfaces/user-profile.interface';
 import { UserRole } from './entities/user-role.entity';
 import { RolePermission } from './entities/role-permission.entity';
 import { UserPermission } from './entities/user-permission.entity';
@@ -13,55 +14,28 @@ export declare class AuthService implements OnModuleInit {
     private userPermRepo;
     private jwtService;
     private readonly logger;
-    private dummyHash;
     constructor(userRepo: Repository<User>, userRoleRepo: Repository<UserRole>, rolePermRepo: Repository<RolePermission>, userPermRepo: Repository<UserPermission>, jwtService: JwtService);
-    onModuleInit(): Promise<void>;
+    onModuleInit(): void;
     login(dto: LoginDto): Promise<{
         access_token: string;
         refresh_token: string;
-        user: {
-            id: number;
-            username: string;
-            fullName: string;
-            email: string;
-            phone: string | null;
-            departmentId: number | null;
-            department: import("../departments/entities/department.entity").Department;
-            roles: {
-                id: number;
-                name: string;
-            }[];
-            permissions: string[];
-        };
+        user: UserProfile;
     }>;
     refreshToken(oldRefreshToken: string): Promise<{
         access_token: string;
         refresh_token: string;
     }>;
     register(dto: RegisterDto): Promise<{
-        id: number;
+        id: string;
         username: string;
         fullName: string;
         email: string;
     }>;
-    getProfile(userId: number): Promise<{
-        id: number;
-        username: string;
-        fullName: string;
-        email: string;
-        phone: string | null;
-        departmentId: number | null;
-        department: import("../departments/entities/department.entity").Department;
-        roles: {
-            id: number;
-            name: string;
-        }[];
-        permissions: string[];
-    }>;
+    getProfile(userId: string | string): Promise<UserProfile>;
     forgotPassword(dto: ForgotPasswordDto): Promise<{
         message: string;
     }>;
-    changePassword(userId: number, dto: ChangePasswordDto): Promise<{
+    changePassword(userId: string, dto: ChangePasswordDto): Promise<{
         message: string;
     }>;
 }

@@ -68,7 +68,7 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Array, Number]),
+    __metadata("design:paramtypes", [Array, String]),
     __metadata("design:returntype", Promise)
 ], ItemsController.prototype, "importItems", null);
 __decorate([
@@ -115,9 +115,9 @@ __decorate([
 __decorate([
     (0, common_1.Get)(':id'),
     (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "findOne", null);
 __decorate([
@@ -126,7 +126,7 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [inventory_dto_1.CreateItemDto, Number]),
+    __metadata("design:paramtypes", [inventory_dto_1.CreateItemDto, String]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "create", null);
 __decorate([
@@ -135,7 +135,7 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [inventory_dto_1.CreateItemTypeDto, Number]),
+    __metadata("design:paramtypes", [inventory_dto_1.CreateItemTypeDto, String]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "createItemType", null);
 __decorate([
@@ -143,7 +143,7 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [inventory_dto_1.CreateItemCodeGroupDto, Number]),
+    __metadata("design:paramtypes", [inventory_dto_1.CreateItemCodeGroupDto, String]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "createCodeGroup", null);
 __decorate([
@@ -151,76 +151,76 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [inventory_dto_1.CreateQuantityTypeDto, Number]),
+    __metadata("design:paramtypes", [inventory_dto_1.CreateQuantityTypeDto, String]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "createQuantityType", null);
 __decorate([
     (0, common_1.Put)('quantity-types/:id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, inventory_dto_1.UpdateQuantityTypeDto, Number]),
+    __metadata("design:paramtypes", [String, inventory_dto_1.UpdateQuantityTypeDto, String]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "updateQuantityType", null);
 __decorate([
     (0, common_1.Delete)('quantity-types/:id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "removeQuantityType", null);
 __decorate([
     (0, common_1.Put)('types/:id'),
     (0, permissions_decorator_1.RequirePermissions)('INVENTORY_EDIT'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, inventory_dto_1.UpdateItemTypeDto, Number]),
+    __metadata("design:paramtypes", [String, inventory_dto_1.UpdateItemTypeDto, String]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "updateItemType", null);
 __decorate([
     (0, common_1.Put)('code-groups/:id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, inventory_dto_1.UpdateItemCodeGroupDto, Number]),
+    __metadata("design:paramtypes", [String, inventory_dto_1.UpdateItemCodeGroupDto, String]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "updateCodeGroup", null);
 __decorate([
     (0, common_1.Put)(':id'),
     (0, permissions_decorator_1.RequirePermissions)('INVENTORY_EDIT'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, inventory_dto_1.UpdateItemDto, Number]),
+    __metadata("design:paramtypes", [String, inventory_dto_1.UpdateItemDto, String]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)('types/:id'),
     (0, permissions_decorator_1.RequirePermissions)('INVENTORY_DELETE'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "removeItemType", null);
 __decorate([
     (0, common_1.Delete)('code-groups/:id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "removeCodeGroup", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     (0, permissions_decorator_1.RequirePermissions)('INVENTORY_DELETE'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Number]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "remove", null);
 exports.ItemsController = ItemsController = __decorate([

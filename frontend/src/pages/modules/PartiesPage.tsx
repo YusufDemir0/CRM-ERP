@@ -28,6 +28,7 @@ export default function PartiesPage() {
   const page = Number(searchParams.get('page')) || 1;
   const searchTerm = searchParams.get('q') || '';
   const filterTab = (searchParams.get('tab') as 'active' | 'passive' | 'all') || 'active';
+  const typeTab = (searchParams.get('type') as 'customer' | 'provider' | 'all') || 'all';
   const limit = Number(searchParams.get('limit')) || 20;
 
   const sort = {
@@ -55,15 +56,18 @@ export default function PartiesPage() {
 
   const setPage = (p: number) => updateParams({ page: p });
   const setFilterTab = (tab: string) => updateParams({ tab, page: 1 });
+  const setTypeTab = (type: string) => updateParams({ type, page: 1 });
   const setSearchTerm = (q: string) => updateParams({ q, page: 1 });
   const setSort = (key: string, order: 'ASC' | 'DESC') => updateParams({ sortBy: key, sortOrder: order, page: 1 });
 
   const { data: partiesData, isLoading: loading } = useQuery({
-    queryKey: queryKeys.parties.all({ page, limit, deferredSearch, filterTab, sort, filters }),
+    queryKey: queryKeys.parties.all({ page, limit, deferredSearch, filterTab, typeTab, sort, filters }),
     queryFn: async ({ signal }) => {
+      const typeFilter = typeTab === 'all' ? undefined : typeTab;
       const res = await partiesAPI.getAll({
         page, limit, search: deferredSearch,
         state: filterTab === 'all' ? undefined : (filterTab === 'active' ? 1 : 0),
+        type: typeFilter,
         sortBy: sort.key, sortOrder: sort.order, ...filters
       }, { signal });
       return res.data;
@@ -95,7 +99,7 @@ export default function PartiesPage() {
       queryClient.setQueriesData(
         { queryKey: ['parties', 'list'] },
         (old: { data: Party[] } | undefined) => {
-          if (!old?.data) return old;
+          if (!old?.data || !Array.isArray(old.data)) return old;
           return {
             ...old,
             data: old.data.map((p: Party) => 
@@ -158,9 +162,15 @@ export default function PartiesPage() {
         name: p.name || '',
         type: p.type || 'customer',
         taxNumber: p.taxNumber || '',
-        phone: p.phone1 || '',
+        phone1: p.phone1 || '',
+        phone2: p.phone2 || '',
         email: p.email || '',
-        address: p.address || ''
+        address: p.address || '',
+        cityId: p.cityId ? String(p.cityId) : '',
+        districtName: p.districtName || '',
+        creditLimit: p.creditLimit ? Number(p.creditLimit) : 0,
+        currencyId: p.currencyId ? String(p.currencyId) : '',
+        notes: p.notes || ''
       },
       onSuccess: handleFormSuccess
     });
@@ -180,7 +190,9 @@ export default function PartiesPage() {
   return (
     <div className="animate-in flex flex-col gap-8">
       <PartiesHeader 
-        filterTab={filterTab} setFilterTab={setFilterTab} setPage={setPage} 
+        filterTab={filterTab} setFilterTab={setFilterTab}
+        typeTab={typeTab} setTypeTab={setTypeTab}
+        setPage={setPage} 
         openCreate={openCreate} handleFormSuccess={handleFormSuccess} 
       />
 
@@ -196,10 +208,11 @@ export default function PartiesPage() {
           onEdit={handleEdit}
           onArchive={toggleState} 
           onRestore={toggleState}
+          virtualized={true}
           
           // Integrated Search & Pagination
           search={searchTerm}
-          onSearchChange={(val) => { setSearchTerm(val); setPage(1); }}
+          onSearchChange={setSearchTerm}
           total={paginationMeta?.total || 0}
           page={page}
           limit={limit}

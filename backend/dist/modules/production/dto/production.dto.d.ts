@@ -5,28 +5,28 @@ export declare class ProductionOrderQueryDto extends PaginationDto {
     status?: 'draft' | 'planned' | 'in_progress' | 'completed' | 'cancelled';
 }
 export declare class CreateBomItemDto {
-    itemId: number;
+    itemId: string;
     quantity: number;
     description?: string;
 }
 export declare class CreateBomDto {
     name: string;
-    targetItemId?: number;
+    targetItemId: string;
     description?: string;
     items: CreateBomItemDto[];
 }
 export declare class UpdateBomDto {
     name?: string;
-    targetItemId?: number;
+    targetItemId: string;
     description?: string;
     state?: number;
     items?: CreateBomItemDto[];
 }
 export declare class CreateProductionOrderDto {
-    bomId: number;
+    bomId: string;
     plannedQuantity: number;
-    sourceDepartmentId?: number;
-    targetDepartmentId?: number;
+    sourceDepartmentId: string;
+    targetDepartmentId: string;
     startDate?: string;
     endDate?: string;
     notes?: string;
@@ -37,12 +37,12 @@ export declare class CreateProductionOrderDto {
     overheadCost?: number;
 }
 export declare class UpdateProductionOrderDto {
-    bomId?: number;
+    bomId: string;
     plannedQuantity?: number;
     producedQuantity?: number;
     wastageQuantity?: number;
-    sourceDepartmentId?: number;
-    targetDepartmentId?: number;
+    sourceDepartmentId: string;
+    targetDepartmentId: string;
     status?: 'draft' | 'planned' | 'in_progress' | 'completed' | 'cancelled';
     laborCost?: number;
     overheadCost?: number;

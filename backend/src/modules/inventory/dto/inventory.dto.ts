@@ -5,11 +5,11 @@ import { Decimal } from 'decimal.js';
 
 export class CreateItemDto {
   @IsString() @IsNotEmpty() name: string;
-  @IsString() itemTypeId: string;
-  @IsString() itemCodeGroupId: string;
+  @IsString() @IsNotEmpty() itemTypeId: string;
+  @IsOptional() @IsString() itemCodeGroupId: string;
   @IsOptional() @IsString() providerId: string;
   
-  @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : new Decimal(0)) 
+  @IsOptional() @Transform(({ value }) => (value !== undefined && value !== null) ? new Decimal(value) : new Decimal(0)) 
   criticalLimit?: Decimal;
 
   @IsOptional() @IsString() image?: string;
@@ -24,7 +24,7 @@ export class CreateItemDto {
   netPrice?: Decimal;
 
   @IsOptional() @IsString() currencyId: string;
-  @IsString() quantityTypeId: string;
+  @IsString() @IsNotEmpty() quantityTypeId: string;
 
   @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : new Decimal(20))
   kdv?: Decimal;
@@ -42,24 +42,24 @@ export class UpdateItemDto {
   @IsOptional() @IsString() code2?: string;
   @IsOptional() @IsString() providerId: string;
 
-  @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : undefined)
+  @IsOptional() @Transform(({ value }) => (value !== undefined && value !== null) ? new Decimal(value) : undefined)
   criticalLimit?: Decimal;
 
   @IsOptional() @IsString() image?: string;
 
-  @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : undefined)
+  @IsOptional() @Transform(({ value }) => (value !== undefined && value !== null) ? new Decimal(value) : undefined)
   purchasePrice?: Decimal;
 
-  @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : undefined)
+  @IsOptional() @Transform(({ value }) => (value !== undefined && value !== null) ? new Decimal(value) : undefined)
   salePrice?: Decimal;
 
-  @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : undefined)
+  @IsOptional() @Transform(({ value }) => (value !== undefined && value !== null) ? new Decimal(value) : undefined)
   netPrice?: Decimal;
 
   @IsOptional() @IsString() currencyId: string;
   @IsOptional() @IsString() quantityTypeId: string;
 
-  @IsOptional() @Transform(({ value }) => value ? new Decimal(value) : undefined)
+  @IsOptional() @Transform(({ value }) => (value !== undefined && value !== null) ? new Decimal(value) : undefined)
   kdv?: Decimal;
 
   @IsOptional() @IsString() description?: string;

@@ -5,10 +5,10 @@ export declare class CurrenciesService {
     private currencyRepo;
     constructor(currencyRepo: Repository<Currency>);
     findAll(query: import('../../../common/dto/pagination.dto').PaginationDto): Promise<import('../../../common/dto/pagination.dto').PaginatedResult<Currency>>;
-    findOne(id: number): Promise<Currency>;
-    create(dto: CreateCurrencyDto, userId?: number): Promise<Currency>;
-    update(id: number, dto: UpdateCurrencyDto, userId?: number): Promise<Currency>;
+    findOne(id: string): Promise<Currency>;
+    create(dto: CreateCurrencyDto, userId: string): Promise<Currency>;
+    update(id: string, dto: UpdateCurrencyDto, userId: string): Promise<Currency>;
     getDefault(): Promise<Currency>;
-    setDefault(id: number): Promise<Currency>;
-    delete(id: number): Promise<void>;
+    setDefault(id: string): Promise<Currency>;
+    delete(id: string): Promise<void>;
 }

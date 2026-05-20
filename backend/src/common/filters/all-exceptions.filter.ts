@@ -52,7 +52,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
           clientMessage = 'Veritabanı işlemi sırasında bir hata oluştu.';
       }
       
-      this.logger.error(`[DB_ERROR] ${errorCode}: ${exception.message} | reqId=${reqId}`);
+      this.logger.error(`[DB_ERROR] ${errorCode}: ${exception.message}`, exception.stack);
     } else {
       const msg = exception instanceof Error ? exception.message : 'Unknown';
       this.logger.error(`[CRITICAL_UNHANDLED] ${msg} | reqId=${reqId}`, exception instanceof Error ? exception.stack : '');

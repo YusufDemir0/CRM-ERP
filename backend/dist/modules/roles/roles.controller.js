@@ -82,9 +82,9 @@ __decorate([
 __decorate([
     (0, common_1.Get)(':id'),
     (0, permissions_decorator_1.RequirePermissions)('ROLE_VIEW'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], RolesController.prototype, "findOneRole", null);
 __decorate([
@@ -93,25 +93,25 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [role_dto_1.CreateRoleDto, Number]),
+    __metadata("design:paramtypes", [role_dto_1.CreateRoleDto, String]),
     __metadata("design:returntype", void 0)
 ], RolesController.prototype, "createRole", null);
 __decorate([
     (0, common_1.Put)(':id'),
     (0, permissions_decorator_1.RequirePermissions)('ROLE_EDIT'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, role_dto_1.UpdateRoleDto, Number]),
+    __metadata("design:paramtypes", [String, role_dto_1.UpdateRoleDto, String]),
     __metadata("design:returntype", void 0)
 ], RolesController.prototype, "updateRole", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     (0, permissions_decorator_1.RequirePermissions)('ROLE_DELETE'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], RolesController.prototype, "deleteRole", null);
 __decorate([
@@ -128,7 +128,7 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [role_dto_1.CreatePermissionDto, Number]),
+    __metadata("design:paramtypes", [role_dto_1.CreatePermissionDto, String]),
     __metadata("design:returntype", void 0)
 ], RolesController.prototype, "createPermission", null);
 __decorate([
@@ -153,7 +153,7 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [role_dto_1.SetUserPermissionDto, Number]),
+    __metadata("design:paramtypes", [role_dto_1.SetUserPermissionDto, String]),
     __metadata("design:returntype", void 0)
 ], RolesController.prototype, "setUserPermission", null);
 __decorate([
@@ -161,7 +161,7 @@ __decorate([
     (0, permissions_decorator_1.RequirePermissions)('PERMISSION_VIEW'),
     __param(0, (0, common_1.Param)('userId', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], RolesController.prototype, "getUserPermissions", null);
 __decorate([

@@ -5,11 +5,16 @@ import type { Role } from '../types';
 // ────── AUTH USER TYPE ──────
 
 export interface AuthUser {
-  id: number;
+  id: string;
   username: string;
   fullName: string;
   email: string;
-  departmentId: number | null;
+  departmentId: string | null;
+  department?: {
+    id: string;
+    name: string;
+    cityId?: string | number | null;
+  } | null;
   roles: string[];
   permissions: string[];
 }

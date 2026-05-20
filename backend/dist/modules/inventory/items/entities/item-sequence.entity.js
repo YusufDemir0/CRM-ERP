@@ -16,11 +16,11 @@ let ItemSequence = class ItemSequence {
 exports.ItemSequence = ItemSequence;
 __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)({ type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], ItemSequence.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'item_type_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], ItemSequence.prototype, "itemTypeId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'current_number', type: 'int', default: 1 }),

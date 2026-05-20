@@ -35,7 +35,7 @@ export const useItemForm = (
     currencies: [] as Currency[],
   });
 
-  const { register, handleSubmit, watch, setValue, getValues, reset } = useForm<ItemFormData>({
+  const { register, handleSubmit, watch, setValue, getValues, reset, control } = useForm<ItemFormData>({
     defaultValues: (!editingId ? getCache(cacheKey) as ItemFormData : null) || {
       name: initialData?.name ?? '',
       itemTypeId: initialData?.itemTypeId ? String(initialData.itemTypeId) : (initialData?.itemType?.id ? String(initialData.itemType.id) : ''),
@@ -88,6 +88,70 @@ export const useItemForm = (
     return () => controller.abort();
   }, [loadLookups]);
 
+  // Re-apply initial values once lookups are loaded
+  useEffect(() => {
+    if (lookups.itemTypes.length > 0 && initialData?.itemTypeId) {
+      setValue('itemTypeId', String(initialData.itemTypeId));
+    } else if (lookups.itemTypes.length > 0 && initialData?.itemType?.id) {
+      setValue('itemTypeId', String(initialData.itemType.id));
+    }
+  }, [lookups.itemTypes, initialData, setValue]);
+
+  useEffect(() => {
+    if (lookups.itemCodeGroups.length > 0 && initialData?.itemCodeGroupId) {
+      setValue('itemCodeGroupId', String(initialData.itemCodeGroupId));
+    } else if (lookups.itemCodeGroups.length > 0 && initialData?.itemCodeGroup?.id) {
+      setValue('itemCodeGroupId', String(initialData.itemCodeGroup.id));
+    }
+  }, [lookups.itemCodeGroups, initialData, setValue]);
+
+  useEffect(() => {
+    if (lookups.quantityTypes.length > 0 && initialData?.quantityTypeId) {
+      setValue('quantityTypeId', String(initialData.quantityTypeId));
+    } else if (lookups.quantityTypes.length > 0 && initialData?.quantityType?.id) {
+      setValue('quantityTypeId', String(initialData.quantityType.id));
+    }
+  }, [lookups.quantityTypes, initialData, setValue]);
+
+  useEffect(() => {
+    if (lookups.currencies.length > 0 && initialData?.currencyId) {
+      setValue('currencyId', String(initialData.currencyId));
+    } else if (lookups.currencies.length > 0 && initialData?.currency?.id) {
+      setValue('currencyId', String(initialData.currency.id));
+    }
+  }, [lookups.currencies, initialData, setValue]);
+
+  // Handle initialData changes for better hydration
+  useEffect(() => {
+    if (initialData && editingId) {
+      (Object.entries(initialData) as [keyof ItemFormData | string, unknown][]).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+
+        if (['itemTypeId', 'itemCodeGroupId', 'currencyId', 'quantityTypeId'].includes(key)) {
+          setValue(key as keyof ItemFormData, String(value));
+        } else if (key === 'itemType' && typeof value === 'object') {
+          setValue('itemTypeId', String((value as { id: string | number }).id));
+        } else if (key === 'itemCodeGroup' && typeof value === 'object') {
+          setValue('itemCodeGroupId', String((value as { id: string | number }).id));
+        } else if (key === 'quantityType' && typeof value === 'object') {
+          setValue('quantityTypeId', String((value as { id: string | number }).id));
+        } else if (key === 'currency' && typeof value === 'object') {
+          setValue('currencyId', String((value as { id: string | number }).id));
+        } else if (key === 'kdv') {
+          setValue('kdv', String(value));
+        } else if (key === 'purchasePrice') {
+          setValue('purchasePrice', String(value));
+        } else if (key === 'salePrice') {
+          setValue('salePrice', String(value));
+        } else if (key === 'criticalLimit') {
+          setValue('criticalLimit', String(value));
+        } else if (['name', 'image', 'description', 'notes'].includes(key)) {
+          setValue(key as keyof ItemFormData, String(value));
+        }
+      });
+    }
+  }, [initialData, editingId, setValue]);
+
   // Default currency logic
   useEffect(() => {
     if (lookups.currencies.length > 0 && !editingId) {
@@ -104,14 +168,19 @@ export const useItemForm = (
   }, [getValues, cacheKey, updateCache]);
 
   const submit = async (data: ItemFormData) => {
-    const payload: Partial<Item> = {
-      ...data,
-      itemTypeId: data.itemTypeId ? String(data.itemTypeId) : undefined,
-      itemCodeGroupId: data.itemCodeGroupId ? String(data.itemCodeGroupId) : undefined,
-      currencyId: data.currencyId ? String(data.currencyId) : undefined,
-      quantityTypeId: data.quantityTypeId ? String(data.quantityTypeId) : undefined,
+    const payload = {
+      name: data.name,
+      itemTypeId: data.itemTypeId || undefined,
+      itemCodeGroupId: data.itemCodeGroupId || undefined,
+      currencyId: data.currencyId || undefined,
+      quantityTypeId: data.quantityTypeId || undefined,
       kdv: data.kdv === 'custom' ? Number(customKdv || 0) : Number(data.kdv || 0),
-      criticalLimit: Number(data.criticalLimit),
+      criticalLimit: data.criticalLimit ? Number(data.criticalLimit) : 0,
+      purchasePrice: data.purchasePrice ? String(data.purchasePrice) : '0',
+      salePrice: data.salePrice ? String(data.salePrice) : '0',
+      description: data.description || undefined,
+      notes: data.notes || undefined,
+      image: data.image || undefined,
     };
 
     try {
@@ -122,8 +191,16 @@ export const useItemForm = (
       clearCache(cacheKey);
       if (onSuccess) onSuccess(res.data);
       toast.success(editingId ? 'Ürün güncellendi' : 'Ürün oluşturuldu');
-    } catch {
-      toast.error('İşlem başarısız');
+    } catch (error: unknown) {
+      console.error(error);
+      let errorMsg = 'İşlem başarısız';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const response = (error as { response: { data?: { message?: string | string[] } } }).response;
+        if (response.data?.message) {
+          errorMsg = Array.isArray(response.data.message) ? response.data.message[0] : response.data.message;
+        }
+      }
+      toast.error(errorMsg);
     }
   };
 
@@ -134,6 +211,7 @@ export const useItemForm = (
     watch,
     setValue,
     getValues,
+    control,
     saveDraft,
     customKdv,
     setCustomKdv,

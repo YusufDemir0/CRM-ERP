@@ -1,216 +1,221 @@
 import React, { useState, useEffect, useMemo, memo } from 'react';
-import { FiPlus, FiInfo, FiCheck } from 'react-icons/fi';
-import { useFormContext, useWatch } from 'react-hook-form';
+import { FiPlus, FiInfo, FiCheck, FiArrowRight } from 'react-icons/fi';
+import { useFormContext, useWatch, FieldErrors } from 'react-hook-form';
 import { formatDecimal, formatCurrency } from '../../../utils/formatters';
 import { Party, Staff, Account } from '../../../types';
 import { useSalesWizardStore } from '../../../store/useSalesWizardStore';
 import { useSalesWizard } from '../../../hooks/useSalesWizard';
-import { SearchableSelect } from '../../../components/common/SearchableSelect';
 import { ProductPhase } from './components/ProductPhase';
 import { WizardSummary } from './components/WizardSummary';
-import { PhoneInput } from '../../../components/common/PhoneInput';
-import { FormField } from '../../../components/common/FormField';
-import { useTurkiyeCities, useTurkiyeDistricts } from '../../../hooks/useTurkiyeApi';
-import { useQuickCreateStore } from '../../../store/useQuickCreateStore';
-import { SalesWizardFormData } from './schema';
-
-// ─── OPTIMIZED SUB-COMPONENTS ───
-
 import { CustomerPhase } from './components/CustomerPhase';
 import { LogisticsPhase } from './components/LogisticsPhase';
+import { StepStatusPanel } from './components/StepStatusPanel';
+import { SalesWizardFormData } from './schema';
+import toast from 'react-hot-toast';
 
-// ─── MAIN PAGE COMPONENT ───
+const WizardHeader = memo(({ phase }: { phase: string }) => {
+  return (
+    <div className="flex items-center gap-4">
+      <div className="w-10 h-10 bg-[var(--primary-glow)] text-[var(--primary)] rounded-2xl flex items-center justify-center shadow-inner">
+         <FiPlus size={24} strokeWidth={3} />
+      </div>
+      <div className="relative h-10 overflow-hidden min-w-[200px]">
+         <div className={`absolute inset-0 flex flex-col justify-center transition-all duration-500 transform ${phase === 'customer' ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
+            <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none uppercase">Müşteri & İletişim</h1>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">ADIM 1: CARİ SEÇİMİ VE ADRES DOĞRULAMA</span>
+         </div>
+         <div className={`absolute inset-0 flex flex-col justify-center transition-all duration-500 transform ${phase === 'logistics' ? 'translate-y-0 opacity-100' : phase === 'customer' ? 'translate-y-full opacity-0' : '-translate-y-full opacity-0'}`}>
+            <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none uppercase">Lojistik & Ödeme</h1>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">ADIM 2: SEVKİYAT VE ÖDEME DETAYLARI</span>
+         </div>
+         <div className={`absolute inset-0 flex flex-col justify-center transition-all duration-500 transform ${phase === 'products' ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}`}>
+            <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none uppercase">Ürün Seçimi</h1>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">ADIM 3: SEPET VE FİYATLANDIRMA</span>
+         </div>
+      </div>
+    </div>
+  );
+});
+
+const WizardControls = memo(({ 
+  phase, 
+  loading, 
+  handleBack, 
+  handleNext, 
+  onCompleted 
+}: { 
+  phase: string, 
+  loading: boolean, 
+  handleBack: () => void, 
+  handleNext: () => void, 
+  onCompleted: () => void 
+}) => {
+  const { control } = useFormContext<SalesWizardFormData>();
+  const currentCustomerId = useWatch({ control, name: 'customerId' });
+  const selectedItems = useWatch({ control, name: 'items' }) || [];
+  const store = useSalesWizardStore();
+
+  return (
+    <div className="flex items-center gap-3">
+       {phase !== 'customer' && (
+          <button 
+            type="button" 
+            onClick={handleBack}
+            className="h-10 px-6 bg-slate-100 text-slate-600 font-black text-xs rounded-xl hover:bg-slate-200 active:scale-95 transition-[background-color,transform] duration-200"
+          >
+            GERİ
+          </button>
+       )}
+       
+       {phase !== 'products' ? (
+         <button 
+           type="button"
+           onClick={handleNext}
+           disabled={phase === 'customer' && !currentCustomerId}
+           className={`h-10 px-8 bg-[var(--primary)] text-white font-black text-xs rounded-xl shadow-lg shadow-[var(--primary-glow)] flex items-center gap-2 transition-[background-color,transform,opacity,filter] duration-200 ${phase === 'customer' && !currentCustomerId ? 'opacity-30 grayscale cursor-not-allowed' : 'hover:scale-[1.02] hover:brightness-110 active:scale-[0.98]'}`}
+         >
+           DEVAM ET <FiArrowRight />
+         </button>
+       ) : (
+          <div className="flex items-center gap-3">
+            <button 
+              type="button"
+              onClick={() => { store.reset(); onCompleted(); }}
+              className="h-10 px-5 text-[10px] font-black text-slate-400 hover:text-slate-600 active:scale-95 transition-all uppercase"
+            >
+              İPTAL
+            </button>
+            <button 
+              type="submit"
+              disabled={loading || selectedItems.length === 0}
+              className={`h-11 px-8 bg-[var(--success)] text-white font-black text-xs rounded-xl shadow-lg shadow-[var(--success-glow)] transition-[background-color,transform,opacity,filter] duration-200 flex items-center gap-2 ${loading || selectedItems.length === 0 ? 'opacity-30 grayscale cursor-not-allowed' : 'hover:scale-[1.02] hover:brightness-110 active:scale-[0.98]'}`}
+            >
+              {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <FiCheck size={18} strokeWidth={3} />}
+              SATIŞI TAMAMLA
+            </button>
+          </div>
+       )}
+    </div>
+  );
+});
 
 export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted }) => {
-  const store = useSalesWizardStore();
+  const phase = useSalesWizardStore(s => s.draftData.phase);
+  const setPhase = useSalesWizardStore(s => s.setPhase);
+  const setStep = useSalesWizardStore(s => s.setStep);
+  const reset = useSalesWizardStore(s => s.reset);
+  
   const { customers, accounts, staff, items, submitForm, refreshLookups, department, loading } = useSalesWizard(onCompleted);
-  
-  const { control, handleSubmit, watch, setValue, register, formState: { errors } } = useFormContext<SalesWizardFormData>();
-  
-  const currentCustomerId = useWatch({ control, name: 'customerId' });
-  const staffId = useWatch({ control, name: 'staffId' });
-  const paymentAccountId = useWatch({ control, name: 'paymentAccountId' });
-  const phone = useWatch({ control, name: 'phone' });
-  const cityId = useWatch({ control, name: 'cityId' });
-  const district = useWatch({ control, name: 'district' });
-  const selectedItems = useWatch({ control, name: 'items' }) || [];
-
-  const [step, setStep] = useState(1);
-
-  const isStep1Filled = useMemo(() => !!(
-    currentCustomerId && 
-    staffId && 
-    paymentAccountId && 
-    phone && 
-    cityId && 
-    district?.trim()
-  ), [currentCustomerId, staffId, paymentAccountId, phone, cityId, district]);
-
-  const isStep2Filled = useMemo(() => selectedItems.length > 0, [selectedItems.length]);
+  const { control, handleSubmit, trigger, getValues } = useFormContext<SalesWizardFormData>();
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (selectedItems.length > 0 || currentCustomerId) {
+      const values = getValues();
+      if ((values.items && values.items.length > 0) || values.customerId) {
         e.preventDefault();
         e.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [selectedItems.length, currentCustomerId]);
+  }, [getValues]);
 
   const onSubmit = (data: SalesWizardFormData) => {
     submitForm(data);
   };
 
+  const onError = (errors: FieldErrors<SalesWizardFormData>) => {
+    toast.error("Lütfen tüm adımlardaki zorunlu alanları (Müşteri, Lojistik, Ürünler) eksiksiz doldurun.");
+    console.error("Sales Wizard Validation Errors:", errors);
+  };
+
+  const handleNext = async () => {
+    if (phase === 'customer') {
+      const isValid = await trigger(['customerId', 'cityId', 'district', 'phone']);
+      if (!isValid) {
+        toast.error("Lütfen müşteri ve iletişim bilgilerini eksiksiz doldurun.");
+        return;
+      }
+      setPhase('logistics');
+      setStep(2);
+    } else if (phase === 'logistics') {
+      const isValid = await trigger(['staffId', 'date', 'deliveryDate']);
+      if (!isValid) {
+        toast.error("Lütfen lojistik ve personel bilgilerini eksiksiz doldurun.");
+        return;
+      }
+      setPhase('products');
+      setStep(8);
+    }
+  };
+
+  const handleBack = () => {
+    if (phase === 'products') {
+      setPhase('logistics');
+      setStep(7);
+    } else if (phase === 'logistics') {
+      setPhase('customer');
+      setStep(1);
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col h-full bg-[#f8fafc] rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden animate-in">
-      {/* Header */}
-      <div className="flex items-center justify-between px-8 py-3 bg-white/80 backdrop-blur-md border-b border-slate-100 shrink-0">
-        <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-[var(--primary-glow)] text-[var(--primary)] rounded-2xl shadow-inner">
-                <FiPlus size={20} strokeWidth={3} />
-              </div>
-              <div>
-                <h1 className="text-lg font-black text-slate-800 tracking-tight leading-none">YENİ SATIŞ</h1>
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">SİHİRBAZ ADIMI {step} / 3</span>
-              </div>
-            </div>
-
-            {/* Step Indicator */}
-            <div className="flex items-center gap-2">
-              {[1, 2, 3].map((s) => (
-                <div key={s} className="flex items-center gap-2">
-                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black transition-all ${step === s ? 'bg-[var(--primary)] text-white shadow-lg' : s < step ? 'bg-[var(--success-glow)] text-[var(--success)]' : 'bg-slate-100 text-slate-400'}`}>
-                    {s < step ? <FiCheck size={12} strokeWidth={4} /> : s}
-                  </div>
-                  {s < 3 && <div className={`w-8 h-0.5 rounded-full ${s < step ? 'bg-[var(--success)]' : 'bg-slate-100'}`} />}
-                </div>
-              ))}
-            </div>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col items-end mr-4">
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">REFERANS</span>
-            <span className="text-xs font-bold text-[var(--primary)] tracking-wider tabular-nums">
-              S-{(department?.abbreviation || 'GEN').toUpperCase()}-{new Date().getFullYear()}-XXXX
-            </span>
-          </div>
-          <button 
-            type="button"
-            className="h-9 px-5 text-[10px] font-black text-slate-400 hover:text-slate-600 transition-colors uppercase"
-            onClick={() => { store.reset(); onCompleted(); }}
-          >
-            İPTAL
-          </button>
-          
-          {step > 1 && (
-            <button 
-              type="button"
-              className="h-10 px-6 bg-slate-100 text-slate-600 font-black text-xs rounded-xl hover:bg-slate-200 transition-all"
-              onClick={() => setStep(s => s - 1)}
-            >
-              GERİ
-            </button>
-          )}
-
-          {step < 3 ? (
-            <button 
-              type="button"
-              className={`h-10 px-8 bg-[var(--primary)] text-white font-black text-xs rounded-xl shadow-lg shadow-[var(--primary-glow)] transition-all ${((step === 1 && !isStep1Filled) || (step === 2 && !isStep2Filled)) ? 'opacity-30 grayscale cursor-not-allowed' : 'hover:scale-[1.02] hover:brightness-110 active:scale-[0.98]'}`}
-              onClick={() => setStep(s => s + 1)}
-              disabled={(step === 1 && !isStep1Filled) || (step === 2 && !isStep2Filled)}
-            >
-              SONRAKİ ADIM
-            </button>
-          ) : (
-            <button 
-              type="submit"
-              className={`h-10 px-8 bg-[var(--success)] text-white font-black text-xs rounded-xl shadow-lg shadow-[var(--success-glow)] transition-all flex items-center gap-2 ${loading ? 'opacity-30 grayscale cursor-not-allowed' : 'hover:scale-[1.02] hover:brightness-110 active:scale-[0.98]'}`}
-              disabled={loading}
-            >
-              {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <FiCheck size={16} strokeWidth={3} />}
-              SATIŞI TAMAMLA
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 overflow-hidden p-6 relative">
+    <form onSubmit={handleSubmit(onSubmit, onError)} className="flex h-full bg-[#f8fafc] rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden animate-in">
+      
+      {/* Left Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 bg-white">
         
-        {/* Step 1: Customer & Logistics */}
-        <div className={`absolute inset-6 flex gap-6 transition-all duration-500 transform ${step === 1 ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0 pointer-events-none'}`}>
-          <div className="w-1/2 flex flex-col gap-4 overflow-y-auto pr-1 custom-scrollbar">
-            <CustomerPhase customers={customers} refreshLookups={refreshLookups} />
-          </div>
-          <div className="w-1/2 flex flex-col gap-4 overflow-y-auto pr-1 custom-scrollbar">
-            <LogisticsPhase staff={staff} accounts={accounts} />
-          </div>
+        {/* Dynamic Header Label */}
+        <div className="px-8 py-4 border-b border-slate-100 bg-white/80 backdrop-blur-md flex items-center justify-between sticky top-0 z-20">
+          <WizardHeader phase={phase} />
+
+          <WizardControls 
+            phase={phase} 
+            loading={loading} 
+            handleBack={handleBack} 
+            handleNext={handleNext} 
+            onCompleted={onCompleted} 
+          />
         </div>
 
-        {/* Step 2: Products */}
-        <div className={`absolute inset-6 transition-all duration-500 transform ${step === 2 ? 'translate-x-0 opacity-100 scale-100' : step < 2 ? 'translate-x-full opacity-0' : '-translate-x-full opacity-0'} pointer-events-none`}>
-          <div className={`h-full bg-white rounded-3xl border border-slate-200 shadow-inner flex flex-col overflow-hidden ${step === 2 ? 'pointer-events-auto' : ''}`}>
-             <ProductPhase items={items} />
+        {/* Main Phases Content */}
+        <div className="flex-1 overflow-y-auto p-8 relative flex flex-col gap-10">
+          
+          {/* Phase: Customer & Logistics (Top Area) */}
+          <div className="grid grid-cols-1 gap-6 transition-[transform,opacity] duration-500">
+             {phase === 'customer' && (
+               <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                  <CustomerPhase customers={customers} refreshLookups={refreshLookups} department={department} />
+               </div>
+             )}
+             {phase === 'logistics' && (
+               <div className="animate-in fade-in slide-in-from-top-4 duration-500 max-w-4xl mx-auto w-full">
+                  <LogisticsPhase staff={staff} accounts={accounts} refreshLookups={refreshLookups} />
+               </div>
+             )}
           </div>
-        </div>
 
-        {/* Step 3: Review & Summary */}
-        <div className={`absolute inset-6 flex flex-col items-center justify-center transition-all duration-500 transform ${step === 3 ? 'translate-x-0 opacity-100 scale-100' : 'translate-x-full opacity-0'} pointer-events-none`}>
-          <div className={`w-full max-w-4xl space-y-8 ${step === 3 ? 'pointer-events-auto' : ''}`}>
-             <div className="text-center space-y-2">
-                <div className="w-16 h-16 bg-[var(--success-glow)] text-[var(--success)] rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl">
-                  <FiCheck size={32} strokeWidth={3} />
+          {/* Phase: Products (Bottom Area with Simple Opacity) */}
+          <div className={`flex-1 transition-[opacity,transform] duration-700 transform ${
+            phase === 'customer' ? 'opacity-5 scale-[0.98] pointer-events-none' : 
+            phase === 'logistics' ? 'opacity-30 scale-[0.99] pointer-events-none' : 
+            'opacity-100 scale-100'
+          }`}>
+             <div className="h-full min-h-[500px] bg-white rounded-3xl border border-slate-200 shadow-inner overflow-hidden flex flex-col relative">
+                <div className="absolute top-4 left-6 z-10 flex items-center gap-2">
+                   <div className="w-2 h-2 rounded-full bg-[var(--primary)]" />
+                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">ÜRÜN SEPETİ</h4>
                 </div>
-                <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">SATIŞI GÖZDEN GEÇİRİN</h2>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">İşlemi onaylamadan önce son kontrolleri yapın</p>
+                <ProductPhase items={items} />
              </div>
-             
-             <div className="grid grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">MÜŞTERİ ÖZETİ</h4>
-                   <div className="space-y-3">
-                      <div className="flex justify-between items-center border-b border-slate-50 pb-2">
-                         <span className="text-[10px] font-bold text-slate-500 uppercase">İSİM:</span>
-                         <span className="text-xs font-black text-slate-800">{customers.find(c => String(c.id) === String(currentCustomerId))?.name || 'BELİRTİLMEDİ'}</span>
-                      </div>
-                      <div className="flex justify-between items-center border-b border-slate-50 pb-2">
-                         <span className="text-[10px] font-bold text-slate-500 uppercase">TELEFON:</span>
-                         <span className="text-xs font-black text-slate-800">{phone || 'BELİRTİLMEDİ'}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                         <span className="text-[10px] font-bold text-slate-500 uppercase">TESLİMAT:</span>
-                         <span className="text-xs font-black text-slate-800">{district}</span>
-                      </div>
-                   </div>
-                </div>
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">LOJİSTİK ÖZETİ</h4>
-                   <div className="space-y-3">
-                      <div className="flex justify-between items-center border-b border-slate-50 pb-2">
-                         <span className="text-[10px] font-bold text-slate-500 uppercase">TEMSİLCİ:</span>
-                         <span className="text-xs font-black text-slate-800">{staff.find(s => String(s.id) === String(staffId))?.firstName || ''} {staff.find(s => String(s.id) === String(staffId))?.lastName || ''}</span>
-                      </div>
-                      <div className="flex justify-between items-center border-b border-slate-50 pb-2">
-                         <span className="text-[10px] font-bold text-slate-500 uppercase">ÖDEME KASASI:</span>
-                         <span className="text-xs font-black text-slate-800">{accounts.find(a => String(a.id) === String(paymentAccountId))?.name || 'BELİRTİLMEDİ'}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                         <span className="text-[10px] font-bold text-slate-500 uppercase">ÜRÜN SAYISI:</span>
-                         <span className="text-xs font-black text-slate-800">{selectedItems.length} KALEM</span>
-                      </div>
-                   </div>
-                </div>
-             </div>
-
-             <WizardSummary />
           </div>
         </div>
-
       </div>
+
+      {/* Right Side Progress Panel */}
+      <StepStatusPanel />
+      
+      {/* Summary / Confirmation Modal would go here as an overlay if phase === 'summary' */}
     </form>
   );
 };

@@ -275,7 +275,7 @@ export default function TransactionsPage() {
           
           // Integrated Search & Pagination
           search={searchTerm}
-          onSearchChange={(val) => { setSearchTerm(val); setPage(1); }}
+          onSearchChange={setSearchTerm}
           total={paginationMeta?.total || 0}
           page={page}
           limit={limit}

@@ -53,6 +53,10 @@ export class ItemsTransactionsService {
       } catch (error) {}
     }
 
+    if (!dto.itemCodeGroupId) {
+      throw new BadRequestException('Ürün oluşturulurken bir Kod Grubu seçilmelidir.');
+    }
+
     const code = await this.sequenceGenerator.generateItemCode(manager, dto.itemCodeGroupId);
 
     const existing = await manager.findOne(Item, { where: { code } });
@@ -102,7 +106,7 @@ export class ItemsTransactionsService {
     ];
 
     updatableFields.forEach(field => {
-      if (dto[field] !== undefined) (updateData as any)[field] = dto[field];
+      if (dto[field] !== undefined) (updateData as Record<string, unknown>)[field] = dto[field];
     });
     
     if (dto.state === 0 && item.state !== 0) {

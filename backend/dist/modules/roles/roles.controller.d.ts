@@ -10,18 +10,18 @@ export declare class RolesController {
         passive: number;
         total: number;
     }>;
-    findOneRole(id: number): Promise<import("../auth/entities/role.entity").Role>;
-    createRole(dto: CreateRoleDto, userId: number): Promise<import("../auth/entities/role.entity").Role>;
-    updateRole(id: number, dto: UpdateRoleDto, userId: number): Promise<import("../auth/entities/role.entity").Role>;
-    deleteRole(id: number): Promise<void>;
+    findOneRole(id: string): Promise<import("../auth/entities/role.entity").Role>;
+    createRole(dto: CreateRoleDto, userId: string): Promise<import("../auth/entities/role.entity").Role>;
+    updateRole(id: string, dto: UpdateRoleDto, userId: string): Promise<import("../auth/entities/role.entity").Role>;
+    deleteRole(id: string): Promise<void>;
     findAllPermissions(query: PaginationDto): Promise<import("../../common/dto/pagination.dto").PaginatedResult<import("../auth/entities/permission.entity").Permission>>;
-    createPermission(dto: CreatePermissionDto, userId: number): Promise<import("../auth/entities/permission.entity").Permission>;
+    createPermission(dto: CreatePermissionDto, userId: string): Promise<import("../auth/entities/permission.entity").Permission>;
     assignRole(dto: AssignRoleDto): Promise<import("../auth/entities/user-role.entity").UserRole>;
     removeRole(dto: AssignRoleDto): Promise<void>;
-    setUserPermission(dto: SetUserPermissionDto, userId: number): Promise<import("../auth/entities/user-permission.entity").UserPermission>;
-    getUserPermissions(userId: number): Promise<import("../auth/entities/user-permission.entity").UserPermission[]>;
+    setUserPermission(dto: SetUserPermissionDto, userId: string): Promise<import("../auth/entities/user-permission.entity").UserPermission>;
+    getUserPermissions(userId: string): Promise<import("../auth/entities/user-permission.entity").UserPermission[]>;
     removeUserPermission(dto: {
-        userId: number;
-        permissionId: number;
+        userId: string;
+        permissionId: string;
     }): Promise<void>;
 }

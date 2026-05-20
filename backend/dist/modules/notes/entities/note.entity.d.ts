@@ -1,7 +1,7 @@
 import { User } from '../../auth/entities/user.entity';
 export declare class UserNote {
-    id: number;
-    userId: number;
+    id: string;
+    userId: string;
     title: string;
     content: string;
     color: string;

@@ -38,7 +38,7 @@ export const ItemHeader: React.FC<ItemHeaderProps> = ({
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => { setFilterTab(tab.id as 'active' | 'passive' | 'all' | 'critical'); setPage(1); }}
+              onClick={() => setFilterTab(tab.id as 'active' | 'passive' | 'all' | 'critical')}
               className={`h-9 px-4 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors ${
                 filterTab === tab.id 
                   ? 'bg-white text-primary shadow-sm ring-1 ring-slate-100' 

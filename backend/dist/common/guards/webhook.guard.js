@@ -56,12 +56,15 @@ let WebhookGuard = class WebhookGuard {
         if (!signature) {
             throw new common_1.UnauthorizedException('WEBHOOK_SIGNATURE_MISSING');
         }
-        const secret = this.configService.get('WEBHOOK_SECRET') || 'default-webhook-secret';
+        const secret = this.configService.get('WEBHOOK_SECRET');
+        if (!secret) {
+            throw new common_1.UnauthorizedException('WEBHOOK_SECRET is not configured. Webhook verification is disabled for safety.');
+        }
         const rawBody = request.rawBody;
         if (!rawBody) {
-            this.configService.get('NODE_ENV') !== 'production' && console.warn('WebhookGuard: rawBody is missing. Ensure NestFactory.create({ rawBody: true }) is set.');
+            throw new common_1.BadRequestException('WEBHOOK_RAW_BODY_MISSING');
         }
-        const body = rawBody || JSON.stringify(request.body);
+        const body = rawBody;
         const hmac = crypto.createHmac('sha256', secret);
         const digest = hmac.update(body).digest('hex');
         const digestWithPrefix = 'sha256=' + digest;

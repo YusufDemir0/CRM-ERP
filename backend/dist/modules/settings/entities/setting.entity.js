@@ -16,7 +16,7 @@ let Setting = class Setting {
 exports.Setting = Setting;
 __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)({ type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], Setting.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'setting_key', type: 'varchar', length: 100, unique: true }),

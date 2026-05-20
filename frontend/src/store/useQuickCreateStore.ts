@@ -24,6 +24,7 @@ export interface QuickCreateStackItem {
   type: QuickCreateType;
   editingId: string | number | null;
   initialData: Record<string, unknown>;
+  mode?: 'quick' | 'full';
   onSuccess: (res: QuickCreateResponse) => void;
   onCancel: () => void;
 }
@@ -31,6 +32,7 @@ export interface QuickCreateStackItem {
 export interface QuickCreateOptions {
   editingId?: string | number | null;
   initialData?: Record<string, unknown>;
+  mode?: 'quick' | 'full';
   onSuccess?: (res: QuickCreateResponse) => void;
   onCancel?: () => void;
 }
@@ -61,6 +63,7 @@ export const useQuickCreateStore = create<QuickCreateState>((set, get) => ({
       type,
       editingId: options.editingId ?? null,
       initialData: options.initialData ?? {},
+      mode: options.mode,
       onSuccess: options.onSuccess ?? (() => {}),
       onCancel: options.onCancel ?? (() => {}),
     };

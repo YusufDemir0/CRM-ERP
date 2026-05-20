@@ -33,6 +33,7 @@ export interface Department extends BaseEntity {
   departmentType?: DepartmentType;
   commercialAccountId?: string;
   commercialAccount?: Account;
+  cityId?: string;
 }
 
 export interface Staff extends BaseEntity {
@@ -84,7 +85,7 @@ export interface Currency extends BaseEntity {
 
 export interface Party extends BaseEntity {
   name: string;
-  type: 'customer' | 'supplier';
+  type: 'customer' | 'provider';
   phone1?: string | null;
   phone2?: string | null;
   taxNumber?: string | null;
@@ -345,7 +346,7 @@ export interface UpdateUserDto extends Partial<Omit<CreateUserDto, 'password'>> 
 
 export interface CreatePartyDto {
   name: string;
-  type: 'customer' | 'provider' | 'both';
+  type: 'customer' | 'provider';
   phone1?: string;
   phone2?: string;
   taxNumber?: string;
@@ -355,6 +356,8 @@ export interface CreatePartyDto {
   paymentTerms?: string;
   notes?: string;
   currencyId?: string | number;
+  cityId?: string | number;
+  districtName?: string;
 }
 
 export type UpdatePartyDto = Partial<CreatePartyDto> & { state?: number };

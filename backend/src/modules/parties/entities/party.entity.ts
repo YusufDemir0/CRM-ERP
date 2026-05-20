@@ -8,8 +8,9 @@ import { DecimalTransformer } from '../../../common/transformers/decimal.transfo
 @Entity('parties')
 @Index('IDX_PARTY_FULLTEXT', ['name', 'phone1', 'phone2', 'taxOffice', 'taxNumber', 'email', 'address', 'districtName', 'notes'], { fulltext: true })
 export class Party extends BaseEntity {
-  @Column({ type: 'enum', enum: ['customer', 'supplier'], default: 'customer' })
-  type: 'customer' | 'supplier';
+  @Index()
+  @Column({ type: 'enum', enum: ['customer', 'provider'], default: 'customer' })
+  type: 'customer' | 'provider';
 
   @Column({ type: 'varchar', length: 150 })
   name: string;
@@ -32,6 +33,7 @@ export class Party extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   address: string | null;
 
+  @Index()
   @Column({ name: 'city_id', type: 'int', nullable: true })
   cityId: string | null;
 
@@ -49,11 +51,15 @@ export class Party extends BaseEntity {
   @Column({ name: 'payment_terms', type: 'varchar', length: 50, nullable: true })
   paymentTerms: string | null;
 
+  @Index()
   @Column({ name: 'currency_id', type: 'bigint', nullable: true })
   currencyId: string | null;
 
   @Column({ type: 'text', nullable: true })
   notes: string | null;
+
+  @Column({ name: 'department_id', type: 'bigint', nullable: true })
+  departmentId: string | null;
 
   @ManyToOne(() => Currency, { nullable: true })
   @JoinColumn({ name: 'currency_id' })

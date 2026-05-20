@@ -17,6 +17,8 @@ export const salesWizardSchema = z.object({
   discountAmount: z.number().min(0),
   source: z.string().optional(),
   isTaxed: z.boolean(),
+  isInvoiced: z.boolean(),
+  representativePrice: z.string(),
   description: z.string().optional(),
   items: z.array(z.object({
     id: z.string(),

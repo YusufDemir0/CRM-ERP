@@ -1,5 +1,5 @@
 export declare class ProductionSequence {
-    id: number;
+    id: string;
     prefix: string;
     currentNumber: number;
     createdBy: number | null;

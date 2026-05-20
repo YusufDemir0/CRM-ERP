@@ -1,9 +1,15 @@
+import React, { useMemo, memo } from 'react';
 import { FiCheck } from 'react-icons/fi';
 import { Item } from '../../types';
 import { FormField } from '../common/FormField';
 import { PremiumNumberInput } from '../common/PremiumNumberInput';
 import { SearchableSelect } from '../common/SearchableSelect';
 import { useItemForm } from '../../hooks/useItemForm';
+import { useQuickCreateStore } from '../../store/useQuickCreateStore';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../../services/queryKeys';
+import toast from 'react-hot-toast';
+import { Controller } from 'react-hook-form';
 
 interface ItemFormProps {
   initialData?: Partial<Item>;
@@ -12,7 +18,34 @@ interface ItemFormProps {
   onCancel: () => void;
 }
 
-export const ItemForm: React.FC<ItemFormProps> = ({
+const KdvSelect = memo(({ control, register, customKdv, setCustomKdv }: { control: any, register: any, customKdv: number | null, setCustomKdv: (val: number) => void }) => {
+  const kdvValue = useWatch({ control, name: 'kdv' });
+  
+  return (
+    <FormField label="KDV Oranı">
+      <select className="input-premium font-black" {...register('kdv')}>
+        <option value="0">%0</option>
+        <option value="1">%1</option>
+        <option value="10">%10</option>
+        <option value="20">%20</option>
+        <option value="custom">Özel</option>
+      </select>
+      {kdvValue === 'custom' && (
+        <input 
+          type="number" 
+          className="input-premium font-black tabular-nums mt-2" 
+          value={customKdv || ''} 
+          onChange={e => setCustomKdv(Number(e.target.value))} 
+          placeholder="Özel KDV %" 
+        />
+      )}
+    </FormField>
+  );
+});
+
+import { useWatch } from 'react-hook-form';
+
+export const ItemForm: React.FC<ItemFormProps> = memo(({
   initialData,
   editingId,
   onSuccess,
@@ -22,7 +55,7 @@ export const ItemForm: React.FC<ItemFormProps> = ({
     lookups,
     register,
     handleSubmit,
-    watch,
+    control,
     setValue,
     getValues,
     saveDraft,
@@ -32,26 +65,66 @@ export const ItemForm: React.FC<ItemFormProps> = ({
     clearCache
   } = useItemForm(initialData, editingId, onSuccess);
 
-  const kdvValue = watch('kdv');
+  const { openCreate } = useQuickCreateStore();
+  const queryClient = useQueryClient();
+
+  const handleRefreshLookups = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.items.lookup });
+    toast.success("Listeler güncellendi.");
+  };
+
+  const itemTypeOptions = useMemo(() => 
+    lookups.itemTypes.map(t => ({ id: t.id, label: t.name.toUpperCase() })),
+    [lookups.itemTypes]
+  );
+
+  const itemCodeGroupOptions = useMemo(() => 
+    lookups.itemCodeGroups.map(g => ({ id: g.id, label: `${g.prefix} - ${g.name.toUpperCase()}` })),
+    [lookups.itemCodeGroups]
+  );
+
+  const quantityTypeOptions = useMemo(() => 
+    lookups.quantityTypes.map(q => ({ id: q.id, label: `${q.name.toUpperCase()} (${q.abbreviation})` })),
+    [lookups.quantityTypes]
+  );
+
+  const currencyOptions = useMemo(() => 
+    lookups.currencies.map(c => ({ id: c.id, label: `${c.code} - ${c.name.toUpperCase()}` })),
+    [lookups.currencies]
+  );
 
   return (
     <form onSubmit={handleSubmit} onBlur={saveDraft} className="flex flex-col gap-6 animate-in">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SearchableSelect 
-          label="Ürün Türü"
-          required
-          placeholder="Tür seçin..."
-          options={lookups.itemTypes.map(t => ({ id: t.id, label: t.name.toUpperCase() }))}
-          value={watch('itemTypeId')}
-          onChange={(opt) => setValue('itemTypeId', opt ? String(opt.id) : '')}
+        <Controller
+          name="itemTypeId"
+          control={control}
+          render={({ field }) => (
+            <SearchableSelect 
+              label="Ürün Türü"
+              required
+              placeholder="Tür seçin..."
+              options={itemTypeOptions}
+              value={field.value}
+              onChange={(opt) => field.onChange(opt ? String(opt.id) : '')}
+              onQuickAdd={() => openCreate('item-type', { onSuccess: handleRefreshLookups })}
+            />
+          )}
         />
-        <SearchableSelect 
-          label="Kod Grubu"
-          required
-          placeholder="Grup seçin..."
-          options={lookups.itemCodeGroups.map(g => ({ id: g.id, label: `${g.prefix} - ${g.name.toUpperCase()}` }))}
-          value={watch('itemCodeGroupId')}
-          onChange={(opt) => setValue('itemCodeGroupId', opt ? String(opt.id) : '')}
+        <Controller
+          name="itemCodeGroupId"
+          control={control}
+          render={({ field }) => (
+            <SearchableSelect 
+              label="Kod Grubu"
+              required
+              placeholder="Grup seçin..."
+              options={itemCodeGroupOptions}
+              value={field.value}
+              onChange={(opt) => field.onChange(opt ? String(opt.id) : '')}
+              onQuickAdd={() => openCreate('code-group', { onSuccess: handleRefreshLookups })}
+            />
+          )}
         />
       </div>
 
@@ -66,20 +139,33 @@ export const ItemForm: React.FC<ItemFormProps> = ({
       </FormField>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <SearchableSelect 
-          label="Birim"
-          required
-          placeholder="Birim seçin..."
-          options={lookups.quantityTypes.map(q => ({ id: q.id, label: `${q.name.toUpperCase()} (${q.abbreviation})` }))}
-          value={watch('quantityTypeId')}
-          onChange={(opt) => setValue('quantityTypeId', opt ? String(opt.id) : '')}
+        <Controller
+          name="quantityTypeId"
+          control={control}
+          render={({ field }) => (
+            <SearchableSelect 
+              label="Birim"
+              required
+              placeholder="Birim seçin..."
+              options={quantityTypeOptions}
+              value={field.value}
+              onChange={(opt) => field.onChange(opt ? String(opt.id) : '')}
+              onQuickAdd={() => openCreate('quantity-type', { onSuccess: handleRefreshLookups })}
+            />
+          )}
         />
         <FormField label="Kritik Limit">
           <div className="flex flex-col gap-2">
-            <PremiumNumberInput 
-              value={watch('criticalLimit')} 
-              onChange={val => setValue('criticalLimit', String(val))} 
-              className="h-12"
+            <Controller
+              name="criticalLimit"
+              control={control}
+              render={({ field }) => (
+                <PremiumNumberInput 
+                  value={Number(field.value)} 
+                  onChange={val => field.onChange(String(val))} 
+                  className="h-12"
+                />
+              )}
             />
             <div className="flex gap-1">
               {[-10000, -1000, 1000, 10000].map(val => (
@@ -98,50 +184,51 @@ export const ItemForm: React.FC<ItemFormProps> = ({
             </div>
           </div>
         </FormField>
-        <FormField label="KDV Oranı">
-          <select className="input-premium font-black" {...register('kdv')}>
-            <option value="0">%0</option>
-            <option value="1">%1</option>
-            <option value="10">%10</option>
-            <option value="20">%20</option>
-            <option value="custom">Özel</option>
-          </select>
-          {kdvValue === 'custom' && (
-            <input 
-              type="number" 
-              className="input-premium font-black tabular-nums mt-2" 
-              value={customKdv || ''} 
-              onChange={e => setCustomKdv(Number(e.target.value))} 
-              placeholder="Özel KDV %" 
-            />
-          )}
-        </FormField>
+        <KdvSelect control={control} register={register} customKdv={customKdv} setCustomKdv={setCustomKdv} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <FormField label="Alış Fiyatı">
-          <PremiumNumberInput 
-            value={watch('purchasePrice')} 
-            onChange={val => setValue('purchasePrice', String(val))} 
-            step={1}
-            className="h-12"
+          <Controller
+            name="purchasePrice"
+            control={control}
+            render={({ field }) => (
+              <PremiumNumberInput 
+                value={Number(field.value)} 
+                onChange={val => field.onChange(String(val))} 
+                step={1}
+                className="h-12"
+              />
+            )}
           />
         </FormField>
         <FormField label="Satış Fiyatı">
-          <PremiumNumberInput 
-            value={watch('salePrice')} 
-            onChange={val => setValue('salePrice', String(val))} 
-            step={1}
-            className="h-12"
+          <Controller
+            name="salePrice"
+            control={control}
+            render={({ field }) => (
+              <PremiumNumberInput 
+                value={Number(field.value)} 
+                onChange={val => field.onChange(String(val))} 
+                step={1}
+                className="h-12"
+              />
+            )}
           />
         </FormField>
-        <SearchableSelect 
-          label="Para Birimi"
-          required
-          placeholder="Döviz seçin..."
-          options={lookups.currencies.map(c => ({ id: c.id, label: `${c.code} - ${c.name.toUpperCase()}` }))}
-          value={watch('currencyId')}
-          onChange={(opt) => setValue('currencyId', opt ? String(opt.id) : '')}
+        <Controller
+          name="currencyId"
+          control={control}
+          render={({ field }) => (
+            <SearchableSelect 
+              label="Para Birimi"
+              required
+              placeholder="Döviz seçin..."
+              options={currencyOptions}
+              value={field.value}
+              onChange={(opt) => field.onChange(opt ? String(opt.id) : '')}
+            />
+          )}
         />
       </div>
 
@@ -172,4 +259,4 @@ export const ItemForm: React.FC<ItemFormProps> = ({
       </div>
     </form>
   );
-};
+});

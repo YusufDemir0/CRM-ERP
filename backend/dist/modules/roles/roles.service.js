@@ -65,7 +65,7 @@ let RolesService = class RolesService {
         };
     }
     async findOneRole(id) {
-        const role = await this.roleRepo.findOne({ where: { id }, relations: ['permissions'] });
+        const role = await this.roleRepo.findOne({ where: { id: String(id) }, relations: ['permissions'] });
         if (!role)
             throw new common_1.NotFoundException('Rol bulunamadı');
         return role;

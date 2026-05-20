@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, IsDateString, Min, Matches } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, IsDateString, Min, Matches, IsInt } from 'class-validator';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { Type, Transform } from 'class-transformer';
 import { Decimal } from 'decimal.js';
@@ -43,24 +43,24 @@ export class UpdateAccountDto {
 }
 
 export class CreateTransactionDto {
-  @IsOptional() @Type(() => Number) @IsNumber() partyId: string;
-  @Type(() => Number) @IsNumber() commercialAccountId: string;
+  @IsOptional() @IsString() partyId: string;
+  @IsString() commercialAccountId: string;
   @IsNotEmpty() @Transform(FinanceHelper.transformString) @IsString() amount: string; 
-  @IsOptional() @Type(() => Number) @IsNumber() currencyId: string;
+  @IsOptional() @IsString() currencyId: string;
   @IsEnum(['in', 'out']) type: 'in' | 'out';
   @IsOptional() @Transform(({ value }) => (value === '' || value === null) ? undefined : value) @IsEnum(['sale', 'purchase', 'manual_adjustment', 'manual', 'sale_deposit']) referenceType?: 'sale' | 'purchase' | 'manual_adjustment' | 'manual' | 'sale_deposit';
-  @IsOptional() @Type(() => Number) @IsNumber() referenceId: string;
+  @IsOptional() @IsString() referenceId: string;
   @IsDateString() date: string;
   @IsOptional() @IsString() description?: string;
 }
 
 
 export class TransactionsQueryDto extends PaginationDto {
-  @IsOptional() @Type(() => Number) @IsNumber() partyId: string;
+  @IsOptional() @IsString() partyId: string;
   @IsOptional() @IsString() type?: string;
   @IsOptional() @IsString() status?: string;
 }
 
 export class AccountsQueryDto extends PaginationDto {
-  @IsOptional() @Type(() => Number) @IsNumber() state?: number;
+  @IsOptional() @Type(() => Number) @IsInt() state?: number;
 }

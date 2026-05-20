@@ -8,15 +8,16 @@ export declare class PartiesService {
     private partyRepo;
     private currenciesService;
     constructor(partyRepo: Repository<Party>, currenciesService: CurrenciesService);
+    lookup(type?: string): Promise<Partial<Party>[]>;
     findAll(query: PaginationDto & {
         type?: string;
-        departmentId?: number;
+        departmentId: string;
     }): Promise<PaginatedResult<Party>>;
-    findOne(id: number): Promise<Party>;
-    create(dto: CreatePartyDto, userId?: number): Promise<Party>;
-    update(id: number, dto: UpdatePartyDto, userId?: number): Promise<Party>;
-    softDelete(id: number): Promise<void>;
-    getBalance(id: number): Promise<{
+    findOne(id: string): Promise<Party>;
+    create(dto: CreatePartyDto, userId: string): Promise<Party>;
+    update(id: string, dto: UpdatePartyDto, userId: string): Promise<Party>;
+    softDelete(id: string): Promise<void>;
+    getBalance(id: string): Promise<{
         balance: string;
         creditLimit: string;
         currency: string;
@@ -38,7 +39,7 @@ export declare class PartiesService {
         healthyCount: number;
         atRiskCount: number;
         requiresAttention: {
-            id: number;
+            id: string;
             name: string;
             balance: Decimal;
             limit: Decimal;

@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useForm, SubmitHandler } from 'react-hook-form';
+import { useForm, SubmitHandler, Controller } from 'react-hook-form';
 import { departmentsAPI, accountsAPI } from '../../services/api';
 import { FiCheck, FiPlus } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 import { useTurkiyeCities } from '../../hooks/useTurkiyeApi';
-import { Account, Department } from '../../types';
+import { Account, Department, DepartmentType } from '../../types';
 import { FormField } from '../common/FormField';
 
 interface DepartmentFormProps {
@@ -24,7 +24,7 @@ type DepartmentFormData = {
   departmentTypeId: string;
   commercialAccountId: string;
   description: string;
-  cityId: number;
+  cityId: string;
 };
 
 export const DepartmentForm: React.FC<DepartmentFormProps> = ({
@@ -34,17 +34,22 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
   onCancel,
 }) => {
   const { openCreate, updateCache, getCache, clearCache } = useQuickCreateStore();
-  const cacheKey = editingId ? `dept_edit_${editingId}` : 'dept_create';
+  const cacheKey = editingId ? `department_edit_${editingId}` : 'department_create';
 
-  const { register, handleSubmit, getValues, setValue } = useForm<DepartmentFormData>({
-    defaultValues: (getCache(cacheKey) as DepartmentFormData) || {
-      name: (initialData?.name as string) || '',
-      description: (initialData?.description as string) || '',
-      abbreviation: (initialData?.abbreviation as string) || '',
-      departmentTypeId: initialData?.departmentTypeId ? String(initialData.departmentTypeId) : '',
-      commercialAccountId: initialData?.commercialAccountId ? String(initialData.commercialAccountId) : '',
-      cityId: initialData?.cityId ? Number(initialData.cityId) : 0,
-    }
+  const getInitialValues = (): DepartmentFormData => {
+    const cached = getCache(cacheKey) as DepartmentFormData | null;
+    return {
+      name: (initialData?.name as string) || cached?.name || '',
+      description: (initialData?.description as string) || cached?.description || '',
+      abbreviation: (initialData?.abbreviation as string) || cached?.abbreviation || '',
+      departmentTypeId: initialData?.departmentTypeId ? String(initialData.departmentTypeId) : (cached?.departmentTypeId || ''),
+      commercialAccountId: initialData?.commercialAccountId ? String(initialData.commercialAccountId) : (cached?.commercialAccountId || ''),
+      cityId: initialData?.cityId ? String(initialData.cityId) : (cached?.cityId || ''),
+    };
+  };
+
+  const { register, handleSubmit, getValues, setValue, control } = useForm<DepartmentFormData>({
+    defaultValues: getInitialValues()
   });
 
   const saveDraft = useCallback(() => {
@@ -52,7 +57,7 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
   }, [getValues, cacheKey, updateCache]);
 
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [deptTypes, setDeptTypes] = useState<Record<string, unknown>[]>([]);
+  const [deptTypes, setDeptTypes] = useState<DepartmentType[]>([]);
   const { cities } = useTurkiyeCities();
 
   useEffect(() => {
@@ -64,7 +69,7 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
           departmentsAPI.getTypes({ signal: controller.signal })
         ]);
         setAccounts(accRes.data.data.filter((a: Account) => a.state === 1));
-        setDeptTypes(typesRes.data as Record<string, unknown>[]);
+        setDeptTypes(typesRes.data as DepartmentType[]);
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== 'CanceledError' && err.name !== 'AbortError') {
           console.error(err);
@@ -75,19 +80,31 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
     return () => controller.abort();
   }, []);
 
+  // Sync initialData changes for better hydration
+  useEffect(() => {
+    if (initialData && editingId) {
+      (Object.entries(initialData) as [string, unknown][]).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        if (['departmentTypeId', 'commercialAccountId', 'cityId', 'name', 'abbreviation', 'description'].includes(key)) {
+          setValue(key as keyof DepartmentFormData, String(value));
+        }
+      });
+    }
+  }, [initialData, editingId, setValue]);
+
   const onSubmit: SubmitHandler<DepartmentFormData> = async (data) => {
-    const formattedAbbr = onlyAbbrLetters(data.abbreviation).slice(0, 4);
-    if (formattedAbbr && formattedAbbr.length > 4) {
-      toast.error('Kısa kod en fazla 4 karakter olmalıdır.');
+    const formattedAbbr = onlyAbbrLetters(data.abbreviation).slice(0, 3);
+    if (formattedAbbr && formattedAbbr.length > 3) {
+      toast.error('Kısa kod en fazla 3 karakter olmalıdır.');
       return;
     }
     const payload = {
       name: onlyLetters(data.name).toLocaleUpperCase('tr-TR'),
       description: data.description.toLocaleUpperCase('tr-TR'),
       abbreviation: formattedAbbr,
-      departmentTypeId: data.departmentTypeId ? Number(data.departmentTypeId) : undefined,
-      commercialAccountId: data.commercialAccountId ? Number(data.commercialAccountId) : undefined,
-      cityId: data.cityId ? Number(data.cityId) : undefined,
+      departmentTypeId: data.departmentTypeId || null,
+      commercialAccountId: data.commercialAccountId || null,
+      cityId: data.cityId || null,
     } as Partial<Department>;
 
     try {
@@ -100,8 +117,16 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
         clearCache(cacheKey);
         onSuccess(res.data);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(error);
+      let errorMsg = 'İşlem başarısız';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const response = (error as { response: { data?: { message?: string | string[] } } }).response;
+        if (response.data?.message) {
+          errorMsg = Array.isArray(response.data.message) ? response.data.message[0] : response.data.message;
+        }
+      }
+      toast.error(errorMsg);
     }
   };
 
@@ -109,7 +134,6 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
     openCreate('account', {
       onSuccess: (newAcc: unknown) => {
         setValue('commercialAccountId', String((newAcc as Account).id));
-        // Refresh accounts list
         accountsAPI.getAll({ limit: 100 }).then((res: { data: { data: Account[] } }) => setAccounts(res.data.data.filter((a: Account) => a.state === 1)));
       }
     });
@@ -126,9 +150,9 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
             placeholder="ÖR: MERKEZ DEPO" 
           />
         </FormField>
-        <FormField label="Kısa Kod">
+        <FormField label="Kısa Kod (Maks. 3 Harf)">
           <input
-            maxLength={4}
+            maxLength={3}
             className="input-premium font-black tracking-[4px] text-center"
             {...register('abbreviation')}
             placeholder="MKZ"
@@ -138,42 +162,54 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormField label="Bulunduğu Şehir (İl)">
-          <select className="input-premium font-black" {...register('cityId')}>
-             <option value={0}>ŞEHİR SEÇİNİZ...</option>
-             {cities.map(c => <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>)}
-          </select>
+          <Controller
+            name="cityId"
+            control={control}
+            render={({ field }) => (
+              <select className="input-premium font-black" {...field} value={field.value || ''}>
+                <option value="">ŞEHİR SEÇİNİZ...</option>
+                {cities.map(c => <option key={String(c.id)} value={String(c.id)}>{c.name.toUpperCase()}</option>)}
+              </select>
+            )}
+          />
         </FormField>
         <FormField label="Departman Tipi" required>
-          <select 
-            required
-            className="input-premium font-black" 
-            {...register('departmentTypeId')}
-          >
-            <option value="">Lütfen Seçiniz...</option>
-            {deptTypes.map((dt) => <option key={String(dt.id)} value={String(dt.id)}>{String(dt.name).toUpperCase()} ({String(dt.abbreviation)})</option>)}
-          </select>
+          <Controller
+            name="departmentTypeId"
+            control={control}
+            render={({ field }) => (
+              <select required className="input-premium font-black" {...field} value={field.value || ''}>
+                <option value="">Lütfen Seçiniz...</option>
+                {deptTypes.map((dt) => <option key={String(dt.id)} value={String(dt.id)}>{String(dt.name).toUpperCase()}</option>)}
+              </select>
+            )}
+          />
         </FormField>
       </div>
-        <FormField label="Finans/Kasa Hesabı" helperText="YENİ KASA EKLEMEK İÇİN YANDAKİ BUTONU KULLANIN">
-          <div className="flex flex-col gap-2">
-            <select 
-              className="input-premium font-black" 
-              {...register('commercialAccountId')}
-            >
-              <option value="">Lütfen Seçiniz...</option>
-              {accounts.map((acc: Account) => (
-                <option key={acc.id} value={acc.id}>{acc.name.toUpperCase()}</option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="text-[10px] font-black text-primary flex items-center justify-center gap-1 p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
-              onClick={handleAddAccount}
-            >
-              <FiPlus size={12} /> YENİ HESAP TANIMLA
-            </button>
-          </div>
-        </FormField>
+      
+      <FormField label="Finans/Kasa Hesabı" helperText="YENİ KASA EKLEMEK İÇİN YANDAKİ BUTONU KULLANIN">
+        <div className="flex flex-col gap-2">
+          <Controller
+            name="commercialAccountId"
+            control={control}
+            render={({ field }) => (
+              <select className="input-premium font-black" {...field} value={field.value || ''}>
+                <option value="">Lütfen Seçiniz...</option>
+                {accounts.map((acc: Account) => (
+                  <option key={acc.id} value={acc.id}>{acc.name.toUpperCase()}</option>
+                ))}
+              </select>
+            )}
+          />
+          <button
+            type="button"
+            className="text-[10px] font-black text-primary flex items-center justify-center gap-1 p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
+            onClick={handleAddAccount}
+          >
+            <FiPlus size={12} /> YENİ HESAP TANIMLA
+          </button>
+        </div>
+      </FormField>
 
       <FormField label="Operasyonel Açıklama">
         <input 

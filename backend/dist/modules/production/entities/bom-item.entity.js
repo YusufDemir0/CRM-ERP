@@ -21,11 +21,11 @@ let BomItem = class BomItem {
 exports.BomItem = BomItem;
 __decorate([
     (0, typeorm_1.PrimaryColumn)({ name: 'bom_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], BomItem.prototype, "bomId", void 0);
 __decorate([
     (0, typeorm_1.PrimaryColumn)({ name: 'item_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], BomItem.prototype, "itemId", void 0);
 __decorate([
     (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),

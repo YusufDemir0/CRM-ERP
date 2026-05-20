@@ -6,7 +6,6 @@ import { Party } from '../parties/entities/party.entity';
 import { Item } from '../inventory/items/entities/item.entity';
 import { Transaction } from '../finance/transactions/entities/transaction.entity';
 import { Department } from '../departments/entities/department.entity';
-import { plainToInstance } from 'class-transformer';
 import { DashboardSummaryDto } from './dto/dashboard-summary.dto';
 import { Sale } from '../sales/entities/sale.entity';
 import { Decimal } from 'decimal.js';
@@ -40,6 +39,53 @@ export class DashboardService {
     const lastMonthStart = now.subtract(1, 'month').startOf('month').toDate();
     const lastMonthEnd = now.subtract(1, 'month').toDate();
 
+    const isSystemAdmin = user.isSystemAdmin === true;
+    const userDeptId = user.departmentId ? String(user.departmentId) : null;
+    const userId = user.sub ? String(user.sub) : null;
+
+    // Base query builders for Sales
+    const todayQb = this.saleRepo.createQueryBuilder('sale')
+      .where("sale.createdAt BETWEEN :start AND :end", { start: todayStart, end: todayEnd })
+      .andWhere("sale.status != 'cancelled'");
+
+    const thisMonthQb = this.saleRepo.createQueryBuilder('sale')
+      .where("sale.createdAt BETWEEN :start AND :end", { start: thisMonthStart, end: thisMonthEnd })
+      .andWhere("sale.status != 'cancelled'");
+
+    const lastMonthQb = this.saleRepo.createQueryBuilder('sale')
+      .where("sale.createdAt BETWEEN :start AND :end", { start: lastMonthStart, end: lastMonthEnd })
+      .andWhere("sale.status != 'cancelled'");
+
+    const countQb = this.saleRepo.createQueryBuilder('sale')
+      .where("sale.status IN ('approved', 'shipped', 'invoiced')");
+
+    // Apply permissions filtering
+    if (!isSystemAdmin) {
+      if (userDeptId) {
+        todayQb.andWhere("sale.departmentId = :deptId", { deptId: userDeptId });
+        thisMonthQb.andWhere("sale.departmentId = :deptId", { deptId: userDeptId });
+        lastMonthQb.andWhere("sale.departmentId = :deptId", { deptId: userDeptId });
+        countQb.andWhere("sale.departmentId = :deptId", { deptId: userDeptId });
+      } else {
+        // If not system admin and has no department, they can only see their own sales
+        todayQb.andWhere("sale.createdBy = :userId", { userId });
+        thisMonthQb.andWhere("sale.createdBy = :userId", { userId });
+        lastMonthQb.andWhere("sale.createdBy = :userId", { userId });
+        countQb.andWhere("sale.createdBy = :userId", { userId });
+      }
+    }
+
+    const partyWhere: any = { 
+      state: 1, 
+      type: 'customer' 
+    };
+    if (!isSystemAdmin) {
+      // Note: parties might not have departmentId populated for old records
+      if (userId) {
+        partyWhere.createdBy = userId;
+      }
+    }
+
     const [
       totalCustomers,
       totalSalesCount,
@@ -47,57 +93,41 @@ export class DashboardService {
       thisMonthStats,
       lastMonthStats,
     ] = await Promise.all([
-      // Yalnızca kullanıcının oluşturduğu Cariler ve Sadece Müşteri
-      this.partyRepo.count({ 
-        where: { 
-          state: 1, 
-          type: 'customer',
-          createdBy: user?.sub ? String(user.sub) : undefined
-        } 
-      }),
+      // Toplam Müşteriler: Mutlak yetkisi yoksa SADECE kendi kaydettiği carileri görür
+      this.partyRepo.count({ where: partyWhere }),
       
-      // Toplam Satış Miktarı
-      this.saleRepo.count({ 
-        where: { status: In(['approved', 'shipped', 'invoiced']) } 
-      }),
+      countQb.getCount(),
       
-      // Günün Cirosu
-      this.saleRepo.createQueryBuilder('sale')
+      todayQb
         .select("SUM(sale.grandTotal * sale.exchangeRate)", "revenue")
-        .where("sale.createdAt BETWEEN :start AND :end", { start: todayStart, end: todayEnd })
-        .andWhere("sale.status != 'cancelled'")
         .getRawOne(),
 
-      this.saleRepo.createQueryBuilder('sale')
+      thisMonthQb
         .select("SUM(sale.grandTotal * sale.exchangeRate - sale.kdv * sale.exchangeRate)", "revenue")
         .addSelect("SUM(sale.profit * sale.exchangeRate)", "profit")
         .addSelect("COUNT(*)", "count")
-        .where("sale.createdAt BETWEEN :start AND :end", { start: thisMonthStart, end: thisMonthEnd })
-        .andWhere("sale.status != 'cancelled'")
         .getRawOne(),
 
-      this.saleRepo.createQueryBuilder('sale')
+      lastMonthQb
         .select("SUM(sale.grandTotal * sale.exchangeRate - sale.kdv * sale.exchangeRate)", "revenue")
         .addSelect("SUM(sale.profit * sale.exchangeRate)", "profit")
         .addSelect("COUNT(*)", "count")
-        .where("sale.createdAt BETWEEN :start AND :end", { start: lastMonthStart, end: lastMonthEnd })
-        .andWhere("sale.status != 'cancelled'")
         .getRawOne()
     ]);
     
     return {
       totalCustomers,
       totalSalesCount,
-      todaySales: todayRevenueStats.revenue || 0,
+      todaySales: todayRevenueStats?.revenue || 0,
       thisMonth: {
-        revenue: thisMonthStats.revenue || 0,
-        count: thisMonthStats.count || 0,
-        profit: thisMonthStats.profit || 0
+        revenue: thisMonthStats?.revenue || 0,
+        count: thisMonthStats?.count || 0,
+        profit: thisMonthStats?.profit || 0
       },
       lastMonth: {
-        revenue: lastMonthStats.revenue || 0,
-        count: lastMonthStats.count || 0,
-        profit: lastMonthStats.profit || 0
+        revenue: lastMonthStats?.revenue || 0,
+        count: lastMonthStats?.count || 0,
+        profit: lastMonthStats?.profit || 0
       }
     };
   }

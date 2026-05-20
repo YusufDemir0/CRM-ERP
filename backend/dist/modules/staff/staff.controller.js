@@ -29,16 +29,16 @@ let StaffController = class StaffController {
         return this.staffService.findAll(query);
     }
     findOne(id) {
-        return this.staffService.findOne(+id);
+        return this.staffService.findOne(id);
     }
     update(id, updateStaffDto, req) {
-        return this.staffService.update(+id, updateStaffDto, req.user.id);
+        return this.staffService.update(id, updateStaffDto, req.user.id);
     }
     toggleActive(id, req) {
-        return this.staffService.toggleActive(+id, req.user.id);
+        return this.staffService.toggleActive(id, req.user.id);
     }
     remove(id, req) {
-        return this.staffService.remove(+id, req.user.id);
+        return this.staffService.remove(id, req.user.id);
     }
 };
 exports.StaffController = StaffController;

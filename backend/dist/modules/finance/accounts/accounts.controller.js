@@ -46,9 +46,9 @@ __decorate([
 ], AccountsController.prototype, "getStatus", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], AccountsController.prototype, "findOne", null);
 __decorate([
@@ -56,23 +56,23 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [finance_dto_1.CreateAccountDto, Number]),
+    __metadata("design:paramtypes", [finance_dto_1.CreateAccountDto, String]),
     __metadata("design:returntype", void 0)
 ], AccountsController.prototype, "create", null);
 __decorate([
     (0, common_1.Put)(':id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, finance_dto_1.UpdateAccountDto, Number]),
+    __metadata("design:paramtypes", [String, finance_dto_1.UpdateAccountDto, String]),
     __metadata("design:returntype", void 0)
 ], AccountsController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], AccountsController.prototype, "remove", null);
 exports.AccountsController = AccountsController = __decorate([

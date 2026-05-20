@@ -5,9 +5,9 @@ export declare class Department extends BaseEntity {
     name: string;
     description: string | null;
     abbreviation: string | null;
-    departmentTypeId: number | null;
+    departmentTypeId: string | null;
     departmentType: DepartmentType;
-    commercialAccountId: number | null;
+    commercialAccountId: string | null;
     commercialAccount: CommercialAccount;
-    cityId: number | null;
+    cityId: string | null;
 }

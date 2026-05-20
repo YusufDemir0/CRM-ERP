@@ -91,30 +91,43 @@ export function BomsPage() {
     toast.success("Reçete başarıyla kaydedildi.");
   };
 
-  const handleEdit = (b: Bom) => {
-    openCreate('bom', {
-      editingId: b.id,
-      initialData: {
-        name: b.name || '', 
-        targetItemId: String(b.targetItemId || ''),
-        description: b.description || '',
-        items: b.items?.map((bi: BomItem) => ({ itemId: bi.itemId, quantity: String(bi.quantity), description: bi.description || '' })) || []
-      },
-      onSuccess: handleFormSuccess
-    });
+  const handleEdit = async (b: Bom) => {
+    try {
+      // Fetch full BOM with items relation (list query doesn't include items)
+      const res = await bomsAPI.getOne(b.id);
+      const fullBom = res.data;
+      openCreate('bom', {
+        editingId: fullBom.id,
+        initialData: {
+          name: fullBom.name || '', 
+          targetItemId: String(fullBom.targetItemId || ''),
+          description: fullBom.description || '',
+          items: fullBom.items?.map((bi: BomItem) => ({ itemId: bi.itemId, quantity: Number(bi.quantity), description: bi.description || '' })) || []
+        },
+        onSuccess: handleFormSuccess
+      });
+    } catch {
+      toast.error('Reçete bilgileri yüklenemedi');
+    }
   };
 
-  const handleClone = (b: Bom) => {
-    openCreate('bom', {
-      initialData: {
-        name: `${b.name} (KOPYA)`, 
-        targetItemId: String(b.targetItemId || ''),
-        description: b.description || '',
-        items: b.items?.map((bi: BomItem) => ({ itemId: bi.itemId, quantity: String(bi.quantity), description: bi.description || '' })) || []
-      },
-      onSuccess: handleFormSuccess
-    });
-    toast("Reçete kopyalandı. Değişiklik yapıp yeni olarak kaydedebilirsiniz.", { icon: 'ℹ️' });
+  const handleClone = async (b: Bom) => {
+    try {
+      const res = await bomsAPI.getOne(b.id);
+      const fullBom = res.data;
+      openCreate('bom', {
+        initialData: {
+          name: `${fullBom.name} (KOPYA)`, 
+          targetItemId: String(fullBom.targetItemId || ''),
+          description: fullBom.description || '',
+          items: fullBom.items?.map((bi: BomItem) => ({ itemId: bi.itemId, quantity: Number(bi.quantity), description: bi.description || '' })) || []
+        },
+        onSuccess: handleFormSuccess
+      });
+      toast("Reçete kopyalandı. Değişiklik yapıp yeni olarak kaydedebilirsiniz.", { icon: 'ℹ️' });
+    } catch {
+      toast.error('Reçete bilgileri yüklenemedi');
+    }
   };
 
   const toggleState = async (id: string | number, currentState: number) => {
@@ -157,7 +170,7 @@ export function BomsPage() {
       accessor: (b) => (
         <div className="flex items-center gap-2">
           <div className="px-3 py-1 rounded-lg bg-surface-container text-on-surface text-xs font-black">
-            {b.items?.length || 0}
+            {(b as Bom & { itemCount?: number }).itemCount ?? 0}
           </div>
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">KALEM</span>
         </div>
@@ -228,7 +241,7 @@ export function BomsPage() {
         
         // Integrated Search & Pagination
         search={searchTerm}
-        onSearchChange={(val) => { setSearchTerm(val); setPage(1); }}
+        onSearchChange={setSearchTerm}
         total={paginationMeta?.total || 0}
         page={page}
         limit={limit}

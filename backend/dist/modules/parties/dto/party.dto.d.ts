@@ -7,11 +7,11 @@ export declare class CreatePartyDto {
     taxNumber?: string;
     email?: string;
     address?: string;
-    cityId?: number;
+    cityId: string;
     districtName?: string;
     creditLimit?: number;
     paymentTerms?: string;
-    currencyId?: number;
+    currencyId: string;
     notes?: string;
 }
 export declare class UpdatePartyDto {
@@ -23,11 +23,11 @@ export declare class UpdatePartyDto {
     taxNumber?: string;
     email?: string;
     address?: string;
-    cityId?: number;
+    cityId: string;
     districtName?: string;
     creditLimit?: number;
     paymentTerms?: string;
-    currencyId?: number;
+    currencyId: string;
     notes?: string;
     state?: number;
 }
@@ -35,5 +35,5 @@ import { PaginationDto } from '../../../common/dto/pagination.dto';
 export declare class PartiesQueryDto extends PaginationDto {
     type?: string;
     state?: number;
-    departmentId?: number;
+    departmentId: string;
 }

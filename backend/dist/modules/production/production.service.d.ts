@@ -24,17 +24,17 @@ export declare class ProductionService {
     private readonly logger;
     constructor(bomRepo: Repository<Bom>, bomItemRepo: Repository<BomItem>, poRepo: Repository<ProductionOrder>, itemRepo: Repository<Item>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, stocksService: StocksService, itemsService: ItemsService, logsService: LogsService, transactionContext: TransactionContextService);
     findAllBoms(query: BomQueryDto): Promise<PaginatedResult<Bom>>;
-    findOneBom(id: number): Promise<Bom>;
-    createBom(dto: CreateBomDto, userId?: number): Promise<Bom>;
+    findOneBom(id: string): Promise<Bom>;
+    createBom(dto: CreateBomDto, userId: string): Promise<Bom>;
     private detectBomCycle;
-    updateBom(id: number, dto: UpdateBomDto, userId?: number): Promise<Bom>;
-    deleteBom(id: number): Promise<void>;
+    updateBom(id: string, dto: UpdateBomDto, userId: string): Promise<Bom>;
+    deleteBom(id: string): Promise<void>;
     findAllOrders(query: ProductionOrderQueryDto): Promise<PaginatedResult<ProductionOrder>>;
-    findOneOrder(id: number): Promise<ProductionOrder>;
-    createOrder(dto: CreateProductionOrderDto, userId?: number): Promise<ProductionOrder>;
-    updateOrder(id: number, dto: UpdateProductionOrderDto, userId?: number): Promise<ProductionOrder>;
+    findOneOrder(id: string): Promise<ProductionOrder>;
+    createOrder(dto: CreateProductionOrderDto, userId: string): Promise<ProductionOrder>;
+    updateOrder(id: string, dto: UpdateProductionOrderDto, userId: string): Promise<ProductionOrder>;
     private completeOrder;
-    deleteOrder(id: number): Promise<void>;
+    deleteOrder(id: string): Promise<void>;
     getStatus(): Promise<{
         draft: number;
         planned: number;

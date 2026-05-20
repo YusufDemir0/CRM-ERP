@@ -1,6 +1,6 @@
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 export declare class CreateSaleItemDto {
-    itemId: number;
+    itemId: string;
     quantity: string;
     price: string;
     discountAmount?: string;
@@ -9,10 +9,10 @@ export declare class CreateSaleItemDto {
     description?: string;
 }
 export declare class CreateSaleDto {
-    partyId: number;
-    saleTypeId: number;
-    currencyId?: number;
-    staffId?: number;
+    partyId: string;
+    saleTypeId: string;
+    currencyId: string;
+    staffId: string;
     deliveryDate?: string;
     deposit?: string;
     discountAmount?: string;
@@ -25,13 +25,13 @@ export declare class CreateSaleDto {
     source?: string;
     city?: string;
     district?: string;
-    commercialAccountId?: number;
+    commercialAccountId: string;
     items: CreateSaleItemDto[];
 }
 export declare class UpdateSaleDto {
-    partyId?: number;
-    currencyId?: number;
-    staffId?: number;
+    partyId: string;
+    currencyId: string;
+    staffId: string;
     deliveryDate?: string;
     deposit?: string;
     discountAmount?: string;
@@ -44,7 +44,7 @@ export declare class UpdateSaleDto {
     source?: string;
     city?: string;
     district?: string;
-    commercialAccountId?: number;
+    commercialAccountId: string;
     items?: CreateSaleItemDto[];
 }
 export declare class CreateSaleTypeDto {
@@ -52,16 +52,16 @@ export declare class CreateSaleTypeDto {
     abbreviation: string;
 }
 export declare class ApproveSaleDto {
-    departmentId: number;
-    commercialAccountId?: number;
+    departmentId: string;
+    commercialAccountId: string;
 }
 export declare class SalesQueryDto extends PaginationDto {
     status?: string;
-    partyId?: number;
+    partyId: string;
 }
 export declare class ShipSaleDto {
     items?: {
-        itemId: number;
+        itemId: string;
         quantity: number;
     }[];
 }

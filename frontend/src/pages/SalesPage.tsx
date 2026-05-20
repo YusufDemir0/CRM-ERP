@@ -183,15 +183,28 @@ export default function SalesPage() {
     setSort(key, isAsc ? 'DESC' : 'ASC');
   }, [sort, setSort]);
 
-  const handleExport = useCallback(() => {
-    const params = new URLSearchParams({
-      status: filterStatus === 'all' ? '' : filterStatus,
-      q: searchTerm,
+  const handleExport = useCallback(async () => {
+    const params = {
+      status: filterStatus === 'all' ? undefined : filterStatus,
+      search: searchTerm,
       sortBy: sort.key,
       sortOrder: sort.order,
       ...filters
-    });
-    window.open(`${import.meta.env.VITE_API_URL}/sales/export?${params.toString()}`, '_blank');
+    };
+    
+    try {
+      const response = await salesAPI.export(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Satis_Raporu_${new Date().toISOString().slice(0,10).replace(/-/g, '')}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error('Rapor dışa aktarılırken bir hata oluştu.');
+    }
   }, [filterStatus, searchTerm, sort, filters]);
 
   return (

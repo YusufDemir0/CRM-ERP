@@ -232,7 +232,7 @@ export default function LogsPage() {
           
           // Integrated Search & Pagination
           search={searchTerm}
-          onSearchChange={(val) => { setSearchTerm(val); setPage(1); }}
+          onSearchChange={setSearchTerm}
           total={paginationMeta.total}
           page={page}
           limit={limit}

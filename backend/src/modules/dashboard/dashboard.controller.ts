@@ -10,7 +10,6 @@ export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get('summary')
-  @RequirePermissions('DASHBOARD_VIEW')
   getSummary(@CurrentUser() user: JwtPayload) {
     return this.dashboardService.getSummary(user);
   }

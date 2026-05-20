@@ -6,6 +6,7 @@ import { RequirePermissions } from '../../common/decorators/permissions.decorato
 import { LogsQueryDto } from './dto/logs-query.dto';
 
 @Controller('logs')
+@UseGuards(JwtAuthGuard)
 export class LogsController {
   constructor(private readonly logsService: LogsService) {}
 

@@ -16,7 +16,7 @@ let TransactionSequence = class TransactionSequence {
 exports.TransactionSequence = TransactionSequence;
 __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)({ type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], TransactionSequence.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 10 }),

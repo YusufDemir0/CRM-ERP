@@ -6,11 +6,11 @@ export declare class StaffController {
     constructor(staffService: StaffService);
     create(createStaffDto: CreateStaffDto, req: {
         user: {
-            id: number;
+            id: string;
         };
     }): Promise<import("./entities/staff.entity").Staff>;
     findAll(query: {
-        departmentId?: number;
+        departmentId: string;
         page?: number;
         limit?: number;
         state?: number;
@@ -26,17 +26,17 @@ export declare class StaffController {
     findOne(id: string): Promise<import("./entities/staff.entity").Staff>;
     update(id: string, updateStaffDto: UpdateStaffDto, req: {
         user: {
-            id: number;
+            id: string;
         };
     }): Promise<import("./entities/staff.entity").Staff>;
     toggleActive(id: string, req: {
         user: {
-            id: number;
+            id: string;
         };
     }): Promise<import("./entities/staff.entity").Staff>;
     remove(id: string, req: {
         user: {
-            id: number;
+            id: string;
         };
     }): Promise<import("./entities/staff.entity").Staff>;
 }

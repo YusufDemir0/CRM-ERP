@@ -28,10 +28,8 @@ class CreateBomItemDto {
 }
 exports.CreateBomItemDto = CreateBomItemDto;
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateBomItemDto.prototype, "itemId", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
@@ -54,10 +52,8 @@ __decorate([
 ], CreateBomDto.prototype, "name", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateBomDto.prototype, "targetItemId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -80,10 +76,8 @@ __decorate([
 ], UpdateBomDto.prototype, "name", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], UpdateBomDto.prototype, "targetItemId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -108,10 +102,8 @@ class CreateProductionOrderDto {
 }
 exports.CreateProductionOrderDto = CreateProductionOrderDto;
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateProductionOrderDto.prototype, "bomId", void 0);
 __decorate([
     (0, class_validator_1.IsNumber)(),
@@ -121,17 +113,13 @@ __decorate([
 ], CreateProductionOrderDto.prototype, "plannedQuantity", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateProductionOrderDto.prototype, "sourceDepartmentId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateProductionOrderDto.prototype, "targetDepartmentId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -182,10 +170,8 @@ class UpdateProductionOrderDto {
 exports.UpdateProductionOrderDto = UpdateProductionOrderDto;
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], UpdateProductionOrderDto.prototype, "bomId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -208,17 +194,13 @@ __decorate([
 ], UpdateProductionOrderDto.prototype, "wastageQuantity", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], UpdateProductionOrderDto.prototype, "sourceDepartmentId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], UpdateProductionOrderDto.prototype, "targetDepartmentId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),

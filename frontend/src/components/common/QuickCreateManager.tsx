@@ -11,6 +11,9 @@ const PartyForm = lazy(() => import('../forms/PartyForm').then(m => ({ default: 
 const ItemForm = lazy(() => import('../forms/ItemForm').then(m => ({ default: m.ItemForm })));
 const BomForm = lazy(() => import('../forms/BomForm').then(m => ({ default: m.BomForm })));
 const StaffForm = lazy(() => import('../forms/StaffForm').then(m => ({ default: m.StaffForm })));
+const QuantityTypeForm = lazy(() => import('../forms/QuantityTypeForm').then(m => ({ default: m.QuantityTypeForm })));
+const ItemTypeForm = lazy(() => import('../forms/ItemTypeForm').then(m => ({ default: m.ItemTypeForm })));
+const ItemCodeGroupForm = lazy(() => import('../forms/ItemCodeGroupForm').then(m => ({ default: m.ItemCodeGroupForm })));
 
 export const QuickCreateManager: React.FC = () => {
   const { stack, closeCurrent, clearCache } = useQuickCreateStore();
@@ -19,7 +22,8 @@ export const QuickCreateManager: React.FC = () => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && stack.length > 0) {
         const topItem = stack[stack.length - 1];
-        clearCache(topItem.type);
+        clearCache(`${topItem.type}_create`);
+        if (topItem.editingId) clearCache(`${topItem.type}_edit_${topItem.editingId}`);
         topItem.onCancel();
         closeCurrent();
       }
@@ -47,7 +51,8 @@ export const QuickCreateManager: React.FC = () => {
             }}
             onClick={(e) => {
               if (e.target === e.currentTarget) {
-                clearCache(item.type);
+                clearCache(`${item.type}_create`);
+                if (item.editingId) clearCache(`${item.type}_edit_${item.editingId}`);
                 item.onCancel();
                 closeCurrent();
               }
@@ -59,7 +64,8 @@ export const QuickCreateManager: React.FC = () => {
                 <button 
                   className="btn-icon circle absolute top-6 right-6" 
                   onClick={() => {
-                    clearCache(item.type);
+                    clearCache(`${item.type}_create`);
+                    if (item.editingId) clearCache(`${item.type}_edit_${item.editingId}`);
                     item.onCancel();
                     closeCurrent();
                   }}
@@ -90,12 +96,14 @@ export const QuickCreateManager: React.FC = () => {
     const props = {
       initialData: item.initialData,
       editingId: item.editingId,
+      mode: item.mode,
       onSuccess: (data: unknown) => {
         item.onSuccess(data as import('../../store/useQuickCreateStore').QuickCreateResponse);
         close();
       },
       onCancel: () => {
-        clearCache(item.type);
+        clearCache(`${item.type}_create`);
+        if (item.editingId) clearCache(`${item.type}_edit_${item.editingId}`);
         item.onCancel();
         close();
       }
@@ -109,6 +117,9 @@ export const QuickCreateManager: React.FC = () => {
       case 'item': return <ItemForm {...props} />;
       case 'bom': return <BomForm {...props} />;
       case 'staff': return <StaffForm {...props} />;
+      case 'quantity-type': return <QuantityTypeForm {...props} />;
+      case 'item-type': return <ItemTypeForm {...props} />;
+      case 'code-group': return <ItemCodeGroupForm {...props} />;
       default: return <div>Henüz form hazırlanmadı: {item.type}</div>;
     }
   }
@@ -123,6 +134,9 @@ function getTitle(type: string, isEditing: boolean): string {
     item: isEditing ? 'Ürün Güncelle' : 'Hızlı Ürün Kaydı',
     bom: isEditing ? 'Reçete Güncelle' : 'Hızlı Reçete Tanımı',
     staff: isEditing ? 'Personel Güncelle' : 'Hızlı Personel Ekle',
+    'quantity-type': isEditing ? 'Birim Güncelle' : 'Hızlı Birim Ekle',
+    'item-type': isEditing ? 'Ürün Türü Güncelle' : 'Hızlı Ürün Türü Ekle',
+    'code-group': isEditing ? 'Kod Grubu Güncelle' : 'Hızlı Kod Grubu Ekle',
   };
   return titles[type] || 'Hızlı Oluştur';
 }

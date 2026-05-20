@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { staffAPI } from '../../services/api';
 import { Staff, CreateStaffDto, UpdateStaffDto } from '../../types';
@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { PhoneInput } from '../common/PhoneInput';
 import { FormField } from '../common/FormField';
 import dayjs from 'dayjs';
+import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 
 interface StaffFormProps {
   initialData?: Partial<Staff>;
@@ -16,24 +17,54 @@ interface StaffFormProps {
 }
 
 export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, onSuccess, onCancel }) => {
+  const { updateCache, getCache, clearCache } = useQuickCreateStore();
+  const cacheKey = editingId ? `staff_edit_${editingId}` : 'staff_create';
   const queryClient = useQueryClient();
-  const [formData, setFormData] = useState({
-    firstName: initialData?.firstName || '',
-    lastName: initialData?.lastName || '',
-    phone: initialData?.phone || '',
-    entryDate: initialData?.entryDate ? dayjs(initialData.entryDate).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
-    departmentId: initialData?.departmentId || undefined,
-    isActive: initialData?.isActive ?? true,
-    tckn: initialData?.tckn || '',
+  interface StaffFormData {
+    firstName: string;
+    lastName: string;
+    phone: string;
+    entryDate: string;
+    departmentId?: string;
+    isActive: boolean;
+    tckn: string;
+  }
+
+  const [formData, setFormData] = useState<StaffFormData>(() => {
+    const cached = getCache(cacheKey) as StaffFormData | null;
+    return {
+      firstName: initialData?.firstName || cached?.firstName || '',
+      lastName: initialData?.lastName || cached?.lastName || '',
+      phone: initialData?.phone || cached?.phone || '',
+      entryDate: initialData?.entryDate ? dayjs(initialData.entryDate).format('YYYY-MM-DD') : (cached?.entryDate || dayjs().format('YYYY-MM-DD')),
+      departmentId: initialData?.departmentId ? String(initialData.departmentId) : (cached?.departmentId || undefined),
+      isActive: initialData?.isActive ?? cached?.isActive ?? true,
+      tckn: initialData?.tckn || cached?.tckn || '',
+    };
   });
+
+  const saveDraft = useCallback(() => {
+    updateCache(cacheKey, formData);
+  }, [formData, cacheKey, updateCache]);
 
   const mutation = useMutation({
     mutationFn: (data: CreateStaffDto | UpdateStaffDto) => editingId ? staffAPI.update(editingId, data as UpdateStaffDto) : staffAPI.create(data as CreateStaffDto),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
+      clearCache(cacheKey);
       onSuccess(res.data);
     },
-    onError: () => toast.error('Hata oluştu.')
+    onError: (error: unknown) => {
+      console.error(error);
+      let errorMsg = 'İşlem başarısız';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const response = (error as { response: { data?: { message?: string | string[] } } }).response;
+        if (response.data?.message) {
+          errorMsg = Array.isArray(response.data.message) ? response.data.message[0] : response.data.message;
+        }
+      }
+      toast.error(errorMsg);
+    }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -61,7 +92,7 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
 
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6 animate-in pb-4">
+    <form onSubmit={handleSubmit} onBlur={saveDraft} className="flex flex-col gap-6 animate-in pb-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormField label="Ad" required>
           <input 
@@ -127,7 +158,7 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
         </button>
         <button 
           type="button" 
-          onClick={onCancel}
+          onClick={() => { clearCache(cacheKey); onCancel(); }}
           className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all"
         >
           İPTAL

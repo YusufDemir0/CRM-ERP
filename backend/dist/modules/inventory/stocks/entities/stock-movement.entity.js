@@ -21,7 +21,7 @@ exports.StockMovement = StockMovement;
 __decorate([
     (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'stock_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], StockMovement.prototype, "stockId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'decimal', precision: 15, scale: 4, transformer: new decimal_transformer_1.DecimalTransformer() }),

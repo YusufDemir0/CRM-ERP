@@ -43,7 +43,7 @@ async function bootstrap() {
         forbidNonWhitelisted: true,
         transform: true,
         transformOptions: {
-            enableImplicitConversion: true,
+            enableImplicitConversion: false,
         },
     }));
     app.useGlobalInterceptors(new common_1.ClassSerializerInterceptor(app.get(core_1.Reflector)));
@@ -51,8 +51,8 @@ async function bootstrap() {
     app.enableShutdownHooks();
     logger.log('✅ Graceful shutdown hooks enabled');
     const port = configService.get('APP_PORT') || 5143;
-    await app.listen(port);
-    logger.log(`🚀 ERP Backend API running on http://localhost:${port}/api`);
+    await app.listen(port, '0.0.0.0');
+    logger.log(`🚀 ERP Backend API running on http://0.0.0.0:${port}/api`);
     logger.log(`📊 Health check: http://localhost:${port}/api/health`);
 }
 bootstrap();

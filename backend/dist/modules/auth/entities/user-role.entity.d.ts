@@ -1,8 +1,8 @@
 import { User } from './user.entity';
 import { Role } from './role.entity';
 export declare class UserRole {
-    userId: number;
-    roleId: number;
+    userId: string;
+    roleId: string;
     user: User;
     role: Role;
 }

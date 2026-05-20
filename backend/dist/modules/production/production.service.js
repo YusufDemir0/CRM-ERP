@@ -112,7 +112,7 @@ let ProductionService = ProductionService_1 = class ProductionService {
             const items = await manager.find(item_entity_1.Item, { where: { id: (0, typeorm_2.In)(itemIdsToFetch) } });
             const itemMap = new Map(items.map(i => [i.id, i]));
             for (const itemDto of dto.items) {
-                if (dto.targetItemId && Number(itemDto.itemId) === Number(dto.targetItemId)) {
+                if (dto.targetItemId && String(itemDto.itemId) === String(dto.targetItemId)) {
                     throw new common_1.BadRequestException('Üretilecek ürünün kendisi, reçete içeriğinde yer alamaz!');
                 }
                 const item = itemMap.get(itemDto.itemId);
@@ -150,24 +150,30 @@ let ProductionService = ProductionService_1 = class ProductionService {
         return this.findOneBom(savedBom.id);
     }
     async detectBomCycle(targetItemId, materialItemIds, manager) {
+        const allActiveBoms = await manager.find(bom_entity_1.Bom, {
+            where: { isActive: true },
+            relations: ['items'],
+        });
+        const bomMap = new Map();
+        for (const bom of allActiveBoms) {
+            if (bom.targetItemId) {
+                const materialIds = (bom.items || []).map(bi => bi.itemId);
+                bomMap.set(String(bom.targetItemId), materialIds);
+            }
+        }
         const visited = new Set();
         const stack = [...materialItemIds];
         while (stack.length > 0) {
             const currentId = stack.pop();
-            if (currentId === targetItemId)
+            if (String(currentId) === String(targetItemId))
                 return true;
             if (visited.has(currentId))
                 continue;
             visited.add(currentId);
-            const childBoms = await manager.find(bom_entity_1.Bom, {
-                where: { targetItemId: currentId, isActive: true },
-                relations: ['items'],
-            });
-            for (const childBom of childBoms) {
-                for (const bomItem of (childBom.items || [])) {
-                    if (!visited.has(bomItem.itemId)) {
-                        stack.push(bomItem.itemId);
-                    }
+            const children = bomMap.get(currentId) || [];
+            for (const childId of children) {
+                if (!visited.has(childId)) {
+                    stack.push(childId);
                 }
             }
         }
@@ -335,7 +341,7 @@ let ProductionService = ProductionService_1 = class ProductionService {
             throw new common_1.BadRequestException('Hedef ürün bulunamadı.');
         const itemsToDecrease = [];
         let totalMaterialCost = new decimal_js_1.Decimal(0);
-        const sortedItems = [...po.bom.items].sort((a, b) => a.itemId - b.itemId);
+        const sortedItems = [...po.bom.items].sort((a, b) => String(a.itemId).localeCompare(String(b.itemId)));
         for (const bomItem of sortedItems) {
             const requiredQty = finance_helper_1.FinanceHelper.mul(bomItem.quantity, producedQty);
             const cost = new decimal_js_1.Decimal(bomItem.item?.movingAverageCost || bomItem.item?.purchasePrice || 0);
@@ -384,25 +390,25 @@ exports.ProductionService = ProductionService;
 __decorate([
     (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [production_dto_1.CreateBomDto, Number]),
+    __metadata("design:paramtypes", [production_dto_1.CreateBomDto, String]),
     __metadata("design:returntype", Promise)
 ], ProductionService.prototype, "createBom", null);
 __decorate([
     (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, production_dto_1.UpdateBomDto, Number]),
+    __metadata("design:paramtypes", [String, production_dto_1.UpdateBomDto, String]),
     __metadata("design:returntype", Promise)
 ], ProductionService.prototype, "updateBom", null);
 __decorate([
     (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [production_dto_1.CreateProductionOrderDto, Number]),
+    __metadata("design:paramtypes", [production_dto_1.CreateProductionOrderDto, String]),
     __metadata("design:returntype", Promise)
 ], ProductionService.prototype, "createOrder", null);
 __decorate([
     (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, production_dto_1.UpdateProductionOrderDto, Number]),
+    __metadata("design:paramtypes", [String, production_dto_1.UpdateProductionOrderDto, String]),
     __metadata("design:returntype", Promise)
 ], ProductionService.prototype, "updateOrder", null);
 exports.ProductionService = ProductionService = ProductionService_1 = __decorate([

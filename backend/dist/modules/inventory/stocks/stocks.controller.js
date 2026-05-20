@@ -27,6 +27,9 @@ let StocksController = class StocksController {
         return this.stocksService.findAll(query);
     }
     getCriticalStocks() { return this.stocksService.getCriticalStocks(); }
+    findAllMovements(query) {
+        return this.stocksService.findAllMovements(query);
+    }
     getMovements(id, query) {
         return this.stocksService.getMovements(id, query);
     }
@@ -55,12 +58,20 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], StocksController.prototype, "getCriticalStocks", null);
 __decorate([
+    (0, common_1.Get)('movements'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW'),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], StocksController.prototype, "findAllMovements", null);
+__decorate([
     (0, common_1.Get)(':id/movements'),
     (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Query)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, pagination_dto_1.PaginationDto]),
+    __metadata("design:paramtypes", [String, pagination_dto_1.PaginationDto]),
     __metadata("design:returntype", void 0)
 ], StocksController.prototype, "getMovements", null);
 __decorate([
@@ -69,7 +80,7 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [inventory_dto_1.StockAdjustmentDto, Number]),
+    __metadata("design:paramtypes", [inventory_dto_1.StockAdjustmentDto, String]),
     __metadata("design:returntype", void 0)
 ], StocksController.prototype, "adjustStock", null);
 __decorate([
@@ -78,7 +89,7 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [inventory_dto_1.TransferStockDto, Number]),
+    __metadata("design:paramtypes", [inventory_dto_1.TransferStockDto, String]),
     __metadata("design:returntype", void 0)
 ], StocksController.prototype, "transferStock", null);
 __decorate([

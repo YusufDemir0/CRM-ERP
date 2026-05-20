@@ -16,12 +16,12 @@ let SystemLog = class SystemLog {
 exports.SystemLog = SystemLog;
 __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)({ type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], SystemLog.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'user_id', type: 'bigint', nullable: true }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], SystemLog.prototype, "userId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 100, nullable: true }),

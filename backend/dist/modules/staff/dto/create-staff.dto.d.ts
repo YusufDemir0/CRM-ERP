@@ -3,7 +3,7 @@ export declare class CreateStaffDto {
     lastName: string;
     phone?: string;
     entryDate?: string;
-    departmentId: number;
+    departmentId: string;
     isActive?: boolean;
     tckn?: string;
 }

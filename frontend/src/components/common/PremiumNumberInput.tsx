@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiPlus, FiMinus } from 'react-icons/fi';
 import { Decimal } from 'decimal.js';
 
@@ -24,6 +23,19 @@ export const PremiumNumberInput: React.FC<PremiumNumberInputProps> = ({
   className = '',
   disabled = false,
 }) => {
+  const [displayValue, setDisplayValue] = useState('');
+
+  useEffect(() => {
+    if (value === null || value === undefined || value === '') {
+      setDisplayValue('');
+      return;
+    }
+    const num = Number(value);
+    if (!isNaN(num)) {
+      setDisplayValue(new Intl.NumberFormat('tr-TR').format(num));
+    }
+  }, [value]);
+
   const numValue = new Decimal(value || 0);
 
   const handleIncrement = () => {
@@ -40,6 +52,46 @@ export const PremiumNumberInput: React.FC<PremiumNumberInputProps> = ({
     onChange(newVal.toNumber());
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value;
+    
+    if (val === '-') {
+      setDisplayValue('-');
+      return;
+    }
+    
+    // Remove all non-digit and non-comma/dot chars
+    let cleanVal = val.replace(/[^\d.,-]/g, '');
+    
+    // Convert thousands separator (dot in TR) to empty, and decimal (comma) to dot
+    // If user types 100.000, we want to parse it as 100000
+    // But what if they type a decimal like 10,5?
+    
+    // Better logic: remove all dots, replace comma with dot
+    cleanVal = cleanVal.replace(/\./g, '');
+    cleanVal = cleanVal.replace(/,/g, '.');
+
+    if (cleanVal === '' || cleanVal === '-') {
+      onChange(0);
+      setDisplayValue(cleanVal);
+      return;
+    }
+
+    const num = Number(cleanVal);
+    if (!isNaN(num)) {
+      onChange(num);
+      // Format the display value right away to enforce 100.000 format
+      setDisplayValue(new Intl.NumberFormat('tr-TR').format(num));
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Prevent 'e', 'E', '+', and other non-numeric math keys that cause issues
+    if (['e', 'E', '+', ' ', 'a', 'A'].includes(e.key)) {
+      e.preventDefault();
+    }
+  };
+
   return (
     <div className={`relative flex items-center w-full ${className}`}>
       <button
@@ -53,12 +105,10 @@ export const PremiumNumberInput: React.FC<PremiumNumberInputProps> = ({
       </button>
 
       <input
-        type="number"
-        step="any"
-        min={min}
-        max={max}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        type="text"
+        value={displayValue}
+        onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
         className="input-premium w-full h-12 px-10 text-center font-black tabular-nums text-base focus:ring-2 focus:ring-primary/20"

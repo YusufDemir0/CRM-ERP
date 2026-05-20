@@ -55,7 +55,7 @@ export function StocksPage() {
   const setPage = (p: number) => updateParams({ page: p });
   const setFilterTab = (tab: string) => updateParams({ tab, page: 1 });
   const setSearchTerm = (q: string) => updateParams({ q, page: 1 });
-  const setSort = (key: string, order: 'ASC' | 'DESC') => updateParams({ sortBy: key, sortOrder: order, page: 1 });
+  const setSort = useCallback((key: string, order: 'ASC' | 'DESC') => updateParams({ sortBy: key, sortOrder: order, page: 1 }), [updateParams]);
   const [formData, setFormData] = useState({
     itemId: '',
     departmentId: '',
@@ -110,17 +110,16 @@ export function StocksPage() {
   const stocks = stocksData?.data || [];
   const paginationMeta = stocksData?.meta;
 
+  const handleSortChange = useCallback((configs: { key: string; direction: 'asc' | 'desc' }[]) => {
+    if (configs.length > 0) {
+      setSort(configs[0].key, configs[0].direction.toUpperCase() as 'ASC' | 'DESC');
+    }
+  }, [setSort]);
+
   const { sortedData, sortConfigs, toggleSort } = useSort<Stock>(
     stocks, 
     [{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }],
-    (configs) => {
-      if (configs.length > 0) {
-        setSort(
-          configs[0].key, 
-          configs[0].direction.toUpperCase() as 'ASC' | 'DESC' 
-        );
-      }
-    }
+    handleSortChange
   );
 
   const { data: movementsData = [], isLoading: movementsLoading } = useQuery({
@@ -335,7 +334,7 @@ export function StocksPage() {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => { setFilterTab(tab.id as 'active' | 'passive' | 'all' | 'critical'); setPage(1); }}
+                onClick={() => setFilterTab(tab.id as 'active' | 'passive' | 'all' | 'critical')}
                 className={`h-9 px-4 rounded-xl text-xs font-black flex items-center gap-2 transition-colors ${
                   filterTab === tab.id 
                     ? (tab.id === 'critical' ? 'bg-danger text-white' : 'bg-white text-primary shadow-premium') 
@@ -373,11 +372,12 @@ export function StocksPage() {
         
         // Integrated Search & Pagination
         search={searchTerm}
-        onSearchChange={(val) => { setSearchTerm(val); setPage(1); }}
+        onSearchChange={setSearchTerm}
         total={paginationMeta?.total || 0}
         page={page}
         limit={limit}
         onPageChange={setPage}
+        virtualized={true}
       />
 
       {/* MODALS */}

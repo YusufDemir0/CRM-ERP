@@ -51,9 +51,9 @@ __decorate([
 ], LogsController.prototype, "getNotifications", null);
 __decorate([
     (0, common_1.Post)('notifications/:id/read'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], LogsController.prototype, "markAsRead", null);
 __decorate([

@@ -36,7 +36,7 @@ let CurrenciesService = class CurrenciesService {
         };
     }
     async findOne(id) {
-        const curr = await this.currencyRepo.findOne({ where: { id } });
+        const curr = await this.currencyRepo.findOne({ where: { id: String(id) } });
         if (!curr)
             throw new common_1.NotFoundException('Para birimi bulunamadı');
         return curr;

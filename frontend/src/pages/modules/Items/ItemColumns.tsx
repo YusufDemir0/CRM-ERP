@@ -2,7 +2,7 @@
 import { FiAlertTriangle, FiPackage } from 'react-icons/fi';
 import { Column } from '../../../components/common/DataTable';
 import { Item } from '../../../types';
-import { Decimal } from 'decimal.js';
+import Decimal from 'decimal.js';
 
 export const getItemColumns = (
   getStockAlert: (id: number, qty: number) => { isOver: boolean; totalAvailable: number }

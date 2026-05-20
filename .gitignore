@@ -49,3 +49,4 @@ infrastructure/terraform/*.tfvars
 
 # === Misc ===
 .gemini/
+.env

@@ -19,7 +19,7 @@ export declare class CreateAccountDto {
     bankName?: string;
     iban?: string;
     ibanName?: string;
-    currencyId: number;
+    currencyId: string;
     criticalLimit?: Decimal;
     description?: string;
 }
@@ -29,23 +29,23 @@ export declare class UpdateAccountDto {
     iban?: string;
     ibanName?: string;
     criticalLimit?: Decimal;
-    currencyId?: number;
+    currencyId: string;
     description?: string;
     state?: number;
 }
 export declare class CreateTransactionDto {
-    partyId?: number;
-    commercialAccountId: number;
+    partyId: string;
+    commercialAccountId: string;
     amount: string;
-    currencyId?: number;
+    currencyId: string;
     type: 'in' | 'out';
     referenceType?: 'sale' | 'purchase' | 'manual_adjustment' | 'manual' | 'sale_deposit';
-    referenceId?: number;
+    referenceId: string;
     date: string;
     description?: string;
 }
 export declare class TransactionsQueryDto extends PaginationDto {
-    partyId?: number;
+    partyId: string;
     type?: string;
     status?: string;
 }

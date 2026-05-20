@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { DepartmentsService } from './departments.service';
-import { CreateDepartmentDto, UpdateDepartmentDto, CreateDepartmentTypeDto, UpdateDepartmentTypeDto } from './dto/department.dto';
+import { CreateDepartmentDto, UpdateDepartmentDto, CreateDepartmentTypeDto, UpdateDepartmentTypeDto, DepartmentsQueryDto } from './dto/department.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -10,7 +10,7 @@ export class DepartmentsController {
   constructor(private readonly deptService: DepartmentsService) {}
 
   @Get()
-  findAll(@Query() query: PaginationDto) { return this.deptService.findAll(query as any); }
+  findAll(@Query() query: DepartmentsQueryDto) { return this.deptService.findAll(query); }
 
   @Get('status')
   getStatus() { return this.deptService.getStatus(); }

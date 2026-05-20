@@ -18,7 +18,7 @@ let Staff = class Staff {
 exports.Staff = Staff;
 __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)({ type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], Staff.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Column)({ default: 1 }),
@@ -26,7 +26,7 @@ __decorate([
 ], Staff.prototype, "state", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'created_by', nullable: true, type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], Staff.prototype, "createdBy", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)({ name: 'created_at' }),
@@ -34,7 +34,7 @@ __decorate([
 ], Staff.prototype, "createdAt", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'updated_by', nullable: true, type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], Staff.prototype, "updatedBy", void 0);
 __decorate([
     (0, typeorm_1.UpdateDateColumn)({ name: 'updated_at' }),
@@ -70,7 +70,7 @@ __decorate([
 ], Staff.prototype, "tckn", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'department_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], Staff.prototype, "departmentId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'is_active', default: true }),

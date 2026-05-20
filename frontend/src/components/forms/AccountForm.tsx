@@ -12,6 +12,7 @@ import { PremiumNumberInput } from '../common/PremiumNumberInput';
 interface AccountFormProps {
   initialData?: Partial<Account>;
   editingId?: string | number | null;
+  mode?: 'quick' | 'full';
   onSuccess: (data: unknown) => void;
   onCancel: () => void;
 }
@@ -29,6 +30,7 @@ type AccountFormData = {
 export const AccountForm: React.FC<AccountFormProps> = ({
   initialData,
   editingId,
+  mode = 'full',
   onSuccess,
   onCancel,
 }) => {
@@ -38,12 +40,12 @@ export const AccountForm: React.FC<AccountFormProps> = ({
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   
   const { register, handleSubmit, setValue, getValues, watch } = useForm<AccountFormData>({
-    defaultValues: (getCache(cacheKey) as AccountFormData) || {
+    defaultValues: (editingId ? null : getCache(cacheKey) as AccountFormData | null) || {
       name: initialData?.name || '',
       bankName: initialData?.bankName || '',
       iban: initialData?.iban || '',
       ibanName: initialData?.ibanName || '',
-      currencyId: String(initialData?.currencyId || ''),
+      currencyId: initialData?.currencyId ? String(initialData.currencyId) : '',
       criticalLimit: Number(initialData?.criticalLimit || 0),
       description: initialData?.description || ''
     }
@@ -75,6 +77,27 @@ export const AccountForm: React.FC<AccountFormProps> = ({
     fetchCurrencies();
     return () => controller.abort();
   }, [getValues, setValue]);
+
+  // Re-apply initial values once lookups are loaded
+  useEffect(() => {
+    if (currencies.length > 0 && initialData?.currencyId) {
+      setValue('currencyId', String(initialData.currencyId));
+    }
+  }, [currencies, initialData, setValue]);
+
+  // Handle initialData changes for better hydration
+  useEffect(() => {
+    if (initialData && editingId) {
+      (Object.entries(initialData) as [keyof AccountFormData | string, unknown][]).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        if (key === 'currencyId') setValue('currencyId', String(value));
+        else if (key === 'criticalLimit') setValue('criticalLimit', Number(value));
+        else if (['name', 'bankName', 'iban', 'ibanName', 'description'].includes(key)) {
+          setValue(key as keyof AccountFormData, String(value));
+        }
+      });
+    }
+  }, [initialData, editingId, setValue]);
 
   /* 🔥 DEFAULT CURRENCY SELECTION */
   useEffect(() => {
@@ -121,8 +144,16 @@ export const AccountForm: React.FC<AccountFormProps> = ({
         clearCache(cacheKey);
         onSuccess(res.data);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(error);
+      let errorMsg = 'İşlem başarısız';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const response = (error as { response: { data?: { message?: string | string[] } } }).response;
+        if (response.data?.message) {
+          errorMsg = Array.isArray(response.data.message) ? response.data.message[0] : response.data.message;
+        }
+      }
+      toast.error(errorMsg);
     }
   };
 
@@ -181,35 +212,37 @@ export const AccountForm: React.FC<AccountFormProps> = ({
         />
       </FormField>
 
-      <FormField label="Kritik Bakiye / Eksi Limit" className="bg-[var(--primary-glow)] p-5 rounded-2xl border border-[var(--primary-glow)]">
-        <div className="flex flex-col gap-3">
-          <PremiumNumberInput 
-            value={watch('criticalLimit')} 
-            onChange={val => setValue('criticalLimit', val)} 
-            className="h-14"
-          />
-          <div className="flex gap-2">
-            {[
-              { val: -10000, label: '-10K', color: 'bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-600 hover:text-white' },
-              { val: -1000, label: '-1K', color: 'bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-600 hover:text-white' },
-              { val: 1000, label: '+1K', color: 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-600 hover:text-white' },
-              { val: 10000, label: '+10K', color: 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-600 hover:text-white' }
-            ].map(btn => (
-              <button
-                key={btn.label}
-                type="button"
-                onClick={() => {
-                  const current = Number(getValues('criticalLimit') || 0);
-                  setValue('criticalLimit', Math.max(0, current + btn.val));
-                }}
-                className={`flex-1 h-10 rounded-xl border text-[10px] font-black transition-all ${btn.color}`}
-              >
-                {btn.label}
-              </button>
-            ))}
+      {mode !== 'quick' && (
+        <FormField label="Kritik Bakiye / Eksi Limit" className="bg-[var(--primary-glow)] p-5 rounded-2xl border border-[var(--primary-glow)]">
+          <div className="flex flex-col gap-3">
+            <PremiumNumberInput 
+              value={watch('criticalLimit')} 
+              onChange={val => setValue('criticalLimit', val)} 
+              className="h-14"
+            />
+            <div className="flex gap-2">
+              {[
+                { val: -10000, label: '-10K', color: 'bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-600 hover:text-white' },
+                { val: -1000, label: '-1K', color: 'bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-600 hover:text-white' },
+                { val: 1000, label: '+1K', color: 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-600 hover:text-white' },
+                { val: 10000, label: '+10K', color: 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-600 hover:text-white' }
+              ].map(btn => (
+                <button
+                  key={btn.label}
+                  type="button"
+                  onClick={() => {
+                    const current = Number(getValues('criticalLimit') || 0);
+                    setValue('criticalLimit', Math.max(0, current + btn.val));
+                  }}
+                  className={`flex-1 h-10 rounded-xl border text-[10px] font-black transition-all ${btn.color}`}
+                >
+                  {btn.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      </FormField>
+        </FormField>
+      )}
 
       <FormField label="Açıklama">
         <input 

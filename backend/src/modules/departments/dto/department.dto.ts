@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsInt } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsInt, ValidateIf } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 
@@ -39,13 +39,16 @@ export class UpdateDepartmentDto {
   abbreviation?: string;
 
   @IsOptional()
-  @IsString() departmentTypeId: string;
+  @ValidateIf((_o, value) => value !== null)
+  @IsString() departmentTypeId: string | null;
 
   @IsOptional()
-  @IsString() commercialAccountId: string;
+  @ValidateIf((_o, value) => value !== null)
+  @IsString() commercialAccountId: string | null;
 
   @IsOptional()
-  @IsString() cityId: string;
+  @ValidateIf((_o, value) => value !== null)
+  @IsString() cityId: string | null;
 
   @IsOptional()
   @IsNumber()

@@ -8,6 +8,9 @@ import { useSalesWizardStore } from '../../../store/useSalesWizardStore';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { salesWizardSchema, SalesWizardFormData } from './schema';
+import { SelectedItem } from './types';
+import { useState } from 'react';
+
 
 export default function SaleWizardPage() {
   const navigate = useNavigate();
@@ -34,6 +37,8 @@ export default function SaleWizardPage() {
       discountAmount: Number(useSalesWizardStore.getState().draftData.discountAmount) || 0,
       source: useSalesWizardStore.getState().draftData.source || '',
       isTaxed: useSalesWizardStore.getState().draftData.isTaxed ?? true,
+      isInvoiced: useSalesWizardStore.getState().draftData.isInvoiced ?? true,
+      representativePrice: useSalesWizardStore.getState().draftData.representativePrice || '0',
       description: useSalesWizardStore.getState().draftData.description || '',
       items: (useSalesWizardStore.getState().draftData.selectedItems || []).map(i => ({
         id: String(i.id),
@@ -43,7 +48,7 @@ export default function SaleWizardPage() {
         taxRate: i.taxRate || 20
       }))
     },
-    mode: 'onChange'
+    mode: 'onTouched'
   });
 
   // Auto-save draft without causing re-renders
@@ -68,9 +73,19 @@ export default function SaleWizardPage() {
           discountAmount: String(value.discountAmount || 0),
           source: value.source || '',
           isTaxed: !!value.isTaxed,
+          isInvoiced: value.isInvoiced ?? true,
+          representativePrice: value.representativePrice || '0',
           description: value.description || '',
           staffId: value.staffId || '',
-          selectedItems: (value.items as any[]) || []
+          selectedItems: (value.items as SalesWizardFormData['items'] || []).map(item => ({
+            id: String(item.id),
+            name: item.name || '',
+            quantity: item.quantity || 0,
+            unitPrice: item.unitPrice || 0,
+            taxRate: item.taxRate || 20,
+            // Keep other fields if they existed in currentDraft.selectedItems
+            ...(currentDraft.selectedItems.find(si => String(si.id) === String(item.id)) || {})
+          })) as SelectedItem[]
         });
       }, 1000);
     });

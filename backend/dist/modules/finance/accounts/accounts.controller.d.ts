@@ -10,8 +10,8 @@ export declare class AccountsController {
         total: number;
         totalBalance: string;
     }>;
-    findOne(id: number): Promise<import("./entities/commercial-account.entity").CommercialAccount>;
-    create(dto: CreateAccountDto, userId: number): Promise<import("./entities/commercial-account.entity").CommercialAccount>;
-    update(id: number, dto: UpdateAccountDto, userId: number): Promise<import("./entities/commercial-account.entity").CommercialAccount>;
-    remove(id: number): Promise<void>;
+    findOne(id: string): Promise<import("./entities/commercial-account.entity").CommercialAccount>;
+    create(dto: CreateAccountDto, userId: string): Promise<import("./entities/commercial-account.entity").CommercialAccount>;
+    update(id: string, dto: UpdateAccountDto, userId: string): Promise<import("./entities/commercial-account.entity").CommercialAccount>;
+    remove(id: string): Promise<void>;
 }

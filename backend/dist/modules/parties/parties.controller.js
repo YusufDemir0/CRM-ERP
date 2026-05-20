@@ -24,6 +24,7 @@ let PartiesController = class PartiesController {
     }
     findAll(query) { return this.partiesService.findAll(query); }
     getStatus() { return this.partiesService.getStatus(); }
+    lookup(type) { return this.partiesService.lookup(type); }
     findOne(id) { return this.partiesService.findOne(id); }
     getBalance(id) { return this.partiesService.getBalance(id); }
     create(dto, userId) { return this.partiesService.create(dto, userId); }
@@ -49,19 +50,27 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PartiesController.prototype, "getStatus", null);
 __decorate([
+    (0, common_1.Get)('lookup'),
+    (0, permissions_decorator_1.RequirePermissions)('CUSTOMER_VIEW'),
+    __param(0, (0, common_1.Query)('type')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], PartiesController.prototype, "lookup", null);
+__decorate([
     (0, common_1.Get)(':id'),
     (0, permissions_decorator_1.RequirePermissions)('CUSTOMER_VIEW'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], PartiesController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Get)(':id/balance'),
     (0, permissions_decorator_1.RequirePermissions)('CUSTOMER_VIEW'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], PartiesController.prototype, "getBalance", null);
 __decorate([
@@ -70,25 +79,25 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [party_dto_1.CreatePartyDto, Number]),
+    __metadata("design:paramtypes", [party_dto_1.CreatePartyDto, String]),
     __metadata("design:returntype", void 0)
 ], PartiesController.prototype, "create", null);
 __decorate([
     (0, common_1.Put)(':id'),
     (0, permissions_decorator_1.RequirePermissions)('CUSTOMER_EDIT'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, party_dto_1.UpdatePartyDto, Number]),
+    __metadata("design:paramtypes", [String, party_dto_1.UpdatePartyDto, String]),
     __metadata("design:returntype", void 0)
 ], PartiesController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     (0, permissions_decorator_1.RequirePermissions)('CUSTOMER_DELETE'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], PartiesController.prototype, "remove", null);
 exports.PartiesController = PartiesController = __decorate([

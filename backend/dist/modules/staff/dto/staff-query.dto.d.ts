@@ -1,6 +1,6 @@
 export declare class StaffQueryDto {
     search?: string;
-    departmentId?: number;
+    departmentId: string;
     state?: number;
     page?: number;
     limit?: number;

@@ -5,22 +5,22 @@ export declare class NotesController {
     constructor(notesService: NotesService);
     findAll(req: {
         user: {
-            id: number;
+            id: string;
         };
     }): Promise<UserNote[]>;
     create(req: {
         user: {
-            id: number;
+            id: string;
         };
     }, data: Partial<UserNote>): Promise<UserNote>;
     update(req: {
         user: {
-            id: number;
+            id: string;
         };
     }, id: string, data: Partial<UserNote>): Promise<UserNote>;
     remove(req: {
         user: {
-            id: number;
+            id: string;
         };
     }, id: string): Promise<void>;
 }

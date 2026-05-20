@@ -26,6 +26,8 @@ const stock_movement_entity_1 = require("./stocks/entities/stock-movement.entity
 const sequence_generator_service_1 = require("../../common/services/sequence-generator.service");
 const inventory_listener_1 = require("./listeners/inventory.listener");
 const bom_item_entity_1 = require("../production/entities/bom-item.entity");
+const stocks_reports_service_1 = require("./stocks/stocks-reports.service");
+const stocks_transactions_service_1 = require("./stocks/stocks-transactions.service");
 let InventoryModule = class InventoryModule {
 };
 exports.InventoryModule = InventoryModule;
@@ -41,8 +43,8 @@ exports.InventoryModule = InventoryModule = __decorate([
             logs_module_1.LogsModule,
         ],
         controllers: [items_controller_1.ItemsController, stocks_controller_1.StocksController],
-        providers: [items_service_1.ItemsService, stocks_service_1.StocksService, sequence_generator_service_1.SequenceGeneratorService, inventory_listener_1.InventoryListener],
-        exports: [items_service_1.ItemsService, stocks_service_1.StocksService, sequence_generator_service_1.SequenceGeneratorService],
+        providers: [items_service_1.ItemsService, stocks_service_1.StocksService, stocks_reports_service_1.StocksReportsService, stocks_transactions_service_1.StocksTransactionsService, sequence_generator_service_1.SequenceGeneratorService, inventory_listener_1.InventoryListener],
+        exports: [items_service_1.ItemsService, stocks_service_1.StocksService, stocks_reports_service_1.StocksReportsService, stocks_transactions_service_1.StocksTransactionsService, sequence_generator_service_1.SequenceGeneratorService],
     })
 ], InventoryModule);
 //# sourceMappingURL=inventory.module.js.map

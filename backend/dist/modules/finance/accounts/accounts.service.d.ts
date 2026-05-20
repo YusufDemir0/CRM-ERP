@@ -9,10 +9,10 @@ export declare class AccountsService {
     private currenciesService;
     constructor(accRepo: Repository<CommercialAccount>, dataSource: DataSource, currenciesService: CurrenciesService);
     findAll(query: PaginationDto): Promise<PaginatedResult<CommercialAccount>>;
-    findOne(id: number): Promise<CommercialAccount>;
-    create(dto: CreateAccountDto, userId?: number): Promise<CommercialAccount>;
-    update(id: number, dto: UpdateAccountDto, userId?: number): Promise<CommercialAccount>;
-    softDelete(id: number): Promise<void>;
+    findOne(id: string): Promise<CommercialAccount>;
+    create(dto: CreateAccountDto, userId: string): Promise<CommercialAccount>;
+    update(id: string, dto: UpdateAccountDto, userId: string): Promise<CommercialAccount>;
+    softDelete(id: string): Promise<void>;
     getStatus(): Promise<{
         active: number;
         passive: number;

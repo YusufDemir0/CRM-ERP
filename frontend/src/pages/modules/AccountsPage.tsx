@@ -85,14 +85,14 @@ export default function AccountsPage() {
   const toggleMutation = useMutation({
     mutationFn: ({ id, state }: { id: string | number; state: number }) => accountsAPI.toggleState(id, state),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all({}) });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
       toast.success("Durum güncellendi");
     },
     onError: () => toast.error("İşlem başarısız oldu.")
   });
 
-  const handleFormSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all({}) });
+  const handleFormSubmit = () => {
+    queryClient.invalidateQueries({ queryKey: ['accounts'] });
     toast.success("Hesap bilgileri kaydedildi.");
   };
 
@@ -104,11 +104,11 @@ export default function AccountsPage() {
         bankName: acc.bankName || '',
         iban: acc.iban || '',
         ibanName: acc.ibanName || '',
-        currencyId: acc.currencyId || '',
+        currencyId: acc.currencyId ? String(acc.currencyId) : '',
         criticalLimit: Number(acc.criticalLimit) || 0,
         description: acc.description || ''
       },
-      onSuccess: handleFormSuccess
+      onSuccess: handleFormSubmit
     });
   };
 
@@ -164,6 +164,20 @@ export default function AccountsPage() {
       },
       sortKey: 'criticalLimit',
       className: 'text-right'
+    },
+    {
+      header: 'DURUM',
+      accessor: (acc) => (
+        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+          acc.state === 1 
+            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
+            : 'bg-red-50 text-red-600 border border-red-100'
+        }`}>
+          <div className={`w-1.5 h-1.5 rounded-full ${acc.state === 1 ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+          {acc.state === 1 ? 'AKTİF' : 'ARŞİV'}
+        </div>
+      ),
+      sortKey: 'state'
     }
   ];
 
@@ -182,7 +196,7 @@ export default function AccountsPage() {
         </div>
         
         <div className="flex flex-wrap gap-4 items-center">
-          <div className="flex bg-surface-container-low p-1 rounded-2xl border border-surface-container">
+          <div className="flex bg-surface-container-low p-1 rounded-2xl border border-surface-container shadow-sm">
             {[
               { id: 'active', label: 'Aktif', icon: <FiActivity /> },
               { id: 'passive', label: 'Arşiv', icon: <FiArchive /> },
@@ -190,17 +204,19 @@ export default function AccountsPage() {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => { setFilterTab(tab.id as 'active' | 'passive' | 'all'); setPage(1); }}
-                className={`h-9 px-4 rounded-xl text-xs font-black flex items-center gap-2 transition-colors ${
-                  filterTab === tab.id ? 'bg-white text-primary shadow-premium' : 'text-slate-400 hover:text-slate-600'
+                onClick={() => setFilterTab(tab.id)}
+                className={`h-9 px-4 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
+                  filterTab === tab.id 
+                    ? 'bg-white text-primary shadow-premium ring-1 ring-black/5' 
+                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50/50'
                 }`}
               >
-                {tab.icon} {tab.label}
+                {tab.icon} {tab.label.toUpperCase()}
               </button>
             ))}
           </div>
           <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
-            openCreate('account', { onSuccess: handleFormSuccess });
+            openCreate('account', { onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all({}) }) });
           }}>
             <FiPlus size={20} /> Yeni Hesap
           </button>
@@ -223,7 +239,7 @@ export default function AccountsPage() {
           
           // Integrated Search & Pagination
           search={searchTerm}
-          onSearchChange={(val) => { setSearchTerm(val); setPage(1); }}
+          onSearchChange={setSearchTerm}
           total={paginationMeta.total}
           page={page}
           limit={limit}

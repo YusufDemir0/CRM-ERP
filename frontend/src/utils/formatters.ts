@@ -1,4 +1,4 @@
-import { Decimal } from 'decimal.js';
+import Decimal from 'decimal.js';
 
 /**
  * formatDecimal
@@ -6,13 +6,26 @@ import { Decimal } from 'decimal.js';
  * Uses Decimal.toFixed() to get a safe string, then manually applies TR formatting.
  * NEVER calls .toNumber() — prevents IEEE-754 rounding for large values.
  */
-export const formatDecimal = (val: number | string | Decimal | null | undefined, decimals = 2): string => {
-  const d = new Decimal(val || 0);
-  const fixed = d.toFixed(decimals); // "1234567.89" — precision-safe string
-  const [intPart, fracPart] = fixed.split('.');
-  // TR locale: thousands separator is ".", decimal separator is ","
-  const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return fracPart ? `${formattedInt},${fracPart}` : formattedInt;
+export const formatDecimal = (val: any, decimals = 2): string => {
+  if (val === null || val === undefined) return "0".padEnd(decimals > 0 ? decimals + 2 : 1, "0").replace(".", ",");
+  
+  try {
+    // Handle case where backend sends a Decimal object state instead of string/number
+    let safeVal = val;
+    if (typeof val === 'object' && !Decimal.isDecimal(val)) {
+      safeVal = val.toString() === '[object Object]' ? (val.value || 0) : val.toString();
+    }
+    
+    const d = new Decimal(safeVal);
+    const fixed = d.toFixed(decimals); // "1234567.89" — precision-safe string
+    const [intPart, fracPart] = fixed.split('.');
+    // TR locale: thousands separator is ".", decimal separator is ","
+    const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return fracPart ? `${formattedInt},${fracPart}` : formattedInt;
+  } catch (e) {
+    console.warn("formatDecimal error for value:", val, e);
+    return "0,00";
+  }
 };
 
 /**

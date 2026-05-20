@@ -11,7 +11,7 @@ interface ViewSaleModalProps {
 export const ViewSaleModal: React.FC<ViewSaleModalProps> = ({ sale, onClose }) => {
   return (
     <div className="loader-overlay items-start pt-[5%] pb-[5%] overflow-y-auto">
-      <div className="login-box max-w-[900px] w-full relative">
+      <div className="login-box !max-w-[1600px] w-[95%] relative">
         <button className="btn-icon circle absolute top-4 right-4" onClick={onClose}>
           <FiX size={20}/>
         </button>

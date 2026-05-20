@@ -26,10 +26,10 @@ let NotesController = class NotesController {
         return this.notesService.create(req.user.id, data);
     }
     async update(req, id, data) {
-        return this.notesService.update(+id, req.user.id, data);
+        return this.notesService.update(id, req.user.id, data);
     }
     async remove(req, id) {
-        return this.notesService.remove(+id, req.user.id);
+        return this.notesService.remove(id, req.user.id);
     }
 };
 exports.NotesController = NotesController;

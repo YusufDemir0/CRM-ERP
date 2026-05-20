@@ -13,7 +13,7 @@ export declare class InventorySaleListener implements OnModuleInit {
     private setupConsumer;
     handleSaleApproved(payload: {
         sale: Sale;
-        departmentId: number;
-        userId?: number;
+        departmentId: string;
+        userId: string;
     }): Promise<void>;
 }

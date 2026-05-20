@@ -16,7 +16,7 @@ class RecentActionDto {
 exports.RecentActionDto = RecentActionDto;
 __decorate([
     (0, class_transformer_1.Expose)(),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], RecentActionDto.prototype, "id", void 0);
 __decorate([
     (0, class_transformer_1.Expose)(),

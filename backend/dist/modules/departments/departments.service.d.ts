@@ -12,14 +12,14 @@ export declare class DepartmentsService {
     private stockRepo;
     constructor(deptRepo: Repository<Department>, typeRepo: Repository<DepartmentType>, userRepo: Repository<User>, stockRepo: Repository<Stock>);
     findAll(query: DepartmentsQueryDto): Promise<PaginatedResult<Department>>;
-    findOne(id: number): Promise<Department>;
-    create(dto: CreateDepartmentDto, userId?: number): Promise<Department>;
-    update(id: number, dto: UpdateDepartmentDto, userId?: number): Promise<Department>;
-    softDelete(id: number): Promise<void>;
+    findOne(id: string): Promise<Department>;
+    create(dto: CreateDepartmentDto, userId: string): Promise<Department>;
+    update(id: string, dto: UpdateDepartmentDto, userId: string): Promise<Department>;
+    softDelete(id: string): Promise<void>;
     findAllTypes(): Promise<DepartmentType[]>;
-    createType(dto: CreateDepartmentTypeDto, userId?: number): Promise<DepartmentType>;
-    updateType(id: number, dto: UpdateDepartmentTypeDto, userId?: number): Promise<DepartmentType>;
-    softDeleteType(id: number): Promise<void>;
+    createType(dto: CreateDepartmentTypeDto, userId: string): Promise<DepartmentType>;
+    updateType(id: string, dto: UpdateDepartmentTypeDto, userId: string): Promise<DepartmentType>;
+    softDeleteType(id: string): Promise<void>;
     getStatus(): Promise<{
         active: number;
         passive: number;

@@ -22,12 +22,12 @@ let Stock = class Stock extends base_entity_1.BaseEntity {
 exports.Stock = Stock;
 __decorate([
     (0, typeorm_1.Column)({ name: 'item_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], Stock.prototype, "itemId", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'department_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], Stock.prototype, "departmentId", void 0);
 __decorate([
     (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),

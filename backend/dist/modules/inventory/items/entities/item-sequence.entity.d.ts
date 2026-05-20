@@ -1,6 +1,6 @@
 export declare class ItemSequence {
-    id: number;
-    itemTypeId: number;
+    id: string;
+    itemTypeId: string;
     currentNumber: number;
     createdBy: number | null;
     createdAt: Date;

@@ -8,6 +8,7 @@ interface PhoneInputProps {
   onChange: (fullValue: string) => void;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 export const PhoneInput: React.FC<PhoneInputProps> = ({
@@ -16,6 +17,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   onChange,
   placeholder = '5XX XXX XX XX',
   className = '',
+  disabled = false,
 }) => {
   // Extract country code and local number from value (format: +90 5XX XXX XX XX)
   const parts = value.split(' ');
@@ -63,15 +65,15 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
       <div className="flex gap-2">
         <div className="relative shrink-0">
           <div 
-            onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center gap-2 h-12 px-3 bg-white border border-[var(--border)] rounded-xl cursor-pointer hover:border-[var(--primary)] transition-all font-bold text-sm"
+            onClick={() => !disabled && setIsOpen(!isOpen)}
+            className={`flex items-center gap-2 h-12 px-3 border border-[var(--border)] rounded-xl transition-all font-bold text-sm ${disabled ? 'bg-slate-50/50 text-slate-500 cursor-not-allowed border-slate-200 opacity-60' : 'bg-white cursor-pointer hover:border-[var(--primary)]'}`}
           >
             <span>{currentCountry.flag}</span>
             <span>{currentCountry.code}</span>
             <FiChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </div>
 
-          {isOpen && (
+          {isOpen && !disabled && (
             <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-[var(--border)] rounded-xl shadow-xl z-[150] max-h-60 overflow-y-auto">
               {COUNTRY_CODES.map((c) => (
                 <div 
@@ -92,7 +94,8 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
 
         <input 
           type="tel"
-          className="flex-1"
+          disabled={disabled}
+          className={`flex-1 ${disabled ? 'bg-slate-50/50 text-slate-500 cursor-not-allowed border-slate-200' : ''}`}
           placeholder={placeholder}
           value={formatLocalNumber(localNumber)}
           onChange={handleNumberChange}

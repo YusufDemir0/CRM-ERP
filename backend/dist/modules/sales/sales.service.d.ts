@@ -25,20 +25,20 @@ export declare class SalesService {
     private readonly logger;
     constructor(saleRepo: Repository<Sale>, saleItemRepo: Repository<SaleItem>, saleTypeRepo: Repository<SaleType>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, stocksService: StocksService, logsService: LogsService, transactionContext: TransactionContextService, outboxService: OutboxService);
     findAllSaleTypes(): Promise<SaleType[]>;
-    createSaleType(dto: CreateSaleTypeDto, userId?: number): Promise<SaleType>;
+    createSaleType(dto: CreateSaleTypeDto, userId: string): Promise<SaleType>;
     findAll(query: SalesQueryDto, user?: JwtPayload): Promise<PaginatedResult<Sale>>;
-    findOne(id: number): Promise<Sale>;
+    findOne(id: string): Promise<Sale>;
     private fetchItemData;
-    create(dto: CreateSaleDto, userId?: number): Promise<Sale>;
-    update(id: number, dto: UpdateSaleDto, userId?: number): Promise<Sale>;
-    approveSale(saleId: number, dto: ApproveSaleDto, userId?: number): Promise<Sale>;
-    cancelSale(saleId: number, userId?: number): Promise<Sale>;
-    softDelete(id: number): Promise<void>;
+    create(dto: CreateSaleDto, userId: string): Promise<Sale>;
+    update(id: string, dto: UpdateSaleDto, userId: string): Promise<Sale>;
+    approveSale(saleId: string, dto: ApproveSaleDto, userId: string): Promise<Sale>;
+    cancelSale(saleId: string, userId: string): Promise<Sale>;
+    softDelete(id: string): Promise<void>;
     getStatus(): Promise<{
         monthlyRevenue: Decimal;
         monthlyOrders: Decimal;
         pendingOrders: Decimal;
     }>;
-    shipSale(saleId: number, dto: ShipSaleDto, userId?: number): Promise<Sale>;
+    shipSale(saleId: string, dto: ShipSaleDto, userId: string): Promise<Sale>;
     exportToExcel(query: SalesQueryDto, user: JwtPayload, res: Response): Promise<void>;
 }

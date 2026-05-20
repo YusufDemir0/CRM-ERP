@@ -18,10 +18,8 @@ class CreateSaleItemDto {
 }
 exports.CreateSaleItemDto = CreateSaleItemDto;
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateSaleItemDto.prototype, "itemId", void 0);
 __decorate([
     (0, class_validator_1.IsNotEmpty)(),
@@ -62,30 +60,22 @@ class CreateSaleDto {
 }
 exports.CreateSaleDto = CreateSaleDto;
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateSaleDto.prototype, "partyId", void 0);
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateSaleDto.prototype, "saleTypeId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateSaleDto.prototype, "currencyId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateSaleDto.prototype, "staffId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -152,10 +142,8 @@ __decorate([
 ], CreateSaleDto.prototype, "district", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateSaleDto.prototype, "commercialAccountId", void 0);
 __decorate([
     (0, class_validator_1.IsArray)(),
@@ -168,24 +156,18 @@ class UpdateSaleDto {
 exports.UpdateSaleDto = UpdateSaleDto;
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], UpdateSaleDto.prototype, "partyId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], UpdateSaleDto.prototype, "currencyId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], UpdateSaleDto.prototype, "staffId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -252,10 +234,8 @@ __decorate([
 ], UpdateSaleDto.prototype, "district", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], UpdateSaleDto.prototype, "commercialAccountId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -281,17 +261,13 @@ class ApproveSaleDto {
 }
 exports.ApproveSaleDto = ApproveSaleDto;
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], ApproveSaleDto.prototype, "departmentId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], ApproveSaleDto.prototype, "commercialAccountId", void 0);
 class SalesQueryDto extends pagination_dto_1.PaginationDto {
 }
@@ -305,7 +281,7 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], SalesQueryDto.prototype, "partyId", void 0);
 class ShipSaleDto {
 }

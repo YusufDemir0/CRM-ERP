@@ -67,9 +67,9 @@ __decorate([
 __decorate([
     (0, common_1.Get)(':id'),
     (0, permissions_decorator_1.RequirePermissions)('FINANCE_VIEW'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], TransactionsController.prototype, "findOne", null);
 __decorate([
@@ -78,16 +78,16 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [finance_dto_1.CreateTransactionDto, Number]),
+    __metadata("design:paramtypes", [finance_dto_1.CreateTransactionDto, String]),
     __metadata("design:returntype", void 0)
 ], TransactionsController.prototype, "create", null);
 __decorate([
     (0, common_1.Post)(':id/cancel'),
     (0, permissions_decorator_1.RequirePermissions)('FINANCE_MANAGE'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Number]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], TransactionsController.prototype, "cancel", null);
 exports.TransactionsController = TransactionsController = __decorate([

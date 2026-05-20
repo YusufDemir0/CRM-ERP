@@ -18,11 +18,11 @@ let UserRole = class UserRole {
 exports.UserRole = UserRole;
 __decorate([
     (0, typeorm_1.PrimaryColumn)({ name: 'user_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], UserRole.prototype, "userId", void 0);
 __decorate([
     (0, typeorm_1.PrimaryColumn)({ name: 'role_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], UserRole.prototype, "roleId", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => user_entity_1.User),

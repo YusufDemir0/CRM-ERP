@@ -63,8 +63,15 @@ export const SalesTable: React.FC<SalesTableProps> = ({
     { 
       header: 'TUTAR & KAR', 
       accessor: (s: Sale) => {
-        const total = new Decimal(s.grandTotal || 0);
-        const profit = new Decimal(s.profit || 0);
+        const toSafeDecimal = (val: any) => {
+          if (val === null || val === undefined) return new Decimal(0);
+          if (typeof val === 'object' && !Decimal.isDecimal(val)) {
+            return new Decimal(val.toString() === '[object Object]' ? (val.value || 0) : val.toString());
+          }
+          return new Decimal(val);
+        };
+        const total = toSafeDecimal(s.grandTotal);
+        const profit = toSafeDecimal(s.profit);
         const isProfitPositive = profit.gt(0);
         return (
           <div className="flex flex-col items-end">
@@ -141,6 +148,7 @@ export const SalesTable: React.FC<SalesTableProps> = ({
       page={paginationMeta?.page || 1}
       limit={paginationMeta?.limit || 20}
       onPageChange={onPageChange}
+      virtualized={true}
     />
   );
 };

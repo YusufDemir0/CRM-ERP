@@ -120,11 +120,11 @@ services:
     command: ["node", "dist/main.js"]
     depends_on:
       db:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "5143:5143"
     healthcheck:
@@ -166,13 +166,13 @@ services:
     command: ["node", "dist/worker.js"]
     depends_on:
       db:
-        condition: service_started
+        condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       backend:
-        condition: service_started
+        condition: service_healthy
     networks:
       - ermay-network
     deploy:

@@ -4,7 +4,7 @@ export declare class CreateUserDto {
     fullName: string;
     email: string;
     phone?: string;
-    departmentId?: number;
+    departmentId: string;
     roleIds?: number[];
 }
 export declare class UpdateUserDto {
@@ -13,7 +13,7 @@ export declare class UpdateUserDto {
     password?: string;
     email?: string;
     phone?: string;
-    departmentId?: number;
+    departmentId: string;
     roleIds?: number[];
     state?: number;
 }

@@ -13,11 +13,11 @@ export declare class DepartmentsController {
         structureScore: number;
     }>;
     findAllTypes(): Promise<import("./entities/department-type.entity").DepartmentType[]>;
-    createType(dto: CreateDepartmentTypeDto, userId: number): Promise<import("./entities/department-type.entity").DepartmentType>;
-    updateType(id: number, dto: UpdateDepartmentTypeDto, userId: number): Promise<import("./entities/department-type.entity").DepartmentType>;
-    removeType(id: number): Promise<void>;
-    findOne(id: number): Promise<import("./entities/department.entity").Department>;
-    create(dto: CreateDepartmentDto, userId: number): Promise<import("./entities/department.entity").Department>;
-    update(id: number, dto: UpdateDepartmentDto, userId: number): Promise<import("./entities/department.entity").Department>;
-    remove(id: number): Promise<void>;
+    createType(dto: CreateDepartmentTypeDto, userId: string): Promise<import("./entities/department-type.entity").DepartmentType>;
+    updateType(id: string, dto: UpdateDepartmentTypeDto, userId: string): Promise<import("./entities/department-type.entity").DepartmentType>;
+    removeType(id: string): Promise<void>;
+    findOne(id: string): Promise<import("./entities/department.entity").Department>;
+    create(dto: CreateDepartmentDto, userId: string): Promise<import("./entities/department.entity").Department>;
+    update(id: string, dto: UpdateDepartmentDto, userId: string): Promise<import("./entities/department.entity").Department>;
+    remove(id: string): Promise<void>;
 }

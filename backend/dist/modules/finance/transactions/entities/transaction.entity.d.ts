@@ -5,14 +5,14 @@ import { CommercialAccount } from '../../accounts/entities/commercial-account.en
 import { Currency } from '../../currencies/entities/currency.entity';
 export declare class Transaction extends BaseEntity {
     code: string;
-    partyId: number | null;
-    commercialAccountId: number;
+    partyId: string | null;
+    commercialAccountId: string;
     amount: Decimal;
-    currencyId: number | null;
+    currencyId: string | null;
     exchangeRate: Decimal;
     type: 'in' | 'out';
     referenceType: 'sale' | 'purchase' | 'manual_adjustment' | 'manual' | 'sale_deposit' | null;
-    referenceId: number | null;
+    referenceId: string | null;
     date: string;
     description: string | null;
     status: 'pending' | 'completed' | 'bounced_check' | 'cancelled';

@@ -10,12 +10,12 @@ export declare class Party extends BaseEntity {
     taxNumber: string | null;
     email: string | null;
     address: string | null;
-    cityId: number | null;
+    cityId: string | null;
     districtName: string | null;
     balance: Decimal;
     creditLimit: Decimal;
     paymentTerms: string | null;
-    currencyId: number | null;
+    currencyId: string | null;
     notes: string | null;
     currency: Currency;
     totalSalesCount?: number;

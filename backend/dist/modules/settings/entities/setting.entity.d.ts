@@ -1,5 +1,5 @@
 export declare class Setting {
-    id: number;
+    id: string;
     settingKey: string;
     settingValue: string | null;
     description: string | null;

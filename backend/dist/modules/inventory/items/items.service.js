@@ -130,7 +130,7 @@ let ItemsService = class ItemsService {
     }
     async findOne(id) {
         const item = await this.transactionContext.manager.findOne(item_entity_1.Item, {
-            where: { id },
+            where: { id: String(id) },
             relations: ['itemType', 'itemCodeGroup', 'quantityType', 'provider', 'currency'],
         });
         if (!item)
@@ -142,7 +142,7 @@ let ItemsService = class ItemsService {
         if (!dto.currencyId) {
             try {
                 const defaultCurrency = await this.currenciesService.getDefault();
-                dto.currencyId = Number(defaultCurrency.id);
+                dto.currencyId = String(defaultCurrency.id);
             }
             catch (error) {
             }
@@ -161,8 +161,8 @@ let ItemsService = class ItemsService {
         const savedItem = await manager.save(item);
         const departments = await manager.find(department_entity_1.Department, { where: { state: 1 } });
         const initialStocks = departments.map(dept => manager.create(stock_entity_1.Stock, {
-            itemId: savedItem.id,
-            departmentId: dept.id,
+            itemId: String(savedItem.id),
+            departmentId: String(dept.id),
             quantity: new decimal_js_1.Decimal(0),
             reservedQuantity: new decimal_js_1.Decimal(0),
             createdBy: userId
@@ -224,63 +224,89 @@ let ItemsService = class ItemsService {
         let updatedCount = 0;
         let insertedCount = 0;
         const errors = [];
-        const defaultCurrency = await this.currenciesService.getDefault();
-        const defaultCurrencyId = defaultCurrency ? Number(defaultCurrency.id) : null;
-        const defaultItemType = await manager.findOne(item_type_entity_1.ItemType, { where: { state: 1 } });
-        const defaultQtyType = await manager.findOne(quantity_type_entity_1.QuantityType, { where: { state: 1 } });
-        const departments = await manager.find(department_entity_1.Department, { where: { state: 1 } });
-        if (!defaultItemType || !defaultQtyType) {
+        const itemCodes = items.map(i => i.code?.trim()).filter(Boolean);
+        if (itemCodes.length === 0) {
+            throw new common_1.BadRequestException('Aktarılacak geçerli ürün kodu bulunamadı.');
+        }
+        const [existingItems, itemTypes, qtyTypes, departments, defaultCurrency] = await Promise.all([
+            manager.find(item_entity_1.Item, { where: { code: (0, typeorm_2.In)(itemCodes) } }),
+            manager.find(item_type_entity_1.ItemType, { where: { state: 1 } }),
+            manager.find(quantity_type_entity_1.QuantityType, { where: { state: 1 } }),
+            manager.find(department_entity_1.Department, { where: { state: 1 } }),
+            this.currenciesService.getDefault()
+        ]);
+        const defaultCurrencyId = defaultCurrency ? String(defaultCurrency.id) : null;
+        if (itemTypes.length === 0 || qtyTypes.length === 0) {
             throw new common_1.BadRequestException('Sistemde tanımlı Ürün Tipi veya Birim bulunamadı. İçe aktarım yapılamaz.');
         }
+        const existingMap = new Map(existingItems.map(i => [i.code, i]));
+        const typeMap = new Map(itemTypes.map(t => [t.name.trim().toLocaleLowerCase('tr-TR'), String(t.id)]));
+        const qtyMap = new Map(qtyTypes.map(q => [q.name.trim().toLocaleLowerCase('tr-TR'), String(q.id)]));
+        const defaultTypeId = String(itemTypes[0]?.id);
+        const defaultQtyId = String(qtyTypes[0]?.id);
+        const newItemsToSave = [];
+        const itemsToUpdate = [];
         for (const [index, row] of items.entries()) {
-            try {
-                const { code, name, purchasePrice, salePrice, criticalLimit, kdv } = row;
-                if (!code || !name) {
-                    errors.push(`Satır ${index + 1}: Kod ve İsim zorunludur.`);
-                    continue;
-                }
-                const existingItem = await manager.findOne(item_entity_1.Item, { where: { code } });
-                if (existingItem) {
-                    await manager.update(item_entity_1.Item, existingItem.id, {
-                        name: name.toLocaleUpperCase('tr-TR'),
-                        purchasePrice: purchasePrice !== undefined ? new decimal_js_1.Decimal(purchasePrice) : existingItem.purchasePrice,
-                        salePrice: salePrice !== undefined ? new decimal_js_1.Decimal(salePrice) : existingItem.salePrice,
-                        criticalLimit: criticalLimit !== undefined ? new decimal_js_1.Decimal(criticalLimit) : existingItem.criticalLimit,
-                        kdv: kdv !== undefined ? new decimal_js_1.Decimal(kdv) : existingItem.kdv,
-                        updatedBy: userId
-                    });
-                    updatedCount++;
-                }
-                else {
-                    const newItem = manager.create(item_entity_1.Item, {
-                        name: name.toLocaleUpperCase('tr-TR'),
-                        code,
-                        itemTypeId: defaultItemType.id,
-                        quantityTypeId: defaultQtyType.id,
-                        currencyId: defaultCurrencyId,
-                        purchasePrice: new decimal_js_1.Decimal(purchasePrice || 0),
-                        salePrice: new decimal_js_1.Decimal(salePrice || 0),
-                        criticalLimit: new decimal_js_1.Decimal(criticalLimit || 0),
-                        kdv: new decimal_js_1.Decimal(kdv || 20),
-                        movingAverageCost: new decimal_js_1.Decimal(0),
-                        createdBy: userId,
-                    });
-                    const savedItem = await manager.save(item_entity_1.Item, newItem);
-                    const initialStocks = departments.map(dept => manager.create(stock_entity_1.Stock, {
-                        itemId: savedItem.id,
-                        departmentId: dept.id,
+            if (!row.code || !row.name) {
+                errors.push(`Satır ${index + 1}: Kod ve İsim zorunludur.`);
+                continue;
+            }
+            const typeId = row.typeName ? typeMap.get(row.typeName.trim().toLocaleLowerCase('tr-TR')) || defaultTypeId : defaultTypeId;
+            const qtyId = row.unitName ? qtyMap.get(row.unitName.trim().toLocaleLowerCase('tr-TR')) || defaultQtyId : defaultQtyId;
+            const existing = existingMap.get(row.code.trim());
+            if (existing) {
+                existing.name = row.name.toLocaleUpperCase('tr-TR');
+                existing.itemTypeId = typeId;
+                existing.quantityTypeId = qtyId;
+                if (row.purchasePrice !== undefined)
+                    existing.purchasePrice = new decimal_js_1.Decimal(row.purchasePrice);
+                if (row.salePrice !== undefined)
+                    existing.salePrice = new decimal_js_1.Decimal(row.salePrice);
+                if (row.kdv !== undefined)
+                    existing.kdv = new decimal_js_1.Decimal(row.kdv);
+                if (row.criticalLimit !== undefined)
+                    existing.criticalLimit = new decimal_js_1.Decimal(row.criticalLimit);
+                existing.updatedBy = userId;
+                itemsToUpdate.push(existing);
+                updatedCount++;
+            }
+            else {
+                const newItem = manager.create(item_entity_1.Item, {
+                    code: row.code.trim(),
+                    name: row.name.trim().toLocaleUpperCase('tr-TR'),
+                    itemTypeId: typeId,
+                    quantityTypeId: qtyId,
+                    currencyId: defaultCurrencyId,
+                    purchasePrice: new decimal_js_1.Decimal(row.purchasePrice || 0),
+                    salePrice: new decimal_js_1.Decimal(row.salePrice || 0),
+                    kdv: new decimal_js_1.Decimal(row.kdv ?? 20),
+                    criticalLimit: new decimal_js_1.Decimal(row.criticalLimit || 0),
+                    movingAverageCost: new decimal_js_1.Decimal(0),
+                    createdBy: userId,
+                });
+                newItemsToSave.push(newItem);
+                insertedCount++;
+            }
+        }
+        if (itemsToUpdate.length > 0) {
+            await manager.save(item_entity_1.Item, itemsToUpdate);
+        }
+        if (newItemsToSave.length > 0) {
+            const savedNewItems = await manager.save(item_entity_1.Item, newItemsToSave);
+            const initialStocks = [];
+            for (const item of savedNewItems) {
+                for (const dept of departments) {
+                    initialStocks.push(manager.create(stock_entity_1.Stock, {
+                        itemId: String(item.id),
+                        departmentId: String(dept.id),
                         quantity: new decimal_js_1.Decimal(0),
                         reservedQuantity: new decimal_js_1.Decimal(0),
                         createdBy: userId
                     }));
-                    if (initialStocks.length > 0) {
-                        await manager.save(stock_entity_1.Stock, initialStocks);
-                    }
-                    insertedCount++;
                 }
             }
-            catch (err) {
-                errors.push(`Satır ${index + 1}: İşlem hatası (${err instanceof Error ? err.message : String(err)})`);
+            if (initialStocks.length > 0) {
+                await manager.save(stock_entity_1.Stock, initialStocks, { chunk: 100 });
             }
         }
         return { updatedCount, insertedCount, errors };
@@ -351,7 +377,7 @@ let ItemsService = class ItemsService {
         return this.itemTypeRepo.save(type);
     }
     async updateItemType(id, dto, userId) {
-        const type = await this.itemTypeRepo.findOne({ where: { id } });
+        const type = await this.itemTypeRepo.findOne({ where: { id: String(id) } });
         if (!type)
             throw new common_1.NotFoundException('Ürün tipi bulunamadı');
         if (dto.state === 0) {
@@ -386,7 +412,7 @@ let ItemsService = class ItemsService {
         return this.codeGroupRepo.save(group);
     }
     async updateItemCodeGroup(id, dto, userId) {
-        const group = await this.codeGroupRepo.findOne({ where: { id } });
+        const group = await this.codeGroupRepo.findOne({ where: { id: String(id) } });
         if (!group)
             throw new common_1.NotFoundException('Ürün kod grubu bulunamadı');
         if (dto.state === 0) {
@@ -419,7 +445,7 @@ let ItemsService = class ItemsService {
         return this.qtyTypeRepo.save(type);
     }
     async updateQuantityType(id, dto, userId) {
-        const type = await this.qtyTypeRepo.findOne({ where: { id } });
+        const type = await this.qtyTypeRepo.findOne({ where: { id: String(id) } });
         if (!type)
             throw new common_1.NotFoundException('Birim bulunamadı');
         if (dto.state === 0) {
@@ -457,19 +483,19 @@ exports.ItemsService = ItemsService;
 __decorate([
     (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [inventory_dto_1.CreateItemDto, Number]),
+    __metadata("design:paramtypes", [inventory_dto_1.CreateItemDto, String]),
     __metadata("design:returntype", Promise)
 ], ItemsService.prototype, "create", null);
 __decorate([
     (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, inventory_dto_1.UpdateItemDto, Number]),
+    __metadata("design:paramtypes", [String, inventory_dto_1.UpdateItemDto, String]),
     __metadata("design:returntype", Promise)
 ], ItemsService.prototype, "update", null);
 __decorate([
     (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Array, Number]),
+    __metadata("design:paramtypes", [Array, String]),
     __metadata("design:returntype", Promise)
 ], ItemsService.prototype, "importItems", null);
 exports.ItemsService = ItemsService = __decorate([

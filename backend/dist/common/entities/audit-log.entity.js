@@ -16,7 +16,7 @@ let AuditLog = class AuditLog {
 exports.AuditLog = AuditLog;
 __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)({ type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], AuditLog.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Index)(),

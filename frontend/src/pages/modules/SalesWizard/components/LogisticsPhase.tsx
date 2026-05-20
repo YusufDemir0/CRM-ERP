@@ -3,15 +3,90 @@ import { useFormContext, useWatch } from 'react-hook-form';
 import { SearchableSelect } from '../../../../components/common/SearchableSelect';
 import { FormField } from '../../../../components/common/FormField';
 import { useSalesWizardStore } from '../../../../store/useSalesWizardStore';
+import { useQuickCreateStore } from '../../../../store/useQuickCreateStore';
 import { Staff, Account } from '../../../../types';
 import { SalesWizardFormData } from '../schema';
 
-export const LogisticsPhase = memo(({ staff, accounts }: { staff: Staff[], accounts: Account[] }) => {
-  const store = useSalesWizardStore();
-  const { register, setValue, control, formState: { errors }, watch } = useFormContext<SalesWizardFormData>();
-  const isTaxed = useWatch({ control, name: 'isTaxed' });
+const DepositField = memo(() => {
+  const { register } = useFormContext<SalesWizardFormData>();
+  return (
+    <FormField label="ALINAN KAPORA" className="!mb-0">
+      <div className="relative">
+        <input 
+          type="number"
+          className="input-premium h-9 w-full pr-8 text-sm font-black text-[var(--success)] tabular-nums"
+          placeholder="0.00"
+          {...register('deposit', { valueAsNumber: true })}
+        />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300">₺</span>
+      </div>
+    </FormField>
+  );
+});
+
+const StaffSelect = memo(({ options, refreshLookups }: { options: any[], refreshLookups: () => void }) => {
+  const { control, setValue, formState: { errors } } = useFormContext<SalesWizardFormData>();
   const staffId = useWatch({ control, name: 'staffId' });
+  const { openCreate } = useQuickCreateStore();
+
+  return (
+    <div className="relative">
+      <SearchableSelect
+        label="SATIŞ TEMSİLCİSİ"
+        placeholder="Temsilci"
+        options={options}
+        value={staffId ? String(staffId) : null}
+        onChange={(opt) => setValue('staffId', opt ? String(opt.id) : '', { shouldValidate: true })}
+        onQuickAdd={() => openCreate('staff', { 
+          mode: 'quick', 
+          onSuccess: (res: unknown) => {
+            refreshLookups();
+            const response = res as { data: Staff } | Staff;
+            const newStaff = 'data' in response ? response.data : response;
+            if (newStaff?.id) setValue('staffId', String(newStaff.id), { shouldValidate: true });
+          }
+        })}
+      />
+      {errors.staffId && <span className="text-[10px] text-[var(--error)] font-bold mt-1 block">{errors.staffId.message}</span>}
+    </div>
+  );
+});
+
+const AccountSelect = memo(({ options, accounts }: { options: any[], accounts: Account[] }) => {
+  const { control, setValue, formState: { errors } } = useFormContext<SalesWizardFormData>();
   const paymentAccountId = useWatch({ control, name: 'paymentAccountId' });
+  const store = useSalesWizardStore();
+
+  return (
+    <div className="relative">
+      <SearchableSelect
+        label="ÖDEME HESABI / KASA"
+        placeholder="Tahsilat yapılacak hesap"
+        options={options}
+        value={paymentAccountId ? String(paymentAccountId) : null}
+        onChange={(opt) => {
+          const id = opt ? String(opt.id) : '';
+          setValue('paymentAccountId', id, { shouldValidate: true });
+          const account = accounts.find(a => String(a.id) === id) || null;
+          store.setDraftData({ ...store.draftData, paymentAccount: account });
+        }}
+      />
+      {errors.paymentAccountId && <span className="text-[10px] text-[var(--error)] font-bold mt-1 block">{errors.paymentAccountId.message}</span>}
+    </div>
+  );
+});
+
+export const LogisticsPhase = memo(({ staff, accounts, refreshLookups }: { staff: Staff[], accounts: Account[], refreshLookups: () => void }) => {
+  const { register, control, setValue } = useFormContext<SalesWizardFormData>();
+  const isTaxed = useWatch({ control, name: 'isTaxed' });
+
+  const staffOptions = React.useMemo(() => {
+    return (staff || []).map(s => ({ id: String(s.id), label: `${s.firstName} ${s.lastName}` }));
+  }, [staff]);
+
+  const accountOptions = React.useMemo(() => {
+    return (accounts || []).map(a => ({ id: String(a.id), label: a.name }));
+  }, [accounts]);
 
   return (
     <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3 transition-all hover:shadow-md">
@@ -30,44 +105,11 @@ export const LogisticsPhase = memo(({ staff, accounts }: { staff: Staff[], accou
        </div>
 
        <div className="grid grid-cols-2 gap-2">
-          <FormField label="ALINAN KAPORA" className="!mb-0">
-            <div className="relative">
-              <input 
-                type="number"
-                className="input-premium h-9 w-full pr-8 text-sm font-black text-[var(--success)] tabular-nums"
-                placeholder="0.00"
-                {...register('deposit', { valueAsNumber: true })}
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300">₺</span>
-            </div>
-          </FormField>
-          <div className="relative">
-            <SearchableSelect
-              label="SATIŞ TEMSİLCİSİ"
-              placeholder="Temsilci"
-              options={(staff || []).map(s => ({ id: String(s.id), label: `${s.firstName} ${s.lastName}` }))}
-              value={staffId ? String(staffId) : null}
-              onChange={(opt) => setValue('staffId', opt ? String(opt.id) : '', { shouldValidate: true })}
-            />
-            {errors.staffId && <span className="text-[10px] text-[var(--error)] font-bold mt-1 block">{errors.staffId.message}</span>}
-          </div>
+          <DepositField />
+          <StaffSelect options={staffOptions} refreshLookups={refreshLookups} />
        </div>
 
-       <div className="relative">
-          <SearchableSelect
-            label="ÖDEME HESABI / KASA"
-            placeholder="Tahsilat yapılacak hesap"
-            options={(accounts || []).map(a => ({ id: String(a.id), label: a.name }))}
-            value={paymentAccountId ? String(paymentAccountId) : null}
-            onChange={(opt) => {
-              const id = opt ? String(opt.id) : '';
-              setValue('paymentAccountId', id, { shouldValidate: true });
-              const account = accounts.find(a => String(a.id) === id) || null;
-              store.setDraftData({ ...store.draftData, paymentAccount: account });
-            }}
-          />
-          {errors.paymentAccountId && <span className="text-[10px] text-[var(--error)] font-bold mt-1 block">{errors.paymentAccountId.message}</span>}
-       </div>
+       <AccountSelect options={accountOptions} accounts={accounts} />
 
        <div className="grid grid-cols-2 gap-2">
           <FormField label="REFERANS / KAYNAK" className="!mb-0">

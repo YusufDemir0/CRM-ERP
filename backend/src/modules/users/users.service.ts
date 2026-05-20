@@ -34,6 +34,7 @@ export class UsersService {
       .select([
         'user.id', 'user.username', 'user.fullName', 'user.email',
         'user.phone', 'user.departmentId', 'user.state', 'user.createdAt',
+        'user.entryDate', 'user.lastDeactivationDate',
         'department.id', 'department.name',
         'roles.id', 'roles.name',
       ]);
@@ -85,7 +86,7 @@ export class UsersService {
   async findOne(id: string): Promise<User> {
     const user = await this.userRepo.findOne({
       where: { id: String(id) },
-      relations: ['department', 'roles'],
+      relations: ['department', 'roles', 'roles.permissions'],
     });
     if (!user) throw new NotFoundException('Kullanıcı bulunamadı');
     return user;
@@ -98,6 +99,7 @@ export class UsersService {
     const salt = await bcrypt.genSalt(12);
     const passwordHash = await bcrypt.hash(dto.password, salt);
 
+    const today = new Date().toISOString().split('T')[0];
     const user = manager.create(User, {
       username: dto.username,
       passwordHash,
@@ -106,6 +108,7 @@ export class UsersService {
       phone: dto.phone || null,
       departmentId: dto.departmentId || null,
       createdBy: currentUserId || null,
+      entryDate: today,
     });
 
     if (dto.roleIds && dto.roleIds.length > 0) {
@@ -175,7 +178,7 @@ export class UsersService {
       if (dto.state === 0) {
         user.lastDeactivationDate = today;
       } else if (dto.state === 1) {
-        user.entryDate = today;
+        user.lastDeactivationDate = null;
       }
     }
 

@@ -1,4 +1,4 @@
-
+import React, { useMemo } from 'react';
 import { FiRepeat } from 'react-icons/fi';
 import { Item, Department } from '../../types';
 import { PremiumNumberInput } from '../common/PremiumNumberInput';
@@ -29,6 +29,11 @@ export const StockTransferModal: React.FC<StockTransferModalProps> = ({
   onSubmit,
   onClose,
 }) => {
+  const itemOptions = useMemo(() => 
+    items.map(i => ({ id: i.id, label: `${i.code} - ${i.name}` })),
+    [items]
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white max-w-[650px] w-full p-6 rounded-2xl shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300">
@@ -47,7 +52,7 @@ export const StockTransferModal: React.FC<StockTransferModalProps> = ({
             label="TRANSFER EDİLECEK ÜRÜN"
             required
             placeholder="LÜTFEN SEÇİNİZ..."
-            options={items.map(i => ({ id: i.id, label: `${i.code} - ${i.name}` }))}
+            options={itemOptions}
             value={transferData.itemId}
             onChange={(opt) => onTransferDataChange({...transferData, itemId: opt ? String(opt.id) : ''})}
           />

@@ -70,7 +70,7 @@ let DepartmentsService = class DepartmentsService {
     }
     async findOne(id) {
         const dept = await this.deptRepo.findOne({
-            where: { id },
+            where: { id: String(id) },
             relations: ['commercialAccount', 'departmentType']
         });
         if (!dept)
@@ -118,7 +118,7 @@ let DepartmentsService = class DepartmentsService {
         return this.typeRepo.save(type);
     }
     async updateType(id, dto, userId) {
-        const type = await this.typeRepo.findOne({ where: { id } });
+        const type = await this.typeRepo.findOne({ where: { id: String(id) } });
         if (!type)
             throw new common_1.NotFoundException('Departman türü bulunamadı');
         if (dto.name !== undefined)
@@ -129,7 +129,7 @@ let DepartmentsService = class DepartmentsService {
         return this.typeRepo.save(type);
     }
     async softDeleteType(id) {
-        const type = await this.typeRepo.findOne({ where: { id } });
+        const type = await this.typeRepo.findOne({ where: { id: String(id) } });
         if (!type)
             throw new common_1.NotFoundException('Departman türü bulunamadı');
         const usedCount = await this.deptRepo.count({ where: { departmentTypeId: id } });

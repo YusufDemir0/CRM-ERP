@@ -1,6 +1,6 @@
 export declare class SystemLog {
-    id: number;
-    userId: number;
+    id: string;
+    userId: string;
     username: string;
     fullName: string;
     action: string;

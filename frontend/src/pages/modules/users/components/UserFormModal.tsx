@@ -144,16 +144,18 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
                     disabled={!!editingId}
                   />
                 </div>
-                <div className="form-group flex-1">
+                <div className="form-group flex-1 group">
                   <label>
                     Sistem Şifresi {editingId && <span className="text-[9px] text-red-500">(Boş=Aynı)</span>}
+                    <span className="ml-1.5 inline-flex items-center justify-center w-3 h-3 rounded-full bg-slate-200 text-slate-500 text-[9px] font-bold cursor-help" title="Şifre minimum 8 hane olmalı">i</span>
                   </label>
                   <input
                     type="password"
                     required={!editingId}
+                    minLength={8}
                     className="uppercase-input normal-case"
                     {...register('password')}
-                    placeholder="****"
+                    placeholder="********"
                   />
                 </div>
               </div>

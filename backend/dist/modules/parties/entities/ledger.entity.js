@@ -25,7 +25,7 @@ __decorate([
 ], AccountingLedger.prototype, "date", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'party_id' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], AccountingLedger.prototype, "partyId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'account_id', type: 'bigint', nullable: true }),
@@ -46,7 +46,7 @@ __decorate([
 ], AccountingLedger.prototype, "credit", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'transaction_id', nullable: true }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], AccountingLedger.prototype, "transactionId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 50, nullable: true }),

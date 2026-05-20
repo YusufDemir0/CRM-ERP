@@ -9,6 +9,7 @@ import { SaleItem } from './sale-item.entity';
 import { DecimalTransformer } from '../../../common/transformers/decimal.transformer';
 import { Staff } from '../../staff/entities/staff.entity';
 import { CommercialAccount } from '../../finance/accounts/entities/commercial-account.entity';
+import { Department } from '../../departments/entities/department.entity';
 
 @Entity('sales')
 @Unique(['code'])
@@ -21,6 +22,7 @@ export class Sale extends BaseEntity {
   @Column({ name: 'party_id', type: 'bigint' })
   partyId: string;
 
+  @Index()
   @Column({ name: 'sale_type_id', type: 'bigint' })
   saleTypeId: string;
 
@@ -32,13 +34,15 @@ export class Sale extends BaseEntity {
   @Column({ name: 'staff_id', type: 'bigint', nullable: true })
   staffId: string | null;
 
+  @Index()
   @Column({ name: 'currency_id', type: 'bigint', nullable: true })
   currencyId: string | null;
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'exchange_rate', type: 'decimal', precision: 15, scale: 6, default: 1, transformer: new DecimalTransformer() })
-  exchangeRate: Decimal;
+  exchangeRate: Decimal = new Decimal(1);
 
+  @Index()
   @Column({ name: 'delivery_date', type: 'date', nullable: true })
   deliveryDate: string | null;
 
@@ -47,36 +51,36 @@ export class Sale extends BaseEntity {
   status: 'draft' | 'approved' | 'shipped' | 'invoiced' | 'cancelled';
 
   @Transform(({ value }) => value ? String(value) : value)
-  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
-  deposit: Decimal;
+  @Column({ name: 'deposit', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
+  deposit: Decimal = new Decimal(0);
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'total_amount', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
-  totalAmount: Decimal;
+  totalAmount: Decimal = new Decimal(0);
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'discount_amount', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
-  discountAmount: Decimal;
+  discountAmount: Decimal = new Decimal(0);
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'discount_percent', type: 'decimal', precision: 5, scale: 2, default: 0, transformer: new DecimalTransformer() })
-  discountPercent: Decimal;
+  discountPercent: Decimal = new Decimal(0);
 
   @Transform(({ value }) => value ? String(value) : value)
-  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
-  kdv: Decimal;
+  @Column({ name: 'kdv', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
+  kdv: Decimal = new Decimal(0);
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'grand_total', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
-  grandTotal: Decimal;
+  grandTotal: Decimal = new Decimal(0);
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'total_cost', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
-  totalCost: Decimal;
+  totalCost: Decimal = new Decimal(0);
 
   @Transform(({ value }) => value ? String(value) : value)
-  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
-  profit: Decimal;
+  @Column({ name: 'profit', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
+  profit: Decimal = new Decimal(0);
 
   @Column({ type: 'text', nullable: true })
   notes: string | null;
@@ -124,6 +128,10 @@ export class Sale extends BaseEntity {
   @ManyToOne(() => CommercialAccount, { nullable: true })
   @JoinColumn({ name: 'commercial_account_id' })
   commercialAccount: CommercialAccount | null;
+
+  @ManyToOne(() => Department, { nullable: true })
+  @JoinColumn({ name: 'department_id' })
+  department: Department | null;
 
   @OneToMany(() => SaleItem, (si) => si.sale)
   items: SaleItem[];

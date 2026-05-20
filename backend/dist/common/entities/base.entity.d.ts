@@ -1,10 +1,10 @@
 import { RecordState } from '../enums/record-state.enum';
 export declare abstract class BaseEntity {
-    id: number;
+    id: string;
     state: RecordState;
-    createdBy: number | null;
+    createdBy: string | null;
     createdAt: Date;
-    updatedBy: number | null;
+    updatedBy: string | null;
     updatedAt: Date;
     deletedAt: Date | null;
 }

@@ -17,7 +17,7 @@ class BaseEntity {
 exports.BaseEntity = BaseEntity;
 __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)({ type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], BaseEntity.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'tinyint', default: record_state_enum_1.RecordState.ACTIVE }),

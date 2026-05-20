@@ -3,7 +3,7 @@ import { CreateItemDto, UpdateItemDto, ImportItemDto, CreateItemTypeDto, CreateQ
 export declare class ItemsController {
     private readonly itemsService;
     constructor(itemsService: ItemsService);
-    importItems(items: ImportItemDto[], userId: number): Promise<{
+    importItems(items: ImportItemDto[], userId: string): Promise<{
         updatedCount: number;
         insertedCount: number;
         errors: string[];
@@ -19,17 +19,17 @@ export declare class ItemsController {
     findAllQuantityTypes(): Promise<import("./entities/quantity-type.entity").QuantityType[]>;
     findAllCodeGroups(): Promise<import("./entities/item-code-group.entity").ItemCodeGroup[]>;
     findAll(query: ItemsQueryDto): Promise<import("../../../common/dto/pagination.dto").PaginatedResult<import("./entities/item.entity").Item>>;
-    findOne(id: number): Promise<import("./entities/item.entity").Item>;
-    create(dto: CreateItemDto, userId: number): Promise<import("./entities/item.entity").Item>;
-    createItemType(dto: CreateItemTypeDto, userId: number): Promise<import("./entities/item-type.entity").ItemType>;
-    createCodeGroup(dto: CreateItemCodeGroupDto, userId: number): Promise<import("./entities/item-code-group.entity").ItemCodeGroup>;
-    createQuantityType(dto: CreateQuantityTypeDto, userId: number): Promise<import("./entities/quantity-type.entity").QuantityType>;
-    updateQuantityType(id: number, dto: UpdateQuantityTypeDto, userId: number): Promise<import("./entities/quantity-type.entity").QuantityType>;
-    removeQuantityType(id: number): Promise<void>;
-    updateItemType(id: number, dto: UpdateItemTypeDto, userId: number): Promise<import("./entities/item-type.entity").ItemType>;
-    updateCodeGroup(id: number, dto: UpdateItemCodeGroupDto, userId: number): Promise<import("./entities/item-code-group.entity").ItemCodeGroup>;
-    update(id: number, dto: UpdateItemDto, userId: number): Promise<import("./entities/item.entity").Item>;
-    removeItemType(id: number): Promise<void>;
-    removeCodeGroup(id: number): Promise<void>;
-    remove(id: number, userId: number): Promise<void>;
+    findOne(id: string): Promise<import("./entities/item.entity").Item>;
+    create(dto: CreateItemDto, userId: string): Promise<import("./entities/item.entity").Item>;
+    createItemType(dto: CreateItemTypeDto, userId: string): Promise<import("./entities/item-type.entity").ItemType>;
+    createCodeGroup(dto: CreateItemCodeGroupDto, userId: string): Promise<import("./entities/item-code-group.entity").ItemCodeGroup>;
+    createQuantityType(dto: CreateQuantityTypeDto, userId: string): Promise<import("./entities/quantity-type.entity").QuantityType>;
+    updateQuantityType(id: string, dto: UpdateQuantityTypeDto, userId: string): Promise<import("./entities/quantity-type.entity").QuantityType>;
+    removeQuantityType(id: string): Promise<void>;
+    updateItemType(id: string, dto: UpdateItemTypeDto, userId: string): Promise<import("./entities/item-type.entity").ItemType>;
+    updateCodeGroup(id: string, dto: UpdateItemCodeGroupDto, userId: string): Promise<import("./entities/item-code-group.entity").ItemCodeGroup>;
+    update(id: string, dto: UpdateItemDto, userId: string): Promise<import("./entities/item.entity").Item>;
+    removeItemType(id: string): Promise<void>;
+    removeCodeGroup(id: string): Promise<void>;
+    remove(id: string, userId: string): Promise<void>;
 }

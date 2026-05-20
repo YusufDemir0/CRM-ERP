@@ -17,42 +17,66 @@ export const Sidebar = memo(({ isCollapsed, isMobileOpen, onClose }: { isCollaps
     if (to === '/parties') {
       queryClient.prefetchQuery({
         queryKey: queryKeys.parties.all({ page: 1, limit: 20 }),
-        queryFn: () => partiesAPI.getAll({ page: 1, limit: 20 })
+        queryFn: async () => {
+          const res = await partiesAPI.getAll({ page: 1, limit: 20 });
+          return res.data;
+        }
       });
     } else if (to === '/stocks') {
       queryClient.prefetchQuery({
         queryKey: queryKeys.stocks.all({ page: 1, limit: 20 }),
-        queryFn: () => stocksAPI.getAll({ page: 1, limit: 20 })
+        queryFn: async () => {
+          const res = await stocksAPI.getAll({ page: 1, limit: 20 });
+          return res.data;
+        }
       });
     } else if (to === '/items') {
       queryClient.prefetchQuery({
         queryKey: queryKeys.items.all({ page: 1, limit: 20 }),
-        queryFn: () => itemsAPI.getAll({ page: 1, limit: 20 })
+        queryFn: async () => {
+          const res = await itemsAPI.getAll({ page: 1, limit: 20 });
+          return res.data;
+        }
       });
     } else if (to === '/sales') {
       queryClient.prefetchQuery({
         queryKey: queryKeys.sales.all({ page: 1, limit: 20 }),
-        queryFn: () => salesAPI.getAll({ page: 1, limit: 20 })
+        queryFn: async () => {
+          const res = await salesAPI.getAll({ page: 1, limit: 20 });
+          return res.data;
+        }
       });
     } else if (to === '/accounts') {
       queryClient.prefetchQuery({
         queryKey: queryKeys.accounts.all({ page: 1, limit: 20 }),
-        queryFn: () => accountsAPI.getAll({ page: 1, limit: 20 })
+        queryFn: async () => {
+          const res = await accountsAPI.getAll({ page: 1, limit: 20 });
+          return res.data;
+        }
       });
     } else if (to === '/transactions') {
       queryClient.prefetchQuery({
         queryKey: queryKeys.transactions.all({ page: 1, limit: 20 }),
-        queryFn: () => transactionsAPI.getAll({ page: 1, limit: 20 })
+        queryFn: async () => {
+          const res = await transactionsAPI.getAll({ page: 1, limit: 20 });
+          return res.data;
+        }
       });
     } else if (to === '/boms') {
       queryClient.prefetchQuery({
         queryKey: queryKeys.boms.all({ page: 1, limit: 20 }),
-        queryFn: () => bomsAPI.getAll({ page: 1, limit: 20 })
+        queryFn: async () => {
+          const res = await bomsAPI.getAll({ page: 1, limit: 20 });
+          return res.data;
+        }
       });
     } else if (to === '/production') {
       queryClient.prefetchQuery({
         queryKey: queryKeys.productionOrders.all({ page: 1, limit: 20 }),
-        queryFn: () => productionOrdersAPI.getAll({ page: 1, limit: 20 })
+        queryFn: async () => {
+          const res = await productionOrdersAPI.getAll({ page: 1, limit: 20 });
+          return res.data;
+        }
       });
     }
   };

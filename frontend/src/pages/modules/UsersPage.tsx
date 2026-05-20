@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersAPI, departmentsAPI, rolesAPI } from '../../services/api';
+import { useAuthStore } from '../../store/useAuthStore';
 import toast from 'react-hot-toast';
 import { confirmDialog } from '../../utils/confirmDialog';
 import { User, Department, Role, Permission } from '../../types';
@@ -11,7 +12,6 @@ import { useSort } from '../../hooks/useSort';
 import { useDeferredValue } from 'react';
 import { FiShield, FiSearch, FiUsers, FiPlus, FiFilter, FiActivity, FiArchive, FiMail } from 'react-icons/fi';
 import { queryKeys } from '../../services/queryKeys';
-
 // Sub-components
 import { UserPermissionsModal } from './users/components/UserPermissionsModal';
 
@@ -26,6 +26,7 @@ export default function UsersPage() {
 
   const deferredSearch = useDeferredValue(searchTerm);
   const { openCreate } = useQuickCreateStore();
+  const { user: currentUser } = useAuthStore();
 
   const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false);
   const [selectedUserForPerms, setSelectedUserForPerms] = useState<User | null>(null);
@@ -123,7 +124,7 @@ export default function UsersPage() {
         email: u.email || '',
         phone: u.phone || '',
         departmentId: u.departmentId?.toString() || u.department?.id?.toString() || '',
-        selectedRoles: u.roles?.map((r: Role) => r.id) || [],
+        selectedRoles: u.roles?.map((r: Role) => String(r.id)) || [],
       },
       onSuccess: handleFormSubmit
     });
@@ -143,15 +144,24 @@ export default function UsersPage() {
       ? 'Kullanıcının sisteme erişimini durdurmak ve arşivlemek istiyor musunuz?'
       : 'Kullanıcıyı tekrar aktif etmek istiyor musunuz?';
     
+    if (String(id) === String(currentUser?.id)) {
+      toast.error("Kendi hesabınızı arşivleyemezsiniz!");
+      return;
+    }
+
     if (await confirmDialog(question, currentState === 1)) {
       toggleMutation.mutate({ id, state: currentState });
     }
   };
 
   const openPermissionsModal = async (u: User) => {
-    setSelectedUserForPerms(u);
     try {
-      const res = await rolesAPI.getUserPermissions(u.id);
+      // Full user data with roles and permissions for matrix inheritance visibility
+      const userRes = await usersAPI.getOne(u.id);
+      const fullUser = userRes.data;
+      setSelectedUserForPerms(fullUser);
+      
+      const res = await rolesAPI.getUserPermissions(fullUser.id);
       setUserSpecificPerms(res.data);
       setIsPermissionsModalOpen(true);
     } catch (err) {
@@ -212,6 +222,20 @@ export default function UsersPage() {
         </div>
       ),
       sortKey: 'roles.name'
+    },
+    {
+      header: 'DURUM',
+      accessor: (u) => (
+        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+          u.state === 1 
+            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
+            : 'bg-red-50 text-red-600 border border-red-100'
+        }`}>
+          <div className={`w-1.5 h-1.5 rounded-full ${u.state === 1 ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+          {u.state === 1 ? 'AKTİF' : 'PASİF'}
+        </div>
+      ),
+      sortKey: 'state'
     },
     { 
       header: 'İLETİŞİM', 
@@ -297,7 +321,14 @@ export default function UsersPage() {
           getRowKey={(u) => u.id}
           hasState={(u) => u.state === 1}
           onEdit={handleEdit}
-          onArchive={(u) => toggleState(u.id, 1)}
+          onArchive={(u) => {
+            if (currentUser && String(u.id) === String(currentUser.id)) {
+              toast.error("Kendi kullanıcınızı arşivleyemezsiniz.");
+              return;
+            }
+            toggleState(u.id, 1);
+          }}
+          isArchivable={(u) => String(u.id) !== String(currentUser?.id)}
           onRestore={(u) => toggleState(u.id, 0)}
           getRowOpacity={(u) => u.state === 0 ? 0.5 : 1}
           renderExtraActions={(u) => (
@@ -321,6 +352,7 @@ export default function UsersPage() {
         onClose={() => setIsPermissionsModalOpen(false)}
         user={selectedUserForPerms}
         availablePermissions={availablePermissions}
+        rolePermissionIds={selectedUserForPerms?.roles?.flatMap(r => r.permissions?.map(p => p.id) || []) || []}
         userSpecificPerms={userSpecificPerms}
         onSetPermission={handleSetSpecificPermission}
       />

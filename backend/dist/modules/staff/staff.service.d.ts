@@ -5,9 +5,9 @@ import { UpdateStaffDto } from './dto/update-staff.dto';
 export declare class StaffService {
     private readonly staffRepository;
     constructor(staffRepository: Repository<Staff>);
-    create(createStaffDto: CreateStaffDto, userId: number): Promise<Staff>;
+    create(createStaffDto: CreateStaffDto, userId: string): Promise<Staff>;
     findAll(query: {
-        departmentId?: number;
+        departmentId: string;
         page?: number;
         limit?: number;
         state?: number;
@@ -20,8 +20,8 @@ export declare class StaffService {
             totalPages: number;
         };
     }>;
-    findOne(id: number): Promise<Staff>;
-    update(id: number, updateStaffDto: UpdateStaffDto, userId: number): Promise<Staff>;
-    remove(id: number, userId: number): Promise<Staff>;
-    toggleActive(id: number, userId: number): Promise<Staff>;
+    findOne(id: string): Promise<Staff>;
+    update(id: string, updateStaffDto: UpdateStaffDto, userId: string): Promise<Staff>;
+    remove(id: string, userId: string): Promise<Staff>;
+    toggleActive(id: string, userId: string): Promise<Staff>;
 }

@@ -101,9 +101,17 @@ let SalesService = SalesService_1 = class SalesService {
     }
     async findAll(query, user) {
         const qb = this.saleRepo.createQueryBuilder('sale')
-            .leftJoinAndSelect('sale.party', 'party')
-            .leftJoinAndSelect('sale.saleType', 'saleType')
-            .leftJoinAndSelect('sale.currency', 'currency');
+            .select([
+            'sale.id', 'sale.code', 'sale.status', 'sale.totalAmount', 'sale.subtotal',
+            'sale.taxAmount', 'sale.discountAmount', 'sale.createdAt', 'sale.updatedAt',
+            'sale.deliveryDate', 'sale.phone', 'sale.address'
+        ])
+            .leftJoin('sale.party', 'party')
+            .addSelect(['party.id', 'party.name', 'party.type'])
+            .leftJoin('sale.saleType', 'saleType')
+            .addSelect(['saleType.id', 'saleType.name', 'saleType.abbreviation'])
+            .leftJoin('sale.currency', 'currency')
+            .addSelect(['currency.id', 'currency.symbol', 'currency.code']);
         if (query.search) {
             const searchPattern = query.search.replace(/[+><()~*\"@\-]/g, ' ').trim();
             const safeLikePattern = (0, sql_helper_1.getSafeSearchPattern)(query.search);
@@ -180,7 +188,7 @@ let SalesService = SalesService_1 = class SalesService {
         const currentExchangeRate = currency ? currency.exchangeRate : new decimal_js_1.Decimal(1);
         const user = await manager.findOne(user_entity_1.User, { where: { id: userId } });
         const userDeptId = user?.departmentId || 1;
-        const code = await this.sequenceGenerator.generateSaleCode(manager, Number(userDeptId));
+        const code = await this.sequenceGenerator.generateSaleCode(manager, String(userDeptId));
         const itemDataMap = await this.fetchItemData(manager, dto.items.map(i => i.itemId));
         const calcResult = sale_calculator_1.SaleCalculator.calculate(dto.items, itemDataMap, dto.discountAmount, dto.discountPercent);
         const sale = manager.create(sale_entity_1.Sale, {
@@ -316,7 +324,7 @@ let SalesService = SalesService_1 = class SalesService {
                 quantity: new decimal_js_1.Decimal(si.quantity).sub(si.shippedQuantity || 0)
             })).filter(i => i.quantity.gt(0));
             if (itemsToUnreserve.length > 0) {
-                await this.stocksService.unreserveStockBulk(itemsToUnreserve, sale.departmentId || 1, manager, userId);
+                await this.stocksService.unreserveStockBulk(itemsToUnreserve, sale.departmentId || '1', manager, userId);
             }
             const tlGrandTotal = finance_helper_1.FinanceHelper.mul(sale.grandTotal, sale.exchangeRate);
             const tlDeposit = finance_helper_1.FinanceHelper.mul(sale.deposit, sale.exchangeRate);
@@ -385,9 +393,9 @@ let SalesService = SalesService_1 = class SalesService {
         }
         if (!sale.departmentId)
             throw new common_1.BadRequestException('Rezervasyon deposu bulunamadı.');
-        const shipItems = dto.items || sale.items.map(i => ({ itemId: Number(i.itemId), quantity: Number(i.quantity) }));
+        const shipItems = dto.items || sale.items.map(i => ({ itemId: String(i.itemId), quantity: Number(i.quantity) }));
         for (const reqItem of shipItems) {
-            const lineItem = sale.items.find(si => Number(si.itemId) === Number(reqItem.itemId));
+            const lineItem = sale.items.find(si => String(si.itemId) === String(reqItem.itemId));
             if (!lineItem)
                 throw new common_1.BadRequestException(`Ürün ID ${reqItem.itemId} bu siparişte yok.`);
             const orderQty = new decimal_js_1.Decimal(lineItem.quantity);
@@ -401,7 +409,7 @@ let SalesService = SalesService_1 = class SalesService {
         await this.stocksService.finalizeShipmentBulk(shipItems, sale.departmentId, manager, { type: 'sale', id: sale.id, description: `Sevkiyat Çıkışı: ${sale.code}` }, userId);
         const saleItemsToUpdate = [];
         for (const item of shipItems) {
-            const saleItem = sale.items.find(si => Number(si.itemId) === Number(item.itemId));
+            const saleItem = sale.items.find(si => String(si.itemId) === String(item.itemId));
             if (saleItem) {
                 saleItem.shippedQuantity = new decimal_js_1.Decimal(saleItem.shippedQuantity || 0).add(item.quantity);
                 saleItemsToUpdate.push(saleItem);
@@ -421,11 +429,14 @@ let SalesService = SalesService_1 = class SalesService {
     }
     async exportToExcel(query, user, res) {
         const qb = this.saleRepo.createQueryBuilder('sale')
-            .leftJoinAndSelect('sale.party', 'party')
-            .leftJoinAndSelect('sale.saleType', 'saleType')
-            .leftJoinAndSelect('sale.currency', 'currency')
-            .leftJoinAndSelect('sale.items', 'items')
-            .leftJoinAndSelect('items.item', 'item');
+            .leftJoin('sale.party', 'party')
+            .leftJoin('sale.currency', 'currency')
+            .select([
+            'sale.id', 'sale.code', 'sale.createdAt', 'sale.phone',
+            'sale.grandTotal', 'sale.status', 'sale.deliveryDate', 'sale.profit',
+            'party.id', 'party.name', 'party.phone1',
+            'currency.id', 'currency.symbol'
+        ]);
         if (query.status)
             qb.andWhere('sale.status = :status', { status: query.status });
         if (user && !user.isSystemAdmin) {
@@ -472,31 +483,31 @@ exports.SalesService = SalesService;
 __decorate([
     (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [sale_dto_1.CreateSaleDto, Number]),
+    __metadata("design:paramtypes", [sale_dto_1.CreateSaleDto, String]),
     __metadata("design:returntype", Promise)
 ], SalesService.prototype, "create", null);
 __decorate([
     (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, sale_dto_1.UpdateSaleDto, Number]),
+    __metadata("design:paramtypes", [String, sale_dto_1.UpdateSaleDto, String]),
     __metadata("design:returntype", Promise)
 ], SalesService.prototype, "update", null);
 __decorate([
     (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, sale_dto_1.ApproveSaleDto, Number]),
+    __metadata("design:paramtypes", [String, sale_dto_1.ApproveSaleDto, String]),
     __metadata("design:returntype", Promise)
 ], SalesService.prototype, "approveSale", null);
 __decorate([
     (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, Number]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], SalesService.prototype, "cancelSale", null);
 __decorate([
     (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, sale_dto_1.ShipSaleDto, Number]),
+    __metadata("design:paramtypes", [String, sale_dto_1.ShipSaleDto, String]),
     __metadata("design:returntype", Promise)
 ], SalesService.prototype, "shipSale", null);
 exports.SalesService = SalesService = SalesService_1 = __decorate([

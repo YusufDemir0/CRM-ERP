@@ -16,7 +16,7 @@ export declare class FinanceSaleListener implements OnModuleInit {
         sale: Sale;
         tlGrandTotal: Decimal;
         deposit: Decimal;
-        commercialAccountId?: number;
-        userId?: number;
+        commercialAccountId: string;
+        userId: string;
     }): Promise<void>;
 }

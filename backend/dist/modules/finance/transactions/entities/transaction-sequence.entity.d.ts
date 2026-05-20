@@ -1,5 +1,5 @@
 export declare class TransactionSequence {
-    id: number;
+    id: string;
     prefix: string;
     currentNumber: number;
     createdBy: number | null;

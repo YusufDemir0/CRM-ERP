@@ -1,5 +1,5 @@
 export declare class RecentActionDto {
-    id: number;
+    id: string;
     code: string;
     type: 'in' | 'out';
     amount: number;

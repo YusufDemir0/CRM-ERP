@@ -6,9 +6,9 @@ export declare class CurrenciesController {
     constructor(currenciesService: CurrenciesService);
     findAll(query: PaginationDto): Promise<import("../../../common/dto/pagination.dto").PaginatedResult<import("./entities/currency.entity").Currency>>;
     getDefault(): Promise<import("./entities/currency.entity").Currency>;
-    findOne(id: number): Promise<import("./entities/currency.entity").Currency>;
-    create(dto: CreateCurrencyDto, userId: number): Promise<import("./entities/currency.entity").Currency>;
-    update(id: number, dto: UpdateCurrencyDto, userId: number): Promise<import("./entities/currency.entity").Currency>;
-    setDefault(id: number): Promise<import("./entities/currency.entity").Currency>;
-    remove(id: number): Promise<void>;
+    findOne(id: string): Promise<import("./entities/currency.entity").Currency>;
+    create(dto: CreateCurrencyDto, userId: string): Promise<import("./entities/currency.entity").Currency>;
+    update(id: string, dto: UpdateCurrencyDto, userId: string): Promise<import("./entities/currency.entity").Currency>;
+    setDefault(id: string): Promise<import("./entities/currency.entity").Currency>;
+    remove(id: string): Promise<void>;
 }

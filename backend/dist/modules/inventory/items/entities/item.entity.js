@@ -31,7 +31,7 @@ __decorate([
 __decorate([
     (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'item_type_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], Item.prototype, "itemTypeId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'item_code_group_id', type: 'bigint', nullable: true }),
@@ -86,7 +86,7 @@ __decorate([
 ], Item.prototype, "currencyId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'quantity_type_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], Item.prototype, "quantityTypeId", void 0);
 __decorate([
     (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),

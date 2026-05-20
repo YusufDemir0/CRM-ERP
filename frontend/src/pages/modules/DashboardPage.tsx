@@ -44,8 +44,19 @@ const motivationQuotes: Record<string, string[]> = {
   '110+': ["Sen artık oyunu değiştiren taraftasın.", "Bu performans üst seviye, efsaneleşiyorsun!"]
 };
 
+interface QuickAction {
+  label: string;
+  icon: React.ReactNode;
+  path: string;
+  action?: () => void;
+  color: string;
+  bg: string;
+  hover: string;
+  desc: string;
+}
+
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const navigate = useNavigate();
   const [hoveredKpi, setHoveredKpi] = useState<number | null>(null);
   
@@ -98,6 +109,29 @@ export default function DashboardPage() {
     );
   }
 
+  const quickActions: (QuickAction | false)[] = [
+    hasPermission('sales_create') && { 
+      label: 'SATIŞ YAP', 
+      icon: <FiShoppingCart />, 
+      path: '/sales/wizard', 
+      action: () => { useSalesWizardStore.getState().reset(); navigate('/sales/wizard'); }, 
+      color: 'text-emerald-500', 
+      bg: 'bg-emerald-50', 
+      hover: 'hover:border-emerald-200', 
+      desc: 'Hızlı Satış Ekranı' 
+    },
+    hasPermission('parties_create') && { 
+      label: 'YENİ CARİ EKLE', 
+      icon: <FiUsers />, 
+      path: '/parties', 
+      action: undefined, 
+      color: 'text-blue-500', 
+      bg: 'bg-blue-50', 
+      hover: 'hover:border-blue-200', 
+      desc: 'Müşteri veya Tedarikçi' 
+    },
+  ];
+
   return (
     <div className="animate-in px-8 pb-16 max-w-[1600px] mx-auto space-y-8 pt-4">
       
@@ -105,7 +139,7 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <h1 className="text-3xl font-black tracking-tight text-slate-900">Dashboard</h1>
-          <p className="text-slate-500 font-medium mt-1">Hoş geldiniz, {user?.fullName}. İşte bugünün özeti.</p>
+          <p className="text-slate-500 font-medium mt-1">Hoş geldiniz, {user?.fullName}. {user?.roles?.includes('admin') ? 'İşte sistem geneli özeti.' : 'İşte bugünün özeti.'}</p>
         </div>
         <div className="text-sm font-bold text-slate-400 uppercase tracking-widest bg-white border border-slate-100 px-4 py-2 rounded-xl shadow-sm">
           {dayjs().format('DD MMMM YYYY')}
@@ -114,10 +148,7 @@ export default function DashboardPage() {
 
       {/* 🔹 ROW 1: QUICK ACTIONS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
-        {[
-          { label: 'SATIŞ YAP', icon: <FiShoppingCart />, path: '/sales/wizard', action: () => { useSalesWizardStore.getState().reset(); navigate('/sales/wizard'); }, color: 'text-emerald-500', bg: 'bg-emerald-50', hover: 'hover:border-emerald-200', desc: 'Hızlı Satış Ekranı' },
-          { label: 'YENİ CARİ EKLE', icon: <FiUsers />, path: '/parties', action: undefined, color: 'text-blue-500', bg: 'bg-blue-50', hover: 'hover:border-blue-200', desc: 'Müşteri veya Tedarikçi' },
-        ].map((act, i) => (
+        {quickActions.filter((act): act is QuickAction => Boolean(act)).map((act, i) => (
           <div 
             key={i} 
             className={`group p-5 bg-white border border-slate-100 rounded-3xl shadow-sm ${act.hover} transition-colors cursor-pointer flex items-center gap-4`}

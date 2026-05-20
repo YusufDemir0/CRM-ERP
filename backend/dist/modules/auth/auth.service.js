@@ -65,11 +65,8 @@ let AuthService = AuthService_1 = class AuthService {
         this.userPermRepo = userPermRepo;
         this.jwtService = jwtService;
         this.logger = new common_1.Logger(AuthService_1.name);
-        this.dummyHash = '';
     }
-    async onModuleInit() {
-        this.dummyHash = await bcrypt.hash('dummy-password-never-matches-anything', 12);
-        this.logger.debug('SEC-07: Timing-attack dummy hash generated');
+    onModuleInit() {
     }
     async login(dto) {
         const user = await this.userRepo.findOne({
@@ -77,7 +74,6 @@ let AuthService = AuthService_1 = class AuthService {
             relations: ['roles'],
         });
         if (!user) {
-            await bcrypt.compare(dto.password, this.dummyHash);
             throw new common_1.UnauthorizedException('Kullanıcı adı veya şifre hatalı');
         }
         if (user.state === 2) {
@@ -115,7 +111,7 @@ let AuthService = AuthService_1 = class AuthService {
             departmentId: user.departmentId,
             tokenVersion: user.tokenVersion,
         };
-        const userProfile = await this.getProfile(user.id);
+        const userProfile = await this.getProfile(String(user.id));
         const access_token = this.jwtService.sign(payload, { expiresIn: '15m' });
         const refresh_token = this.jwtService.sign({ sub: user.id, type: 'refresh', tokenVersion: user.tokenVersion }, { expiresIn: '7d' });
         const refreshSalt = await bcrypt.genSalt(10);
@@ -197,18 +193,37 @@ let AuthService = AuthService_1 = class AuthService {
             .leftJoinAndSelect('role.permissions', 'permission')
             .leftJoinAndSelect('user.userPermissions', 'userPerm')
             .leftJoinAndSelect('userPerm.permission', 'userPermData')
+            .select([
+            'user.id',
+            'user.username',
+            'user.fullName',
+            'user.email',
+            'user.phone',
+            'user.departmentId',
+            'user.state',
+            'department.id',
+            'department.name',
+            'role.id',
+            'role.name',
+            'permission.id',
+            'permission.key',
+            'permission.name',
+            'permission.module',
+            'userPerm.userId',
+            'userPerm.scopeType',
+            'userPerm.effect',
+            'userPerm.permissionId',
+            'userPermData.id',
+            'userPermData.key',
+            'userPermData.name'
+        ])
             .where('user.id = :userId', { userId })
             .getOne();
-        if (!user) {
+        if (!user)
             throw new common_1.UnauthorizedException('Kullanıcı bulunamadı');
-        }
         const rolePermissions = user.roles?.flatMap(r => r.permissions?.map(p => p.key) || []) || [];
-        const userAllowKeys = user.userPermissions
-            ?.filter(up => up.effect === 'allow')
-            .map(up => up.permission?.key) || [];
-        const userDenyKeys = user.userPermissions
-            ?.filter(up => up.effect === 'deny')
-            .map(up => up.permission?.key) || [];
+        const userAllowKeys = user.userPermissions?.filter(up => up.effect === 'allow').map(up => up.permission?.key) || [];
+        const userDenyKeys = user.userPermissions?.filter(up => up.effect === 'deny').map(up => up.permission?.key) || [];
         const finalPermissions = Array.from(new Set([...rolePermissions, ...userAllowKeys]))
             .filter(key => key && !userDenyKeys.includes(key));
         return {
@@ -219,20 +234,20 @@ let AuthService = AuthService_1 = class AuthService {
             phone: user.phone,
             departmentId: user.departmentId,
             department: user.department,
-            roles: user.roles?.map((r) => ({ id: r.id, name: r.name })) || [],
+            roles: user.roles?.map(r => ({ id: r.id, name: r.name })) || [],
             permissions: finalPermissions
         };
     }
     async forgotPassword(dto) {
         const user = await this.userRepo.findOne({ where: { email: dto.email, state: record_state_enum_1.RecordState.ACTIVE } });
         if (!user) {
-            return { message: 'Şifre sıfırlama talimatları e-posta adresinize gönderildi (eğer hesap mevcutsa).' };
+            throw new common_1.NotImplementedException('E-posta altyapısı (SMTP) henüz kurulmadığı için şifre sıfırlama işlemi yapılamıyor. Lütfen sistem yöneticinizle iletişime geçin.');
         }
-        console.log(`[AUTH] Forgot password requested for ${dto.email}`);
-        return { message: 'Şifre sıfırlama talimatları e-posta adresinize gönderildi (eğer hesap mevcutsa).' };
+        this.logger.warn(`Password reset requested for ${dto.email} — email delivery not configured`);
+        throw new common_1.NotImplementedException('E-posta altyapısı (SMTP) henüz kurulmadığı için şifre sıfırlama işlemi yapılamıyor. Lütfen sistem yöneticinizle iletişime geçin.');
     }
     async changePassword(userId, dto) {
-        const user = await this.userRepo.findOne({ where: { id: userId } });
+        const user = await this.userRepo.findOne({ where: { id: String(userId) } });
         if (!user)
             throw new common_1.UnauthorizedException('Kullanıcı bulunamadı');
         const isMatch = await bcrypt.compare(dto.currentPassword, user.passwordHash);

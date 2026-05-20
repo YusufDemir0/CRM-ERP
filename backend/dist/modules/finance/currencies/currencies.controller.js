@@ -52,9 +52,9 @@ __decorate([
 ], CurrenciesController.prototype, "getDefault", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], CurrenciesController.prototype, "findOne", null);
 __decorate([
@@ -62,30 +62,30 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [finance_dto_1.CreateCurrencyDto, Number]),
+    __metadata("design:paramtypes", [finance_dto_1.CreateCurrencyDto, String]),
     __metadata("design:returntype", void 0)
 ], CurrenciesController.prototype, "create", null);
 __decorate([
     (0, common_1.Put)(':id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, finance_dto_1.UpdateCurrencyDto, Number]),
+    __metadata("design:paramtypes", [String, finance_dto_1.UpdateCurrencyDto, String]),
     __metadata("design:returntype", void 0)
 ], CurrenciesController.prototype, "update", null);
 __decorate([
     (0, common_1.Put)(':id/default'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], CurrenciesController.prototype, "setDefault", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], CurrenciesController.prototype, "remove", null);
 exports.CurrenciesController = CurrenciesController = __decorate([

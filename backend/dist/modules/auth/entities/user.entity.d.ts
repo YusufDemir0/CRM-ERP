@@ -9,7 +9,7 @@ export declare class User extends BaseEntity {
     fullName: string;
     email: string;
     phone: string | null;
-    departmentId: number | null;
+    departmentId: string | null;
     department: Department;
     failedLoginAttempts: number;
     lockedUntil: Date | null;

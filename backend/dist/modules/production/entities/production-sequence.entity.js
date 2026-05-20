@@ -16,7 +16,7 @@ let ProductionSequence = class ProductionSequence {
 exports.ProductionSequence = ProductionSequence;
 __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)({ type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], ProductionSequence.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 10 }),

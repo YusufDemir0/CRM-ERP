@@ -1,10 +1,10 @@
 export declare class CreateRoleDto {
     name: string;
-    permissionIds?: number[];
+    permissionIds?: string[];
 }
 export declare class UpdateRoleDto {
     name?: string;
-    permissionIds?: number[];
+    permissionIds?: string[];
     state?: number;
 }
 export declare class CreatePermissionDto {
@@ -13,13 +13,13 @@ export declare class CreatePermissionDto {
     module: string;
 }
 export declare class AssignRoleDto {
-    userId: number;
-    roleId: number;
+    userId: string;
+    roleId: string;
 }
 export declare class SetUserPermissionDto {
-    userId: number;
-    permissionId: number;
+    userId: string;
+    permissionId: string;
     effect: 'allow' | 'deny';
     scopeType: 'global' | 'department' | 'own';
-    scopeId?: number;
+    scopeId?: string;
 }

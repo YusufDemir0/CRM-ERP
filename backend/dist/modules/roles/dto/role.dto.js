@@ -22,7 +22,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsArray)(),
-    (0, class_validator_1.IsNumber)({}, { each: true }),
+    (0, class_validator_1.IsString)({ each: true }),
     __metadata("design:type", Array)
 ], CreateRoleDto.prototype, "permissionIds", void 0);
 class UpdateRoleDto {
@@ -36,7 +36,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsArray)(),
-    (0, class_validator_1.IsNumber)({}, { each: true }),
+    (0, class_validator_1.IsString)({ each: true }),
     __metadata("design:type", Array)
 ], UpdateRoleDto.prototype, "permissionIds", void 0);
 __decorate([
@@ -67,23 +67,23 @@ class AssignRoleDto {
 }
 exports.AssignRoleDto = AssignRoleDto;
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], AssignRoleDto.prototype, "userId", void 0);
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], AssignRoleDto.prototype, "roleId", void 0);
 class SetUserPermissionDto {
 }
 exports.SetUserPermissionDto = SetUserPermissionDto;
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], SetUserPermissionDto.prototype, "userId", void 0);
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], SetUserPermissionDto.prototype, "permissionId", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
@@ -97,7 +97,7 @@ __decorate([
 ], SetUserPermissionDto.prototype, "scopeType", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], SetUserPermissionDto.prototype, "scopeId", void 0);
 //# sourceMappingURL=role.dto.js.map

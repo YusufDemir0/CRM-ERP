@@ -110,7 +110,7 @@ let UsersService = class UsersService {
     }
     async findOne(id) {
         const user = await this.userRepo.findOne({
-            where: { id },
+            where: { id: String(id) },
             relations: ['department', 'roles'],
         });
         if (!user)
@@ -149,13 +149,13 @@ let UsersService = class UsersService {
         const user = await this.findOne(id);
         if (dto.username && dto.username !== user.username) {
             const existing = await this.userRepo.findOne({ where: { username: dto.username } });
-            if (existing && existing.id !== id)
+            if (existing && existing.id !== String(id))
                 throw new common_1.ConflictException('Kullanıcı adı zaten mevcut');
             user.username = dto.username;
         }
         if (dto.email && dto.email !== user.email) {
             const existing = await this.userRepo.findOne({ where: { email: dto.email } });
-            if (existing && existing.id !== id)
+            if (existing && existing.id !== String(id))
                 throw new common_1.ConflictException('Email zaten mevcut');
             user.email = dto.email;
         }
@@ -205,7 +205,7 @@ let UsersService = class UsersService {
         return savedUser;
     }
     async softDelete(id, currentUserId) {
-        const user = await this.userRepo.findOne({ where: { id } });
+        const user = await this.userRepo.findOne({ where: { id: String(id) } });
         if (!user)
             throw new common_1.NotFoundException('Kullanıcı bulunamadı');
         const suffix = `_del_${crypto.randomUUID().substring(0, 8)}`;
@@ -234,7 +234,7 @@ exports.UsersService = UsersService;
 __decorate([
     (0, transactional_1.Transactional)(),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [user_dto_1.CreateUserDto, Number]),
+    __metadata("design:paramtypes", [user_dto_1.CreateUserDto, String]),
     __metadata("design:returntype", Promise)
 ], UsersService.prototype, "create", null);
 exports.UsersService = UsersService = __decorate([

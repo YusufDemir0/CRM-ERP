@@ -3,7 +3,7 @@ export declare class UpdateStaffDto {
     lastName?: string;
     phone?: string;
     entryDate?: string;
-    departmentId?: number;
+    departmentId: string;
     isActive?: boolean;
     state?: number;
     tckn?: string;

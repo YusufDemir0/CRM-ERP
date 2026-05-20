@@ -11,9 +11,9 @@ export declare class TransactionsService {
     private transactionContext;
     constructor(txRepo: Repository<Transaction>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, transactionContext: TransactionContextService);
     findAll(query: TransactionsQueryDto): Promise<PaginatedResult<Transaction>>;
-    findOne(id: number): Promise<Transaction>;
-    create(dto: CreateTransactionDto, userId?: number): Promise<Transaction>;
-    cancel(id: number, userId?: number): Promise<{
+    findOne(id: string): Promise<Transaction>;
+    create(dto: CreateTransactionDto, userId: string): Promise<Transaction>;
+    cancel(id: string, userId: string): Promise<{
         success: boolean;
         message: string;
     }>;

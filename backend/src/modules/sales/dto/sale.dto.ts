@@ -30,7 +30,7 @@ export class CreateSaleDto {
   @IsOptional() @IsString() source?: string;
   @IsOptional() @IsString() city?: string;
   @IsOptional() @IsString() district?: string;
-  @IsOptional() @IsString() commercialAccountId: string;
+  @IsOptional() @IsString() commercialAccountId?: string;
 
   @IsArray()
   @ValidateNested({ each: true })
@@ -55,7 +55,7 @@ export class UpdateSaleDto {
   @IsOptional() @IsString() source?: string;
   @IsOptional() @IsString() city?: string;
   @IsOptional() @IsString() district?: string;
-  @IsOptional() @IsString() commercialAccountId: string;
+  @IsOptional() @IsString() commercialAccountId?: string;
 
   @IsOptional()
   @IsArray()

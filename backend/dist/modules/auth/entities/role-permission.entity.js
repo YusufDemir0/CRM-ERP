@@ -18,11 +18,11 @@ let RolePermission = class RolePermission {
 exports.RolePermission = RolePermission;
 __decorate([
     (0, typeorm_1.PrimaryColumn)({ name: 'role_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], RolePermission.prototype, "roleId", void 0);
 __decorate([
     (0, typeorm_1.PrimaryColumn)({ name: 'permission_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], RolePermission.prototype, "permissionId", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => role_entity_1.Role),

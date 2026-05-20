@@ -4,25 +4,9 @@ import { LoginDto, RegisterDto, ForgotPasswordDto, ChangePasswordDto } from './d
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
-    getCsrf(): Promise<{
-        success: boolean;
-    }>;
     login(dto: LoginDto, res: Response): Promise<{
         message: string;
-        user: {
-            id: number;
-            username: string;
-            fullName: string;
-            email: string;
-            phone: string | null;
-            departmentId: number | null;
-            department: import("../departments/entities/department.entity").Department;
-            roles: {
-                id: number;
-                name: string;
-            }[];
-            permissions: string[];
-        };
+        user: import("./interfaces/user-profile.interface").UserProfile;
     }>;
     refresh(req: import('express').Request, res: Response): Promise<{
         message: string;
@@ -33,24 +17,11 @@ export declare class AuthController {
     register(dto: RegisterDto): Promise<{
         message: string;
     }>;
-    getProfile(userId: number): Promise<{
-        id: number;
-        username: string;
-        fullName: string;
-        email: string;
-        phone: string | null;
-        departmentId: number | null;
-        department: import("../departments/entities/department.entity").Department;
-        roles: {
-            id: number;
-            name: string;
-        }[];
-        permissions: string[];
-    }>;
+    getProfile(userId: string): Promise<import("./interfaces/user-profile.interface").UserProfile>;
     forgotPassword(dto: ForgotPasswordDto): Promise<{
         message: string;
     }>;
-    changePassword(userId: number, dto: ChangePasswordDto): Promise<{
+    changePassword(userId: string, dto: ChangePasswordDto): Promise<{
         message: string;
     }>;
 }

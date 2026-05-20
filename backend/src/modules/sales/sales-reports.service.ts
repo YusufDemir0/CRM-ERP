@@ -39,7 +39,9 @@ export class SalesReportsService {
       .leftJoin('sale.saleType', 'saleType')
       .addSelect(['saleType.id', 'saleType.name', 'saleType.abbreviation'])
       .leftJoin('sale.currency', 'currency')
-      .addSelect(['currency.id', 'currency.symbol', 'currency.code']);
+      .addSelect(['currency.id', 'currency.symbol', 'currency.code'])
+      .leftJoin('sale.department', 'department')
+      .addSelect(['department.id', 'department.name', 'department.abbreviation']);
 
     if (query.search) {
       qb.andWhere(
@@ -51,9 +53,16 @@ export class SalesReportsService {
     if (query.partyId) qb.andWhere('sale.partyId = :partyId', { partyId: query.partyId });
 
     if (user && !user.isSystemAdmin) {
-      const hasViewAll = user.permissions?.includes('SALES_VIEW_ALL');
-      if (!hasViewAll && user.departmentId) {
-        qb.andWhere('sale.departmentId = :userDeptId', { userDeptId: user.departmentId });
+      // tam satis yetkisi: sales_approve veya SALES_VIEW_ALL
+      const hasFullSales = user.permissions?.includes('sales_approve') || user.permissions?.includes('SALES_VIEW_ALL');
+      
+      if (hasFullSales) {
+        if (user.departmentId) {
+          qb.andWhere('sale.departmentId = :userDeptId', { userDeptId: user.departmentId });
+        }
+      } else {
+        // Sadece kendi yaptigi satislar
+        qb.andWhere('sale.createdBy = :userId', { userId: user.sub });
       }
     }
     
@@ -106,8 +115,8 @@ export class SalesReportsService {
     ]);
 
     return {
-      monthlyRevenue: new Decimal(stats.revenue || 0),
-      monthlyOrders: new Decimal(stats.total || 0),
+      monthlyRevenue: new Decimal(stats?.revenue || 0),
+      monthlyOrders: new Decimal(stats?.total || 0),
       pendingOrders: new Decimal(pending || 0),
     };
   }
@@ -124,11 +133,16 @@ export class SalesReportsService {
       ]);
 
     if (query.status) qb.andWhere('sale.status = :status', { status: query.status });
+    
     if (user && !user.isSystemAdmin) {
-       const hasViewAll = user.permissions?.includes('SALES_VIEW_ALL');
-       if (!hasViewAll && user.departmentId) {
-         qb.andWhere('sale.departmentId = :userDeptId', { userDeptId: user.departmentId });
-       }
+      const hasFullSales = user.permissions?.includes('sales_approve') || user.permissions?.includes('SALES_VIEW_ALL');
+      if (hasFullSales) {
+        if (user.departmentId) {
+          qb.andWhere('sale.departmentId = :userDeptId', { userDeptId: user.departmentId });
+        }
+      } else {
+        qb.andWhere('sale.createdBy = :userId', { userId: user.sub });
+      }
     }
 
     const sales = await qb.getMany();

@@ -18,11 +18,11 @@ let UserPermission = class UserPermission {
 exports.UserPermission = UserPermission;
 __decorate([
     (0, typeorm_1.PrimaryColumn)({ name: 'user_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], UserPermission.prototype, "userId", void 0);
 __decorate([
     (0, typeorm_1.PrimaryColumn)({ name: 'permission_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], UserPermission.prototype, "permissionId", void 0);
 __decorate([
     (0, typeorm_1.PrimaryColumn)({ name: 'scope_type', type: 'enum', enum: ['global', 'department', 'own'], default: 'global' }),

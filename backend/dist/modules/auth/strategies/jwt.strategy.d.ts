@@ -5,7 +5,7 @@ import { Cache } from 'cache-manager';
 export interface JwtPayload {
     sub: number;
     username: string;
-    departmentId: number | null;
+    departmentId: string | null;
     tokenVersion: number;
 }
 declare const JwtStrategy_base: new (...args: [opt: import("passport-jwt").StrategyOptionsWithRequest] | [opt: import("passport-jwt").StrategyOptionsWithoutRequest]) => Strategy & {
@@ -20,7 +20,7 @@ export declare class JwtStrategy extends JwtStrategy_base {
         id: number;
         sub: number;
         username: string;
-        departmentId: number | null;
+        departmentId: string | null;
         tokenVersion: number;
     }>;
 }

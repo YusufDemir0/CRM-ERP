@@ -26,7 +26,7 @@ __decorate([
 ], ProductionOrder.prototype, "code", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'bom_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], ProductionOrder.prototype, "bomId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'source_department_id', type: 'bigint', nullable: true }),

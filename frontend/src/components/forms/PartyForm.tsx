@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { partiesAPI, currenciesAPI } from '../../services/api';
 import { FiCheck, FiSave, FiX } from 'react-icons/fi';
+import toast from 'react-hot-toast';
 import { useTurkiyeCities, useTurkiyeDistricts } from '../../hooks/useTurkiyeApi';
 import type { Party, Currency } from '../../types';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
@@ -9,16 +10,17 @@ import { PhoneInput } from '../common/PhoneInput';
 import { FormField } from '../common/FormField';
 import { PremiumNumberInput } from '../common/PremiumNumberInput';
 
+import { useAuthStore } from '../../store/useAuthStore';
+
 interface PartyFormData {
   name: string;
-  type: 'customer' | 'provider' | 'both';
-  taxOffice: string;
+  type: 'customer' | 'provider';
   taxNumber: string;
   phone1: string;
   phone2: string;
   email: string;
   address: string;
-  cityId: number;
+  cityId: string;
   districtName: string;
   creditLimit: number;
   currencyId: string;
@@ -28,6 +30,7 @@ interface PartyFormData {
 interface PartyFormProps {
   initialData?: Partial<PartyFormData>;
   editingId?: string | number | null;
+  mode?: 'quick' | 'full';
   onSuccess: (data: Party) => void;
   onCancel: () => void;
 }
@@ -35,24 +38,32 @@ interface PartyFormProps {
 export const PartyForm: React.FC<PartyFormProps> = ({
   initialData,
   editingId,
+  mode = 'full',
   onSuccess,
   onCancel,
 }) => {
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const { cities } = useTurkiyeCities();
   const { updateCache, getCache, clearCache } = useQuickCreateStore();
+  const user = useAuthStore(state => state.user);
   
-  const { register, handleSubmit, watch, setValue, getValues, formState: { errors, isSubmitting } } = useForm<PartyFormData>({
-    defaultValues: (!editingId ? (getCache('party') as PartyFormData) : null) || {
+  const cacheKey = editingId ? `party_edit_${editingId}` : 'party_create';
+  
+  // Default cityId: from initialData, else from user's department, else empty
+  const defaultCityId = initialData?.cityId 
+    ? String(initialData.cityId) 
+    : (user?.department?.cityId ? String(user.department.cityId) : '');
+
+  const { register, handleSubmit, watch, setValue, getValues, control, formState: { errors, isSubmitting } } = useForm<PartyFormData>({
+    defaultValues: (editingId ? null : getCache(cacheKey) as PartyFormData | null) || {
       name: initialData?.name || '',
-      type: initialData?.type || 'customer',
-      taxOffice: initialData?.taxOffice || '',
+      type: (initialData?.type === 'provider' || initialData?.type === 'customer') ? initialData.type : 'provider',
       taxNumber: initialData?.taxNumber || '',
       phone1: initialData?.phone1 || '+90 ',
       phone2: initialData?.phone2 || '+90 ',
       email: initialData?.email || '',
       address: initialData?.address || '',
-      cityId: initialData?.cityId || 0,
+      cityId: defaultCityId,
       districtName: initialData?.districtName || '',
       creditLimit: initialData?.creditLimit || 0,
       currencyId: initialData?.currencyId ? String(initialData.currencyId) : '',
@@ -63,18 +74,15 @@ export const PartyForm: React.FC<PartyFormProps> = ({
   const cityIdWatcher = watch('cityId');
   const taxNumberWatcher = watch('taxNumber');
   const emailWatcher = watch('email');
-  const creditLimitWatcher = watch('creditLimit');
   const phone1Watcher = watch('phone1');
   const phone2Watcher = watch('phone2');
   
-  const { districts } = useTurkiyeDistricts(cityIdWatcher || null);
+  const { districts } = useTurkiyeDistricts(cityIdWatcher ? Number(cityIdWatcher) : null);
   const [emailFocus, setEmailFocus] = useState(false);
 
   const saveDraft = useCallback(() => {
-    if (!editingId) {
-      updateCache('party', getValues());
-    }
-  }, [getValues, updateCache, editingId]);
+    updateCache(cacheKey, getValues());
+  }, [getValues, updateCache, cacheKey]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -84,7 +92,7 @@ export const PartyForm: React.FC<PartyFormProps> = ({
       if (err.name !== 'AbortError') console.error(err);
     });
     return () => controller.abort();
-  }, [setValue, getValues]);
+  }, []);
 
   /* 🔥 DEFAULT CURRENCY SELECTION */
   useEffect(() => {
@@ -101,12 +109,11 @@ export const PartyForm: React.FC<PartyFormProps> = ({
     try {
       const dataToSubmit = {
         ...data,
-        cityId: data.cityId ? Number(data.cityId) : undefined,
-        currencyId: data.currencyId ? Number(data.currencyId) : undefined,
+        cityId: data.cityId ? String(data.cityId) : undefined,
+        currencyId: data.currencyId ? String(data.currencyId) : undefined,
         creditLimit: data.creditLimit ? Number(data.creditLimit) : 0,
         email: data.email?.trim() === '' ? undefined : data.email?.trim(),
         taxNumber: data.taxNumber?.trim() === '' ? undefined : data.taxNumber?.trim(),
-        taxOffice: data.taxOffice?.trim() === '' ? undefined : data.taxOffice?.trim(),
       };
 
       if (editingId) {
@@ -114,11 +121,19 @@ export const PartyForm: React.FC<PartyFormProps> = ({
         onSuccess(res.data);
       } else {
         const res = await partiesAPI.create(dataToSubmit);
+        clearCache(cacheKey);
         onSuccess(res.data);
-        clearCache('party');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(error);
+      let errorMsg = 'İşlem başarısız';
+      if (error && typeof error === 'object' && 'response' in error) {
+        const response = (error as { response: { data?: { message?: string | string[] } } }).response;
+        if (response.data?.message) {
+          errorMsg = Array.isArray(response.data.message) ? response.data.message[0] : response.data.message;
+        }
+      }
+      toast.error(errorMsg);
     }
   };
 
@@ -142,31 +157,22 @@ export const PartyForm: React.FC<PartyFormProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <FormField
-        label="Cari Tipi"
-        error={errors.type?.message}
-        required
-      >
-        <select {...register('type')} className="form-input">
-          <option value="customer">Müşteri</option>
-          <option value="supplier">Tedarikçi</option>
-        </select>
-      </FormField>
-        <div className="grid grid-cols-2 gap-3">
-          <FormField label={getTaxLabel()}>
-            <input 
-              className="input-premium font-black tabular-nums tracking-widest text-center" 
-              {...register('taxNumber', { onChange: (e) => e.target.value = e.target.value.replace(/\D/g, '').substring(0, 11) })}
-              placeholder="0000000000"
-            />
-          </FormField>
-          <FormField label="Vergi Dairesi">
-            <input 
-              className="input-premium uppercase-input font-bold" 
-              {...register('taxOffice', { onChange: (e) => e.target.value = e.target.value.toLocaleUpperCase('tr-TR') })}
-              placeholder="BOĞAZİÇİ" 
-            />
-          </FormField>
-        </div>
+          label="Cari Tipi"
+          error={errors.type?.message}
+          required
+        >
+          <select {...register('type')} className="form-input">
+            <option value="customer">Müşteri</option>
+            <option value="provider">Tedarikçi</option>
+          </select>
+        </FormField>
+        <FormField label={getTaxLabel()}>
+          <input 
+            className="input-premium font-black tabular-nums tracking-widest text-center" 
+            {...register('taxNumber', { onChange: (e) => e.target.value = e.target.value.replace(/\D/g, '').substring(0, 11) })}
+            placeholder="0000000000"
+          />
+        </FormField>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -194,18 +200,33 @@ export const PartyForm: React.FC<PartyFormProps> = ({
             onBlur={() => setTimeout(() => setEmailFocus(false), 200)}
             placeholder="muhasebe@sirket.com" 
           />
-          {emailFocus && emailWatcher && !emailWatcher.includes('@') && (
+          {emailFocus && emailWatcher && (
             <div className="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded-2xl z-50 shadow-2xl mt-2 overflow-hidden ring-4 ring-[var(--primary-glow)]">
-              {['@gmail.com', '@hotmail.com', '@outlook.com'].map(ext => (
-                <div 
-                  key={ext} 
-                  className="p-3 cursor-pointer hover:bg-slate-50 text-sm font-black flex justify-between items-center group"
-                  onClick={() => setValue('email', emailWatcher + ext)}
-                >
-                  <span className="text-slate-600">{emailWatcher}</span>
-                  <span className="text-[var(--primary)] group-hover:scale-110 transition-transform">{ext}</span>
-                </div>
-              ))}
+              {emailWatcher.includes('@') ? (
+                /* 🔥 Hızlı Domain Değiştirme — @ varsa domain'i değiştir */
+                ['@gmail.com', '@hotmail.com', '@outlook.com'].map(ext => (
+                  <div 
+                    key={ext} 
+                    className="p-3 cursor-pointer hover:bg-slate-50 text-sm font-black flex justify-between items-center group"
+                    onClick={() => setValue('email', emailWatcher.split('@')[0] + ext)}
+                  >
+                    <span className="text-slate-600">{emailWatcher.split('@')[0]}</span>
+                    <span className="text-[var(--primary)] group-hover:scale-110 transition-transform">{ext}</span>
+                  </div>
+                ))
+              ) : (
+                /* Domain önerisi — @ yoksa */
+                ['@gmail.com', '@hotmail.com', '@outlook.com'].map(ext => (
+                  <div 
+                    key={ext} 
+                    className="p-3 cursor-pointer hover:bg-slate-50 text-sm font-black flex justify-between items-center group"
+                    onClick={() => setValue('email', emailWatcher + ext)}
+                  >
+                    <span className="text-slate-600">{emailWatcher}</span>
+                    <span className="text-[var(--primary)] group-hover:scale-110 transition-transform">{ext}</span>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </FormField>
@@ -213,16 +234,36 @@ export const PartyForm: React.FC<PartyFormProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <FormField label="Şehir / İl">
-          <select className="input-premium font-black" {...register('cityId', { onChange: () => setValue('districtName', '') })}>
-            <option value={0}>SEÇİNİZ...</option>
-            {(cities || []).map((c) => <option key={c.id} value={c.id}>{c.name.toUpperCase()}</option>)}
-          </select>
+          <Controller
+            name="cityId"
+            control={control}
+            render={({ field }) => (
+              <select 
+                className="input-premium font-black" 
+                {...field} 
+                value={field.value || ''}
+                onChange={(e) => {
+                  field.onChange(e);
+                  setValue('districtName', '');
+                }}
+              >
+                <option value="">SEÇİNİZ...</option>
+                {(cities || []).map((c) => <option key={c.id} value={String(c.id)}>{c.name.toUpperCase()}</option>)}
+              </select>
+            )}
+          />
         </FormField>
         <FormField label="İlçe / Bölge">
-          <select className="input-premium font-black" {...register('districtName')} disabled={!cityIdWatcher}>
-            <option value="">SEÇİNİZ...</option>
-            {(districts || []).map((d) => <option key={d.id} value={d.name.toUpperCase()}>{d.name.toUpperCase()}</option>)}
-          </select>
+          <Controller
+            name="districtName"
+            control={control}
+            render={({ field }) => (
+              <select className="input-premium font-black" {...field} value={field.value || ''} disabled={!cityIdWatcher}>
+                <option value="">SEÇİNİZ...</option>
+                {(districts || []).map((d) => <option key={d.id} value={d.name.toUpperCase()}>{d.name.toUpperCase()}</option>)}
+              </select>
+            )}
+          />
         </FormField>
         <FormField label="Detaylı Adres">
           <input 
@@ -234,30 +275,32 @@ export const PartyForm: React.FC<PartyFormProps> = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-4 border-t border-slate-100">
-        <FormField label="Kredi Limiti">
-          <div className="flex flex-col gap-2">
-            <div className="relative">
-              <PremiumNumberInput 
-                value={watch('creditLimit')} 
-                onChange={val => setValue('creditLimit', val)} 
-                className="h-14"
-              />
-              <span className="absolute right-12 top-1/2 -translate-y-1/2 font-black text-slate-400 pointer-events-none">TRY</span>
+        {mode !== 'quick' && (
+          <FormField label="Kredi Limiti">
+            <div className="flex flex-col gap-2">
+              <div className="relative">
+                <PremiumNumberInput 
+                  value={watch('creditLimit')} 
+                  onChange={val => setValue('creditLimit', val)} 
+                  className="h-14"
+                />
+                <span className="absolute right-12 top-1/2 -translate-y-1/2 font-black text-slate-400 pointer-events-none">TRY</span>
+              </div>
+              <div className="flex gap-1">
+                {[-10000, -1000, 1000, 10000].map(val => (
+                  <button 
+                    key={val}
+                    type="button" 
+                    className="flex-1 h-8 rounded-lg bg-slate-50 border border-slate-200 text-[10px] font-black text-slate-600 hover:bg-[var(--primary)] hover:text-white transition-all"
+                    onClick={() => setValue('creditLimit', Number(getValues('creditLimit') || 0) + val)}
+                  >
+                    {val > 0 ? `+${val/1000}K` : `${val/1000}K`}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-1">
-              {[-10000, -1000, 1000, 10000].map(val => (
-                <button 
-                  key={val}
-                  type="button" 
-                  className="flex-1 h-8 rounded-lg bg-slate-50 border border-slate-200 text-[10px] font-black text-slate-600 hover:bg-[var(--primary)] hover:text-white transition-all"
-                  onClick={() => setValue('creditLimit', Number(getValues('creditLimit') || 0) + val)}
-                >
-                  {val > 0 ? `+${val/1000}K` : `${val/1000}K`}
-                </button>
-              ))}
-            </div>
-          </div>
-        </FormField>
+          </FormField>
+        )}
         <div className="flex flex-col gap-5">
           <FormField label="Çalışma Para Birimi">
             <select className="input-premium font-black h-14" {...register('currencyId')}>
@@ -278,7 +321,7 @@ export const PartyForm: React.FC<PartyFormProps> = ({
         <button type="submit" disabled={isSubmitting} className="btn btn-primary btn-lg flex-1 shadow-2xl shadow-[var(--primary-glow)]">
           <FiSave size={20} /> {editingId ? 'DEĞİŞİKLİKLERİ KAYDET' : 'YENİ CARİ KART OLUŞTUR'}
         </button>
-        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all" onClick={() => { clearCache('party'); onCancel(); }}>
+        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all" onClick={() => { clearCache(cacheKey); onCancel(); }}>
           <FiX size={20} /> İPTAL
         </button>
       </div>

@@ -34,13 +34,9 @@ const rabbitmq_config_1 = __importDefault(require("./config/rabbitmq.config"));
 const storage_config_1 = __importDefault(require("./config/storage.config"));
 const config_schema_1 = require("./config/config.schema");
 const audit_interceptor_1 = require("./common/interceptors/audit.interceptor");
-const logs_interceptor_1 = require("./common/interceptors/logs.interceptor");
 const jwt_auth_guard_1 = require("./common/guards/jwt-auth.guard");
 const permissions_guard_1 = require("./common/guards/permissions.guard");
-const csrf_guard_1 = require("./common/guards/csrf.guard");
-const csrf_middleware_1 = require("./common/middleware/csrf.middleware");
 const audit_subscriber_1 = require("./common/subscribers/audit.subscriber");
-const stock_subscriber_1 = require("./modules/inventory/stocks/subscribers/stock.subscriber");
 const common_module_1 = require("./common/common.module");
 const storage_module_1 = require("./common/services/storage/storage.module");
 const auth_module_1 = require("./modules/auth/auth.module");
@@ -61,7 +57,6 @@ const staff_module_1 = require("./modules/staff/staff.module");
 const health_module_1 = require("./infrastructure/health/health.module");
 let AppModule = class AppModule {
     configure(consumer) {
-        consumer.apply(csrf_middleware_1.CsrfMiddleware).forRoutes('*');
     }
 };
 exports.AppModule = AppModule;
@@ -99,6 +94,10 @@ exports.AppModule = AppModule = __decorate([
                 useFactory: (cls) => ({
                     pinoHttp: {
                         level: process.env.NODE_ENV !== 'production' ? 'debug' : 'info',
+                        redact: {
+                            paths: ['req.headers.authorization', 'req.body.password', 'req.body.secret', 'req.body.token', 'req.body.creditCard', 'req.body.iban', 'req.body.cvv'],
+                            censor: '********',
+                        },
                         genReqId: (req) => {
                             const reqId = req.headers['x-request-id'] || (0, uuid_1.v4)();
                             cls.set('reqId', reqId);
@@ -130,13 +129,10 @@ exports.AppModule = AppModule = __decorate([
         ],
         providers: [
             { provide: core_1.APP_INTERCEPTOR, useClass: audit_interceptor_1.AuditInterceptor },
-            { provide: core_1.APP_INTERCEPTOR, useClass: logs_interceptor_1.LogsInterceptor },
             { provide: core_1.APP_GUARD, useClass: throttler_proxy_guard_1.ThrottlerProxyGuard },
-            { provide: core_1.APP_GUARD, useClass: csrf_guard_1.CsrfGuard },
             { provide: core_1.APP_GUARD, useClass: jwt_auth_guard_1.JwtAuthGuard },
             { provide: core_1.APP_GUARD, useClass: permissions_guard_1.PermissionsGuard },
             audit_subscriber_1.AuditSubscriber,
-            stock_subscriber_1.StockSubscriber,
         ],
     })
 ], AppModule);

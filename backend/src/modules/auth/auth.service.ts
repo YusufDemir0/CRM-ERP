@@ -202,6 +202,7 @@ export class AuthService implements OnModuleInit {
         'user.state',
         'department.id',
         'department.name',
+        'department.cityId',
         'role.id',
         'role.name',
         'permission.id',

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, memo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { rolesAPI } from '../../services/api';
@@ -13,6 +13,113 @@ import { Role, Permission } from '../../types';
 import { useSort } from '../../hooks/useSort';
 import { useDeferredValue } from 'react';
 import { queryKeys } from '../../services/queryKeys';
+
+const MODULE_TRANSLATIONS: Record<string, string> = {
+  'inventory': 'Stok ve Envanter',
+  'users': 'Kullanıcılar',
+  'roles': 'Roller ve Yetkiler',
+  'departments': 'Departmanlar',
+  'parties': 'Cariler (Müşteri/Tedarikçi)',
+  'sales': 'Satış Yönetimi',
+  'finance': 'Finansal Hareketler',
+  'production': 'Üretim Planlama',
+  'system': 'Sistem Konfigürasyonu'
+};
+
+const PermissionItem = memo(({ 
+  perm, 
+  isSelected, 
+  onToggle 
+}: { 
+  perm: Permission; 
+  isSelected: boolean; 
+  onToggle: (id: string) => void;
+}) => (
+  <label className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-colors hover:bg-slate-50 group ${
+    isSelected ? 'bg-primary/[0.03] ring-1 ring-primary/10' : ''
+  }`}>
+    <div className="flex items-center gap-3">
+      <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-colors ${
+        isSelected ? 'bg-primary border-primary text-white scale-110' : 'border-slate-200 bg-white group-hover:border-primary/50'
+      }`}>
+        <input 
+          type="checkbox" 
+          className="hidden"
+          checked={isSelected} 
+          onChange={() => onToggle(perm.id)} 
+        />
+        {isSelected && <FiCheckCircle size={12} />}
+      </div>
+      <span className={`text-[13px] font-bold select-none ${
+        isSelected ? 'text-slate-900' : 'text-slate-500'
+      }`}>
+        {perm.name}
+      </span>
+    </div>
+    
+    {perm.action && (
+      <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter ${
+        perm.action === 'manage' ? 'bg-purple-100 text-purple-700' :
+        perm.action === 'delete' ? 'bg-red-100 text-red-700' :
+        perm.action === 'update' ? 'bg-blue-100 text-blue-700' :
+        perm.action === 'create' ? 'bg-green-100 text-green-700' :
+        'bg-slate-100 text-slate-700'
+      }`}>
+        {perm.action}
+      </span>
+    )}
+  </label>
+));
+
+const ModuleSection = memo(({ 
+  moduleName, 
+  permissions, 
+  selectedIds, 
+  onToggle,
+  onToggleModule
+}: { 
+  moduleName: string; 
+  permissions: Permission[]; 
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+  onToggleModule: (moduleName: string, checked: boolean) => void;
+}) => {
+  const allChecked = permissions.every(p => selectedIds.includes(p.id));
+  
+  return (
+    <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-4">
+      <div className="flex justify-between items-center pb-3 border-b border-slate-50">
+        <div className="text-[10px] font-black text-primary uppercase tracking-widest">
+          {moduleName}
+        </div>
+        <label className="flex items-center gap-1.5 cursor-pointer group">
+          <input 
+            type="checkbox" 
+            className="hidden"
+            checked={allChecked}
+            onChange={(e) => onToggleModule(moduleName, e.target.checked)}
+          />
+          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+            allChecked ? 'bg-primary border-primary text-white' : 'border-slate-200 bg-white group-hover:border-primary/50'
+          }`}>
+            {allChecked && <FiCheckCircle size={10} />}
+          </div>
+          <span className="text-[9px] font-bold text-slate-400 uppercase select-none">Tümü</span>
+        </label>
+      </div>
+      <div className="flex flex-col gap-2">
+        {permissions.map((perm) => (
+          <PermissionItem 
+            key={perm.id} 
+            perm={perm} 
+            isSelected={selectedIds.includes(perm.id)} 
+            onToggle={onToggle} 
+          />
+        ))}
+      </div>
+    </div>
+  );
+});
 
 export function RolesPage() {
   const queryClient = useQueryClient();
@@ -44,12 +151,11 @@ export function RolesPage() {
 
   const setPage = (p: number) => updateParams({ page: p });
   const setFilterTab = (tab: string) => updateParams({ tab, page: 1 });
-  const setSearchTerm = (q: string) => updateParams({ q, page: 1 });
-
-  const sort = {
+  
+  const sort = useMemo(() => ({
     key: searchParams.get('sortBy') || 'name',
     order: (searchParams.get('sortOrder') as 'ASC' | 'DESC') || 'ASC'
-  };
+  }), [searchParams]);
 
   const { data: rolesData, isLoading: loading } = useQuery({
     queryKey: queryKeys.roles.all({ search: deferredSearch, filterTab, page, limit, sort }),
@@ -66,18 +172,20 @@ export function RolesPage() {
   const roles = rolesData?.data || [];
   const paginationMeta = rolesData?.meta || { total: 0, page: 1, limit: 100, totalPages: 0 };
   
+  const handleSortChange = useCallback((configs: { key: string; direction: 'asc' | 'desc' }[]) => {
+    if (configs.length > 0) {
+      updateParams({ 
+        sortBy: configs[0].key, 
+        sortOrder: configs[0].direction.toUpperCase(),
+        page: 1 
+      });
+    }
+  }, [updateParams]);
+
   const { sortedData, sortConfigs, toggleSort } = useSort<Role>(
     roles, 
     [{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }],
-    (configs) => {
-      if (configs.length > 0) {
-        updateParams({ 
-          sortBy: configs[0].key, 
-          sortOrder: configs[0].direction.toUpperCase(),
-          page: 1 
-        });
-      }
-    }
+    handleSortChange
   );
 
   const { data: allPermissions = [] } = useQuery({
@@ -85,12 +193,23 @@ export function RolesPage() {
     queryFn: async ({ signal }) => {
       const res = await rolesAPI.getPermissions({ limit: 500 }, { signal });
       return res.data.data;
-    }
+    },
+    staleTime: 1000 * 60 * 60, // 1 hour
   });
+
+  const groupedPermissions = useMemo(() => {
+    return allPermissions.reduce((acc: Record<string, Permission[]>, perm: Permission) => {
+      const rawMod = (perm.module || 'Genel').toLowerCase();
+      const mod = MODULE_TRANSLATIONS[rawMod] || perm.module || 'Genel';
+      if (!acc[mod]) acc[mod] = [];
+      acc[mod].push(perm);
+      return acc;
+    }, {});
+  }, [allPermissions]);
 
   const mutation = useMutation({
     mutationFn: async ({ id, data }: { id: string | null; data: { name: string; permissionIds: string[] } }) => {
-      const payload = { ...data, permissionIds: data.permissionIds };
+      const payload = { ...data };
       if (id) return rolesAPI.update(id, payload);
       return rolesAPI.create(payload);
     },
@@ -102,19 +221,19 @@ export function RolesPage() {
     onError: () => toast.error("Hata oluştu")
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     mutation.mutate({ id: editingId, data: formData });
-  };
+  }, [editingId, formData, mutation]);
 
-  const handleEdit = (role: Role) => {
+  const handleEdit = useCallback((role: Role) => {
     setEditingId(role.id);
     setFormData({
       name: role.name || '',
       permissionIds: role.permissions?.map((p: Permission) => p.id) ||[]
     });
     setIsModalOpen(true);
-  };
+  }, []);
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, state }: { id: string | number; state: number }) => rolesAPI.toggleState(id, state),
@@ -125,7 +244,7 @@ export function RolesPage() {
     onError: () => toast.error("Hata oluştu")
   });
 
-  const toggleState = async (id: string | number, currentState: number) => {
+  const toggleState = useCallback(async (id: string | number, currentState: number) => {
     const confirmed = await confirmDialog(
       currentState === 1 ? 'Rolü pasife almak istediğinize emin misiniz?' : 'Rol tekrar aktif edilecektir.',
       currentState === 1
@@ -133,18 +252,29 @@ export function RolesPage() {
     if (confirmed) {
       toggleMutation.mutate({ id, state: currentState });
     }
-  };
+  }, [toggleMutation]);
 
-  const togglePermission = (permId: string) => {
+  const togglePermission = useCallback((permId: string) => {
     setFormData(prev => ({
       ...prev,
       permissionIds: prev.permissionIds.includes(permId)
         ? prev.permissionIds.filter(id => id !== permId)
         : [...prev.permissionIds, permId]
     }));
-  };
+  }, []);
 
-  const applyFastRole = (type: string) => {
+  const toggleModule = useCallback((moduleName: string, checked: boolean) => {
+    const modulePermIds = groupedPermissions[moduleName].map((p: Permission) => p.id);
+    setFormData(prev => {
+      if (checked) {
+        return { ...prev, permissionIds: Array.from(new Set([...prev.permissionIds, ...modulePermIds])) };
+      } else {
+        return { ...prev, permissionIds: prev.permissionIds.filter(id => !modulePermIds.includes(id)) };
+      }
+    });
+  }, [groupedPermissions]);
+
+  const applyFastRole = useCallback((type: string) => {
     let ids: string[] = [];
     switch (type) {
       case 'admin':
@@ -175,29 +305,9 @@ export function RolesPage() {
         break;
     }
     setFormData(prev => ({ ...prev, permissionIds: ids }));
-  };
+  }, [allPermissions]);
 
-  const moduleTranslations: Record<string, string> = {
-    'inventory': 'Stok ve Envanter',
-    'users': 'Kullanıcılar',
-    'roles': 'Roller ve Yetkiler',
-    'departments': 'Departmanlar',
-    'parties': 'Cariler (Müşteri/Tedarikçi)',
-    'sales': 'Satış Yönetimi',
-    'finance': 'Finansal Hareketler',
-    'production': 'Üretim Planlama',
-    'system': 'Sistem Konfigürasyonu'
-  };
-
-  const groupedPermissions = allPermissions.reduce((acc: Record<string, Permission[]>, perm: Permission) => {
-    const rawMod = (perm.module || 'Genel').toLowerCase();
-    const mod = moduleTranslations[rawMod] || perm.module || 'Genel';
-    if (!acc[mod]) acc[mod] = [];
-    acc[mod].push(perm);
-    return acc;
-  }, {});
-
-  const columns: Column<Role>[] = [
+  const columns: Column<Role>[] = useMemo(() => [
     { 
       header: 'YETKİ PROFİLİ', 
       accessor: (r) => (
@@ -232,12 +342,12 @@ export function RolesPage() {
         <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${
           r.state === 1 ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
         }`}>
-          {r.state === 1 ? 'TAM ERİŞİM' : 'KISITLI / PASİF'}
+          {r.state === 1 ? 'AKTİF' : 'PASİF'}
         </span>
       ),
       sortKey: 'state'
     }
-  ];
+  ], []);
 
   return (
     <div className="animate-in flex flex-col gap-8">
@@ -318,6 +428,7 @@ export function RolesPage() {
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">ROL İSMİ (GÖREV TANIMI)</label>
                 <input 
+                  autoFocus
                   required 
                   className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors uppercase" 
                   value={formData.name} 
@@ -364,77 +475,19 @@ export function RolesPage() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6 rounded-2xl bg-slate-50 border border-slate-100">
                   {Object.keys(groupedPermissions).map(moduleName => (
-                    <div key={moduleName} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-4">
-                      <div className="flex justify-between items-center pb-3 border-b border-slate-50">
-                        <div className="text-[10px] font-black text-primary uppercase tracking-widest">
-                          {moduleName}
-                        </div>
-                        <label className="flex items-center gap-1.5 cursor-pointer group">
-                          <input 
-                            type="checkbox" 
-                            className="hidden"
-                            checked={groupedPermissions[moduleName].every((p: Permission) => formData.permissionIds.includes(p.id))}
-                            onChange={(e) => {
-                              const modulePermIds = groupedPermissions[moduleName].map((p: Permission) => p.id);
-                              if (e.target.checked) {
-                                setFormData(prev => ({ ...prev, permissionIds: Array.from(new Set([...prev.permissionIds, ...modulePermIds])) }));
-                              } else {
-                                setFormData(prev => ({ ...prev, permissionIds: prev.permissionIds.filter(id => !modulePermIds.includes(id)) }));
-                              }
-                            }}
-                          />
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-                            groupedPermissions[moduleName].every((p: Permission) => formData.permissionIds.includes(p.id)) ? 'bg-primary border-primary text-white' : 'border-slate-200 bg-white group-hover:border-primary/50'
-                          }`}>
-                            {groupedPermissions[moduleName].every((p: Permission) => formData.permissionIds.includes(p.id)) && <FiCheckCircle size={10} />}
-                          </div>
-                          <span className="text-[9px] font-bold text-slate-400 uppercase select-none">Tümü</span>
-                        </label>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        {groupedPermissions[moduleName].map((perm: Permission) => (
-                          <label key={perm.id} className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-colors hover:bg-slate-50 group ${
-                            formData.permissionIds.includes(perm.id) ? 'bg-primary/[0.03] ring-1 ring-primary/10' : ''
-                          }`}>
-                            <div className="flex items-center gap-3">
-                              <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-colors ${
-                                formData.permissionIds.includes(perm.id) ? 'bg-primary border-primary text-white scale-110' : 'border-slate-200 bg-white group-hover:border-primary/50'
-                              }`}>
-                                <input 
-                                  type="checkbox" 
-                                  className="hidden"
-                                  checked={formData.permissionIds.includes(perm.id)} 
-                                  onChange={() => togglePermission(perm.id)} 
-                                />
-                                {formData.permissionIds.includes(perm.id) && <FiCheckCircle size={12} />}
-                              </div>
-                              <span className={`text-[13px] font-bold select-none ${
-                                formData.permissionIds.includes(perm.id) ? 'text-slate-900' : 'text-slate-500'
-                              }`}>
-                                {perm.name}
-                              </span>
-                            </div>
-                            
-                            {perm.action && (
-                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter ${
-                                perm.action === 'manage' ? 'bg-purple-100 text-purple-700' :
-                                perm.action === 'delete' ? 'bg-red-100 text-red-700' :
-                                perm.action === 'update' ? 'bg-blue-100 text-blue-700' :
-                                perm.action === 'create' ? 'bg-green-100 text-green-700' :
-                                'bg-slate-100 text-slate-700'
-                              }`}>
-                                {perm.action}
-                              </span>
-                            )}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
+                    <ModuleSection 
+                      key={moduleName} 
+                      moduleName={moduleName} 
+                      permissions={groupedPermissions[moduleName]} 
+                      selectedIds={formData.permissionIds}
+                      onToggle={togglePermission}
+                      onToggleModule={toggleModule}
+                    />
                   ))}
                 </div>
               </div>
 
-              <div className="flex gap-4 sticky bottom-0 bg-white pt-4 pb-2">
+              <div className="flex gap-4 sticky bottom-0 bg-white pt-4 pb-2 mt-auto">
                 <button type="submit" className="flex-1 h-16 rounded-2xl bg-primary text-white font-black text-base shadow-xl shadow-primary/20 hover:bg-primary/90 active:scale-[0.98] transition-colors">
                   YARATILAN PROFİLİ KAYDET
                 </button>

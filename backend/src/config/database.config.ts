@@ -21,7 +21,7 @@ export default registerAs('database', () => {
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_DATABASE || 'benyaptim',
     entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-    synchronize: false,
+    synchronize: process.env.NODE_ENV !== 'production', // DEV-FIX: Yeni kolonların (department_id) eklenmesi için aktif edildi
     migrationsRun: false,
     migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
     logging: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],

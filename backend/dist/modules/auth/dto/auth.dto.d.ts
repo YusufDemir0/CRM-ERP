@@ -8,7 +8,7 @@ export declare class RegisterDto {
     fullName: string;
     email: string;
     phone?: string;
-    departmentId?: number;
+    departmentId: string;
 }
 export declare class ForgotPasswordDto {
     email: string;

@@ -31,11 +31,11 @@ __decorate([
 __decorate([
     (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'party_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], Sale.prototype, "partyId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'sale_type_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], Sale.prototype, "saleTypeId", void 0);
 __decorate([
     (0, typeorm_1.Index)(),

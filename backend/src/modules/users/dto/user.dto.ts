@@ -12,21 +12,19 @@ export class CreateUserDto {
   @IsString()
   fullName: string;
 
+  @IsOptional()
   @IsEmail()
-  email: string;
+  email?: string;
 
-  @IsOptional()
   @IsString()
-  phone?: string;
+  phone: string;
 
-  @IsOptional()
-  @IsString() departmentId: string;
+  @IsString()
+  departmentId: string;
 
-  @IsOptional()
   @IsArray()
-  @IsInt({ each: true })
-  @Type(() => Number)
-  roleIds?: number[];
+  @IsString({ each: true })
+  roleIds: string[];
 }
 
 export class UpdateUserDto {
@@ -56,9 +54,8 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsArray()
-  @IsInt({ each: true })
-  @Type(() => Number)
-  roleIds?: number[];
+  @IsString({ each: true })
+  roleIds?: string[];
 
   @IsOptional()
   @IsNumber()

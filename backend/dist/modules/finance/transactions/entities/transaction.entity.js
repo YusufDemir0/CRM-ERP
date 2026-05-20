@@ -31,7 +31,7 @@ __decorate([
 ], Transaction.prototype, "partyId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'commercial_account_id', type: 'bigint', nullable: true }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], Transaction.prototype, "commercialAccountId", void 0);
 __decorate([
     (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),

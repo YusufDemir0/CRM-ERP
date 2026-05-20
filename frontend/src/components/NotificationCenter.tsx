@@ -19,6 +19,7 @@ export const NotificationCenter = memo(() => {
       const res = await logsAPI.getNotifications();
       return res.data;
     },
+    enabled: !!localStorage.getItem('token'), // Only fetch if token exists
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 

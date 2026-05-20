@@ -10,6 +10,8 @@ import { SaleType } from './entities/sale-type.entity';
 import { Party } from '../parties/entities/party.entity';
 import { Currency } from '../finance/currencies/entities/currency.entity';
 import { User } from '../auth/entities/user.entity';
+import { Staff } from '../staff/entities/staff.entity';
+import { CommercialAccount } from '../finance/accounts/entities/commercial-account.entity';
 import { AccountingLedger } from '../parties/entities/ledger.entity';
 import { Transaction } from '../finance/transactions/entities/transaction.entity';
 
@@ -55,10 +57,23 @@ export class SalesTransactionsService {
     const party = await manager.findOne(Party, { where: { id: dto.partyId } });
     if (!party) throw new NotFoundException('Cari bulunamadı.');
     if (party.state === 0) throw new BadRequestException('Pasif durumdaki bir cariye işlem yapılamaz.');
-    if (party.type === 'supplier') throw new BadRequestException('Sadece Tedarikçi tipindeki bir cariye satış yapılamaz.');
 
-    const currency = await manager.findOne(Currency, { where: { id: dto.currencyId } });
-    const currentExchangeRate = currency ? currency.exchangeRate : new Decimal(1);
+    const saleType = await manager.findOne(SaleType, { where: { id: dto.saleTypeId } });
+    if (!saleType) throw new NotFoundException('Satış tipi bulunamadı.');
+
+    const currency = await manager.findOne(Currency, { where: { id: dto.currencyId || "1" } });
+    if (!currency) throw new NotFoundException('Döviz birimi bulunamadı.');
+    const currentExchangeRate = currency.exchangeRate || new Decimal(1);
+
+    if (dto.staffId) {
+      const staffExists = await manager.count(Staff, { where: { id: dto.staffId } });
+      if (staffExists === 0) throw new NotFoundException('Satış temsilcisi bulunamadı.');
+    }
+
+    if (dto.commercialAccountId) {
+      const accountExists = await manager.count(CommercialAccount, { where: { id: dto.commercialAccountId } });
+      if (accountExists === 0) throw new NotFoundException('Ticari hesap bulunamadı.');
+    }
 
     const user = await manager.findOne(User, { where: { id: userId } });
     const userDeptId = user?.departmentId || 1;
@@ -94,6 +109,7 @@ export class SalesTransactionsService {
     const saleItemEntities = calcResult.lines.map(line => manager.create(SaleItem, {
       ...line,
       saleId: savedSale.id,
+      shippedQuantity: new Decimal(0),
       costPrice: line.costPrice,
       createdBy: userId
     }));
@@ -214,57 +230,24 @@ export class SalesTransactionsService {
     if (!sale) throw new NotFoundException('Satış bulunamadı');
     if (sale.status === 'cancelled') throw new BadRequestException('Sipariş zaten iptal edilmiş.');
 
-    if (sale.status === 'approved' || sale.status === 'shipped') {
-      const party = await manager.findOne(Party, {
-        where: { id: sale.partyId },
-        lock: { mode: 'pessimistic_write' }
-      });
-      if (!party) throw new NotFoundException('Cari hesap bulunamadı');
+    const previousStatus = sale.status;
 
-      await this.stocksService.revertStockMovementsByReference('sale', sale.id, manager, userId);
-
-      const itemsToUnreserve = sale.items.map(si => ({
-        itemId: String(si.itemId),
-        quantity: new Decimal(si.quantity).sub(si.shippedQuantity || 0)
-      })).filter(i => i.quantity.gt(0));
-
-      if (itemsToUnreserve.length > 0) {
-        await this.stocksService.unreserveStockBulk(itemsToUnreserve, sale.departmentId || '1', manager, userId);
-      }
-
+    if (previousStatus === 'approved' || previousStatus === 'shipped') {
       const tlGrandTotal = FH.mul(sale.grandTotal, sale.exchangeRate);
       const tlDeposit = FH.mul(sale.deposit, sale.exchangeRate);
 
-      const targetBalance = FH.add(FH.sub(party.balance, tlGrandTotal), tlDeposit);
-      await manager.update(Party, party.id, { balance: targetBalance, updatedBy: userId });
-
-      await manager.save(manager.create(AccountingLedger, {
-        date: DateUtils.getToday(),
-        partyId: party.id,
-        debit: new Decimal(0),
-        credit: tlGrandTotal,
-        transactionId: sale.id,
-        source: 'CANCEL_SALE',
-        description: `${sale.code} Satış İptali - Borç Revert`
-      }));
-
-      if (tlDeposit.gt(0)) {
-        const depositTx = await manager.findOne(Transaction, {
-          where: { referenceType: 'sale', referenceId: sale.id, type: 'in' }
-        });
-
-        await manager.save(manager.create(AccountingLedger, {
-          date: DateUtils.getToday(),
-          partyId: party.id,
-          accountId: depositTx?.commercialAccountId,
-          debit: tlDeposit,
-          credit: new Decimal(0),
-          transactionId: sale.id,
-          source: 'CANCEL_DEPOSIT',
-          description: `${sale.code} Kapora İptali - Alacak Revert`
-        }));
-      }
-
+      await this.outboxService.saveEvent({
+        topic: 'sale.cancelled',
+        payload: {
+          sale,
+          tlGrandTotal,
+          tlDeposit,
+          userId,
+        },
+        manager,
+      });
+      
+      // Update the transaction status immediately so UI knows it's cancelled
       await manager.update(Transaction, { referenceType: 'sale', referenceId: sale.id }, { status: 'cancelled', updatedBy: userId });
     }
 

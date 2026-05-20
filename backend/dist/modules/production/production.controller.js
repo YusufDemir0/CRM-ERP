@@ -54,9 +54,9 @@ __decorate([
 __decorate([
     (0, common_1.Get)('boms/:id'),
     (0, permissions_decorator_1.RequirePermissions)('PRODUCTION_VIEW'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], ProductionController.prototype, "findOneBom", null);
 __decorate([
@@ -65,25 +65,25 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [production_dto_1.CreateBomDto, Number]),
+    __metadata("design:paramtypes", [production_dto_1.CreateBomDto, String]),
     __metadata("design:returntype", void 0)
 ], ProductionController.prototype, "createBom", null);
 __decorate([
     (0, common_1.Put)('boms/:id'),
     (0, permissions_decorator_1.RequirePermissions)('PRODUCTION_EDIT'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, production_dto_1.UpdateBomDto, Number]),
+    __metadata("design:paramtypes", [String, production_dto_1.UpdateBomDto, String]),
     __metadata("design:returntype", void 0)
 ], ProductionController.prototype, "updateBom", null);
 __decorate([
     (0, common_1.Delete)('boms/:id'),
     (0, permissions_decorator_1.RequirePermissions)('PRODUCTION_DELETE'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], ProductionController.prototype, "deleteBom", null);
 __decorate([
@@ -97,9 +97,9 @@ __decorate([
 __decorate([
     (0, common_1.Get)('orders/:id'),
     (0, permissions_decorator_1.RequirePermissions)('PRODUCTION_VIEW'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], ProductionController.prototype, "findOneOrder", null);
 __decorate([
@@ -108,25 +108,25 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [production_dto_1.CreateProductionOrderDto, Number]),
+    __metadata("design:paramtypes", [production_dto_1.CreateProductionOrderDto, String]),
     __metadata("design:returntype", void 0)
 ], ProductionController.prototype, "createOrder", null);
 __decorate([
     (0, common_1.Put)('orders/:id'),
     (0, permissions_decorator_1.RequirePermissions)('PRODUCTION_EDIT'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, production_dto_1.UpdateProductionOrderDto, Number]),
+    __metadata("design:paramtypes", [String, production_dto_1.UpdateProductionOrderDto, String]),
     __metadata("design:returntype", void 0)
 ], ProductionController.prototype, "updateOrder", null);
 __decorate([
     (0, common_1.Delete)('orders/:id'),
     (0, permissions_decorator_1.RequirePermissions)('PRODUCTION_DELETE'),
-    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], ProductionController.prototype, "deleteOrder", null);
 __decorate([

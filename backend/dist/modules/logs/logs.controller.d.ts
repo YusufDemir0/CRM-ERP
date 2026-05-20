@@ -13,6 +13,6 @@ export declare class LogsController {
         };
     }>;
     getNotifications(): Promise<import("./entities/log.entity").SystemLog[]>;
-    markAsRead(id: number): Promise<void>;
+    markAsRead(id: string): Promise<void>;
     markAllAsRead(): Promise<void>;
 }

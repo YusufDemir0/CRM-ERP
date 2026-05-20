@@ -8,11 +8,11 @@ import { Staff } from '../../staff/entities/staff.entity';
 import { CommercialAccount } from '../../finance/accounts/entities/commercial-account.entity';
 export declare class Sale extends BaseEntity {
     code: string;
-    partyId: number;
-    saleTypeId: number;
-    departmentId: number | null;
-    staffId: number | null;
-    currencyId: number | null;
+    partyId: string;
+    saleTypeId: string;
+    departmentId: string | null;
+    staffId: string | null;
+    currencyId: string | null;
     exchangeRate: Decimal;
     deliveryDate: string | null;
     status: 'draft' | 'approved' | 'shipped' | 'invoiced' | 'cancelled';
@@ -32,7 +32,7 @@ export declare class Sale extends BaseEntity {
     taxNumber: string | null;
     email: string | null;
     source: string | null;
-    commercialAccountId: number | null;
+    commercialAccountId: string | null;
     party: Party;
     saleType: SaleType;
     currency: Currency;

@@ -27,24 +27,12 @@ let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGenera
         await queryRunner.connect();
         await queryRunner.startTransaction();
         try {
-            let [row] = await queryRunner.query(`SELECT current_number as id FROM ${table} WHERE ${idField} = ? FOR UPDATE`, [idValue]);
-            let current = 1;
-            if (!row) {
-                try {
-                    await queryRunner.query(`INSERT INTO ${table} (${idField}, current_number) VALUES (?, ?)`, [idValue, 1]);
-                }
-                catch (insertErr) {
-                    [row] = await queryRunner.query(`SELECT current_number as id FROM ${table} WHERE ${idField} = ? FOR UPDATE`, [idValue]);
-                    current = Number(row.id) + 1;
-                    await queryRunner.query(`UPDATE ${table} SET current_number = ? WHERE ${idField} = ?`, [current, idValue]);
-                }
-            }
-            else {
-                current = Number(row.id) + 1;
-                await queryRunner.query(`UPDATE ${table} SET current_number = ? WHERE ${idField} = ?`, [current, idValue]);
-            }
+            await queryRunner.query(`INSERT IGNORE INTO ${table} (${idField}, current_number) VALUES (?, 0)`, [idValue]);
+            const [row] = await queryRunner.query(`SELECT current_number as id FROM ${table} WHERE ${idField} = ? FOR UPDATE`, [idValue]);
+            const next = Number(row.id) + 1;
+            await queryRunner.query(`UPDATE ${table} SET current_number = ? WHERE ${idField} = ?`, [next, idValue]);
             await queryRunner.commitTransaction();
-            return current;
+            return next;
         }
         catch (err) {
             await queryRunner.rollbackTransaction();

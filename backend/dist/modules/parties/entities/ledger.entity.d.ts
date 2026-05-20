@@ -4,12 +4,12 @@ import { CommercialAccount } from '../../finance/accounts/entities/commercial-ac
 import { Decimal } from 'decimal.js';
 export declare class AccountingLedger extends BaseEntity {
     date: string;
-    partyId: number;
-    accountId: number | null;
+    partyId: string;
+    accountId: string | null;
     account: CommercialAccount;
     debit: Decimal;
     credit: Decimal;
-    transactionId: number;
+    transactionId: string;
     source: string;
     description: string;
     party: Party;

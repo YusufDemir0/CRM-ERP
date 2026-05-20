@@ -29,7 +29,12 @@ let AccountsService = class AccountsService {
     }
     async findAll(query) {
         const qb = this.accRepo.createQueryBuilder('acc')
-            .leftJoinAndSelect('acc.currency', 'currency');
+            .select([
+            'acc.id', 'acc.name', 'acc.bankName', 'acc.iban', 'acc.state',
+            'acc.createdAt'
+        ])
+            .leftJoin('acc.currency', 'currency')
+            .addSelect(['currency.id', 'currency.symbol', 'currency.code']);
         if (query.search) {
             const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
             const cleanTerm = query.search.replace(/[\s-]/g, '').replace(/^TR/i, '');
@@ -50,7 +55,7 @@ let AccountsService = class AccountsService {
         };
     }
     async findOne(id) {
-        const acc = await this.accRepo.findOne({ where: { id }, relations: ['currency'] });
+        const acc = await this.accRepo.findOne({ where: { id: String(id) }, relations: ['currency'] });
         if (!acc)
             throw new common_1.NotFoundException('Hesap bulunamadı');
         return acc;
@@ -59,7 +64,7 @@ let AccountsService = class AccountsService {
         if (!dto.currencyId) {
             try {
                 const defaultCurrency = await this.currenciesService.getDefault();
-                dto.currencyId = Number(defaultCurrency.id);
+                dto.currencyId = String(defaultCurrency.id);
             }
             catch (error) {
                 console.warn('Default currency not found in AccountsService, setting to null');

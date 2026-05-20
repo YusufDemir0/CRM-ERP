@@ -97,9 +97,8 @@ __decorate([
     __metadata("design:type", String)
 ], CreateAccountDto.prototype, "ibanName", void 0);
 __decorate([
-    (0, class_validator_1.IsNumber)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateAccountDto.prototype, "currencyId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -141,9 +140,8 @@ __decorate([
 ], UpdateAccountDto.prototype, "criticalLimit", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], UpdateAccountDto.prototype, "currencyId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -163,12 +161,12 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], CreateTransactionDto.prototype, "partyId", void 0);
 __decorate([
     (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], CreateTransactionDto.prototype, "commercialAccountId", void 0);
 __decorate([
     (0, class_validator_1.IsNotEmpty)(),
@@ -180,7 +178,7 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], CreateTransactionDto.prototype, "currencyId", void 0);
 __decorate([
     (0, class_validator_1.IsEnum)(['in', 'out']),
@@ -196,7 +194,7 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], CreateTransactionDto.prototype, "referenceId", void 0);
 __decorate([
     (0, class_validator_1.IsDateString)(),
@@ -214,7 +212,7 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Type)(() => Number),
     (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], TransactionsQueryDto.prototype, "partyId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),

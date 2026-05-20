@@ -75,6 +75,7 @@ let LogsService = class LogsService {
     }
     async getNotifications(limit = 20) {
         return this.logRepository.find({
+            select: ['id', 'action', 'module', 'tag', 'details', 'createdAt'],
             where: { isDeleted: false },
             order: { createdAt: 'DESC' },
             take: limit

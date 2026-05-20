@@ -56,10 +56,8 @@ __decorate([
 ], CreatePartyDto.prototype, "address", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreatePartyDto.prototype, "cityId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -79,10 +77,8 @@ __decorate([
 ], CreatePartyDto.prototype, "paymentTerms", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreatePartyDto.prototype, "currencyId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -134,10 +130,8 @@ __decorate([
 ], UpdatePartyDto.prototype, "address", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], UpdatePartyDto.prototype, "cityId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -157,10 +151,8 @@ __decorate([
 ], UpdatePartyDto.prototype, "paymentTerms", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], UpdatePartyDto.prototype, "currencyId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -193,9 +185,7 @@ __decorate([
 ], PartiesQueryDto.prototype, "state", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    (0, class_validator_1.IsInt)(),
-    (0, class_transformer_1.Type)(() => Number),
-    __metadata("design:type", Number)
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], PartiesQueryDto.prototype, "departmentId", void 0);
 //# sourceMappingURL=party.dto.js.map

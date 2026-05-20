@@ -1,4 +1,4 @@
-
+import React, { useMemo } from 'react';
 import { Item, Department } from '../../types';
 import { PremiumNumberInput } from '../common/PremiumNumberInput';
 import { SearchableSelect } from '../common/SearchableSelect';
@@ -28,6 +28,11 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
   onSubmit,
   onClose,
 }) => {
+  const itemOptions = useMemo(() => 
+    items.map(i => ({ id: i.id, label: `${i.code} - ${i.name}` })),
+    [items]
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white max-w-[600px] w-full p-6 rounded-2xl shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300">
@@ -68,7 +73,7 @@ export const StockAdjustmentModal: React.FC<StockAdjustmentModalProps> = ({
             label="İŞLEM YAPILACAK ÜRÜN"
             required
             placeholder="ÜRÜN SEÇİNİZ..."
-            options={items.map(i => ({ id: i.id, label: `${i.code} - ${i.name}` }))}
+            options={itemOptions}
             value={formData.itemId}
             onChange={(opt) => onFormDataChange({...formData, itemId: opt ? String(opt.id) : ''})}
           />

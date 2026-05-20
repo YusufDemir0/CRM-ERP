@@ -12,10 +12,10 @@ export declare class UsersService {
     private transactionContext;
     constructor(userRepo: Repository<User>, roleRepo: Repository<Role>, cacheManager: Cache, transactionContext: TransactionContextService);
     findAll(query: PaginationDto): Promise<PaginatedResult<User>>;
-    findOne(id: number): Promise<User>;
-    create(dto: CreateUserDto, currentUserId?: number): Promise<User>;
-    update(id: number, dto: UpdateUserDto, currentUserId?: number): Promise<User>;
-    softDelete(id: number, currentUserId?: number): Promise<void>;
+    findOne(id: string): Promise<User>;
+    create(dto: CreateUserDto, currentUserId: string): Promise<User>;
+    update(id: string, dto: UpdateUserDto, currentUserId: string): Promise<User>;
+    softDelete(id: string, currentUserId: string): Promise<void>;
     getStatus(): Promise<{
         active: number;
         passive: number;

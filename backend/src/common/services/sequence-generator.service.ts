@@ -85,9 +85,9 @@ export class SequenceGeneratorService {
     const department = await manager.findOne(Department, { where: { id: departmentId } });
     if (!department) throw new NotFoundException(`Departman bulunamadı: ${departmentId}`);
 
-    // FAZ 2.2: Yeni Format M + DEP + 00001
+    // Format: DEP + 00001
     const deptPrefix = (department.abbreviation || 'GEN').toUpperCase();
-    const finalPrefix = `M${deptPrefix}`;
+    const finalPrefix = deptPrefix;
 
     const currentNumber = await this.getNextNumber('sale_sequences', 'department_id', departmentId);
     const code = `${finalPrefix}${String(currentNumber).padStart(5, '0')}`;

@@ -17,6 +17,7 @@ export class InventorySaleListener implements OnModuleInit {
 
   async onModuleInit() {
     this.setupConsumer();
+    this.setupCancelConsumer();
   }
 
   private setupConsumer() {
@@ -64,6 +65,58 @@ export class InventorySaleListener implements OnModuleInit {
         { type: 'sale', id: sale.id, description: `Satış Onay Rezervasyonu: ${sale.code}` },
         userId
       );
+    });
+  }
+
+  private setupCancelConsumer() {
+    const trySubscribe = async () => {
+      if (this.rabbitMQService.isConnected()) {
+        await this.rabbitMQService.subscribe(
+          'ermay.inventory.sale_cancelled',
+          'sale.cancelled',
+          async (msg) => {
+            try {
+              const payload = JSON.parse(msg.content.toString());
+              await this.handleSaleCancelled(payload);
+            } catch (err) {
+              this.logger.error(`Error processing inventory cancel logic: ${err.message}`);
+              throw err;
+            }
+          }
+        );
+      } else {
+        setTimeout(trySubscribe, 2000);
+      }
+    };
+    trySubscribe();
+  }
+
+  async handleSaleCancelled(payload: { sale: Sale, userId: string }) {
+    const { sale, userId } = payload;
+    
+    await this.dataSource.transaction(async (manager) => {
+      // Revert stock movements
+      await this.stocksService.revertStockMovementsByReference('sale', sale.id, manager, userId);
+
+      // Unreserve any remaining unshipped quantity
+      const itemsToUnreserve = sale.items.map(si => {
+        // We have to use Decimal since shippedQuantity can be decimal in some cases
+        const qty = typeof si.quantity === 'object' && si.quantity !== null && 'minus' in si.quantity 
+          ? (si.quantity as any) 
+          : new (require('decimal.js').Decimal)(si.quantity);
+        const shipped = typeof si.shippedQuantity === 'object' && si.shippedQuantity !== null && 'minus' in si.shippedQuantity
+          ? (si.shippedQuantity as any)
+          : new (require('decimal.js').Decimal)(si.shippedQuantity || 0);
+
+        return {
+          itemId: String(si.itemId),
+          quantity: qty.minus(shipped)
+        };
+      }).filter(i => i.quantity.gt(0));
+
+      if (itemsToUnreserve.length > 0) {
+        await this.stocksService.unreserveStockBulk(itemsToUnreserve, sale.departmentId || '1', manager, userId);
+      }
     });
   }
 }

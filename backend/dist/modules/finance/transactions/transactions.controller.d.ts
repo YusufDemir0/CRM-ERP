@@ -11,9 +11,9 @@ export declare class TransactionsController {
         totalVolume: string;
     }>;
     getDailyTrends(): Promise<any[]>;
-    findOne(id: number): Promise<import("./entities/transaction.entity").Transaction>;
-    create(dto: CreateTransactionDto, userId: number): Promise<import("./entities/transaction.entity").Transaction>;
-    cancel(id: number, userId: number): Promise<{
+    findOne(id: string): Promise<import("./entities/transaction.entity").Transaction>;
+    create(dto: CreateTransactionDto, userId: string): Promise<import("./entities/transaction.entity").Transaction>;
+    cancel(id: string, userId: string): Promise<{
         success: boolean;
         message: string;
     }>;

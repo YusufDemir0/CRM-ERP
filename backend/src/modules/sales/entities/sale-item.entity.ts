@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn, PrimaryColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, PrimaryColumn, CreateDateColumn, UpdateDateColumn, DeleteDateColumn } from 'typeorm';
 import { Transform } from 'class-transformer';
 import { Decimal } from 'decimal.js';
 import { Sale } from './sale.entity';
@@ -14,44 +14,44 @@ export class SaleItem {
   itemId: string;
 
   @Transform(({ value }) => value ? String(value) : value)
-  @Column({ type: 'decimal', precision: 15, scale: 4, transformer: new DecimalTransformer() })
-  quantity: Decimal;
+  @Column({ name: 'quantity', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
+  quantity: Decimal = new Decimal(0);
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'shipped_quantity', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
-  shippedQuantity: Decimal;
+  shippedQuantity: Decimal = new Decimal(0);
 
   @Transform(({ value }) => value ? String(value) : value)
-  @Column({ type: 'decimal', precision: 15, scale: 2, transformer: new DecimalTransformer() })
-  price: Decimal;
+  @Column({ name: 'price', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
+  price: Decimal = new Decimal(0);
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'cost_price', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
-  costPrice: Decimal;
+  costPrice: Decimal = new Decimal(0);
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'discount_amount', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
-  discountAmount: Decimal;
+  discountAmount: Decimal = new Decimal(0);
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'discount_percent', type: 'decimal', precision: 5, scale: 2, default: 0, transformer: new DecimalTransformer() })
-  discountPercent: Decimal;
+  discountPercent: Decimal = new Decimal(0);
 
   @Transform(({ value }) => value ? String(value) : value)
-  @Column({ name: 'net_price', type: 'decimal', precision: 15, scale: 2, transformer: new DecimalTransformer() })
-  netPrice: Decimal;
+  @Column({ name: 'net_price', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
+  netPrice: Decimal = new Decimal(0);
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'kdv_rate', type: 'decimal', precision: 5, scale: 2, default: 20, transformer: new DecimalTransformer() })
-  kdvRate: Decimal;
+  kdvRate: Decimal = new Decimal(20);
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'kdv_amount', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
-  kdvAmount: Decimal;
+  kdvAmount: Decimal = new Decimal(0);
 
   @Transform(({ value }) => value ? String(value) : value)
-  @Column({ name: 'line_total', type: 'decimal', precision: 15, scale: 2, transformer: new DecimalTransformer() })
-  lineTotal: Decimal;
+  @Column({ name: 'line_total', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
+  lineTotal: Decimal = new Decimal(0);
 
   @Column({ type: 'text', nullable: true })
   description: string | null;
@@ -59,16 +59,16 @@ export class SaleItem {
   @Column({ name: 'created_by', type: 'bigint', nullable: true })
   createdBy: string | null;
 
-  @Column({ name: 'created_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt: Date;
 
   @Column({ name: 'updated_by', type: 'bigint', nullable: true })
   updatedBy: string | null;
 
-  @Column({ name: 'updated_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
   updatedAt: Date;
 
-  @Column({ name: 'deleted_at', type: 'timestamp', nullable: true })
+  @DeleteDateColumn({ name: 'deleted_at', type: 'timestamp', nullable: true })
   deletedAt: Date | null;
 
   @ManyToOne(() => Sale, (sale) => sale.items)

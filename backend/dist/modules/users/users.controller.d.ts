@@ -11,8 +11,8 @@ export declare class UsersController {
         total: number;
         adminCount: number;
     }>;
-    findOne(id: number): Promise<import("../auth/entities/user.entity").User>;
-    create(dto: CreateUserDto, userId: number): Promise<import("../auth/entities/user.entity").User>;
-    update(id: number, dto: UpdateUserDto, userId: number): Promise<import("../auth/entities/user.entity").User>;
-    remove(id: number, userId: number): Promise<void>;
+    findOne(id: string): Promise<import("../auth/entities/user.entity").User>;
+    create(dto: CreateUserDto, userId: string): Promise<import("../auth/entities/user.entity").User>;
+    update(id: string, dto: UpdateUserDto, userId: string): Promise<import("../auth/entities/user.entity").User>;
+    remove(id: string, userId: string): Promise<void>;
 }

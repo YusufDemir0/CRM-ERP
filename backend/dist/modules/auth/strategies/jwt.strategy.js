@@ -19,8 +19,6 @@ const passport_1 = require("@nestjs/passport");
 const passport_jwt_1 = require("passport-jwt");
 const config_1 = require("@nestjs/config");
 const typeorm_1 = require("typeorm");
-const user_entity_1 = require("../entities/user.entity");
-const record_state_enum_1 = require("../../../common/enums/record-state.enum");
 const cache_manager_1 = require("@nestjs/cache-manager");
 const common_2 = require("@nestjs/common");
 let JwtStrategy = JwtStrategy_1 = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
@@ -40,25 +38,6 @@ let JwtStrategy = JwtStrategy_1 = class JwtStrategy extends (0, passport_1.Passp
         this.logger = new common_1.Logger(JwtStrategy_1.name);
     }
     async validate(payload) {
-        const cacheKey = `user_state_${payload.sub}`;
-        let state = await this.cacheManager.get(cacheKey);
-        if (state === undefined || state === null) {
-            const user = await this.dataSource.getRepository(user_entity_1.User).findOne({
-                where: { id: payload.sub },
-                select: ['id', 'state', 'tokenVersion']
-            });
-            if (!user) {
-                throw new common_1.UnauthorizedException('Kullanıcı bulunamadı veya silinmiş');
-            }
-            if (user.tokenVersion !== payload.tokenVersion) {
-                throw new common_1.UnauthorizedException('Oturum geçersiz. Lütfen tekrar giriş yapınız.');
-            }
-            state = user.state;
-            await this.cacheManager.set(cacheKey, state, 30_000);
-        }
-        if (state !== record_state_enum_1.RecordState.ACTIVE) {
-            throw new common_1.UnauthorizedException('Kullanıcı hesabı askıya alınmış veya pasif durumda');
-        }
         return {
             id: payload.sub,
             sub: payload.sub,

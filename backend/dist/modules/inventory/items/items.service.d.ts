@@ -22,29 +22,29 @@ export declare class ItemsService {
     private transactionContext;
     constructor(itemRepo: Repository<Item>, itemTypeRepo: Repository<ItemType>, qtyTypeRepo: Repository<QuantityType>, codeGroupRepo: Repository<ItemCodeGroup>, stockRepo: Repository<Stock>, dataSource: DataSource, sequenceGenerator: SequenceGeneratorService, currenciesService: CurrenciesService, transactionContext: TransactionContextService);
     findAll(query: ItemsQueryDto): Promise<PaginatedResult<Item>>;
-    findOne(id: number): Promise<Item>;
-    create(dto: CreateItemDto, userId?: number): Promise<Item>;
-    update(id: number, dto: UpdateItemDto, userId?: number): Promise<Item>;
-    importItems(items: ImportItemDto[], userId: number): Promise<{
+    findOne(id: string): Promise<Item>;
+    create(dto: CreateItemDto, userId: string): Promise<Item>;
+    update(id: string, dto: UpdateItemDto, userId: string): Promise<Item>;
+    importItems(items: ImportItemDto[], userId: string): Promise<{
         updatedCount: number;
         insertedCount: number;
         errors: string[];
     }>;
     exportToExcel(query: ItemsQueryDto): Promise<StreamableFile>;
-    softDelete(id: number, currentUserId?: number): Promise<void>;
+    softDelete(id: string, currentUserId: string): Promise<void>;
     private validateUsage;
     findAllItemTypes(): Promise<ItemType[]>;
-    createItemType(dto: CreateItemTypeDto, userId?: number): Promise<ItemType>;
-    updateItemType(id: number, dto: UpdateItemTypeDto, userId?: number): Promise<ItemType>;
-    softDeleteItemType(id: number): Promise<void>;
+    createItemType(dto: CreateItemTypeDto, userId: string): Promise<ItemType>;
+    updateItemType(id: string, dto: UpdateItemTypeDto, userId: string): Promise<ItemType>;
+    softDeleteItemType(id: string): Promise<void>;
     findAllItemCodeGroups(): Promise<ItemCodeGroup[]>;
-    createItemCodeGroup(dto: CreateItemCodeGroupDto, userId?: number): Promise<ItemCodeGroup>;
-    updateItemCodeGroup(id: number, dto: UpdateItemCodeGroupDto, userId?: number): Promise<ItemCodeGroup>;
-    softDeleteItemCodeGroup(id: number): Promise<void>;
+    createItemCodeGroup(dto: CreateItemCodeGroupDto, userId: string): Promise<ItemCodeGroup>;
+    updateItemCodeGroup(id: string, dto: UpdateItemCodeGroupDto, userId: string): Promise<ItemCodeGroup>;
+    softDeleteItemCodeGroup(id: string): Promise<void>;
     findAllQuantityTypes(): Promise<QuantityType[]>;
-    createQuantityType(dto: CreateQuantityTypeDto, userId?: number): Promise<QuantityType>;
-    updateQuantityType(id: number, dto: UpdateQuantityTypeDto, userId?: number): Promise<QuantityType>;
-    softDeleteQuantityType(id: number): Promise<void>;
+    createQuantityType(dto: CreateQuantityTypeDto, userId: string): Promise<QuantityType>;
+    updateQuantityType(id: string, dto: UpdateQuantityTypeDto, userId: string): Promise<QuantityType>;
+    softDeleteQuantityType(id: string): Promise<void>;
     getStatus(): Promise<{
         active: number;
         passive: number;

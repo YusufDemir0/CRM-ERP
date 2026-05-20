@@ -6,7 +6,7 @@ export declare class CommercialAccount extends BaseEntity {
     bankName: string | null;
     iban: string | null;
     ibanName: string | null;
-    currencyId: number;
+    currencyId: string;
     criticalLimit: Decimal;
     description: string | null;
     currency: Currency;

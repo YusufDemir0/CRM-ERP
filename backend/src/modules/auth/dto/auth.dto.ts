@@ -30,9 +30,9 @@ export class RegisterDto {
   @IsNotEmpty()
   fullName: string;
 
+  @IsOptional()
   @IsEmail()
-  @IsNotEmpty()
-  email: string;
+  email?: string;
 
   @IsOptional()
   @IsString()

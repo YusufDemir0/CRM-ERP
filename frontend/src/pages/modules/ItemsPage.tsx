@@ -108,7 +108,7 @@ export default function ItemsPage() {
     const itemData = data as Item | undefined;
     if (itemData && itemData.id) {
       queryClient.setQueriesData({ queryKey: ['items', 'list'] }, (old: { data: Item[] } | undefined) => {
-        if (!old || !old.data) return old;
+        if (!old || !old.data || !Array.isArray(old.data)) return old;
         return {
           ...old,
           data: old.data.map((item: Item) => (itemData && itemData.id === item.id) ? { ...item, ...itemData } : item)
@@ -119,12 +119,33 @@ export default function ItemsPage() {
     toast.success("İşlem başarıyla tamamlandı.");
   };
 
-  const handleEdit = (item: Item) => {
-    openCreate('item', {
-      editingId: item.id,
-      initialData: item as unknown as Record<string, unknown>,
-      onSuccess: handleFormSuccess
-    });
+  const handleEdit = async (item: Item) => {
+    try {
+      // Fetch full item data — list query only has partial fields
+      const res = await itemsAPI.getOne(item.id);
+      const fullItem = res.data;
+      openCreate('item', {
+        editingId: fullItem.id,
+        initialData: {
+          name: fullItem.name || '',
+          code: fullItem.code || '',
+          itemTypeId: fullItem.itemTypeId ? String(fullItem.itemTypeId) : (fullItem.itemType?.id ? String(fullItem.itemType.id) : ''),
+          itemCodeGroupId: fullItem.itemCodeGroupId ? String(fullItem.itemCodeGroupId) : (fullItem.itemCodeGroup?.id ? String(fullItem.itemCodeGroup.id) : ''),
+          quantityTypeId: fullItem.quantityTypeId ? String(fullItem.quantityTypeId) : (fullItem.quantityType?.id ? String(fullItem.quantityType.id) : ''),
+          purchasePrice: fullItem.purchasePrice ? Number(fullItem.purchasePrice) : 0,
+          salePrice: fullItem.salePrice ? Number(fullItem.salePrice) : 0,
+          currencyId: fullItem.currencyId ? String(fullItem.currencyId) : (fullItem.currency?.id ? String(fullItem.currency.id) : ''),
+          criticalLimit: fullItem.criticalLimit ? Number(fullItem.criticalLimit) : 0,
+          kdv: fullItem.kdv !== undefined && fullItem.kdv !== null ? Number(fullItem.kdv) : 20,
+          description: fullItem.description || '',
+          notes: fullItem.notes || '',
+          image: fullItem.image || '',
+        },
+        onSuccess: handleFormSuccess
+      });
+    } catch {
+      toast.error('Ürün bilgileri yüklenemedi');
+    }
   };
 
   const toggleState = async (id: string | number, currentState: number) => {
@@ -150,7 +171,7 @@ export default function ItemsPage() {
     window.open(`/api/items/export?${params.toString()}`, '_blank');
   };
 
-  const columns = useMemo(() => getItemColumns(() => ({ isOver: false, totalAvailable: 0 })), []);
+  const columns = useMemo(() => getItemColumns((_id, _qty) => ({ isOver: false, totalAvailable: 0 })), []);
 
   useEffect(() => {
     const id = searchParams.get('id');
@@ -207,10 +228,11 @@ export default function ItemsPage() {
           onEdit={handleEdit}
           onArchive={(item) => toggleState(item.id, 1)}
           onRestore={(item) => toggleState(item.id, 0)}
+          virtualized={true}
           
           // Integrated Search & Pagination
           search={searchTerm}
-          onSearchChange={(val) => { setSearchTerm(val); setPage(1); }}
+          onSearchChange={setSearchTerm}
           total={paginationMeta?.total || 0}
           page={page}
           limit={limit}

@@ -3,17 +3,17 @@ export declare class CreateDepartmentDto {
     name: string;
     description?: string;
     abbreviation?: string;
-    departmentTypeId?: number;
-    commercialAccountId?: number;
-    cityId?: number;
+    departmentTypeId: string;
+    commercialAccountId: string;
+    cityId: string;
 }
 export declare class UpdateDepartmentDto {
     name?: string;
     description?: string;
     abbreviation?: string;
-    departmentTypeId?: number;
-    commercialAccountId?: number;
-    cityId?: number;
+    departmentTypeId: string;
+    commercialAccountId: string;
+    cityId: string;
     state?: number;
 }
 export declare class CreateDepartmentTypeDto {
@@ -26,8 +26,8 @@ export declare class UpdateDepartmentTypeDto {
     state?: number;
 }
 export declare class DepartmentsQueryDto extends PaginationDto {
-    departmentTypeId?: number;
-    commercialAccountId?: number;
+    departmentTypeId: string;
+    commercialAccountId: string;
     state?: number;
     search?: string;
 }

@@ -35,12 +35,10 @@ export const UserForm: React.FC<UserFormProps> = ({
   const [departments, setDepartments] = useState<Department[]>([]);
   const [availableRoles, setAvailableRoles] = useState<Role[]>([]);
   const { openCreate, updateCache, getCache, clearCache } = useQuickCreateStore();
-
+  const cacheKey = editingId ? `user_edit_${editingId}` : 'user_create';
   const getCachedData = () => {
-    if (!editingId) {
-      const cached = getCache('user') as { formData?: UserFormData; countryCode?: string } | null;
-      if (cached?.formData) return cached.formData;
-    }
+    const cached = getCache(cacheKey) as UserFormData | null;
+    if (cached) return cached;
     return {
       fullName: initialData?.fullName || '',
       username: initialData?.username || '',
@@ -63,10 +61,8 @@ export const UserForm: React.FC<UserFormProps> = ({
   const selectedRoles = watch('selectedRoles') || [];
 
   const saveDraft = useCallback(() => {
-    if (!editingId) {
-      updateCache('user', { formData: getValues() });
-    }
-  }, [getValues, updateCache, editingId]);
+    updateCache(cacheKey, getValues());
+  }, [getValues, updateCache, cacheKey]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -123,7 +119,7 @@ export const UserForm: React.FC<UserFormProps> = ({
         fullName: data.fullName,
         email: data.email,
         phone: data.phone,
-        departmentId: data.departmentId ? Number(data.departmentId) : undefined,
+        departmentId: data.departmentId || undefined,
         roleIds: data.selectedRoles,
         password: data.password || undefined,
       };
@@ -135,7 +131,7 @@ export const UserForm: React.FC<UserFormProps> = ({
       } else {
         const res = await usersAPI.create(payload as CreateUserDto);
         toast.success("Yeni kullanıcı eklendi.");
-        clearCache('user');
+        clearCache(cacheKey);
         onSuccess(res.data);
       }
     } catch (error: unknown) {
@@ -151,7 +147,7 @@ export const UserForm: React.FC<UserFormProps> = ({
   const handleAddDepartment = () => {
     openCreate('department', {
       onSuccess: (newDept: unknown) => {
-        const dept = newDept as { id: number };
+        const dept = newDept as Department;
         setValue('departmentId', String(dept.id));
         departmentsAPI.getAll({ limit: 100 }).then(res => setDepartments(res.data.data.filter((d: Department) => d.state === 1)));
       }
@@ -214,13 +210,19 @@ export const UserForm: React.FC<UserFormProps> = ({
             </FormField>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField label={`Şifre ${editingId ? '(BOŞ=DEĞİŞMEZ)' : ''}`} required={!editingId}>
+            <FormField 
+              label={`Şifre ${editingId ? '(BOŞ=DEĞİŞMEZ)' : ''}`} 
+              required={!editingId}
+              helperText="En az 8 karakter olmalıdır"
+            >
               <input
                 type="password"
                 required={!editingId}
+                minLength={8}
                 className="input-premium font-black tracking-widest"
                 {...register('password')}
                 placeholder="••••••••"
+                title="Şifre minimum 8 hane olmalı"
               />
             </FormField>
             <FormField label="İletişim Hattı" required>
@@ -286,7 +288,7 @@ export const UserForm: React.FC<UserFormProps> = ({
           {isSubmitting ? <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" /> : <FiCheck size={20} />} 
           {editingId ? 'GÜNCELLEMELERİ KAYDET' : 'YENİ PERSONELİ SİSTEME KAYDET'}
         </button>
-        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all" onClick={() => { clearCache('user'); onCancel(); }} disabled={isSubmitting}>
+        <button type="button" className="btn bg-slate-100 text-slate-500 btn-lg px-10 font-black hover:bg-slate-200 transition-all" onClick={() => { clearCache(cacheKey); onCancel(); }} disabled={isSubmitting}>
           İPTAL
         </button>
       </div>

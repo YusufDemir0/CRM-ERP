@@ -60,11 +60,26 @@ let PartiesService = class PartiesService {
         this.partyRepo = partyRepo;
         this.currenciesService = currenciesService;
     }
+    async lookup(type) {
+        const qb = this.partyRepo.createQueryBuilder('party')
+            .select(['party.id', 'party.name', 'party.type', 'party.currencyId'])
+            .where('party.state = :state', { state: 1 });
+        if (type) {
+            qb.andWhere('party.type = :type', { type });
+        }
+        return qb.orderBy('party.name', 'ASC').getMany();
+    }
     async findAll(query) {
         const qb = this.partyRepo.createQueryBuilder('party')
-            .leftJoinAndSelect('party.currency', 'currency');
+            .select([
+            'party.id', 'party.name', 'party.type', 'party.state',
+            'party.taxNumber', 'party.phone1', 'party.phone2',
+            'party.email', 'party.balance', 'party.address'
+        ])
+            .leftJoin('party.currency', 'currency')
+            .addSelect(['currency.id', 'currency.symbol', 'currency.code']);
         if (query.departmentId) {
-            qb.innerJoin('users', 'u', 'u.id = party.createdBy AND u.department_id = :departmentId', { departmentId: query.departmentId });
+            qb.innerJoin('users', 'u', 'u.id = party.created_by AND u.department_id = :departmentId', { departmentId: query.departmentId });
         }
         if (query.search) {
             const searchPattern = query.search.replace(/[+><()~*\"@\-]/g, ' ').trim();
@@ -123,12 +138,13 @@ let PartiesService = class PartiesService {
         }, 'last_sale_date');
         const { entities, raw } = await qb.getRawAndEntities();
         const count = await qb.getCount();
+        const rawMap = new Map(raw.map(r => [r.party_id.toString(), r]));
         entities.forEach(entity => {
-            const rawData = raw.find(r => r.party_id === entity.id.toString() || r.party_id === entity.id);
+            const rawData = rawMap.get(entity.id.toString());
             if (rawData) {
                 entity.totalSalesCount = Number(rawData.total_sales_count || 0);
                 entity.lastSaleDate = rawData.last_sale_date || null;
-                entity.calculatedBalance = entity.balance;
+                entity.calculatedBalance = new decimal_js_1.Decimal(entity.balance || 0);
             }
         });
         return {
@@ -137,7 +153,7 @@ let PartiesService = class PartiesService {
         };
     }
     async findOne(id) {
-        const party = await this.partyRepo.findOne({ where: { id }, relations: ['currency'] });
+        const party = await this.partyRepo.findOne({ where: { id: String(id) }, relations: ['currency'] });
         if (!party)
             throw new common_1.NotFoundException('Cari hesap bulunamadı');
         return party;
@@ -155,7 +171,7 @@ let PartiesService = class PartiesService {
         if (!dto.currencyId) {
             try {
                 const defaultCurrency = await this.currenciesService.getDefault();
-                dto.currencyId = Number(defaultCurrency.id);
+                dto.currencyId = String(defaultCurrency.id);
             }
             catch (error) {
                 console.warn('Default currency not found, setting to null');
@@ -168,7 +184,7 @@ let PartiesService = class PartiesService {
         const party = await this.findOne(id);
         if (dto.taxNumber && dto.taxNumber !== party.taxNumber) {
             const existing = await this.partyRepo.findOne({ where: { taxNumber: dto.taxNumber } });
-            if (existing && existing.id !== id) {
+            if (existing && existing.id !== String(id)) {
                 throw new common_1.BadRequestException(`'${dto.taxNumber}' vergi numarası ile başka bir cari mevcut (${existing.name}).`);
             }
         }

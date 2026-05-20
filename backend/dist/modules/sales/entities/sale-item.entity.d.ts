@@ -2,8 +2,8 @@ import { Decimal } from 'decimal.js';
 import { Sale } from './sale.entity';
 import { Item } from '../../inventory/items/entities/item.entity';
 export declare class SaleItem {
-    saleId: number;
-    itemId: number;
+    saleId: string;
+    itemId: string;
     quantity: Decimal;
     shippedQuantity: Decimal;
     price: Decimal;
@@ -15,9 +15,9 @@ export declare class SaleItem {
     kdvAmount: Decimal;
     lineTotal: Decimal;
     description: string | null;
-    createdBy: number | null;
+    createdBy: string | null;
     createdAt: Date;
-    updatedBy: number | null;
+    updatedBy: string | null;
     updatedAt: Date;
     deletedAt: Date | null;
     sale: Sale;

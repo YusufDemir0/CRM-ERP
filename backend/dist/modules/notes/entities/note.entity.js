@@ -17,12 +17,12 @@ let UserNote = class UserNote {
 exports.UserNote = UserNote;
 __decorate([
     (0, typeorm_1.PrimaryGeneratedColumn)({ type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], UserNote.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'user_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], UserNote.prototype, "userId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 200, nullable: true }),

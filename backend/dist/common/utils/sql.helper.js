@@ -5,7 +5,7 @@ exports.getSafeSearchPattern = getSafeSearchPattern;
 function escapeLike(input) {
     if (!input)
         return '';
-    return input.replace(/[%_]/g, '\\$&');
+    return input.replace(/([%_\\])/g, '\\$1');
 }
 function getSafeSearchPattern(search, limit = 100) {
     if (!search)

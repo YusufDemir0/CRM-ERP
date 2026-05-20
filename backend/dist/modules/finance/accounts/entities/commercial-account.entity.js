@@ -37,7 +37,7 @@ __decorate([
 ], CommercialAccount.prototype, "ibanName", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'currency_id', type: 'bigint' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], CommercialAccount.prototype, "currencyId", void 0);
 __decorate([
     (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
