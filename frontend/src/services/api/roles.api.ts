@@ -34,7 +34,7 @@ export const rolesAPI = {
   createPermission: (data: Partial<Permission>, config?: AxiosRequestConfig) => api.post('/roles/permissions', data, config),
   assignRole: (data: { userId: string | number; roleId: string | number }, config?: AxiosRequestConfig) => api.post('/roles/assign', data, config),
   removeRole: (data: { userId: string | number; roleId: string | number }, config?: AxiosRequestConfig) => api.delete('/roles/assign', { data, ...config }),
-  setUserPermission: (data: { userId: string | number; permissionId: string | number; effect: 'allow' | 'deny'; scopeType?: string; scopeId?: string | number | null }, config?: AxiosRequestConfig) => api.post('/roles/user-permissions', data, config),
-  getUserPermissions: (userId: string | number, config?: AxiosRequestConfig) => api.get(`/roles/user-permissions/${userId}`, config),
-  removeUserPermission: (data: { userId: string | number; permissionId: string | number }, config?: AxiosRequestConfig) => api.delete('/roles/user-permissions', { data, ...config }),
+  setUserPermission: (data: { userId: string | number; permissionId: string | number; effect: 'allow' | 'deny'; scopeType?: string; scopeId?: string | number | null }, config?: AxiosRequestConfig) => api.post('/user-permissions', data, config),
+  getUserPermissions: (userId: string | number, config?: AxiosRequestConfig) => api.get(`/user-permissions/${userId}`, config),
+  removeUserPermission: (data: { userId: string | number; permissionId: string | number }, config?: AxiosRequestConfig) => api.delete('/user-permissions', { data, ...config }),
 };

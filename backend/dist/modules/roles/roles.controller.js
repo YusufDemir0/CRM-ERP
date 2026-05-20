@@ -29,17 +29,11 @@ let RolesController = class RolesController {
     getStatus() {
         return this.rolesService.getStatus();
     }
-    findOneRole(id) {
-        return this.rolesService.findOneRole(id);
-    }
     createRole(dto, userId) {
         return this.rolesService.createRole(dto, userId);
     }
     updateRole(id, dto, userId) {
         return this.rolesService.updateRole(id, dto, userId);
-    }
-    deleteRole(id) {
-        return this.rolesService.deleteRole(id);
     }
     findAllPermissions(query) {
         return this.rolesService.findAllPermissions(query);
@@ -53,14 +47,11 @@ let RolesController = class RolesController {
     removeRole(dto) {
         return this.rolesService.removeRole(dto);
     }
-    setUserPermission(dto, userId) {
-        return this.rolesService.setUserPermission(dto, userId);
+    findOneRole(id) {
+        return this.rolesService.findOneRole(id);
     }
-    getUserPermissions(userId) {
-        return this.rolesService.getUserPermissions(userId);
-    }
-    removeUserPermission(dto) {
-        return this.rolesService.removeUserPermission(dto);
+    deleteRole(id) {
+        return this.rolesService.deleteRole(id);
     }
 };
 exports.RolesController = RolesController;
@@ -80,14 +71,6 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], RolesController.prototype, "getStatus", null);
 __decorate([
-    (0, common_1.Get)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('ROLE_VIEW'),
-    __param(0, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
-], RolesController.prototype, "findOneRole", null);
-__decorate([
     (0, common_1.Post)(),
     (0, permissions_decorator_1.RequirePermissions)('ROLE_CREATE'),
     __param(0, (0, common_1.Body)()),
@@ -106,14 +89,6 @@ __decorate([
     __metadata("design:paramtypes", [String, role_dto_1.UpdateRoleDto, String]),
     __metadata("design:returntype", void 0)
 ], RolesController.prototype, "updateRole", null);
-__decorate([
-    (0, common_1.Delete)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('ROLE_DELETE'),
-    __param(0, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
-    __metadata("design:returntype", void 0)
-], RolesController.prototype, "deleteRole", null);
 __decorate([
     (0, common_1.Get)('permissions/all'),
     (0, permissions_decorator_1.RequirePermissions)('ROLE_VIEW'),
@@ -148,30 +123,21 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], RolesController.prototype, "removeRole", null);
 __decorate([
-    (0, common_1.Post)('user-permissions'),
-    (0, permissions_decorator_1.RequirePermissions)('PERMISSION_ASSIGN'),
-    __param(0, (0, common_1.Body)()),
-    __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [role_dto_1.SetUserPermissionDto, String]),
-    __metadata("design:returntype", void 0)
-], RolesController.prototype, "setUserPermission", null);
-__decorate([
-    (0, common_1.Get)('user-permissions/:userId'),
-    (0, permissions_decorator_1.RequirePermissions)('PERMISSION_VIEW'),
-    __param(0, (0, common_1.Param)('userId', common_1.ParseIntPipe)),
+    (0, common_1.Get)(':id'),
+    (0, permissions_decorator_1.RequirePermissions)('ROLE_VIEW'),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
-], RolesController.prototype, "getUserPermissions", null);
+], RolesController.prototype, "findOneRole", null);
 __decorate([
-    (0, common_1.Delete)('user-permissions'),
-    (0, permissions_decorator_1.RequirePermissions)('PERMISSION_ASSIGN'),
-    __param(0, (0, common_1.Body)()),
+    (0, common_1.Delete)(':id'),
+    (0, permissions_decorator_1.RequirePermissions)('ROLE_DELETE'),
+    __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
-], RolesController.prototype, "removeUserPermission", null);
+], RolesController.prototype, "deleteRole", null);
 exports.RolesController = RolesController = __decorate([
     (0, common_1.Controller)('roles'),
     __metadata("design:paramtypes", [roles_service_1.RolesService])

@@ -202,8 +202,9 @@ let UsersService = class UsersService {
         }
         user.updatedBy = currentUserId || null;
         const savedUser = await this.userRepo.save(user);
-        if (dto.password || dto.state !== undefined) {
+        if (dto.password || dto.state !== undefined || dto.roleIds !== undefined) {
             await this.cacheManager.del(`user_state_${id}`);
+            await this.cacheManager.del(`user_perms_${id}`);
         }
         return savedUser;
     }

@@ -16,6 +16,7 @@ exports.RolesService = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
+const cache_manager_1 = require("@nestjs/cache-manager");
 const role_entity_1 = require("../auth/entities/role.entity");
 const permission_entity_1 = require("../auth/entities/permission.entity");
 const user_role_entity_1 = require("../auth/entities/user-role.entity");
@@ -23,12 +24,13 @@ const user_permission_entity_1 = require("../auth/entities/user-permission.entit
 const role_permission_entity_1 = require("../auth/entities/role-permission.entity");
 const sql_helper_1 = require("../../common/utils/sql.helper");
 let RolesService = class RolesService {
-    constructor(roleRepo, permRepo, userRoleRepo, userPermRepo, rolePermRepo) {
+    constructor(roleRepo, permRepo, userRoleRepo, userPermRepo, rolePermRepo, cacheManager) {
         this.roleRepo = roleRepo;
         this.permRepo = permRepo;
         this.userRoleRepo = userRoleRepo;
         this.userPermRepo = userPermRepo;
         this.rolePermRepo = rolePermRepo;
+        this.cacheManager = cacheManager;
     }
     async findAllRoles(query) {
         const qb = this.roleRepo.createQueryBuilder('role');
@@ -100,6 +102,10 @@ let RolesService = class RolesService {
             else {
                 role.permissions = [];
             }
+            const userRoles = await this.userRoleRepo.find({ where: { roleId: id } });
+            for (const ur of userRoles) {
+                await this.cacheManager.del(`user_perms_${ur.userId}`);
+            }
         }
         return this.roleRepo.save(role);
     }
@@ -135,10 +141,13 @@ let RolesService = class RolesService {
         if (existing)
             throw new common_1.ConflictException('Bu rol zaten atanmış');
         const ur = this.userRoleRepo.create(dto);
-        return this.userRoleRepo.save(ur);
+        const saved = await this.userRoleRepo.save(ur);
+        await this.cacheManager.del(`user_perms_${dto.userId}`);
+        return saved;
     }
     async removeRole(dto) {
         await this.userRoleRepo.delete({ userId: dto.userId, roleId: dto.roleId });
+        await this.cacheManager.del(`user_perms_${dto.userId}`);
     }
     async setUserPermission(dto, currentUserId) {
         let up = await this.userPermRepo.findOne({
@@ -159,7 +168,9 @@ let RolesService = class RolesService {
                 createdBy: currentUserId || null,
             });
         }
-        return this.userPermRepo.save(up);
+        const saved = await this.userPermRepo.save(up);
+        await this.cacheManager.del(`user_perms_${dto.userId}`);
+        return saved;
     }
     async getUserPermissions(userId) {
         return this.userPermRepo.find({
@@ -169,6 +180,7 @@ let RolesService = class RolesService {
     }
     async removeUserPermission(dto) {
         await this.userPermRepo.delete({ userId: dto.userId, permissionId: dto.permissionId });
+        await this.cacheManager.del(`user_perms_${dto.userId}`);
     }
     async getStatus() {
         const [active, passive] = await Promise.all([
@@ -193,10 +205,11 @@ exports.RolesService = RolesService = __decorate([
     __param(2, (0, typeorm_1.InjectRepository)(user_role_entity_1.UserRole)),
     __param(3, (0, typeorm_1.InjectRepository)(user_permission_entity_1.UserPermission)),
     __param(4, (0, typeorm_1.InjectRepository)(role_permission_entity_1.RolePermission)),
+    __param(5, (0, common_1.Inject)(cache_manager_1.CACHE_MANAGER)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        typeorm_2.Repository])
+        typeorm_2.Repository, Object])
 ], RolesService);
 //# sourceMappingURL=roles.service.js.map

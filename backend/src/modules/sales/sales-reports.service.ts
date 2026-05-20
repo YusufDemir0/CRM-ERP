@@ -32,7 +32,7 @@ export class SalesReportsService {
       .select([
         'sale.id', 'sale.code', 'sale.status', 'sale.totalAmount', 'sale.grandTotal',
         'sale.kdv', 'sale.discountAmount', 'sale.createdAt', 'sale.updatedAt',
-        'sale.deliveryDate', 'sale.phone', 'sale.address'
+        'sale.deliveryDate', 'sale.phone', 'sale.address', 'sale.profit'
       ])
       .leftJoin('sale.party', 'party')
       .addSelect(['party.id', 'party.name', 'party.type'])

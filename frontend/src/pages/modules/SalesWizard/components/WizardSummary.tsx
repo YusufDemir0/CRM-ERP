@@ -47,7 +47,7 @@ export const WizardSummary: React.FC = memo(() => {
         <div className="absolute -right-2 -top-2 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-all group-hover:scale-110">
            <FiBox size={50} />
         </div>
-        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">MATRAH TOPLAMI</span>
+        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">ARA TOPLAM</span>
         <div className="text-xl font-black text-slate-800 text-right tabular-nums tracking-tighter">
           {formatCurrency(subtotal.toString())}
         </div>

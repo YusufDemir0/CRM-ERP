@@ -72,6 +72,22 @@ const SubtotalPanel = memo(() => {
     return Decimal.max(0, subtotal.minus(new Decimal(representativePrice || 0)));
   }, [subtotal, representativePrice]);
 
+  const totalTax = useMemo(() => {
+    const dm = new Decimal(representativePrice || 0);
+    return formItems.reduce((acc, i) => {
+      const rate = isInvoiced ? new Decimal(i?.taxRate || 20) : new Decimal(0);
+      const lineAmount = new Decimal(i?.unitPrice || 0).mul(i?.quantity || 0);
+      const lineRatio = subtotal.gt(0) ? lineAmount.div(subtotal) : new Decimal(0);
+      const lineMatrah = dm.mul(lineRatio);
+      return acc.add(lineMatrah.mul(rate).div(100).toDecimalPlaces(2));
+    }, new Decimal(0));
+  }, [formItems, subtotal, representativePrice, isInvoiced]);
+
+  const grandTotal = useMemo(() => {
+    const dm = new Decimal(representativePrice || 0);
+    return dm.add(totalTax);
+  }, [representativePrice, totalTax]);
+
   return (
     <>
       <div className="p-4 bg-slate-50 border-t border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
@@ -90,19 +106,27 @@ const SubtotalPanel = memo(() => {
           <span className="text-[9px] font-bold text-slate-400 uppercase mt-1">İstediğiniz son tutarı girin, iskonto otomatik hesaplanacaktır</span>
         </div>
 
-        <div className="flex flex-col justify-center gap-2 p-4 bg-white rounded-2xl border border-slate-200 shadow-inner">
+        <div className="flex flex-col justify-center gap-1.5 p-4 bg-white rounded-2xl border border-slate-200 shadow-inner">
            <div className="flex justify-between items-center">
-              <span className="text-[10px] font-black text-slate-400 uppercase">MATRAH TOPLAMI:</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase">ARA TOPLAM:</span>
               <span className="text-sm font-black text-slate-800 tabular-nums">
                 {formatCurrency(subtotal.toString())}
               </span>
            </div>
-           <div className="flex justify-between items-center border-t border-slate-50 pt-2">
+           <div className="flex justify-between items-center border-t border-slate-50 pt-1.5">
               <span className="text-[10px] font-black text-[var(--error)] uppercase">HESAPLANAN İSKONTO:</span>
               <span className="text-sm font-black text-[var(--error)] tabular-nums">
                 -{formatCurrency(calculatedDiscount.toString())}
               </span>
            </div>
+           {isInvoiced && (
+             <div className="flex justify-between items-center border-t border-slate-50 pt-1.5">
+                <span className="text-[10px] font-black text-emerald-600 uppercase">KDV TOPLAMI (%20):</span>
+                <span className="text-sm font-black text-emerald-600 tabular-nums">
+                  {formatCurrency(totalTax.toString())}
+                </span>
+             </div>
+           )}
         </div>
 
         <div className="flex flex-col gap-2">
@@ -134,7 +158,7 @@ const SubtotalPanel = memo(() => {
         <div className="flex items-center gap-2 border-l border-white/10 pl-6">
            <span className="text-[9px] text-white/40 uppercase tracking-widest">GENEL TOPLAM:</span>
            <span className="text-sm text-[var(--success-glow)]">
-            {formatCurrency(representativePrice || '0')}
+            {formatCurrency(grandTotal.toString())}
            </span>
         </div>
       </div>
@@ -199,36 +223,41 @@ export const ProductPhase: React.FC<ProductPhaseProps> = memo(({ items }) => {
           />
         </div>
         
-        <div className="flex items-center bg-slate-900 rounded-xl overflow-hidden shadow-lg h-9">
-          <div className="flex items-center border-r border-white/10 px-1 bg-white/5">
+        <div className="flex items-center bg-emerald-600 rounded-xl overflow-hidden shadow-lg h-11 border border-emerald-500">
+          <div className="flex items-center border-r border-white/20 px-1 bg-white/10 h-full">
             <button 
-              className="w-7 h-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-transform duration-200"
+              className="w-8 h-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition-transform duration-200"
               type="button"
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
             >
-              <FiMinus size={12} />
+              <FiMinus size={14} />
             </button>
             <input 
-              type="number"
-              className="w-10 h-full bg-transparent border-none text-center font-black text-xs tabular-nums text-white focus:outline-none"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              className="w-16 h-full bg-transparent border-none text-center font-black text-sm tabular-nums text-white focus:outline-none"
               value={quantity}
-              onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, '');
+                setQuantity(val ? Math.max(1, Number(val)) : 1);
+              }}
             />
             <button 
-              className="w-7 h-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-transform duration-200"
+              className="w-8 h-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 transition-transform duration-200"
               type="button"
               onClick={() => setQuantity(quantity + 1)}
             >
-              <FiPlus size={12} />
+              <FiPlus size={14} />
             </button>
           </div>
 
           <button 
             type="button"
-            className="px-6 h-full text-[10px] font-black text-white hover:bg-[var(--primary)] transition-[background-color,transform] duration-200 uppercase tracking-widest flex items-center gap-2 active:scale-95"
+            className="px-6 h-full text-xs font-black text-white hover:bg-emerald-700 transition-[background-color,transform] duration-200 uppercase tracking-widest flex items-center gap-2 active:scale-95"
             onClick={handleAddItem}
           >
-            <FiPlus size={14} />
+            <FiPlus size={16} />
             EKLE
           </button>
         </div>

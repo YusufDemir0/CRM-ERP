@@ -23,3 +23,7 @@ export declare class SetUserPermissionDto {
     scopeType: 'global' | 'department' | 'own';
     scopeId?: string;
 }
+export declare class RemoveUserPermissionDto {
+    userId: string;
+    permissionId: string;
+}

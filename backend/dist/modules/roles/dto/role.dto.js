@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SetUserPermissionDto = exports.AssignRoleDto = exports.CreatePermissionDto = exports.UpdateRoleDto = exports.CreateRoleDto = void 0;
+exports.RemoveUserPermissionDto = exports.SetUserPermissionDto = exports.AssignRoleDto = exports.CreatePermissionDto = exports.UpdateRoleDto = exports.CreateRoleDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateRoleDto {
 }
@@ -100,4 +100,17 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], SetUserPermissionDto.prototype, "scopeId", void 0);
+class RemoveUserPermissionDto {
+}
+exports.RemoveUserPermissionDto = RemoveUserPermissionDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], RemoveUserPermissionDto.prototype, "userId", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], RemoveUserPermissionDto.prototype, "permissionId", void 0);
 //# sourceMappingURL=role.dto.js.map
