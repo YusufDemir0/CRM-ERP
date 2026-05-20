@@ -110,7 +110,7 @@ export default function DashboardPage() {
   }
 
   const quickActions: (QuickAction | false)[] = [
-    hasPermission('sales_create') && { 
+    hasPermission('SALES_CREATE') && { 
       label: 'SATIŞ YAP', 
       icon: <FiShoppingCart />, 
       path: '/sales/wizard', 
@@ -120,7 +120,7 @@ export default function DashboardPage() {
       hover: 'hover:border-emerald-200', 
       desc: 'Hızlı Satış Ekranı' 
     },
-    hasPermission('parties_create') && { 
+    hasPermission('CUSTOMER_CREATE') && { 
       label: 'YENİ CARİ EKLE', 
       icon: <FiUsers />, 
       path: '/parties', 
