@@ -15,7 +15,6 @@ import { QuantityType } from './items/entities/quantity-type.entity';
 import { Stock } from './stocks/entities/stock.entity';
 import { StockMovement } from './stocks/entities/stock-movement.entity';
 import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
-import { InventoryListener } from './listeners/inventory.listener';
 
 import { BomItem } from '../production/entities/bom-item.entity';
 import { StocksReportsService } from './stocks/stocks-reports.service';
@@ -37,7 +36,7 @@ import { ItemsTransactionsService } from './items/items-transactions.service';
   providers: [
     ItemsService, ItemsReportsService, ItemsTransactionsService,
     StocksService, StocksReportsService, StocksTransactionsService, 
-    SequenceGeneratorService, InventoryListener
+    SequenceGeneratorService
   ],
   exports: [
     ItemsService, ItemsReportsService, ItemsTransactionsService,

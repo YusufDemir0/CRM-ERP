@@ -6,7 +6,6 @@ import { AccountsController } from './accounts/accounts.controller';
 import { AccountsService } from './accounts/accounts.service';
 import { TransactionsController } from './transactions/transactions.controller';
 import { TransactionsService } from './transactions/transactions.service';
-import { FinanceListener } from './listeners/finance.listener';
 import { Currency } from './currencies/entities/currency.entity';
 import { CommercialAccount } from './accounts/entities/commercial-account.entity';
 import { Transaction } from './transactions/entities/transaction.entity';
@@ -20,7 +19,7 @@ import { CommonModule } from '../../common/common.module';
     CommonModule,
   ],
   controllers: [CurrenciesController, AccountsController, TransactionsController],
-  providers: [CurrenciesService, AccountsService, TransactionsService, FinanceListener],
+  providers: [CurrenciesService, AccountsService, TransactionsService],
   exports: [CurrenciesService, AccountsService, TransactionsService],
 })
 export class FinanceModule {}
