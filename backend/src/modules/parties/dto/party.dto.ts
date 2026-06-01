@@ -25,6 +25,7 @@ export class CreatePartyDto {
   @IsOptional() @IsString() currencyId?: string;
   @IsOptional() @IsString() notes?: string;
   @IsOptional() @IsString() departmentId?: string;
+  @IsOptional() @IsNumber() @Type(() => Number) maturityDays?: number;
 }
 
 export class UpdatePartyDto {
@@ -47,6 +48,7 @@ export class UpdatePartyDto {
   @IsOptional() @IsString() currencyId?: string;
   @IsOptional() @IsString() notes?: string;
   @IsOptional() @IsString() departmentId?: string;
+  @IsOptional() @IsNumber() @Type(() => Number) maturityDays?: number;
   @IsOptional()
   @IsNumber()
   @IsInt()

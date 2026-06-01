@@ -12,6 +12,7 @@ import { TelemetryModule } from './modules/telemetry/telemetry.module';
 
 // Config
 import databaseConfig from './config/database.config';
+import rabbitmqConfig from './config/rabbitmq.config';
 import { configValidationSchema } from './config/config.schema';
 
 // Worker Services
@@ -19,6 +20,7 @@ import { OutboxWorker } from './common/services/outbox.worker';
 import { OutboxService } from './common/services/outbox.service';
 import { TransactionContextService } from './common/services/transaction-context.service';
 import { OutboxEvent } from './common/entities/outbox-event.entity';
+import { RabbitMQModule } from './common/services/rabbitmq.module';
 
 /**
  * WorkerModule — Background job processing module.
@@ -39,7 +41,7 @@ import { OutboxEvent } from './common/entities/outbox-event.entity';
     // ── Config ────────────────────────────────────────────
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig],
+      load: [databaseConfig, rabbitmqConfig],
       validationSchema: configValidationSchema,
       envFilePath: '.env',
     }),
@@ -51,6 +53,7 @@ import { OutboxEvent } from './common/entities/outbox-event.entity';
       useFactory: (configService: ConfigService) => ({ ...configService.get('database') }),
     }),
     TypeOrmModule.forFeature([OutboxEvent]),
+    RabbitMQModule,
 
     // ── CLS (Transaction Context) ─────────────────────────
     ClsModule.forRoot({

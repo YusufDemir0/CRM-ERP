@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsInt, ValidateIf } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsInt, ValidateIf, Length } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 
@@ -13,6 +13,7 @@ export class CreateDepartmentDto {
 
   @IsOptional()
   @IsString()
+  @Length(3, 10, { message: 'Kısaltma en az 3, en fazla 10 karakter olmalıdır' })
   abbreviation?: string;
 
   @IsOptional()
@@ -36,6 +37,7 @@ export class UpdateDepartmentDto {
 
   @IsOptional()
   @IsString()
+  @Length(3, 10, { message: 'Kısaltma en az 3, en fazla 10 karakter olmalıdır' })
   abbreviation?: string;
 
   @IsOptional()

@@ -7,30 +7,30 @@ export class SystemLog {
 
   @Index()
   @Column({ name: 'user_id', type: 'bigint', nullable: true })
-  userId: string;
+  userId?: string | null;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
-  username: string;
+  username?: string | null;
 
   @Column({ name: 'full_name', type: 'varchar', length: 200, nullable: true })
-  fullName: string;
+  fullName?: string | null;
 
   @Column({ type: 'varchar', length: 255 })
   action: string;
 
   @Index()
   @Column({ type: 'varchar', length: 100, nullable: true })
-  module: string;
+  module?: string | null;
 
   @Index()
   @Column({ type: 'varchar', length: 50, default: 'INFO' })
   tag: string;
 
   @Column('text', { nullable: true })
-  details: string;
+  details?: string | null;
 
   @Column({ name: 'ip_address', type: 'varchar', length: 45, nullable: true })
-  ipAddress: string;
+  ipAddress?: string | null;
 
   @Index()
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })

@@ -24,7 +24,7 @@ export class PartiesService {
       .select([
         'party.id', 'party.name', 'party.type', 'party.currencyId',
         'party.phone1', 'party.phone2', 'party.email', 'party.taxNumber',
-        'party.address', 'party.cityId', 'party.districtName'
+        'party.address', 'party.cityId', 'party.districtName', 'party.maturityDays'
       ])
       .where('party.state = :state', { state: 1 });
 
@@ -41,7 +41,7 @@ export class PartiesService {
         'party.id', 'party.name', 'party.type', 'party.state', 
         'party.taxNumber', 'party.taxOffice', 'party.phone1', 'party.phone2', 
         'party.email', 'party.balance', 'party.address', 'party.cityId',
-        'party.districtName', 'party.creditLimit', 'party.currencyId', 'party.notes'
+        'party.districtName', 'party.creditLimit', 'party.currencyId', 'party.notes', 'party.maturityDays'
       ])
       .leftJoin('party.currency', 'currency')
       .addSelect(['currency.id', 'currency.symbol', 'currency.code']);
@@ -183,7 +183,7 @@ export class PartiesService {
     // Modernize mapping with strict field control
     const fields: (keyof Party)[] = [
       'name', 'type', 'phone1', 'phone2', 'taxOffice', 'taxNumber', 'email',
-      'address', 'cityId', 'districtName', 'paymentTerms', 'currencyId', 'notes', 'state', 'departmentId'
+      'address', 'cityId', 'districtName', 'paymentTerms', 'currencyId', 'notes', 'state', 'departmentId', 'maturityDays'
     ];
 
     fields.forEach((field) => {

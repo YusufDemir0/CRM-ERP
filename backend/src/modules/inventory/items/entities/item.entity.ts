@@ -35,7 +35,7 @@ export class Item extends BaseEntity {
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'critical_limit', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
-  criticalLimit: Decimal;
+  criticalLimit: Decimal = new Decimal(0);
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   image: string | null;
@@ -46,7 +46,7 @@ export class Item extends BaseEntity {
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'moving_average_cost', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
-  movingAverageCost: Decimal;
+  movingAverageCost: Decimal = new Decimal(0);
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'sale_price', type: 'decimal', precision: 15, scale: 2, nullable: true, transformer: new DecimalTransformer() })
@@ -65,11 +65,11 @@ export class Item extends BaseEntity {
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 20, transformer: new DecimalTransformer() })
-  kdv: Decimal;
+  kdv: Decimal = new Decimal(20);
 
   @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'total_stock', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
-  totalStock: Decimal;
+  totalStock: Decimal = new Decimal(0);
 
   @Column({ type: 'text', nullable: true })
   description: string | null;

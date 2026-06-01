@@ -61,6 +61,9 @@ export class Party extends BaseEntity {
   @Column({ name: 'department_id', type: 'bigint', nullable: true })
   departmentId: string | null;
 
+  @Column({ name: 'maturity_days', type: 'int', default: 0 })
+  maturityDays: number;
+
   @ManyToOne(() => Currency, { nullable: true })
   @JoinColumn({ name: 'currency_id' })
   currency: Currency;

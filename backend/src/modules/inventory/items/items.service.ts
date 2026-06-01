@@ -70,6 +70,14 @@ export class ItemsService {
     return this.transactionsService.importItems(items, userId);
   }
 
+  async importFromExcel(buffer: Buffer, userId: string) {
+    return this.transactionsService.importFromExcel(buffer, userId);
+  }
+
+  async getImportTemplate(): Promise<StreamableFile> {
+    return this.reportsService.getImportTemplate();
+  }
+
   async softDelete(id: string, currentUserId: string): Promise<void> {
     return this.transactionsService.softDelete(id, currentUserId);
   }

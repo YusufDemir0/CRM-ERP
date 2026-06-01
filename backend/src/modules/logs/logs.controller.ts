@@ -11,7 +11,7 @@ export class LogsController {
   constructor(private readonly logsService: LogsService) {}
 
   @Get()
-  @RequirePermissions('SYSTEM_MANAGE')
+  @RequirePermissions('AUDIT_LOG_VIEW')
   async findAll(@Query() query: LogsQueryDto) {
     return this.logsService.findAll(query);
   }

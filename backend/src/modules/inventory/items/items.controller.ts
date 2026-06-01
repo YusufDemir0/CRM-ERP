@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, BadRequestException, UseInterceptors, UploadedFile, StreamableFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ItemsService } from './items.service';
 import { CreateItemDto, UpdateItemDto, ImportItemDto, CreateItemTypeDto, CreateQuantityTypeDto, CreateItemCodeGroupDto, ItemsQueryDto, UpdateItemTypeDto, UpdateQuantityTypeDto, UpdateItemCodeGroupDto } from '../dto/inventory.dto';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
@@ -14,9 +15,28 @@ export class ItemsController {
 
   @Post('import')
   @RequirePermissions('INVENTORY_CREATE')
-  async importItems(@Body() items: ImportItemDto[], @CurrentUser('sub') userId: string) {
-    if (!Array.isArray(items)) throw new BadRequestException('Veri formatı hatalı. Liste bekleniyor.');
+  @UseInterceptors(FileInterceptor('file'))
+  async importItems(
+    @Body() body: any,
+    @UploadedFile() file: any,
+    @CurrentUser('sub') userId: string
+  ) {
+    if (file) {
+      return this.itemsService.importFromExcel(file.buffer, userId);
+    }
+    
+    // Otherwise fallback to JSON body (backward compatibility or manual client lists)
+    const items = Array.isArray(body) ? body : (Array.isArray(body?.items) ? body.items : null);
+    if (!items || !Array.isArray(items)) {
+      throw new BadRequestException('Veri formatı hatalı. Excel dosyası veya JSON listesi bekleniyor.');
+    }
     return this.itemsService.importItems(items, userId);
+  }
+
+  @Get('import-template')
+  @RequirePermissions('INVENTORY_VIEW')
+  async getImportTemplate(): Promise<StreamableFile> {
+    return this.itemsService.getImportTemplate();
   }
 
   @Get('export')
