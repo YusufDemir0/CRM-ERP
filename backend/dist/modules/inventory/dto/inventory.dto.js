@@ -186,10 +186,20 @@ class ImportItemDto {
 }
 exports.ImportItemDto = ImportItemDto;
 __decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], ImportItemDto.prototype, "code", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ImportItemDto.prototype, "codeGroup", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ImportItemDto.prototype, "codeSequence", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
@@ -229,6 +239,16 @@ __decorate([
     (0, class_transformer_1.Type)(() => Number),
     __metadata("design:type", Number)
 ], ImportItemDto.prototype, "kdv", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ImportItemDto.prototype, "currencyCode", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ImportItemDto.prototype, "description", void 0);
 class CreateItemTypeDto {
 }
 exports.CreateItemTypeDto = CreateItemTypeDto;

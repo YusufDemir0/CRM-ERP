@@ -38,7 +38,7 @@ let LogsController = class LogsController {
 exports.LogsController = LogsController;
 __decorate([
     (0, common_1.Get)(),
-    (0, permissions_decorator_1.RequirePermissions)('SYSTEM_MANAGE'),
+    (0, permissions_decorator_1.RequirePermissions)('AUDIT_LOG_VIEW'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [logs_query_dto_1.LogsQueryDto]),

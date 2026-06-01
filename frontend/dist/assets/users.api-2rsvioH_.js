@@ -1,0 +1,1 @@
+import{c as s}from"./index-Co0ulNep.js";const a={getAll:(e,t)=>s.get("/users",{params:e,...t}),getOne:(e,t)=>s.get(`/users/${e}`,t),getStatus:e=>s.get("/users/status",e),create:(e,t)=>s.post("/users",e,t),update:(e,t,u)=>s.put(`/users/${e}`,t,u),toggleState:(e,t,u)=>s.put(`/users/${e}`,{state:t===1?0:1},u),delete:(e,t)=>s.delete(`/users/${e}`,t)};export{a as u};

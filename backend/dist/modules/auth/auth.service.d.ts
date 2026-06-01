@@ -16,7 +16,7 @@ export declare class AuthService implements OnModuleInit {
     private readonly logger;
     constructor(userRepo: Repository<User>, userRoleRepo: Repository<UserRole>, rolePermRepo: Repository<RolePermission>, userPermRepo: Repository<UserPermission>, jwtService: JwtService);
     onModuleInit(): void;
-    login(dto: LoginDto): Promise<{
+    login(dto: LoginDto, ipAddress?: string | null): Promise<{
         access_token: string;
         refresh_token: string;
         user: UserProfile;
@@ -38,4 +38,6 @@ export declare class AuthService implements OnModuleInit {
     changePassword(userId: string, dto: ChangePasswordDto): Promise<{
         message: string;
     }>;
+    decodeToken(token: string): any;
+    logout(userId: string, username: string, fullName: string, ipAddress?: string | null): Promise<void>;
 }

@@ -48,6 +48,7 @@ export declare class TransactionsQueryDto extends PaginationDto {
     partyId: string;
     type?: string;
     status?: string;
+    commercialAccountId?: string;
 }
 export declare class AccountsQueryDto extends PaginationDto {
     state?: number;

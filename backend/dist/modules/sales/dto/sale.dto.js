@@ -146,6 +146,23 @@ __decorate([
     __metadata("design:type", String)
 ], CreateSaleDto.prototype, "commercialAccountId", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], CreateSaleDto.prototype, "maturityDays", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateSaleDto.prototype, "paymentType", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], CreateSaleDto.prototype, "installments", void 0);
+__decorate([
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.ValidateNested)({ each: true }),
     (0, class_transformer_1.Type)(() => CreateSaleItemDto),
@@ -239,6 +256,23 @@ __decorate([
 ], UpdateSaleDto.prototype, "commercialAccountId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], UpdateSaleDto.prototype, "maturityDays", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateSaleDto.prototype, "paymentType", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], UpdateSaleDto.prototype, "installments", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.ValidateNested)({ each: true }),
     (0, class_transformer_1.Type)(() => CreateSaleItemDto),
@@ -261,14 +295,21 @@ class ApproveSaleDto {
 }
 exports.ApproveSaleDto = ApproveSaleDto;
 __decorate([
+    (0, class_transformer_1.Transform)(({ value }) => value !== null && value !== undefined ? String(value) : value),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], ApproveSaleDto.prototype, "departmentId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(({ value }) => value !== null && value !== undefined ? String(value) : value),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], ApproveSaleDto.prototype, "commercialAccountId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    __metadata("design:type", Array)
+], ApproveSaleDto.prototype, "items", void 0);
 class SalesQueryDto extends pagination_dto_1.PaginationDto {
 }
 exports.SalesQueryDto = SalesQueryDto;
@@ -282,6 +323,11 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], SalesQueryDto.prototype, "partyId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", Object)
+], SalesQueryDto.prototype, "ownSalesOnly", void 0);
 class ShipSaleDto {
 }
 exports.ShipSaleDto = ShipSaleDto;

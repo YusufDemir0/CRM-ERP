@@ -14,6 +14,7 @@ export declare class CreatePartyDto {
     currencyId?: string;
     notes?: string;
     departmentId?: string;
+    maturityDays?: number;
 }
 export declare class UpdatePartyDto {
     type?: 'customer' | 'provider';
@@ -31,6 +32,7 @@ export declare class UpdatePartyDto {
     currencyId?: string;
     notes?: string;
     departmentId?: string;
+    maturityDays?: number;
     state?: number;
 }
 import { PaginationDto } from '../../../common/dto/pagination.dto';

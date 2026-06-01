@@ -13,7 +13,7 @@ exports.default = (0, config_1.registerAs)('database', () => {
         database: process.env.DB_DATABASE || 'benyaptim',
         entities: [__dirname + '/../**/*.entity{.ts,.js}'],
         synchronize: process.env.NODE_ENV !== 'production',
-        migrationsRun: false,
+        migrationsRun: true,
         migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
         logging: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
         charset: 'utf8mb4',

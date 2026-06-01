@@ -11,4 +11,7 @@ export declare class AuditSubscriber implements EntitySubscriberInterface {
     afterUpdate(event: UpdateEvent<unknown>): Promise<void>;
     afterRemove(event: RemoveEvent<unknown>): Promise<void>;
     private logAction;
+    private getFriendlyEntityName;
+    private getEntityModule;
+    private getEntityFriendlyDescription;
 }

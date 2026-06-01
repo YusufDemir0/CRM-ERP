@@ -4,7 +4,9 @@ exports.DecimalTransformer = void 0;
 const decimal_js_1 = require("decimal.js");
 class DecimalTransformer {
     to(value) {
-        if (value === null || value === undefined)
+        if (value === undefined)
+            return undefined;
+        if (value === null)
             return null;
         return value.toString();
     }

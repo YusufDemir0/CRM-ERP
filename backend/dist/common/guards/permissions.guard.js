@@ -36,12 +36,12 @@ let PermissionsGuard = PermissionsGuard_1 = class PermissionsGuard {
     }
     async canActivate(context) {
         const requiredPermissions = this.reflector.getAllAndOverride(permissions_decorator_1.PERMISSIONS_KEY, [context.getHandler(), context.getClass()]);
-        if (!requiredPermissions || requiredPermissions.length === 0) {
-            return true;
-        }
         const request = context.switchToHttp().getRequest();
         const user = request.user;
         if (!user || !user.sub) {
+            if (!requiredPermissions || requiredPermissions.length === 0) {
+                return true;
+            }
             throw new common_1.ForbiddenException('Yetkilendirme bilgisi bulunamadı');
         }
         const userId = user.sub;
@@ -56,11 +56,6 @@ let PermissionsGuard = PermissionsGuard_1 = class PermissionsGuard {
         });
         const roleIds = userRoles.map((ur) => ur.roleId);
         const isSystemAdmin = userRoles.some((ur) => ur.role?.isSystemAdmin === true);
-        if (isSystemAdmin) {
-            request.user.isSystemAdmin = true;
-            request.user.permissions = [];
-            return true;
-        }
         const cacheKey = `user_perms_${userId}`;
         const cachedPerms = await this.cacheManager.get(cacheKey);
         let finalPermissions = [];
@@ -88,8 +83,14 @@ let PermissionsGuard = PermissionsGuard_1 = class PermissionsGuard {
                 .filter(key => key && !userDenyKeys.includes(key));
             await this.cacheManager.set(cacheKey, finalPermissions, 60000);
         }
-        request.user.permissions = finalPermissions;
         request.user.isSystemAdmin = isSystemAdmin;
+        request.user.permissions = finalPermissions;
+        if (!requiredPermissions || requiredPermissions.length === 0) {
+            return true;
+        }
+        if (isSystemAdmin) {
+            return true;
+        }
         const hasAll = requiredPermissions.every(key => finalPermissions.includes(key));
         if (!hasAll) {
             this.logger.warn(`User ${userId} missing one of: ${requiredPermissions.join(', ')}`);

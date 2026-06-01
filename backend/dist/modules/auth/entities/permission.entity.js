@@ -31,6 +31,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 20, nullable: true }),
     __metadata("design:type", String)
 ], Permission.prototype, "action", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
+    __metadata("design:type", String)
+], Permission.prototype, "description", void 0);
 exports.Permission = Permission = __decorate([
     (0, typeorm_1.Entity)('permissions'),
     (0, typeorm_1.Unique)(['key'])

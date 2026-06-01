@@ -24,8 +24,10 @@ let AuthController = class AuthController {
     constructor(authService) {
         this.authService = authService;
     }
-    async login(dto, res) {
-        const { access_token, refresh_token, user } = await this.authService.login(dto);
+    async login(dto, res, req) {
+        const rawIp = req.ip || req.headers['x-forwarded-for'];
+        const ipAddress = Array.isArray(rawIp) ? rawIp[0] : (rawIp || undefined);
+        const { access_token, refresh_token, user } = await this.authService.login(dto, ipAddress);
         res.cookie('erp_token', access_token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -62,7 +64,20 @@ let AuthController = class AuthController {
         });
         return { message: 'Token refreshed' };
     }
-    async logout(res) {
+    async logout(req, res) {
+        const token = req.cookies['erp_token'];
+        if (token) {
+            try {
+                const payload = this.authService.decodeToken(token);
+                if (payload && payload.sub) {
+                    const rawIp = req.ip || req.headers['x-forwarded-for'];
+                    const ipAddress = Array.isArray(rawIp) ? rawIp[0] : (rawIp || undefined);
+                    await this.authService.logout(String(payload.sub), payload.username, payload.fullName, ipAddress);
+                }
+            }
+            catch (e) {
+            }
+        }
         res.clearCookie('erp_token');
         res.clearCookie('erp_refresh_token', { path: '/api/auth/refresh' });
         return { message: 'Çıkış başarılı' };
@@ -88,8 +103,9 @@ __decorate([
     (0, common_1.Post)('login'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Res)({ passthrough: true })),
+    __param(2, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [auth_dto_1.LoginDto, Object]),
+    __metadata("design:paramtypes", [auth_dto_1.LoginDto, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "login", null);
 __decorate([
@@ -104,9 +120,10 @@ __decorate([
 __decorate([
     (0, public_decorator_1.Public)(),
     (0, common_1.Post)('logout'),
-    __param(0, (0, common_1.Res)({ passthrough: true })),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Res)({ passthrough: true })),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "logout", null);
 __decorate([

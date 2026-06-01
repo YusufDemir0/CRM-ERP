@@ -1,0 +1,1 @@
+import{c as f}from"./index-Co0ulNep.js";const g={getAll:(t,e)=>f.get("/staff",{params:t,...e}),getOne:(t,e)=>f.get(`/staff/${t}`,e),create:(t,e)=>f.post("/staff",t,e),update:(t,e,a)=>f.put(`/staff/${t}`,e,a),toggleActive:(t,e)=>f.patch(`/staff/${t}/toggle-active`,{},e),delete:(t,e)=>f.delete(`/staff/${t}`,e)};export{g as s};

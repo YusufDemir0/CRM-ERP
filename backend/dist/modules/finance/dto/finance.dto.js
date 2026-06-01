@@ -219,6 +219,11 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], TransactionsQueryDto.prototype, "status", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TransactionsQueryDto.prototype, "commercialAccountId", void 0);
 class AccountsQueryDto extends pagination_dto_1.PaginationDto {
 }
 exports.AccountsQueryDto = AccountsQueryDto;

@@ -18,6 +18,7 @@ export declare class Party extends BaseEntity {
     currencyId: string | null;
     notes: string | null;
     departmentId: string | null;
+    maturityDays: number;
     currency: Currency;
     totalSalesCount?: number;
     lastSaleDate?: Date;

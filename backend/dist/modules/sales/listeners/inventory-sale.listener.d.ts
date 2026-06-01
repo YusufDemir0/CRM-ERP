@@ -15,6 +15,11 @@ export declare class InventorySaleListener implements OnModuleInit {
         sale: Sale;
         departmentId: string;
         userId: string;
+        items?: {
+            itemId: string;
+            departmentId: string;
+            quantity: number;
+        }[];
     }): Promise<void>;
     private setupCancelConsumer;
     handleSaleCancelled(payload: {

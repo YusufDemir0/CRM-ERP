@@ -15,6 +15,7 @@ const sale_entity_1 = require("./entities/sale.entity");
 const sale_item_entity_1 = require("./entities/sale-item.entity");
 const sale_type_entity_1 = require("./entities/sale-type.entity");
 const sale_sequence_entity_1 = require("./entities/sale-sequence.entity");
+const sale_installment_entity_1 = require("./entities/sale-installment.entity");
 const party_entity_1 = require("../parties/entities/party.entity");
 const inventory_module_1 = require("../inventory/inventory.module");
 const logs_module_1 = require("../logs/logs.module");
@@ -32,7 +33,7 @@ exports.SalesModule = SalesModule = __decorate([
     (0, common_1.Module)({
         imports: [
             typeorm_1.TypeOrmModule.forFeature([
-                sale_entity_1.Sale, sale_item_entity_1.SaleItem, sale_type_entity_1.SaleType, sale_sequence_entity_1.SaleSequence, party_entity_1.Party, ledger_entity_1.AccountingLedger, transaction_entity_1.Transaction
+                sale_entity_1.Sale, sale_item_entity_1.SaleItem, sale_type_entity_1.SaleType, sale_sequence_entity_1.SaleSequence, sale_installment_entity_1.SaleInstallment, party_entity_1.Party, ledger_entity_1.AccountingLedger, transaction_entity_1.Transaction
             ]),
             common_module_1.CommonModule,
             inventory_module_1.InventoryModule,

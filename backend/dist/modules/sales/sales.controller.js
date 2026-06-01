@@ -128,7 +128,7 @@ __decorate([
 ], SalesController.prototype, "update", null);
 __decorate([
     (0, common_1.Post)(':id/approve'),
-    (0, permissions_decorator_1.RequirePermissions)('SALES_APPROVE'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_MASTER_APPROVE'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
@@ -138,7 +138,7 @@ __decorate([
 ], SalesController.prototype, "approve", null);
 __decorate([
     (0, common_1.Post)(':id/cancel'),
-    (0, permissions_decorator_1.RequirePermissions)('SALES_CANCEL'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_MASTER_CANCEL'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -147,7 +147,7 @@ __decorate([
 ], SalesController.prototype, "cancel", null);
 __decorate([
     (0, common_1.Post)(':id/ship'),
-    (0, permissions_decorator_1.RequirePermissions)('SALES_APPROVE'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_MASTER_SHIP'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),

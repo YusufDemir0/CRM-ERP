@@ -19,8 +19,20 @@ let AuditInterceptor = class AuditInterceptor {
     intercept(context, next) {
         const request = context.switchToHttp().getRequest();
         const userId = request.user?.sub || request.user?.id || null;
+        const username = request.user?.username || null;
+        const fullName = request.user?.fullName || null;
+        const ipAddress = request.ip || request.headers['x-forwarded-for'] || null;
         if (userId) {
             this.cls.set('userId', userId);
+        }
+        if (username) {
+            this.cls.set('username', username);
+        }
+        if (fullName) {
+            this.cls.set('fullName', fullName);
+        }
+        if (ipAddress) {
+            this.cls.set('ipAddress', ipAddress);
         }
         return next.handle();
     }

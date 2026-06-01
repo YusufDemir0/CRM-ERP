@@ -4,14 +4,14 @@ import { LoginDto, RegisterDto, ForgotPasswordDto, ChangePasswordDto } from './d
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
-    login(dto: LoginDto, res: Response): Promise<{
+    login(dto: LoginDto, res: Response, req: import('express').Request): Promise<{
         message: string;
         user: import("./interfaces/user-profile.interface").UserProfile;
     }>;
     refresh(req: import('express').Request, res: Response): Promise<{
         message: string;
     }>;
-    logout(res: Response): Promise<{
+    logout(req: import('express').Request, res: Response): Promise<{
         message: string;
     }>;
     register(dto: RegisterDto): Promise<{

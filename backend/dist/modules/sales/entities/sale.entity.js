@@ -34,6 +34,7 @@ let Sale = class Sale extends base_entity_1.BaseEntity {
         this.grandTotal = new decimal_js_1.Decimal(0);
         this.totalCost = new decimal_js_1.Decimal(0);
         this.profit = new decimal_js_1.Decimal(0);
+        this.paidAmount = new decimal_js_1.Decimal(0);
     }
 };
 exports.Sale = Sale;
@@ -122,6 +123,11 @@ __decorate([
     __metadata("design:type", decimal_js_1.Decimal)
 ], Sale.prototype, "profit", void 0);
 __decorate([
+    (0, class_transformer_1.Transform)(({ value }) => value ? String(value) : value),
+    (0, typeorm_1.Column)({ name: 'paid_amount', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
+], Sale.prototype, "paidAmount", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),
     __metadata("design:type", Object)
 ], Sale.prototype, "notes", void 0);
@@ -157,6 +163,18 @@ __decorate([
     (0, typeorm_1.Column)({ name: 'commercial_account_id', type: 'bigint', nullable: true }),
     __metadata("design:type", Object)
 ], Sale.prototype, "commercialAccountId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'maturity_days', type: 'int', default: 0 }),
+    __metadata("design:type", Number)
+], Sale.prototype, "maturityDays", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'payment_type', type: 'varchar', length: 20, default: 'NAKİT' }),
+    __metadata("design:type", String)
+], Sale.prototype, "paymentType", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'installments', type: 'int', default: 1 }),
+    __metadata("design:type", Number)
+], Sale.prototype, "installments", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => party_entity_1.Party),
     (0, typeorm_1.JoinColumn)({ name: 'party_id' }),

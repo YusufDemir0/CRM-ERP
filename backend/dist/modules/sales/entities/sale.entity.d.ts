@@ -25,6 +25,7 @@ export declare class Sale extends BaseEntity {
     grandTotal: Decimal;
     totalCost: Decimal;
     profit: Decimal;
+    paidAmount: Decimal;
     notes: string | null;
     phone: string | null;
     address: string | null;
@@ -34,6 +35,9 @@ export declare class Sale extends BaseEntity {
     email: string | null;
     source: string | null;
     commercialAccountId: string | null;
+    maturityDays: number;
+    paymentType: string;
+    installments: number;
     party: Party;
     saleType: SaleType;
     currency: Currency;

@@ -37,7 +37,9 @@ export declare class UpdateItemDto {
     state?: number;
 }
 export declare class ImportItemDto {
-    code: string;
+    code?: string;
+    codeGroup?: string;
+    codeSequence?: string;
     name: string;
     typeName?: string;
     unitName?: string;
@@ -45,6 +47,8 @@ export declare class ImportItemDto {
     salePrice?: number;
     criticalLimit?: number;
     kdv?: number;
+    currencyCode?: string;
+    description?: string;
 }
 export declare class CreateItemTypeDto {
     name: string;

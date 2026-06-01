@@ -23,6 +23,7 @@ const decimal_js_1 = require("decimal.js");
 const transaction_entity_1 = require("./entities/transaction.entity");
 const party_entity_1 = require("../../parties/entities/party.entity");
 const currency_entity_1 = require("../currencies/entities/currency.entity");
+const sale_entity_1 = require("../../sales/entities/sale.entity");
 const sequence_generator_service_1 = require("../../../common/services/sequence-generator.service");
 const finance_dto_1 = require("../dto/finance.dto");
 const ledger_entity_1 = require("../../parties/entities/ledger.entity");
@@ -61,6 +62,8 @@ let TransactionsService = class TransactionsService {
             qb.andWhere('tx.type = :type', { type: query.type });
         if (query.status)
             qb.andWhere('tx.status = :status', { status: query.status });
+        if (query.commercialAccountId)
+            qb.andWhere('tx.commercialAccountId = :commercialAccountId', { commercialAccountId: query.commercialAccountId });
         const allowedSortCols = ['date', 'amount', 'createdAt', 'code', 'party.name', 'commercialAccount.name', 'status'];
         const sortField = allowedSortCols.includes(query.sortBy || '') ? query.sortBy : 'date';
         const finalSortField = sortField.includes('.') ? sortField : `tx.${sortField}`;
@@ -137,6 +140,41 @@ let TransactionsService = class TransactionsService {
                 source: dto.type === 'in' ? 'PAYMENT_IN' : 'PAYMENT_OUT',
                 description: dto.description || `Kasa Fişi: ${code}`
             }));
+            if (isCredit) {
+                let remainingPayment = new decimal_js_1.Decimal(dto.amount);
+                console.log(`[FIFO Payment] Starting allocation of payment amount ${dto.amount} ${dto.currencyId || 'TRY'} for customer ${party.name}`);
+                const unpaidSales = await manager.find(sale_entity_1.Sale, {
+                    where: [
+                        { partyId: party.id, status: 'approved' },
+                        { partyId: party.id, status: 'shipped' },
+                        { partyId: party.id, status: 'invoiced' }
+                    ],
+                    order: { createdAt: 'ASC' }
+                });
+                for (const sale of unpaidSales) {
+                    if (remainingPayment.lte(0))
+                        break;
+                    const grandTotal = new decimal_js_1.Decimal(sale.grandTotal || 0);
+                    const paidAmount = new decimal_js_1.Decimal(sale.paidAmount || 0);
+                    const remainingDebtOnSale = grandTotal.sub(paidAmount);
+                    if (remainingDebtOnSale.gt(0)) {
+                        const txExchangeRate = exchangeRate;
+                        const saleExchangeRate = new decimal_js_1.Decimal(sale.exchangeRate || 1);
+                        const remainingPaymentInTl = remainingPayment.mul(txExchangeRate);
+                        const remainingPaymentInSaleCurrency = remainingPaymentInTl.div(saleExchangeRate);
+                        const allocationInSaleCurrency = decimal_js_1.Decimal.min(remainingDebtOnSale, remainingPaymentInSaleCurrency);
+                        if (allocationInSaleCurrency.gt(0)) {
+                            const newPaidAmount = paidAmount.add(allocationInSaleCurrency);
+                            sale.paidAmount = newPaidAmount;
+                            await manager.save(sale_entity_1.Sale, sale);
+                            console.log(`[FIFO Payment] Allocated ${allocationInSaleCurrency} ${sale.currencyId} to Sale Code ${sale.code} (Grand Total: ${grandTotal}, Paid: ${newPaidAmount})`);
+                            const allocationInTxCurrency = allocationInSaleCurrency.mul(saleExchangeRate).div(txExchangeRate);
+                            remainingPayment = remainingPayment.sub(allocationInTxCurrency);
+                        }
+                    }
+                }
+                console.log(`[FIFO Payment] Completed allocation. Remaining unallocated: ${remainingPayment}`);
+            }
             const sign = (dto.type === 'in' && !isSupplierRefund) ? '-' : '+';
             await manager.createQueryBuilder()
                 .update(party_entity_1.Party)
@@ -172,6 +210,38 @@ let TransactionsService = class TransactionsService {
                     source: 'CANCEL',
                     description: `İptal Fişi: ${tx.code}`
                 }));
+                if (!isReverseCredit) {
+                    let amountToRevert = new decimal_js_1.Decimal(tx.amount);
+                    console.log(`[FIFO Payment Cancel] Reverting payment amount ${tx.amount} ${tx.currencyId || 'TRY'} for customer ${party.name}`);
+                    const paidSales = await manager.find(sale_entity_1.Sale, {
+                        where: [
+                            { partyId: party.id, status: 'approved' },
+                            { partyId: party.id, status: 'shipped' },
+                            { partyId: party.id, status: 'invoiced' }
+                        ],
+                        order: { createdAt: 'DESC' }
+                    });
+                    for (const sale of paidSales) {
+                        if (amountToRevert.lte(0))
+                            break;
+                        const paidAmount = new decimal_js_1.Decimal(sale.paidAmount || 0);
+                        if (paidAmount.gt(0)) {
+                            const txExchangeRate = new decimal_js_1.Decimal(tx.exchangeRate || 1);
+                            const saleExchangeRate = new decimal_js_1.Decimal(sale.exchangeRate || 1);
+                            const amountToRevertInTl = amountToRevert.mul(txExchangeRate);
+                            const amountToRevertInSaleCurrency = amountToRevertInTl.div(saleExchangeRate);
+                            const revertInSaleCurrency = decimal_js_1.Decimal.min(paidAmount, amountToRevertInSaleCurrency);
+                            if (revertInSaleCurrency.gt(0)) {
+                                const newPaidAmount = paidAmount.sub(revertInSaleCurrency);
+                                sale.paidAmount = newPaidAmount;
+                                await manager.save(sale_entity_1.Sale, sale);
+                                console.log(`[FIFO Payment Cancel] Reverted ${revertInSaleCurrency} ${sale.currencyId} from Sale Code ${sale.code} (Remaining Paid: ${newPaidAmount})`);
+                                const revertInTxCurrency = revertInSaleCurrency.mul(saleExchangeRate).div(txExchangeRate);
+                                amountToRevert = amountToRevert.sub(revertInTxCurrency);
+                            }
+                        }
+                    }
+                }
                 const sign = (tx.type === 'in' && !isSupplierRefund) ? '+' : '-';
                 await manager.createQueryBuilder()
                     .update(party_entity_1.Party)

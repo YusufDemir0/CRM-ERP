@@ -13,6 +13,7 @@ exports.AuditSubscriber = void 0;
 const typeorm_1 = require("typeorm");
 const nestjs_cls_1 = require("nestjs-cls");
 const common_1 = require("@nestjs/common");
+const log_entity_1 = require("../../modules/logs/entities/log.entity");
 let AuditSubscriber = class AuditSubscriber {
     constructor(dataSource, cls) {
         this.dataSource = dataSource;
@@ -36,20 +37,27 @@ let AuditSubscriber = class AuditSubscriber {
         }
     }
     async afterInsert(event) {
-        this.logAction(event, 'INSERT');
+        await this.logAction(event, 'INSERT');
     }
     async afterUpdate(event) {
-        this.logAction(event, 'UPDATE');
+        await this.logAction(event, 'UPDATE');
     }
     async afterRemove(event) {
-        this.logAction(event, 'DELETE');
+        await this.logAction(event, 'DELETE');
     }
-    logAction(event, action) {
-        const userId = this.cls.get('userId');
+    async logAction(event, action) {
         const entityName = event.metadata.name;
-        if (entityName === 'AuditLog' || entityName === 'OutboxEvent')
+        if (entityName === 'SystemLog' ||
+            entityName === 'AuditLog' ||
+            entityName === 'OutboxEvent' ||
+            entityName === 'SystemLogEntity') {
             return;
-        const entity = event.entity;
+        }
+        const userId = this.cls.get('userId');
+        const username = this.cls.get('username') || null;
+        const fullName = this.cls.get('fullName') || null;
+        const ipAddress = this.cls.get('ipAddress') || null;
+        const entity = event.entity || event.databaseEntity || {};
         const entityId = entity?.id || event.databaseEntity?.id || 'unknown';
         const logPayload = {
             reqId: this.cls.get('reqId'),
@@ -58,6 +66,9 @@ let AuditSubscriber = class AuditSubscriber {
             entity: entityName,
             entityId,
             userId: userId || null,
+            username,
+            fullName,
+            ipAddress,
             changes: action === 'UPDATE' ? {
                 updatedFields: event.updatedColumns
                     .slice(0, 20)
@@ -68,8 +79,88 @@ let AuditSubscriber = class AuditSubscriber {
             this.logger.log(JSON.stringify(logPayload));
         }
         catch {
-            this.logger.warn(`Audit log serialization failed for ${entityName}:${entityId}`);
+            this.logger.warn(`Audit log stdout serialization failed for ${entityName}:${entityId}`);
         }
+        const trackedEntities = [
+            'User',
+            'Role',
+            'Party',
+            'Item',
+            'Bom',
+            'ProductionOrder',
+            'CommercialAccount',
+            'Transaction',
+            'Sale',
+            'Department',
+            'Staff',
+        ];
+        if (trackedEntities.includes(entityName) && process.env.DB_LOGGING_ENABLED !== 'false') {
+            try {
+                const friendlyName = this.getFriendlyEntityName(entityName);
+                const moduleName = this.getEntityModule(entityName);
+                const detailsText = this.getEntityFriendlyDescription(entityName, entity, action);
+                await event.manager.insert(log_entity_1.SystemLog, {
+                    userId: userId ? String(userId) : undefined,
+                    username: username || undefined,
+                    fullName: fullName || undefined,
+                    action,
+                    module: moduleName || undefined,
+                    tag: 'INFO',
+                    details: detailsText || undefined,
+                    ipAddress: ipAddress || undefined,
+                });
+            }
+            catch (err) {
+                this.logger.error(`Failed to save DB audit log for ${entityName}: ${err.message}`);
+            }
+        }
+    }
+    getFriendlyEntityName(entityName) {
+        const map = {
+            'User': 'Kullanıcı',
+            'Role': 'Rol',
+            'Party': 'Müşteri/Cari',
+            'Item': 'Ürün',
+            'Bom': 'Ürün Reçetesi',
+            'ProductionOrder': 'Üretim Emri',
+            'CommercialAccount': 'Kasa/Banka Hesabı',
+            'Transaction': 'Hesap Hareketi',
+            'Sale': 'Satış',
+            'Department': 'Departman',
+            'Staff': 'Personel',
+        };
+        return map[entityName] || entityName;
+    }
+    getEntityModule(entityName) {
+        const map = {
+            'User': 'users',
+            'Role': 'roles',
+            'Party': 'parties',
+            'Item': 'items',
+            'Bom': 'production',
+            'ProductionOrder': 'production',
+            'CommercialAccount': 'finance',
+            'Transaction': 'finance',
+            'Sale': 'sales',
+            'Department': 'departments',
+            'Staff': 'staff',
+        };
+        return map[entityName] || 'system';
+    }
+    getEntityFriendlyDescription(entityName, entity, action) {
+        const name = entity?.name || entity?.fullName || entity?.username || entity?.code || entity?.title || '';
+        const label = name ? `"${name}"` : '';
+        const friendlyEntity = this.getFriendlyEntityName(entityName);
+        if (action === 'INSERT') {
+            return `Yeni ${friendlyEntity} sisteme eklendi: ${label}`.trim();
+        }
+        else if (action === 'UPDATE') {
+            return `${friendlyEntity} bilgileri güncellendi: ${label}`.trim();
+        }
+        else if (action === 'DELETE') {
+            return `${friendlyEntity} sistemden silindi: ${label}`.trim();
+        }
+        return `${friendlyEntity} üzerinde işlem yapıldı: ${label}`.trim();
     }
 };
 exports.AuditSubscriber = AuditSubscriber;

@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ItemsController = void 0;
 const common_1 = require("@nestjs/common");
+const platform_express_1 = require("@nestjs/platform-express");
 const items_service_1 = require("./items.service");
 const inventory_dto_1 = require("../dto/inventory.dto");
 const current_user_decorator_1 = require("../../../common/decorators/current-user.decorator");
@@ -22,10 +23,18 @@ let ItemsController = class ItemsController {
     constructor(itemsService) {
         this.itemsService = itemsService;
     }
-    async importItems(items, userId) {
-        if (!Array.isArray(items))
-            throw new common_1.BadRequestException('Veri formatı hatalı. Liste bekleniyor.');
+    async importItems(body, file, userId) {
+        if (file) {
+            return this.itemsService.importFromExcel(file.buffer, userId);
+        }
+        const items = Array.isArray(body) ? body : (Array.isArray(body?.items) ? body.items : null);
+        if (!items || !Array.isArray(items)) {
+            throw new common_1.BadRequestException('Veri formatı hatalı. Excel dosyası veya JSON listesi bekleniyor.');
+        }
         return this.itemsService.importItems(items, userId);
+    }
+    async getImportTemplate() {
+        return this.itemsService.getImportTemplate();
     }
     async exportItems(query) {
         return this.itemsService.exportToExcel(query);
@@ -65,12 +74,21 @@ exports.ItemsController = ItemsController;
 __decorate([
     (0, common_1.Post)('import'),
     (0, permissions_decorator_1.RequirePermissions)('INVENTORY_CREATE'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file')),
     __param(0, (0, common_1.Body)()),
-    __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
+    __param(1, (0, common_1.UploadedFile)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Array, String]),
+    __metadata("design:paramtypes", [Object, Object, String]),
     __metadata("design:returntype", Promise)
 ], ItemsController.prototype, "importItems", null);
+__decorate([
+    (0, common_1.Get)('import-template'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], ItemsController.prototype, "getImportTemplate", null);
 __decorate([
     (0, common_1.Get)('export'),
     (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW'),

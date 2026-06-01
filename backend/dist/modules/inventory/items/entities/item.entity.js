@@ -21,6 +21,13 @@ const currency_entity_1 = require("../../../finance/currencies/entities/currency
 const quantity_type_entity_1 = require("./quantity-type.entity");
 const decimal_transformer_1 = require("../../../../common/transformers/decimal.transformer");
 let Item = class Item extends base_entity_1.BaseEntity {
+    constructor() {
+        super(...arguments);
+        this.criticalLimit = new decimal_js_1.Decimal(0);
+        this.movingAverageCost = new decimal_js_1.Decimal(0);
+        this.kdv = new decimal_js_1.Decimal(20);
+        this.totalStock = new decimal_js_1.Decimal(0);
+    }
 };
 exports.Item = Item;
 __decorate([

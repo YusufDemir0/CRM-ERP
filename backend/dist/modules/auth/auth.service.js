@@ -57,6 +57,7 @@ const user_role_entity_1 = require("./entities/user-role.entity");
 const role_permission_entity_1 = require("./entities/role-permission.entity");
 const user_permission_entity_1 = require("./entities/user-permission.entity");
 const record_state_enum_1 = require("../../common/enums/record-state.enum");
+const log_entity_1 = require("../logs/entities/log.entity");
 let AuthService = AuthService_1 = class AuthService {
     constructor(userRepo, userRoleRepo, rolePermRepo, userPermRepo, jwtService) {
         this.userRepo = userRepo;
@@ -68,7 +69,7 @@ let AuthService = AuthService_1 = class AuthService {
     }
     onModuleInit() {
     }
-    async login(dto) {
+    async login(dto, ipAddress) {
         const user = await this.userRepo.findOne({
             where: { username: dto.username },
             relations: ['roles'],
@@ -108,6 +109,7 @@ let AuthService = AuthService_1 = class AuthService {
         const payload = {
             sub: user.id,
             username: user.username,
+            fullName: user.fullName,
             departmentId: user.departmentId,
             tokenVersion: user.tokenVersion,
         };
@@ -117,6 +119,21 @@ let AuthService = AuthService_1 = class AuthService {
         const refreshSalt = await bcrypt.genSalt(10);
         user.refreshTokenHash = await bcrypt.hash(refresh_token, refreshSalt);
         await this.userRepo.save(user);
+        try {
+            await this.userRepo.manager.insert(log_entity_1.SystemLog, {
+                userId: String(user.id),
+                username: user.username,
+                fullName: user.fullName,
+                action: 'LOGIN',
+                module: 'auth',
+                tag: 'SUCCESS',
+                details: `${user.fullName} (${user.username}) sisteme başarılı bir şekilde giriş yaptı.`,
+                ipAddress: ipAddress || undefined,
+            });
+        }
+        catch (e) {
+            this.logger.error(`Failed to write LOGIN audit log: ${e.message}`);
+        }
         return {
             access_token,
             refresh_token,
@@ -145,6 +162,7 @@ let AuthService = AuthService_1 = class AuthService {
             const newPayload = {
                 sub: user.id,
                 username: user.username,
+                fullName: user.fullName,
                 departmentId: user.departmentId,
                 tokenVersion: user.tokenVersion,
             };
@@ -259,6 +277,31 @@ let AuthService = AuthService_1 = class AuthService {
         user.tokenVersion += 1;
         await this.userRepo.save(user);
         return { message: 'Şifre başarıyla değiştirildi. Lütfen yeni şifrenizle giriş yapınız.' };
+    }
+    decodeToken(token) {
+        try {
+            return this.jwtService.decode(token);
+        }
+        catch {
+            return null;
+        }
+    }
+    async logout(userId, username, fullName, ipAddress) {
+        try {
+            await this.userRepo.manager.insert(log_entity_1.SystemLog, {
+                userId,
+                username,
+                fullName,
+                action: 'LOGOUT',
+                module: 'auth',
+                tag: 'SUCCESS',
+                details: `${fullName} (${username}) sistemden güvenli bir şekilde çıkış yaptı.`,
+                ipAddress: ipAddress || undefined,
+            });
+        }
+        catch (e) {
+            this.logger.error(`Failed to write LOGOUT audit log: ${e.message}`);
+        }
     }
 };
 exports.AuthService = AuthService;

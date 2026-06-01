@@ -51,7 +51,6 @@ __decorate([
 ], Stock.prototype, "department", void 0);
 exports.Stock = Stock = __decorate([
     (0, typeorm_1.Entity)('stocks'),
-    (0, typeorm_1.Unique)(['itemId', 'departmentId']),
-    (0, typeorm_1.Check)(`"quantity" >= 0`)
+    (0, typeorm_1.Unique)(['itemId', 'departmentId'])
 ], Stock);
 //# sourceMappingURL=stock.entity.js.map

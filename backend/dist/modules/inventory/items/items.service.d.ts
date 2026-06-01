@@ -30,6 +30,12 @@ export declare class ItemsService {
         insertedCount: number;
         errors: string[];
     }>;
+    importFromExcel(buffer: Buffer, userId: string): Promise<{
+        updatedCount: number;
+        insertedCount: number;
+        errors: string[];
+    }>;
+    getImportTemplate(): Promise<StreamableFile>;
     softDelete(id: string, currentUserId: string): Promise<void>;
     createItemType(dto: CreateItemTypeDto, userId: string): Promise<ItemType>;
     updateItemType(id: string, dto: UpdateItemTypeDto, userId: string): Promise<ItemType>;

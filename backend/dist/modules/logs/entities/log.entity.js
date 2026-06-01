@@ -21,15 +21,15 @@ __decorate([
 __decorate([
     (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ name: 'user_id', type: 'bigint', nullable: true }),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], SystemLog.prototype, "userId", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 100, nullable: true }),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], SystemLog.prototype, "username", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'full_name', type: 'varchar', length: 200, nullable: true }),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], SystemLog.prototype, "fullName", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'varchar', length: 255 }),
@@ -38,7 +38,7 @@ __decorate([
 __decorate([
     (0, typeorm_1.Index)(),
     (0, typeorm_1.Column)({ type: 'varchar', length: 100, nullable: true }),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], SystemLog.prototype, "module", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
@@ -47,11 +47,11 @@ __decorate([
 ], SystemLog.prototype, "tag", void 0);
 __decorate([
     (0, typeorm_1.Column)('text', { nullable: true }),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], SystemLog.prototype, "details", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'ip_address', type: 'varchar', length: 45, nullable: true }),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], SystemLog.prototype, "ipAddress", void 0);
 __decorate([
     (0, typeorm_1.Index)(),

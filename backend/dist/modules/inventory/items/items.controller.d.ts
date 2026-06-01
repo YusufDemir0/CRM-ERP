@@ -1,14 +1,16 @@
+import { StreamableFile } from '@nestjs/common';
 import { ItemsService } from './items.service';
-import { CreateItemDto, UpdateItemDto, ImportItemDto, CreateItemTypeDto, CreateQuantityTypeDto, CreateItemCodeGroupDto, ItemsQueryDto, UpdateItemTypeDto, UpdateQuantityTypeDto, UpdateItemCodeGroupDto } from '../dto/inventory.dto';
+import { CreateItemDto, UpdateItemDto, CreateItemTypeDto, CreateQuantityTypeDto, CreateItemCodeGroupDto, ItemsQueryDto, UpdateItemTypeDto, UpdateQuantityTypeDto, UpdateItemCodeGroupDto } from '../dto/inventory.dto';
 export declare class ItemsController {
     private readonly itemsService;
     constructor(itemsService: ItemsService);
-    importItems(items: ImportItemDto[], userId: string): Promise<{
+    importItems(body: any, file: any, userId: string): Promise<{
         updatedCount: number;
         insertedCount: number;
         errors: string[];
     }>;
-    exportItems(query: ItemsQueryDto): Promise<import("@nestjs/common").StreamableFile>;
+    getImportTemplate(): Promise<StreamableFile>;
+    exportItems(query: ItemsQueryDto): Promise<StreamableFile>;
     getStatus(): Promise<{
         active: number;
         passive: number;

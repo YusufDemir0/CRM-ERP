@@ -29,6 +29,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(3, 10, { message: 'Kısaltma en az 3, en fazla 10 karakter olmalıdır' }),
     __metadata("design:type", String)
 ], CreateDepartmentDto.prototype, "abbreviation", void 0);
 __decorate([
@@ -62,6 +63,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Length)(3, 10, { message: 'Kısaltma en az 3, en fazla 10 karakter olmalıdır' }),
     __metadata("design:type", String)
 ], UpdateDepartmentDto.prototype, "abbreviation", void 0);
 __decorate([

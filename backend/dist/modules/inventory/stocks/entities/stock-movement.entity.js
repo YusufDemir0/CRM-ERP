@@ -49,7 +49,7 @@ __decorate([
 ], StockMovement.prototype, "totalCost", void 0);
 __decorate([
     (0, typeorm_1.Index)(),
-    (0, typeorm_1.Column)({ name: 'reference_type', type: 'enum', enum: ['sale', 'purchase', 'production', 'adjustment', 'return', 'manual', 'revert', 'shipment', 'transfer', 'reserve'] }),
+    (0, typeorm_1.Column)({ name: 'reference_type', type: 'enum', enum: ['sale', 'purchase', 'production', 'adjustment', 'return', 'manual', 'revert', 'shipment', 'transfer', 'reserve', 'lock', 'deduct', 'create', 'import'] }),
     __metadata("design:type", String)
 ], StockMovement.prototype, "referenceType", void 0);
 __decorate([

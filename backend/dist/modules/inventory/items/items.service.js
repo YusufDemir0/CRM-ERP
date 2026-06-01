@@ -48,6 +48,12 @@ let ItemsService = class ItemsService {
     async importItems(items, userId) {
         return this.transactionsService.importItems(items, userId);
     }
+    async importFromExcel(buffer, userId) {
+        return this.transactionsService.importFromExcel(buffer, userId);
+    }
+    async getImportTemplate() {
+        return this.reportsService.getImportTemplate();
+    }
     async softDelete(id, currentUserId) {
         return this.transactionsService.softDelete(id, currentUserId);
     }

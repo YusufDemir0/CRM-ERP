@@ -16,6 +16,7 @@ const typeorm_1 = require("typeorm");
 const ledger_entity_1 = require("../../parties/entities/ledger.entity");
 const party_entity_1 = require("../../parties/entities/party.entity");
 const transaction_entity_1 = require("../../finance/transactions/entities/transaction.entity");
+const sale_entity_1 = require("../entities/sale.entity");
 const decimal_js_1 = require("decimal.js");
 const finance_helper_1 = require("../../../common/utils/finance.helper");
 const date_utils_1 = require("../../../common/utils/date.utils");
@@ -80,20 +81,22 @@ let FinanceSaleListener = FinanceSaleListener_1 = class FinanceSaleListener {
                 });
                 if (party) {
                     party.balance = finance_helper_1.FinanceHelper.add(party.balance, tlGrandTotal);
-                    if (deposit.gt(0) && commercialAccountId) {
+                    const deposit = new decimal_js_1.Decimal(sale.deposit || 0);
+                    if (commercialAccountId && deposit.gt(0)) {
+                        const tlDeposit = finance_helper_1.FinanceHelper.mul(deposit, sale.exchangeRate);
                         const txCode = await this.sequenceGenerator.generateTransactionCode(qr, 'MKB');
                         await qr.save(qr.create(transaction_entity_1.Transaction, {
                             code: txCode,
                             partyId: party.id,
                             commercialAccountId,
-                            amount: sale.deposit,
+                            amount: deposit,
                             currencyId: sale.currencyId,
                             exchangeRate: sale.exchangeRate,
                             type: 'in',
-                            referenceType: 'sale',
+                            referenceType: 'sale_deposit',
                             referenceId: sale.id,
                             date: date_utils_1.DateUtils.getToday(),
-                            description: `${sale.code} Nolu Sipariş Peşinat / Kaporası`,
+                            description: `${sale.code} Nolu Satış Kaporası / Ön Ödemesi`,
                             status: 'completed',
                             createdBy: userId
                         }));
@@ -102,12 +105,13 @@ let FinanceSaleListener = FinanceSaleListener_1 = class FinanceSaleListener {
                             partyId: party.id,
                             accountId: commercialAccountId,
                             debit: new decimal_js_1.Decimal(0),
-                            credit: deposit,
+                            credit: tlDeposit,
                             transactionId: sale.id,
                             source: 'DEPOSIT',
-                            description: `${sale.code} Sipariş Peşinat Tahsilatı`
+                            description: `${sale.code} Satış Kaporası`
                         }));
-                        party.balance = finance_helper_1.FinanceHelper.sub(party.balance, deposit);
+                        party.balance = finance_helper_1.FinanceHelper.sub(party.balance, tlDeposit);
+                        await qr.update(sale_entity_1.Sale, sale.id, { paidAmount: deposit });
                     }
                     party.updatedBy = userId || null;
                     await qr.save(party_entity_1.Party, party);
@@ -158,7 +162,7 @@ let FinanceSaleListener = FinanceSaleListener_1 = class FinanceSaleListener {
                     lock: { mode: 'pessimistic_write' }
                 });
                 if (party) {
-                    const targetBalance = finance_helper_1.FinanceHelper.add(finance_helper_1.FinanceHelper.sub(party.balance, tlGrandTotal), tlDeposit);
+                    party.balance = finance_helper_1.FinanceHelper.sub(party.balance, tlGrandTotal);
                     await qr.save(qr.create(ledger_entity_1.AccountingLedger, {
                         date: date_utils_1.DateUtils.getToday(),
                         partyId: party.id,
@@ -168,27 +172,26 @@ let FinanceSaleListener = FinanceSaleListener_1 = class FinanceSaleListener {
                         source: 'CANCEL_SALE',
                         description: `${sale.code} Satış İptali - Borç Revert`
                     }));
-                    if (tlDeposit.gt(0)) {
-                        const depositTx = await qr.findOne(transaction_entity_1.Transaction, {
-                            where: { referenceType: 'sale', referenceId: sale.id, type: 'in' }
-                        });
+                    const depositTx = await qr.findOne(transaction_entity_1.Transaction, {
+                        where: { referenceId: sale.id, type: 'in' }
+                    });
+                    if (depositTx) {
+                        const tlDepositActual = finance_helper_1.FinanceHelper.mul(depositTx.amount, depositTx.exchangeRate);
                         await qr.save(qr.create(ledger_entity_1.AccountingLedger, {
                             date: date_utils_1.DateUtils.getToday(),
                             partyId: party.id,
-                            accountId: depositTx?.commercialAccountId,
-                            debit: tlDeposit,
+                            accountId: depositTx.commercialAccountId,
+                            debit: tlDepositActual,
                             credit: new decimal_js_1.Decimal(0),
                             transactionId: sale.id,
                             source: 'CANCEL_DEPOSIT',
-                            description: `${sale.code} Kapora İptali - Alacak Revert`
+                            description: `${sale.code} Tahsilat İptali - Alacak Revert`
                         }));
-                        if (depositTx) {
-                            depositTx.status = 'cancelled';
-                            depositTx.updatedBy = userId;
-                            await qr.save(transaction_entity_1.Transaction, depositTx);
-                        }
+                        depositTx.status = 'cancelled';
+                        depositTx.updatedBy = userId;
+                        await qr.save(transaction_entity_1.Transaction, depositTx);
+                        party.balance = finance_helper_1.FinanceHelper.add(party.balance, tlDepositActual);
                     }
-                    party.balance = targetBalance;
                     party.updatedBy = userId || null;
                     await qr.save(party_entity_1.Party, party);
                 }
