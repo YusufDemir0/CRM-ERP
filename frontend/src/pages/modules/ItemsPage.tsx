@@ -157,20 +157,6 @@ export default function ItemsPage() {
       toggleMutation.mutate({ id, state: currentState });
     }
   };
-
-  const handleExport = () => {
-    const params = new URLSearchParams();
-    if (deferredSearch) params.set('search', deferredSearch);
-    if (filterTab !== 'all') {
-      params.set('state', filterTab === 'active' || filterTab === 'critical' ? '1' : '0');
-    }
-    if (filterTab === 'critical') params.set('critical', 'true');
-    params.set('sortBy', sort.key);
-    params.set('sortOrder', sort.order);
-
-    window.open(`/api/items/export?${params.toString()}`, '_blank');
-  };
-
   const columns = useMemo(() => getItemColumns((_id, _qty) => ({ isOver: false, totalAvailable: 0 })), []);
 
   useEffect(() => {
@@ -204,7 +190,6 @@ export default function ItemsPage() {
         openCreate={openCreate} 
         handleFormSuccess={handleFormSuccess} 
         onImport={() => setIsImportModalOpen(true)}
-        onExport={handleExport}
       />
 
       {isImportModalOpen && (

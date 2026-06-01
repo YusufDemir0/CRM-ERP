@@ -81,6 +81,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         permissions: userData.permissions || [],
       },
       isAuthenticated: true,
+      isLoading: false,
       isReAuthModalOpen: false,
     });
   },

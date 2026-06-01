@@ -4,7 +4,10 @@ import { Column } from '../../../components/common/DataTable';
 import { Party } from '../../../types';
 import { Decimal } from 'decimal.js';
 
-export const getPartiesColumns = (onQuickSale?: (partyId: string | number) => void): Column<Party>[] => [
+export const getPartiesColumns = (
+  onQuickSale?: (partyId: string | number) => void,
+  onViewSales?: (party: Party) => void
+): Column<Party>[] => [
   { 
     header: 'CARİ ADI', 
     accessor: (p) => (
@@ -71,7 +74,7 @@ export const getPartiesColumns = (onQuickSale?: (partyId: string | number) => vo
           <div className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border ${
             isDebt ? 'bg-danger/5 text-danger border-danger/10' : 'bg-success/5 text-success border-success/10'
           }`}>
-            {isDebt ? 'ALACAKLI' : 'BORÇLU'}
+            {isDebt ? 'BORÇLU' : 'ALACAKLI'}
           </div>
         </div>
       );
@@ -86,6 +89,15 @@ export const getPartiesColumns = (onQuickSale?: (partyId: string | number) => vo
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-slate-400 font-black uppercase">Adet:</span>
           <span className="font-black text-slate-700 tabular-nums">{p.totalSalesCount || 0}</span>
+          {onViewSales && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); onViewSales(p); }}
+              className="ml-2 p-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-lg transition-all border border-indigo-100 shadow-sm"
+              title="Satış Geçmişini Gör"
+            >
+              <FiShoppingCart size={12} />
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-slate-400 font-black uppercase">Son:</span>

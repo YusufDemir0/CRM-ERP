@@ -17,3 +17,4 @@ export { settingsAPI } from './api/settings.api';
 export { logsAPI } from './api/logs.api';
 export { notesAPI } from './api/notes.api';
 export { staffAPI } from './api/staff.api';
+export { shipmentsAPI } from './api/shipments.api';

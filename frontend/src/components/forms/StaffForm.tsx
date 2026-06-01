@@ -8,16 +8,19 @@ import { PhoneInput } from '../common/PhoneInput';
 import { FormField } from '../common/FormField';
 import dayjs from 'dayjs';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
+import { useAuthStore } from '../../store/useAuthStore';
 
 interface StaffFormProps {
   initialData?: Partial<Staff>;
   editingId?: string | number | null;
   onSuccess: (data: Staff) => void;
   onCancel: () => void;
+  mode?: 'quick' | 'full';
 }
 
-export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, onSuccess, onCancel }) => {
+export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, onSuccess, onCancel, mode = 'full' }) => {
   const { openCreate, updateCache, getCache, clearCache } = useQuickCreateStore();
+  const authUser = useAuthStore(s => s.user);
   const [departments, setDepartments] = useState<Department[]>([]);
 
   useEffect(() => {
@@ -50,6 +53,7 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
   interface StaffFormData {
     firstName: string;
     lastName: string;
+    fullName: string;
     phone: string;
     entryDate: string;
     departmentId?: string;
@@ -62,9 +66,12 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
     return {
       firstName: initialData?.firstName || cached?.firstName || '',
       lastName: initialData?.lastName || cached?.lastName || '',
+      fullName: initialData ? `${initialData.firstName || ''} ${initialData.lastName || ''}`.trim() : (cached?.fullName || ''),
       phone: initialData?.phone || cached?.phone || '',
       entryDate: initialData?.entryDate ? dayjs(initialData.entryDate).format('YYYY-MM-DD') : (cached?.entryDate || dayjs().format('YYYY-MM-DD')),
-      departmentId: initialData?.departmentId ? String(initialData.departmentId) : (cached?.departmentId || undefined),
+      departmentId: mode === 'quick' 
+        ? (authUser?.departmentId ? String(authUser.departmentId) : undefined)
+        : (initialData?.departmentId ? String(initialData.departmentId) : (cached?.departmentId || undefined)),
       isActive: initialData?.isActive ?? cached?.isActive ?? true,
       tckn: initialData?.tckn || cached?.tckn || '',
     };
@@ -96,16 +103,37 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.firstName || !formData.lastName) {
-      toast.error('Lütfen ad ve soyad alanlarını doldurun.');
-      return;
+
+    let firstName = formData.firstName;
+    let lastName = formData.lastName;
+
+    // Quick modda: tek fullName inputundan ad/soyad ayır
+    if (mode === 'quick') {
+      const parts = formData.fullName.trim().split(/\s+/);
+      if (parts.length === 0 || (parts.length === 1 && parts[0] === '')) {
+        toast.error('Lütfen ad soyad alanını doldurun.');
+        return;
+      } else if (parts.length === 1) {
+        firstName = parts[0];
+        lastName = '';
+      } else {
+        lastName = parts[parts.length - 1];
+        firstName = parts.slice(0, -1).join(' ');
+      }
+    } else {
+      if (!formData.firstName) {
+        toast.error('Lütfen ad alanını doldurun.');
+        return;
+      }
     }
     
-    // Strip spaces before sending
     const dataToSubmit = {
-      ...formData,
-      departmentId: formData.departmentId ? String(formData.departmentId) : undefined,
+      firstName: firstName.toLocaleUpperCase('tr-TR'),
+      lastName: lastName.toLocaleUpperCase('tr-TR'),
       phone: formData.phone.replace(/\s/g, ''),
+      entryDate: formData.entryDate,
+      departmentId: formData.departmentId ? String(formData.departmentId) : undefined,
+      isActive: formData.isActive,
       tckn: formData.tckn || undefined
     };
     
@@ -120,28 +148,46 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
 
   return (
     <form onSubmit={handleSubmit} onBlur={saveDraft} className="flex flex-col gap-6 animate-in pb-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <FormField label="Ad" required>
+      {mode === 'quick' ? (
+        /* Quick mod: Tek Ad Soyad input */
+        <FormField label="Ad Soyad" required>
           <input 
             type="text"
             className="input-premium uppercase-input font-black tracking-tight"
-            value={formData.firstName}
-            onChange={(e) => handleNameChange('firstName', e.target.value)}
-            placeholder="ÖR: AHMET"
+            value={formData.fullName}
+            onChange={(e) => {
+              const filtered = e.target.value.replace(/[0-9]/g, '');
+              setFormData(prev => ({ ...prev, fullName: filtered.toLocaleUpperCase('tr-TR') }));
+            }}
+            placeholder="ÖR: AHMET YILMAZ"
             required
           />
         </FormField>
-        <FormField label="Soyad" required>
-          <input 
-            type="text"
-            className="input-premium uppercase-input font-black tracking-tight"
-            value={formData.lastName}
-            onChange={(e) => handleNameChange('lastName', e.target.value)}
-            placeholder="ÖR: YILMAZ"
-            required
-          />
-        </FormField>
-      </div>
+      ) : (
+        /* Full mod: Ayrı Ad / Soyad inputları */
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField label="Ad" required>
+            <input 
+              type="text"
+              className="input-premium uppercase-input font-black tracking-tight"
+              value={formData.firstName}
+              onChange={(e) => handleNameChange('firstName', e.target.value)}
+              placeholder="ÖR: AHMET"
+              required
+            />
+          </FormField>
+          <FormField label="Soyad" required>
+            <input 
+              type="text"
+              className="input-premium uppercase-input font-black tracking-tight"
+              value={formData.lastName}
+              onChange={(e) => handleNameChange('lastName', e.target.value)}
+              placeholder="ÖR: YILMAZ"
+              required
+            />
+          </FormField>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormField label="İletişim Hattı" required>
@@ -175,28 +221,30 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
             />
           </div>
         </FormField>
-        <FormField label="Bağlı Olduğu Departman" required helperText="YENİ DEPARTMAN EKLEMEK İÇİN BUTONU KULLANIN">
-          <div className="flex flex-col gap-2">
-            <select
-              required
-              className="input-premium font-black"
-              value={formData.departmentId || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, departmentId: e.target.value }))}
-            >
-              <option value="">Lütfen Seçiniz...</option>
-              {departments.map((d) => (
-                <option key={d.id} value={String(d.id)}>{d.name.toUpperCase()}</option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="text-[10px] font-black text-primary flex items-center justify-center gap-1 p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
-              onClick={handleAddDepartment}
-            >
-              <FiPlus size={12} /> YENİ DEPARTMAN TANIMLA
-            </button>
-          </div>
-        </FormField>
+        {mode !== 'quick' && (
+          <FormField label="Bağlı Olduğu Departman" required helperText="YENİ DEPARTMAN EKLEMEK İÇİN BUTONU KULLANIN">
+            <div className="flex flex-col gap-2">
+              <select
+                required
+                className="input-premium font-black"
+                value={formData.departmentId || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, departmentId: e.target.value }))}
+              >
+                <option value="">Lütfen Seçiniz...</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={String(d.id)}>{d.name.toUpperCase()}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="text-[10px] font-black text-primary flex items-center justify-center gap-1 p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
+                onClick={handleAddDepartment}
+              >
+                <FiPlus size={12} /> YENİ DEPARTMAN TANIMLA
+              </button>
+            </div>
+          </FormField>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 mt-4 pt-6 border-t border-slate-100">

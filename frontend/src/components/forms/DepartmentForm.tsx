@@ -7,6 +7,7 @@ import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 import { useTurkiyeCities } from '../../hooks/useTurkiyeApi';
 import { Account, Department, DepartmentType } from '../../types';
 import { FormField } from '../common/FormField';
+import { SearchableSelect } from '../common/SearchableSelect';
 
 interface DepartmentFormProps {
   initialData?: Record<string, unknown>;
@@ -93,9 +94,9 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
   }, [initialData, editingId, setValue]);
 
   const onSubmit: SubmitHandler<DepartmentFormData> = async (data) => {
-    const formattedAbbr = onlyAbbrLetters(data.abbreviation).slice(0, 3);
-    if (formattedAbbr && formattedAbbr.length > 3) {
-      toast.error('Kısa kod en fazla 3 karakter olmalıdır.');
+    const formattedAbbr = onlyAbbrLetters(data.abbreviation);
+    if (formattedAbbr && (formattedAbbr.length < 3 || formattedAbbr.length > 10)) {
+      toast.error('Kısa kod en az 3, en fazla 10 karakter olmalıdır.');
       return;
     }
     const payload = {
@@ -150,12 +151,12 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
             placeholder="ÖR: MERKEZ DEPO" 
           />
         </FormField>
-        <FormField label="Kısa Kod (Maks. 3 Harf)">
+        <FormField label="Kısa Kod (3-10 Karakter)">
           <input
-            maxLength={3}
+            maxLength={10}
             className="input-premium font-black tracking-[4px] text-center"
             {...register('abbreviation')}
-            placeholder="MKZ"
+            placeholder="ÖR: DEPO"
           />
         </FormField>
       </div>
@@ -166,10 +167,12 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
             name="cityId"
             control={control}
             render={({ field }) => (
-              <select className="input-premium font-black" {...field} value={field.value || ''}>
-                <option value="">ŞEHİR SEÇİNİZ...</option>
-                {cities.map(c => <option key={String(c.id)} value={String(c.id)}>{c.name.toUpperCase()}</option>)}
-              </select>
+              <SearchableSelect
+                options={cities.map(c => ({ id: String(c.id), label: c.name.toUpperCase() }))}
+                value={field.value || ''}
+                onChange={(val) => field.onChange(val ? String(val.id) : '')}
+                placeholder="ŞEHİR SEÇİNİZ..."
+              />
             )}
           />
         </FormField>

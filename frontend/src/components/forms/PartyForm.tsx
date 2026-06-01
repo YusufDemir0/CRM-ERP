@@ -9,6 +9,7 @@ import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 import { PhoneInput } from '../common/PhoneInput';
 import { FormField } from '../common/FormField';
 import { PremiumNumberInput } from '../common/PremiumNumberInput';
+import { SearchableSelect } from '../common/SearchableSelect';
 
 import { useAuthStore } from '../../store/useAuthStore';
 
@@ -57,7 +58,7 @@ export const PartyForm: React.FC<PartyFormProps> = ({
   const { register, handleSubmit, watch, setValue, getValues, control, formState: { errors, isSubmitting } } = useForm<PartyFormData>({
     defaultValues: (editingId ? null : getCache(cacheKey) as PartyFormData | null) || {
       name: initialData?.name || '',
-      type: (initialData?.type === 'provider' || initialData?.type === 'customer') ? initialData.type : 'provider',
+      type: (initialData?.type === 'provider' || initialData?.type === 'customer') ? initialData.type : 'customer',
       taxNumber: initialData?.taxNumber || '',
       phone1: initialData?.phone1 || '+90 ',
       phone2: initialData?.phone2 || '+90 ',
@@ -106,9 +107,23 @@ export const PartyForm: React.FC<PartyFormProps> = ({
   }, [currencies, editingId, getValues, setValue]);
 
   const onSubmit = async (data: PartyFormData) => {
+    // Quick mode: zorunlu alan kontrolü
+    if (mode === 'quick') {
+      const missing: string[] = [];
+      if (!data.name || data.name.trim() === '') missing.push('Cari Unvan / Şirket Adı');
+      if (!data.phone1 || data.phone1.replace(/[^\d+]/g, '').length < 10) missing.push('Telefon 1');
+      if (!data.cityId) missing.push('İl');
+      if (!data.districtName) missing.push('İlçe');
+      if (missing.length > 0) {
+        toast.error(`Zorunlu alanlar eksik: ${missing.join(', ')}`);
+        return;
+      }
+    }
+
     try {
       const dataToSubmit = {
         ...data,
+        type: mode === 'quick' ? 'customer' as const : data.type,
         cityId: data.cityId ? String(data.cityId) : undefined,
         currencyId: data.currencyId ? String(data.currencyId) : undefined,
         creditLimit: data.creditLimit ? Number(data.creditLimit) : 0,
@@ -146,6 +161,7 @@ export const PartyForm: React.FC<PartyFormProps> = ({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} onBlur={saveDraft} className="flex flex-col gap-6 animate-in pb-4">
+      {/* 1. Ad Soyad */}
       <FormField label="Cari Unvan / Şirket Adı" required error={errors.name?.message}>
         <input 
           required 
@@ -155,28 +171,9 @@ export const PartyForm: React.FC<PartyFormProps> = ({
         />
       </FormField>
 
+      {/* 2. Numara Bilgileri */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <FormField
-          label="Cari Tipi"
-          error={errors.type?.message}
-          required
-        >
-          <select {...register('type')} className="form-input">
-            <option value="customer">Müşteri</option>
-            <option value="provider">Tedarikçi</option>
-          </select>
-        </FormField>
-        <FormField label={getTaxLabel()}>
-          <input 
-            className="input-premium font-black tabular-nums tracking-widest text-center" 
-            {...register('taxNumber', { onChange: (e) => e.target.value = e.target.value.replace(/\D/g, '').substring(0, 11) })}
-            placeholder="0000000000"
-          />
-        </FormField>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <FormField label="Birincil İletişim Hattı">
+        <FormField label="Birincil İletişim Hattı" required={mode === 'quick'}>
           <PhoneInput 
             value={phone1Watcher}
             onChange={(val) => setValue('phone1', val)}
@@ -190,6 +187,52 @@ export const PartyForm: React.FC<PartyFormProps> = ({
         </FormField>
       </div>
 
+      {/* 3. Adres Bilgileri */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <FormField label="Şehir / İl" required={mode === 'quick'}>
+          <Controller
+            name="cityId"
+            control={control}
+            render={({ field }) => (
+              <SearchableSelect
+                options={(cities || []).map((c) => ({ id: String(c.id), label: c.name.toUpperCase() }))}
+                value={field.value || ''}
+                onChange={(option) => {
+                  field.onChange(option ? String(option.id) : '');
+                  setValue('districtName', '');
+                }}
+                placeholder="SEÇİNİZ..."
+              />
+            )}
+          />
+        </FormField>
+        <FormField label="İlçe / Bölge" required={mode === 'quick'}>
+          <Controller
+            name="districtName"
+            control={control}
+            render={({ field }) => (
+              <SearchableSelect
+                options={(districts || []).map((d) => ({ id: d.name.toUpperCase(), label: d.name.toUpperCase() }))}
+                value={field.value || ''}
+                onChange={(option) => {
+                  field.onChange(option ? String(option.id) : '');
+                }}
+                placeholder="SEÇİNİZ..."
+                className={!cityIdWatcher ? 'opacity-60 pointer-events-none' : ''}
+              />
+            )}
+          />
+        </FormField>
+        <FormField label="Detaylı Adres">
+          <input 
+            className="input-premium uppercase-input font-medium" 
+            {...register('address', { onChange: (e) => e.target.value = e.target.value.toLocaleUpperCase('tr-TR') })}
+            placeholder="MAHALLE, CADDE, NO..." 
+          />
+        </FormField>
+      </div>
+
+      {/* 4. E-Posta */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <FormField label="Kurumsal E-Posta" className="relative">
           <input 
@@ -203,7 +246,6 @@ export const PartyForm: React.FC<PartyFormProps> = ({
           {emailFocus && emailWatcher && (
             <div className="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded-2xl z-50 shadow-2xl mt-2 overflow-hidden ring-4 ring-[var(--primary-glow)]">
               {emailWatcher.includes('@') ? (
-                /* 🔥 Hızlı Domain Değiştirme — @ varsa domain'i değiştir */
                 ['@gmail.com', '@hotmail.com', '@outlook.com'].map(ext => (
                   <div 
                     key={ext} 
@@ -215,7 +257,6 @@ export const PartyForm: React.FC<PartyFormProps> = ({
                   </div>
                 ))
               ) : (
-                /* Domain önerisi — @ yoksa */
                 ['@gmail.com', '@hotmail.com', '@outlook.com'].map(ext => (
                   <div 
                     key={ext} 
@@ -232,44 +273,23 @@ export const PartyForm: React.FC<PartyFormProps> = ({
         </FormField>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <FormField label="Şehir / İl">
-          <Controller
-            name="cityId"
-            control={control}
-            render={({ field }) => (
-              <select 
-                className="input-premium font-black" 
-                {...field} 
-                value={field.value || ''}
-                onChange={(e) => {
-                  field.onChange(e);
-                  setValue('districtName', '');
-                }}
-              >
-                <option value="">SEÇİNİZ...</option>
-                {(cities || []).map((c) => <option key={c.id} value={String(c.id)}>{c.name.toUpperCase()}</option>)}
-              </select>
-            )}
-          />
+      {/* 5. Cari Tipi ve VKN/TCKN */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <FormField
+          label="Cari Tipi"
+          error={errors.type?.message}
+          required
+        >
+          <select {...register('type')} className="form-input" disabled={mode === 'quick'}>
+            <option value="customer">Müşteri</option>
+            <option value="provider">Tedarikçi</option>
+          </select>
         </FormField>
-        <FormField label="İlçe / Bölge">
-          <Controller
-            name="districtName"
-            control={control}
-            render={({ field }) => (
-              <select className="input-premium font-black" {...field} value={field.value || ''} disabled={!cityIdWatcher}>
-                <option value="">SEÇİNİZ...</option>
-                {(districts || []).map((d) => <option key={d.id} value={d.name.toUpperCase()}>{d.name.toUpperCase()}</option>)}
-              </select>
-            )}
-          />
-        </FormField>
-        <FormField label="Detaylı Adres">
+        <FormField label={getTaxLabel()}>
           <input 
-            className="input-premium uppercase-input font-medium" 
-            {...register('address', { onChange: (e) => e.target.value = e.target.value.toLocaleUpperCase('tr-TR') })}
-            placeholder="MAHALLE, CADDE, NO..." 
+            className="input-premium font-black tabular-nums tracking-widest text-center" 
+            {...register('taxNumber', { onChange: (e) => e.target.value = e.target.value.replace(/\D/g, '').substring(0, 11) })}
+            placeholder="0000000000"
           />
         </FormField>
       </div>

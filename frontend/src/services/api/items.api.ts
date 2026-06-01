@@ -44,5 +44,12 @@ export const itemsAPI = {
   updateQuantityType: (id: string | number, data: { name: string; abbreviation: string }, config?: AxiosRequestConfig) => api.put(`/items/quantity-types/${id}`, data, config),
   deleteQuantityType: (id: string | number, config?: AxiosRequestConfig) => api.delete('/items/quantity-types', config),
   import: (items: ImportItemDto[], config?: AxiosRequestConfig) => api.post('/items/import', items, config),
+  importExcel: (formData: FormData, config?: AxiosRequestConfig) => api.post('/items/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    ...config
+  }),
+  downloadImportTemplate: (config?: AxiosRequestConfig) => api.get('/items/import-template', { responseType: 'blob', ...config }),
   export: (params?: PaginationParams, config?: AxiosRequestConfig) => api.get('/items/export', { params, responseType: 'blob', ...config }),
 };

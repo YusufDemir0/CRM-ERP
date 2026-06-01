@@ -17,6 +17,7 @@ import { queryKeys } from '../../services/queryKeys';
 // Sub-components
 import { PartiesHeader } from './Parties/PartiesHeader';
 import { getPartiesColumns } from './Parties/PartiesColumns';
+import { ViewPartySalesModal } from '../../components/modals/ViewPartySalesModal';
 
 export default function PartiesPage() {
   const queryClient = useQueryClient();
@@ -37,6 +38,7 @@ export default function PartiesPage() {
   };
 
   const [filters] = useState<Record<string, unknown>>({});
+  const [selectedPartyForSales, setSelectedPartyForSales] = useState<Party | null>(null);
 
   const deferredSearch = useDeferredValue(searchTerm);
 
@@ -185,7 +187,11 @@ export default function PartiesPage() {
     }
   }, [parties, navigate]);
 
-  const columns = useMemo(() => getPartiesColumns(handleQuickSale), [handleQuickSale]);
+  const handleViewSales = useCallback((party: Party) => {
+    setSelectedPartyForSales(party);
+  }, []);
+
+  const columns = useMemo(() => getPartiesColumns(handleQuickSale, handleViewSales), [handleQuickSale, handleViewSales]);
 
   return (
     <div className="animate-in flex flex-col gap-8">
@@ -220,6 +226,13 @@ export default function PartiesPage() {
           placeholder="Firmayı, yetkiliyi veya vergi numarasını ara..."
         />
       </div>
+
+      {selectedPartyForSales && (
+        <ViewPartySalesModal 
+          party={selectedPartyForSales} 
+          onClose={() => setSelectedPartyForSales(null)} 
+        />
+      )}
     </div>
   );
 }

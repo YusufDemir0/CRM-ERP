@@ -13,6 +13,20 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [toast, setToast] = useState<{ message: string, type: 'info' | 'error' | 'success' } | null>(null);
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  };
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  };
 
   useEffect(() => {
     if (user) {
@@ -43,10 +57,7 @@ export default function LoginPage() {
     try {
       await login(username, password);
       loaderHide();
-      setSuccess('Giriş başarılı! Yönlendiriliyorsunuz...');
-      setTimeout(() => {
-        navigate('/');
-      }, 800);
+      navigate('/', { replace: true });
     } catch (err: unknown) {
       loaderHide();
       const errorData = err as { response?: { data?: { message?: string | string[] } }, message?: string };
@@ -108,7 +119,6 @@ export default function LoginPage() {
           <div className="w-64 h-32 bg-[var(--primary)] rounded-[var(--radius-xl)] flex items-center justify-center shadow-xl shadow-[var(--primary-glow)] p-6">
             <img src={logo} alt="Ermay Logo" className="h-full w-full object-contain brightness-0 invert" />
           </div>
-          <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em]">Kurumsal Yönetim Sistemi</h2>
         </div>
       </div>
 
@@ -118,7 +128,17 @@ export default function LoginPage() {
           
           <div className="text-center">
             <h1 className="text-xl font-black text-slate-800 tracking-tight mb-1">Hesabınıza Giriş Yapın</h1>
-            <p className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-widest">KİMLİK DOĞRULAMA GEREKLİ</p>
+            <p className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-widest mb-1">KİMLİK DOĞRULAMA GEREKLİ</p>
+            
+            {/* Premium Real-time Turkish Digital Clock Widget */}
+            <div className="mt-4 p-4 bg-gradient-to-br from-indigo-50/50 to-primary/5 border border-indigo-100/50 rounded-2xl flex flex-col items-center justify-center gap-1 shadow-md shadow-indigo-100/20 backdrop-blur-sm">
+              <span className="text-3xl font-black bg-gradient-to-r from-slate-900 to-indigo-950 bg-clip-text text-transparent tracking-widest font-mono select-none">
+                {formatTime(time)}
+              </span>
+              <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-widest mt-0.5 animate-pulse">
+                {formatDate(time)}
+              </span>
+            </div>
           </div>
 
           {error && (
@@ -184,7 +204,7 @@ export default function LoginPage() {
 
       {/* 🏢 Footer */}
       <div className="mt-12 relative z-10 flex flex-col items-center justify-center gap-2">
-        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">© 2026 ERMAY MOBİLYA A.Ş.</span>
+        <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">© 2011 Ermay Ofis Mobilyaları</span>
         <div className="h-1 w-8 bg-slate-200 rounded-full" />
       </div>
 

@@ -7,7 +7,8 @@ import {
   FiActivity, FiArrowUpRight, FiArrowDownRight,
   FiDollarSign, FiZap, FiTarget,
   FiShoppingBag, FiTrendingUp, FiCheckCircle,
-  FiUsers, FiBox, FiShoppingCart, FiCalendar
+  FiUsers, FiBox, FiShoppingCart, FiCalendar,
+  FiAlertCircle
 } from 'react-icons/fi';
 import dayjs from 'dayjs';
 import 'dayjs/locale/tr';
@@ -60,7 +61,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [hoveredKpi, setHoveredKpi] = useState<number | null>(null);
   
-  const { data, isLoading: loading } = useQuery({
+  const { data, isLoading: loading, isError } = useQuery({
     queryKey: queryKeys.dashboard.summary,
     queryFn: async ({ signal }) => {
       const response = await dashboardAPI.getSummary({ signal });
@@ -100,6 +101,26 @@ export default function DashboardPage() {
 
     return { progress: p, quote: q };
   }, [data]);
+
+  if (isError) {
+    return (
+      <div className="flex flex-col h-[400px] items-center justify-center gap-4 text-center px-4">
+        <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 border border-rose-100 animate-bounce">
+          <FiAlertCircle size={24} />
+        </div>
+        <div>
+          <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Veri Yüklenemedi</h3>
+          <p className="text-xs font-bold text-slate-400 mt-1">Lütfen sayfayı yenilemeyi deneyin veya sistem yöneticinize danışın.</p>
+        </div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-white font-black text-xs rounded-xl shadow-sm transition-all"
+        >
+          YENİDEN DENE
+        </button>
+      </div>
+    );
+  }
 
   if (loading || !data) {
     return (

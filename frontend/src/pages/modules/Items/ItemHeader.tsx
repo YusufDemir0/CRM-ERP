@@ -9,11 +9,10 @@ interface ItemHeaderProps {
   openCreate: (type: QuickCreateType, options: QuickCreateOptions) => void;
   handleFormSuccess: (data?: unknown) => void;
   onImport: () => void;
-  onExport: () => void;
 }
 
 export const ItemHeader: React.FC<ItemHeaderProps> = ({
-  filterTab, setFilterTab, setPage, openCreate, handleFormSuccess, onImport, onExport
+  filterTab, setFilterTab, setPage, openCreate, handleFormSuccess, onImport
 }) => {
   const tabs = [
     { id: 'active', label: 'Aktif', icon: <FiActivity /> },
@@ -49,12 +48,6 @@ export const ItemHeader: React.FC<ItemHeaderProps> = ({
             </button>
           ))}
         </div>
-        <button 
-          className="btn bg-slate-100 hover:bg-slate-200 text-slate-700 h-11 px-6 border border-slate-200 flex items-center gap-2 font-bold transition-all" 
-          onClick={onExport}
-        >
-          <FiFilter size={18} /> RAPOR AL
-        </button>
         <button 
           className="btn bg-emerald-600 hover:bg-emerald-700 text-white h-11 px-6 shadow-lg shadow-emerald-200 flex items-center gap-2 font-bold" 
           onClick={onImport}

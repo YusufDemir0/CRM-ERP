@@ -193,17 +193,25 @@ export default function UsersPage() {
 
   const columns: Column<User>[] = [
     { 
-      header: 'PERSONEL BİLGİLERİ', 
+      header: 'KULLANICI ADI', 
       accessor: (u) => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary text-lg font-black uppercase">
-            {u.fullName?.charAt(0)}
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 text-lg font-black uppercase shadow-sm">
+            {u.username?.charAt(0)}
           </div>
-          <div>
-            <div className="font-black text-on-surface text-sm tracking-tighter uppercase">{u.fullName}</div>
-            <div className="text-[11px] text-slate-400 font-bold tracking-widest lowercase">@{u.username}</div>
-          </div>
+          <span className="font-black text-slate-900 text-sm tracking-wider uppercase">
+            {u.username}
+          </span>
         </div>
+      ),
+      sortKey: 'username'
+    },
+    { 
+      header: 'AD SOYAD', 
+      accessor: (u) => (
+        <span className="font-bold text-on-surface text-sm tracking-tighter uppercase">
+          {u.fullName}
+        </span>
       ),
       sortKey: 'fullName'
     },

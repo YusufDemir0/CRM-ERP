@@ -103,6 +103,7 @@ export interface Party extends BaseEntity {
   totalSalesCount?: number;
   lastSaleDate?: string | Date;
   cityName?: string; // Resolved city name for display
+  maturityDays?: number;
 }
 
 export interface Account extends BaseEntity {
@@ -178,6 +179,7 @@ export interface Sale extends BaseEntity {
   kdv: string; // DB-03: Decimal → JSON string
   grandTotal: string; // DB-03: Decimal → JSON string
   deposit: string; // DB-03: Decimal → JSON string
+  paidAmount?: string; // DB-03: Decimal → JSON string
   totalCost?: string; // NEW: Financial tracking
   profit?: string; // NEW: Financial tracking
   status: 'draft' | 'approved' | 'shipped' | 'invoiced' | 'cancelled';
@@ -188,6 +190,9 @@ export interface Sale extends BaseEntity {
   email?: string | null;
   source?: string | null;
   deliveryDate?: string | null;
+  paymentType?: string | null;
+  maturityDays?: number;
+  installments?: number;
   items?: SaleItem[];
 }
 
@@ -358,6 +363,7 @@ export interface CreatePartyDto {
   currencyId?: string | number;
   cityId?: string | number;
   districtName?: string;
+  maturityDays?: number;
 }
 
 export type UpdatePartyDto = Partial<CreatePartyDto> & { state?: number };
@@ -461,7 +467,9 @@ export interface CartItem {
 
 
 export interface ImportItemDto {
-  code: string;
+  code?: string;
+  codeGroup?: string;
+  codeSequence?: string;
   name: string;
   typeName?: string;  // Name-based mapping for Excel import
   unitName?: string;  // Name-based mapping for Excel import
@@ -469,4 +477,6 @@ export interface ImportItemDto {
   salePrice?: number;
   criticalLimit?: number;
   kdv?: number;
+  currencyCode?: string;
+  description?: string;
 }
