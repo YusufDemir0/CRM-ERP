@@ -9,7 +9,7 @@ import logo from '../assets/images/logo.png';
 import { memo } from 'react';
 
 export const Sidebar = memo(({ isCollapsed, isMobileOpen, onClose }: { isCollapsed: boolean; isMobileOpen?: boolean; onClose?: () => void }) => {
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
   const queryClient = useQueryClient();
 
   const handlePrefetch = (to: string) => {

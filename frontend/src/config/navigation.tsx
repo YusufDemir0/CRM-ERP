@@ -26,6 +26,7 @@ export const navItems: NavSection[] = [
   ]},
   { section: 'Satış', items: [
     { to: '/sales', icon: <FiShoppingCart />, label: 'Satışlar', keywords: ['satış', 'sipariş', 'order'], permission: 'SALES_VIEW' },
+    { to: '/mastersale', icon: <FiShoppingCart />, label: 'Yetkili Satışlar', keywords: ['master', 'satış', 'onay', 'sipariş'], permission: 'SALES_MASTER_VIEW' },
     { to: '/parties', icon: <FiUserCheck />, label: 'Müşteri/Cari', keywords: ['cari', 'müşteri', 'tedarikçi'], permission: 'CUSTOMER_VIEW' },
     { to: '/items', icon: <FiPackage />, label: 'Ürünler', keywords: ['ürün', 'item', 'malzeme'], permission: 'INVENTORY_VIEW' },
   ]},
@@ -36,9 +37,11 @@ export const navItems: NavSection[] = [
   { section: 'Stok', items: [
     { to: '/stocks', icon: <FiBox />, label: 'Stoklar', keywords: ['stok', 'envanter', 'depo'], permission: 'INVENTORY_VIEW' },
     { to: '/stocks/movements', icon: <FiRepeat />, label: 'Stok Hareketleri', keywords: ['stok', 'hareket', 'transfer'], permission: 'INVENTORY_VIEW' },
+    { to: '/shipments', icon: <FiPackage />, label: 'Sevkiyatlar', keywords: ['sevkiyat', 'shipment', 'teslimat'], permission: 'SHIPMENT_VIEW' },
   ]},
   { section: 'Hesaplar', items: [
     { to: '/accounts', icon: <FiCreditCard />, label: 'Hesaplar', keywords: ['kasa', 'banka', 'hesap'], permission: 'FINANCE_VIEW' },
+    { to: '/payments', icon: <FiDollarSign />, label: 'Tahsilat & Ödemeler', keywords: ['tahsilat', 'ödeme', 'kasa', 'banka'], permission: 'FINANCE_VIEW' },
     { to: '/transactions', icon: <FiRepeat />, label: 'Hesap Hareketleri', keywords: ['işlem', 'hareket', 'transfer'], permission: 'FINANCE_VIEW' },
   ]},
   { section: 'Yönetim', items: [
@@ -48,7 +51,7 @@ export const navItems: NavSection[] = [
   ]},
   { section: 'Sistem', items: [
     { to: '/settings', icon: <FiSettings />, label: 'Ayarlar', keywords: ['ayar', 'sistem', 'config'], permission: 'SYSTEM_MANAGE' },
-    { to: '/logs', icon: <FiList />, label: 'Sistem Logları', keywords: ['log', 'işlem', 'denetim'], permission: 'SYSTEM_MANAGE' },
+    { to: '/logs', icon: <FiList />, label: 'Sistem Logları', keywords: ['log', 'işlem', 'denetim'], permission: 'AUDIT_LOG_VIEW' },
   ]},
 ];
 

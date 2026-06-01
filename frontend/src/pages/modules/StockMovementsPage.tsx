@@ -106,16 +106,32 @@ export default function StockMovementsPage() {
     },
     { 
       header: 'MİKTAR', 
-      accessor: (m) => (
-        <div className="text-right">
-          <div className={`text-sm font-black tabular-nums ${m.type === 'in' ? 'text-success' : 'text-danger'}`}>
-            {m.type === 'in' ? '+' : '-'}{new Decimal(m.quantity).toNumber().toLocaleString('tr-TR')}
+      accessor: (m) => {
+        const formatDecimal = (val: any) => {
+          if (val === null || val === undefined) return '0';
+          let numStr = '0';
+          if (typeof val === 'object') {
+            numStr = val.value !== undefined ? String(val.value) : (val.amount !== undefined ? String(val.amount) : '0');
+          } else {
+            numStr = String(val);
+          }
+          try {
+            return new Decimal(numStr).toNumber().toLocaleString('tr-TR');
+          } catch (e) {
+            return '0';
+          }
+        };
+        return (
+          <div className="text-right">
+            <div className={`text-sm font-black tabular-nums ${m.type === 'in' ? 'text-success' : 'text-danger'}`}>
+              {m.type === 'in' ? '+' : '-'}{formatDecimal(m.quantity)}
+            </div>
+            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+               {formatDecimal(m.quantityAfter)} KALAN
+            </div>
           </div>
-          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-             {new Decimal(m.quantityAfter).toNumber().toLocaleString('tr-TR')} KALAN
-          </div>
-        </div>
-      ),
+        );
+      },
       className: 'text-right'
     },
     { 

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/useAuthStore';
 import { lazy, Suspense, useEffect } from 'react';
@@ -19,10 +19,13 @@ const PartiesPage = lazy(() => import('./pages/modules/PartiesPage'));
 const ItemsPage = lazy(() => import('./pages/modules/ItemsPage'));
 const StocksPage = lazy(() => import('./pages/modules/StocksPage').then(m => ({ default: m.StocksPage })));
 const StockMovementsPage = lazy(() => import('./pages/modules/StockMovementsPage'));
+const ShipmentsPage = lazy(() => import('./pages/modules/ShipmentsPage'));
 const SalesPage = lazy(() => import('./pages/SalesPage'));
+const MasterSalesPage = lazy(() => import('./pages/MasterSalesPage'));
 const SaleWizardPage = lazy(() => import('./pages/modules/SalesWizard/SaleWizardPage'));
 const AccountsPage = lazy(() => import('./pages/modules/AccountsPage'));
 const TransactionsPage = lazy(() => import('./pages/modules/TransactionsPage'));
+const PaymentsPage = lazy(() => import('./pages/modules/PaymentsPage'));
 const BomsPage = lazy(() => import('./pages/modules/BomsPage').then(m => ({ default: m.BomsPage })));
 const ProductionPage = lazy(() => import('./pages/modules/ProductionPage').then(m => ({ default: m.ProductionPage })));
 const NotesPage = lazy(() => import('./pages/modules/NotesPage'));
@@ -46,20 +49,26 @@ import { ReAuthModal } from './components/common/ReAuthModal';
 import { CommandPalette } from './components/common/CommandPalette';
 import GlobalConfirmModal from './components/modals/GlobalConfirmModal';
 
-export default function App() {
+function ProfileLoader() {
   const fetchProfile = useAuthStore(s => s.fetchProfile);
+  const location = useLocation();
 
   useEffect(() => {
     // Only fetch profile if not on login page
-    if (window.location.pathname !== '/login') {
+    if (location.pathname !== '/login') {
       fetchProfile();
     }
-  }, [fetchProfile]);
+  }, [location.pathname, fetchProfile]);
 
+  return null;
+}
+
+export default function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
           <BrowserRouter>
+            <ProfileLoader />
             <GlobalLoader />
             <Suspense fallback={<GlobalLoader mode="trigger" message="SAYFA YÜKLENİYOR..." />}>
               <Routes>
@@ -74,15 +83,18 @@ export default function App() {
                   <Route path="items" element={<ErrorBoundary><ProtectedRoute requiredPermission="INVENTORY_VIEW"><ItemsPage /></ProtectedRoute></ErrorBoundary>} />
                   <Route path="stocks" element={<ErrorBoundary><ProtectedRoute requiredPermission="INVENTORY_VIEW"><StocksPage /></ProtectedRoute></ErrorBoundary>} />
                   <Route path="stocks/movements" element={<ErrorBoundary><ProtectedRoute requiredPermission="INVENTORY_VIEW"><StockMovementsPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="shipments" element={<ErrorBoundary><ProtectedRoute requiredPermission="SHIPMENT_VIEW"><ShipmentsPage /></ProtectedRoute></ErrorBoundary>} />
                   <Route path="sales" element={<ErrorBoundary><ProtectedRoute requiredPermission="SALES_VIEW"><SalesPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="mastersale" element={<ErrorBoundary><ProtectedRoute requiredPermission="SALES_MASTER_VIEW"><MasterSalesPage /></ProtectedRoute></ErrorBoundary>} />
                   <Route path="sales/wizard" element={<ErrorBoundary><ProtectedRoute requiredPermission="SALES_CREATE"><SaleWizardPage /></ProtectedRoute></ErrorBoundary>} />
 
                   <Route path="accounts" element={<ErrorBoundary><ProtectedRoute requiredPermission="FINANCE_VIEW"><AccountsPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="payments" element={<ErrorBoundary><ProtectedRoute requiredPermission="FINANCE_VIEW"><PaymentsPage /></ProtectedRoute></ErrorBoundary>} />
                   <Route path="transactions" element={<ErrorBoundary><ProtectedRoute requiredPermission="FINANCE_VIEW"><TransactionsPage /></ProtectedRoute></ErrorBoundary>} />
                   <Route path="boms" element={<ErrorBoundary><ProtectedRoute requiredPermission="PRODUCTION_VIEW"><BomsPage /></ProtectedRoute></ErrorBoundary>} />
                   <Route path="production" element={<ErrorBoundary><ProtectedRoute requiredPermission="PRODUCTION_VIEW"><ProductionPage /></ProtectedRoute></ErrorBoundary>} />
                   <Route path="settings" element={<ErrorBoundary><ProtectedRoute requiredPermission="SYSTEM_MANAGE"><SettingsPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="logs" element={<ErrorBoundary><ProtectedRoute requiredPermission="SYSTEM_MANAGE"><LogsPage /></ProtectedRoute></ErrorBoundary>} />
+                  <Route path="logs" element={<ErrorBoundary><ProtectedRoute requiredPermission="AUDIT_LOG_VIEW"><LogsPage /></ProtectedRoute></ErrorBoundary>} />
                   <Route path="notes" element={<ErrorBoundary><NotesPage /></ErrorBoundary>} />
                 </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />
