@@ -32,7 +32,7 @@ const ProductRow = memo(({
       <td className="p-3 text-[10px] font-bold text-slate-300">{index + 1}</td>
       <td className="p-3">
         <div className="text-xs font-black text-slate-700">{item.name}</div>
-        <div className="text-[9px] text-slate-400 font-bold">KDV: %{isInvoiced ? (item.taxRate || 20) : 0}</div>
+        <div className="text-[9px] text-slate-400 font-bold">KDV: %{item.taxRate || 20}</div>
       </td>
       <td className="p-3 text-right text-xs font-bold tabular-nums text-slate-600">
         {new Decimal(item.unitPrice || 0).toDecimalPlaces(2).toNumber().toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺
@@ -73,20 +73,29 @@ const SubtotalPanel = memo(() => {
   }, [subtotal, representativePrice]);
 
   const totalTax = useMemo(() => {
-    const dm = new Decimal(representativePrice || 0);
+    const totalInput = new Decimal(representativePrice || 0);
     return formItems.reduce((acc, i) => {
-      const rate = isInvoiced ? new Decimal(i?.taxRate || 20) : new Decimal(0);
+      const rate = new Decimal(i?.taxRate || 20);
       const lineAmount = new Decimal(i?.unitPrice || 0).mul(i?.quantity || 0);
       const lineRatio = subtotal.gt(0) ? lineAmount.div(subtotal) : new Decimal(0);
-      const lineMatrah = dm.mul(lineRatio);
-      return acc.add(lineMatrah.mul(rate).div(100).toDecimalPlaces(2));
+      const lineTotalOrMatrah = totalInput.mul(lineRatio);
+      
+      if (isInvoiced) {
+        // Wholesale (Faturalı): Matrah + KDV
+        return acc.add(lineTotalOrMatrah.mul(rate).div(100).toDecimalPlaces(2));
+      } else {
+        // Retail (Perakende): KDV-inclusive Total -> Extract KDV
+        const lineMatrah = lineTotalOrMatrah.div(new Decimal(1).add(rate.div(100)));
+        const lineKdv = lineTotalOrMatrah.minus(lineMatrah);
+        return acc.add(lineKdv.toDecimalPlaces(2));
+      }
     }, new Decimal(0));
   }, [formItems, subtotal, representativePrice, isInvoiced]);
 
   const grandTotal = useMemo(() => {
-    const dm = new Decimal(representativePrice || 0);
-    return dm.add(totalTax);
-  }, [representativePrice, totalTax]);
+    const totalInput = new Decimal(representativePrice || 0);
+    return isInvoiced ? totalInput.add(totalTax) : totalInput;
+  }, [representativePrice, totalTax, isInvoiced]);
 
   return (
     <>
@@ -119,14 +128,14 @@ const SubtotalPanel = memo(() => {
                 -{formatCurrency(calculatedDiscount.toString())}
               </span>
            </div>
-           {isInvoiced && (
-             <div className="flex justify-between items-center border-t border-slate-50 pt-1.5">
-                <span className="text-[10px] font-black text-emerald-600 uppercase">KDV TOPLAMI (%20):</span>
-                <span className="text-sm font-black text-emerald-600 tabular-nums">
-                  {formatCurrency(totalTax.toString())}
-                </span>
-             </div>
-           )}
+           <div className="flex justify-between items-center border-t border-slate-50 pt-1.5">
+              <span className="text-[10px] font-black text-emerald-600 uppercase">
+                KDV TOPLAMI {isInvoiced ? '' : '(DAHİL)'}:
+              </span>
+              <span className="text-sm font-black text-emerald-600 tabular-nums">
+                {formatCurrency(totalTax.toString())}
+              </span>
+           </div>
         </div>
 
         <div className="flex flex-col gap-2">

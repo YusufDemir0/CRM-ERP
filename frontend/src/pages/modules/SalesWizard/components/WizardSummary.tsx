@@ -28,14 +28,23 @@ export const WizardSummary: React.FC = memo(() => {
     const dm = s.minus(d);
 
     const tt = items.reduce((acc, i) => {
-      const rate = isInvoiced ? new Decimal(i.taxRate || 20) : new Decimal(0);
+      const rate = new Decimal(i.taxRate || 20);
       const lineAmount = new Decimal(i.unitPrice || 0).mul(i.quantity || 0);
       const lineRatio = s.gt(0) ? lineAmount.div(s) : new Decimal(0);
-      const lineMatrah = dm.mul(lineRatio);
-      return acc.add(lineMatrah.mul(rate).div(100).toDecimalPlaces(2));
+      const lineTotalOrMatrah = dm.mul(lineRatio);
+      
+      if (isInvoiced) {
+        // Wholesale (Faturalı): Matrah + KDV
+        return acc.add(lineTotalOrMatrah.mul(rate).div(100).toDecimalPlaces(2));
+      } else {
+        // Retail (Perakende): KDV-inclusive Total -> Extract KDV
+        const lineMatrah = lineTotalOrMatrah.div(new Decimal(1).add(rate.div(100)));
+        const lineKdv = lineTotalOrMatrah.minus(lineMatrah);
+        return acc.add(lineKdv.toDecimalPlaces(2));
+      }
     }, new Decimal(0));
 
-    const gt = dm.add(tt);
+    const gt = isInvoiced ? dm.add(tt) : dm;
 
     return { subtotal: s, discountAmount: d, discountedMatrah: dm, totalTax: tt, grandTotal: gt };
   }, [items, representativePrice, isInvoiced]);
@@ -58,7 +67,7 @@ export const WizardSummary: React.FC = memo(() => {
         <div className="absolute -right-2 -top-2 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-all group-hover:scale-110 text-emerald-600">
            <FiCheck size={50} />
         </div>
-        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">KDV TOPLAMI (%{isInvoiced ? 20 : 0})</span>
+        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">KDV TOPLAMI {isInvoiced ? '' : '(DAHİL)'}</span>
         <div className="text-xl font-black text-emerald-600 text-right tabular-nums tracking-tighter">
           {formatCurrency(totalTax.toString())}
         </div>

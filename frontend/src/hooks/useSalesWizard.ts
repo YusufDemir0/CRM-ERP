@@ -9,6 +9,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { SalesWizardFormData } from '../pages/modules/SalesWizard/schema';
 import Decimal from 'decimal.js';
 import { useCallback } from 'react';
+import { invalidateAfterSale } from '../services/queryUtils';
 
 export const useSalesWizard = (onCompleted: () => void) => {
   const store = useSalesWizardStore();
@@ -101,16 +102,25 @@ export const useSalesWizard = (onCompleted: () => void) => {
         notes: data.description,
         email: data.email,
         source: data.source,
-        saleTypeId: saleTypes[0]?.id ? String(saleTypes[0].id) : "1",
+        saleTypeId: (() => {
+          const typeAbbr = data.isInvoiced ? 'TPT' : 'PRK';
+          const saleTypeObj = saleTypes.find((t: any) => t.abbreviation === typeAbbr);
+          return saleTypeObj?.id ? String(saleTypeObj.id) : (data.isInvoiced ? "1" : "2");
+        })(),
+        maturityDays: data.maturityDays || 0,
+        paymentType: data.paymentType || 'NAKİT',
+        installments: data.installments || 1,
         items: data.items.map(item => ({
           itemId: String(item.id),
           quantity: String(item.quantity),
           price: String(item.unitPrice),
-          kdvRate: String(data.isInvoiced ? (item.taxRate || 20) : 0)
+          kdvRate: String(item.taxRate || 20)
         }))
       };
       
       await salesAPI.create(payload);
+      invalidateAfterSale(queryClient);
+      queryClient.refetchQueries({ queryKey: ['parties'] });
       toast.success("Satış başarıyla oluşturuldu.");
       store.reset();
       onCompleted();
@@ -120,7 +130,7 @@ export const useSalesWizard = (onCompleted: () => void) => {
     } finally {
       setLoading(false);
     }
-  }, [customers, saleTypes, onCompleted, store]);
+  }, [customers, saleTypes, onCompleted, store, queryClient]);
 
   return useMemo(() => ({
     customers,

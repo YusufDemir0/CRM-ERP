@@ -1,31 +1,23 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { salesAPI, departmentsAPI } from '../services/api';
-import {
-  FiEye, FiCheck, FiXCircle, FiArrowLeft, FiPlus,
-  FiShoppingBag, FiTruck, FiClock, FiCheckCircle, FiInfo
-} from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { confirmDialog } from '../utils/confirmDialog';
 import { Sale, Department } from '../types';
-import { ApproveSaleModal } from '../components/modals/ApproveSaleModal';
+import { AdvancedApproveSaleModal } from '../components/modals/AdvancedApproveSaleModal';
 import { ViewSaleModal } from '../components/modals/ViewSaleModal';
-import { DataTable, Column } from '../components/common/DataTable';
-import { SaleWizard } from './modules/SalesWizard/SaleWizard';
-import { Decimal } from 'decimal.js';
 import { SalesHeader } from '../components/sales/SalesHeader';
 import { SalesTable } from '../components/sales/SalesTable';
 import { useDebounce } from '../hooks/useDebounce';
 import { queryKeys } from '../services/queryKeys';
 import { useSalesWizardStore } from '../store/useSalesWizardStore';
 
-export default function SalesPage() {
+export default function MasterSalesPage() {
   const queryClient = useQueryClient();
-  const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-
+  
   const page = Number(searchParams.get('page')) || 1;
   const searchTerm = searchParams.get('q') || '';
   const filterStatus = (searchParams.get('status') as 'draft' | 'approved' | 'shipped' | 'cancelled' | 'all') || 'draft';
@@ -47,10 +39,9 @@ export default function SalesPage() {
     }, { replace: true });
   };
 
-  const setPage = (p: number) => updateParams({ page: p });
-  const setFilterStatus = (status: string) => updateParams({ status, page: 1 });
-  const setSearchTerm = (q: string) => updateParams({ q, page: 1 });
-  const setLimit = (l: number) => updateParams({ limit: l, page: 1 });
+  const handlePageChange = useCallback((p: number) => updateParams({ page: p }), []);
+  const handleLimitChange = useCallback((l: number) => updateParams({ limit: l, page: 1 }), []);
+  const handleFilterStatusChange = useCallback((status: string) => updateParams({ status, page: 1 }), []);
 
   const sort = {
     key: searchParams.get('sortBy') || 'createdAt',
@@ -61,29 +52,26 @@ export default function SalesPage() {
 
   const setSort = (key: string, order: 'ASC' | 'DESC') => updateParams({ sortBy: key, sortOrder: order, page: 1 });
 
-  // Modals
-  const [approveSaleId, setApproveSaleId] = useState<string | number | null>(null);
-  const [selectedDeptId, setSelectedDeptId] = useState('');
+  // Modals state
+  const [approveSaleData, setApproveSaleData] = useState<Sale | null>(null);
 
-  // View/Ship Modal State
+  // View Modal State
   const [viewSaleData, setViewSaleData] = useState<Sale | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   // ────── QUERIES ──────
 
   const { data: salesData, isLoading: salesLoading } = useQuery({
-    queryKey: queryKeys.sales.all({
-      page, limit, search: debouncedSearch,
-      status: filterStatus === 'all' ? undefined : filterStatus,
-      sort, filters
+    queryKey: queryKeys.sales.all({ 
+      page, limit, search: debouncedSearch, 
+      status: filterStatus === 'all' ? undefined : filterStatus, 
+      sort, filters 
     }),
     queryFn: async ({ signal }) => {
       const res = await salesAPI.getAll({
         page, limit, search: debouncedSearch,
         status: filterStatus === 'all' ? undefined : filterStatus,
-        sortBy: sort.key, sortOrder: sort.order,
-        ownSalesOnly: 'true',
-        ...filters
+        sortBy: sort.key, sortOrder: sort.order, ...filters
       }, { signal });
       return res.data;
     }
@@ -92,8 +80,9 @@ export default function SalesPage() {
   const { data: departments = [] } = useQuery({
     queryKey: queryKeys.departments.active,
     queryFn: async ({ signal }) => {
-      const res = await departmentsAPI.getAll({ limit: 50 }, { signal });
-      return res.data.data.filter((d: Department) => d.state === 1);
+      const res = await departmentsAPI.getAll({ limit: 100, state: 1 }, { signal });
+      const list = res.data.data || [];
+      return list.filter((d: Department) => d.state === 1 || Number(d.state) === 1);
     }
   });
 
@@ -102,11 +91,10 @@ export default function SalesPage() {
   const loading = salesLoading;
 
   const approveMutation = useMutation({
-    mutationFn: ({ id, params }: { id: string | number; params: { departmentId: string | number; commercialAccountId?: string | number } }) => salesAPI.approve(id, params),
+    mutationFn: ({ id, params }: { id: string | number; params: { departmentId: string | number; commercialAccountId?: string | number; items?: Array<{ itemId: string; departmentId: string; quantity: number }> } }) => salesAPI.approve(id, params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all({}) });
-      setApproveSaleId(null);
-      setSelectedDeptId('');
+      setApproveSaleData(null);
       toast.success("Satış başarıyla onaylandı.");
     },
     onError: (err: unknown) => {
@@ -125,7 +113,7 @@ export default function SalesPage() {
   });
 
   const shipMutation = useMutation({
-    mutationFn: (id: string | number) => salesAPI.ship(id, { items: [] }),
+    mutationFn: (id: string | number) => salesAPI.ship(id, { items: [] }), 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all({}) });
       toast.success("Sevkiyat başarıyla gerçekleştirildi.");
@@ -133,19 +121,15 @@ export default function SalesPage() {
     onError: () => toast.error("Sevkiyat işlemi başarısız oldu.")
   });
 
-  const handleApprove = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedDeptId) {
-      toast.error("Lütfen stokların düşüleceği depoyu seçin.");
-      return;
-    }
-
-    const sale = sales.find(s => String(s.id) === String(approveSaleId));
-    if (sale && sale.party) {
-      const balance = Number(sale.party.balance || 0);
-      const creditLimit = Number(sale.party.creditLimit || 0);
-      const exchangeRate = Number(sale.exchangeRate || 1);
-      const totalInTL = Number(sale.grandTotal || 0) * exchangeRate;
+  const handleApproveConfirm = async (allocations: Array<{ itemId: string; departmentId: string; quantity: number }>, commercialAccountId?: string) => {
+    if (!approveSaleData) return;
+    const fallbackDeptId = allocations[0]?.departmentId || '';
+    
+    if (approveSaleData.party) {
+      const balance = Number(approveSaleData.party.balance || 0);
+      const creditLimit = Number(approveSaleData.party.creditLimit || 0);
+      const exchangeRate = Number(approveSaleData.exchangeRate || 1);
+      const totalInTL = Number(approveSaleData.grandTotal || 0) * exchangeRate;
 
       if (creditLimit > 0 && (balance + totalInTL) > creditLimit) {
         const confirmed = await confirmDialog(
@@ -158,16 +142,18 @@ export default function SalesPage() {
       }
     }
 
-    approveMutation.mutate({
-      id: approveSaleId!,
-      params: { departmentId: selectedDeptId }
+    approveMutation.mutate({ 
+      id: approveSaleData.id, 
+      params: { 
+        departmentId: fallbackDeptId,
+        commercialAccountId,
+        items: allocations 
+      } 
     });
-    setSelectedDeptId('');
   };
 
   const handleCloseApproveModal = () => {
-    setApproveSaleId(null);
-    setSelectedDeptId('');
+    setApproveSaleData(null);
   };
 
   const handleCancelSale = useCallback(async (id: string | number) => {
@@ -190,14 +176,20 @@ export default function SalesPage() {
     }
   }, []);
 
+  const openApproveModal = useCallback(async (id: string | number) => {
+    try {
+      const res = await salesAPI.getOne(id);
+      setApproveSaleData(res.data);
+    } catch (error) {
+      toast.error("Satış detayı getirilemedi.");
+    }
+  }, []);
+
   const handleNewSale = useCallback(() => {
     const salesStore = useSalesWizardStore.getState();
     salesStore.reset();
     navigate('/sales/wizard');
   }, [navigate]);
-  const handlePageChange = useCallback((p: number) => updateParams({ page: p }), []);
-  const handleLimitChange = useCallback((l: number) => updateParams({ limit: l, page: 1 }), []);
-  const handleFilterStatusChange = useCallback((status: string) => updateParams({ status, page: 1 }), []);
 
   const handleSortChange = useCallback((key: string) => {
     const isAsc = sort.key === key && sort.order === 'ASC';
@@ -212,13 +204,13 @@ export default function SalesPage() {
       sortOrder: sort.order,
       ...filters
     };
-
+    
     try {
       const response = await salesAPI.export(params);
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `Satis_Raporu_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.xlsx`);
+      link.setAttribute('download', `Master_Satis_Raporu_${new Date().toISOString().slice(0,10).replace(/-/g, '')}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -230,7 +222,14 @@ export default function SalesPage() {
 
   return (
     <div className="animate-in flex flex-col gap-8">
-      <SalesHeader
+      <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+        <div className="text-left">
+          <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">YETKİLİ SATIŞLAR (TÜMÜ)</h2>
+          <p className="text-xs text-slate-400 font-bold">Onay ve sevkiyat yetkili genel yönetim satış ekranı</p>
+        </div>
+      </div>
+
+      <SalesHeader 
         filterStatus={filterStatus}
         onFilterStatusChange={handleFilterStatusChange}
         searchTerm={searchTerm}
@@ -239,7 +238,7 @@ export default function SalesPage() {
         onExport={handleExport}
       />
 
-      <SalesTable
+      <SalesTable 
         sales={sales}
         isLoading={loading}
         paginationMeta={paginationMeta}
@@ -248,22 +247,24 @@ export default function SalesPage() {
         sortConfigs={[{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }]}
         onSort={handleSortChange}
         onView={openViewModal}
-        isReadOnly={true}
+        onApprove={openApproveModal}
+        onShip={handleShipSale}
+        onCancel={handleCancelSale}
+        isReadOnly={false}
       />
 
       {/* 🟣 MODALS */}
-      {approveSaleId && (
-        <ApproveSaleModal
+      {approveSaleData && (
+        <AdvancedApproveSaleModal 
+          sale={approveSaleData}
           departments={departments}
-          selectedDeptId={selectedDeptId}
-          onSelectedDeptIdChange={setSelectedDeptId}
-          onSubmit={handleApprove}
+          onSubmit={handleApproveConfirm}
           onClose={handleCloseApproveModal}
         />
       )}
 
       {isViewModalOpen && viewSaleData && (
-        <ViewSaleModal
+        <ViewSaleModal 
           sale={viewSaleData}
           onClose={() => setIsViewModalOpen(false)}
         />

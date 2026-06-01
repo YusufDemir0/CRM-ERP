@@ -27,6 +27,9 @@ export interface DraftSaleData {
   selectedItems: SelectedItem[];
   step: number; // 1-7 for logistics steps
   phase: 'customer' | 'logistics' | 'products' | 'offer' | 'summary';
+  maturityDays: number;
+  paymentType: 'NAKİT' | 'VADELİ';
+  installments: number;
 }
 
 const initialDraft: DraftSaleData = {
@@ -44,7 +47,7 @@ const initialDraft: DraftSaleData = {
   description: '',
   email: '',
   source: '',
-  deposit: '0',
+  deposit: '',
   discountAmount: '0',
   isTaxed: true,
   isInvoiced: true,
@@ -52,6 +55,9 @@ const initialDraft: DraftSaleData = {
   selectedItems: [],
   step: 1,
   phase: 'customer',
+  maturityDays: 0,
+  paymentType: 'NAKİT',
+  installments: 1,
 };
 
 interface SalesWizardState {

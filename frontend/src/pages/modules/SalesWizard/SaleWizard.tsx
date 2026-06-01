@@ -142,7 +142,7 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
       address: values.address || '',
       date: values.date || '',
       deliveryDate: values.deliveryDate || '',
-      deposit: String(values.deposit || 0),
+      deposit: values.deposit !== undefined && values.deposit !== null && !isNaN(values.deposit) ? String(values.deposit) : '',
       discountAmount: String(values.discountAmount || 0),
       source: values.source || '',
       isTaxed: !!values.isTaxed,
@@ -150,6 +150,9 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
       representativePrice: values.representativePrice || '0',
       description: values.description || '',
       staffId: values.staffId || '',
+      maturityDays: values.maturityDays || 0,
+      paymentType: values.paymentType || 'NAKİT',
+      installments: values.installments || 1,
       selectedItems: (values.items || []).map(item => ({
         id: String(item.id),
         name: item.name || '',
@@ -171,7 +174,7 @@ export const SaleWizard: React.FC<{ onCompleted: () => void }> = ({ onCompleted 
       setPhase('logistics');
       setStep(2);
     } else if (phase === 'logistics') {
-      const isValid = await trigger(['staffId', 'date', 'deliveryDate']);
+      const isValid = await trigger(['staffId', 'date', 'deliveryDate', 'paymentAccountId', 'deposit']);
       if (!isValid) {
         toast.error("Lütfen lojistik ve personel bilgilerini eksiksiz doldurun.");
         return;

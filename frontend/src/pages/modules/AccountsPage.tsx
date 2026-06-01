@@ -15,6 +15,7 @@ import { useSort } from '../../hooks/useSort';
 import { Decimal } from 'decimal.js';
 import { useDeferredValue } from 'react';
 import { queryKeys } from '../../services/queryKeys';
+import { ViewAccountTransactionsModal } from '../../components/modals/ViewAccountTransactionsModal';
 
 export default function AccountsPage() {
   const queryClient = useQueryClient();
@@ -34,6 +35,7 @@ export default function AccountsPage() {
   };
 
   const [filters] = useState<Record<string, unknown>>({});
+  const [inspectAccount, setInspectAccount] = useState<Account | null>(null);
 
   const updateParams = useCallback((newParams: Record<string, string | number | undefined>) => {
     setSearchParams(prev => {
@@ -236,6 +238,15 @@ export default function AccountsPage() {
           onArchive={(acc) => toggleState(acc.id, 1)}
           onRestore={(acc) => toggleState(acc.id, 0)}
           getRowOpacity={(acc) => acc.state === 0 ? 0.5 : 1}
+          renderExtraActions={(acc) => (
+            <button 
+              className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-blue-50 text-slate-400 hover:text-blue-500"
+              onClick={(e) => { e.stopPropagation(); setInspectAccount(acc); }}
+              title="Hesap Hareketleri"
+            >
+              <FiActivity size={14} />
+            </button>
+          )}
           
           // Integrated Search & Pagination
           search={searchTerm}
@@ -247,6 +258,13 @@ export default function AccountsPage() {
           placeholder="Hesap adı, banka veya IBAN ile ara..."
         />
       </div>
+
+      {inspectAccount && (
+        <ViewAccountTransactionsModal
+          account={inspectAccount}
+          onClose={() => setInspectAccount(null)}
+        />
+      )}
     </div>
   );
 }

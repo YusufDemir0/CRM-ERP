@@ -236,38 +236,51 @@ export const CustomerPhase = memo(({ customers, refreshLookups, department }: { 
       {/* Adres Bilgileri */}
       <div className="grid grid-cols-2 gap-3">
          <FormField label="TESLİMAT ŞEHRİ" className="!mb-0">
-            <select 
-              className={`input-premium h-8 text-xs font-black cursor-pointer ${!isNewInfo ? 'bg-slate-50/50 text-slate-500 pointer-events-none' : ''}`}
-              {...register('cityId')}
-              onChange={(e) => {
-                if (!isNewInfo) return;
-                setValue('cityId', String(e.target.value), { shouldValidate: true });
-                setValue('district', '', { shouldValidate: true });
-              }}
-              tabIndex={!isNewInfo ? -1 : 0}
-            >
-              <option value="">ŞEHİR SEÇİN...</option>
-              {(cities || []).map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
-            </select>
-            {errors.cityId && <span className="text-[10px] text-[var(--error)] font-bold mt-1 block">{errors.cityId.message}</span>}
+           <Controller
+             name="cityId"
+             control={control}
+             render={({ field }) => (
+               <div className={!isNewInfo ? 'pointer-events-none opacity-60' : ''}>
+                 <SearchableSelect
+                   options={(cities || []).map(c => ({ id: String(c.id), label: c.name.toUpperCase() }))}
+                   value={field.value || ''}
+                   onChange={(option) => {
+                     if (!isNewInfo) return;
+                     field.onChange(option ? String(option.id) : '');
+                     setValue('district', '', { shouldValidate: true });
+                   }}
+                   placeholder="ŞEHİR SEÇİN..."
+                 />
+               </div>
+             )}
+           />
+           {errors.cityId && <span className="text-[10px] text-[var(--error)] font-bold mt-1 block">{errors.cityId.message}</span>}
          </FormField>
           <FormField label="TESLİMAT İLÇESİ" className="!mb-0">
             {!isNewInfo ? (
               <input 
                 readOnly
-                className="input-premium h-8 text-xs font-black bg-slate-50/50 text-slate-500 cursor-not-allowed"
+                className="input-premium h-12 text-sm font-black bg-slate-50/50 text-slate-500 cursor-not-allowed"
                 value={watch('district') || ''}
                 placeholder="İLÇE BİLGİSİ YOK"
               />
             ) : (
-              <select 
-                className={`input-premium h-8 text-xs font-black cursor-pointer ${!currentCityId ? 'bg-slate-50/50 text-slate-500 pointer-events-none' : ''}`}
-                disabled={!currentCityId}
-                {...register('district')}
-              >
-                <option value="">İLÇE SEÇİN...</option>
-                {(districts || []).map(d => <option key={d.id} value={d.name.toUpperCase()}>{d.name.toUpperCase()}</option>)}
-              </select>
+              <Controller
+                name="district"
+                control={control}
+                render={({ field }) => (
+                  <div className={!currentCityId ? 'pointer-events-none opacity-60' : ''}>
+                    <SearchableSelect
+                      options={(districts || []).map(d => ({ id: d.name.toUpperCase(), label: d.name.toUpperCase() }))}
+                      value={field.value || ''}
+                      onChange={(option) => {
+                        field.onChange(option ? String(option.id) : '');
+                      }}
+                      placeholder="İLÇE SEÇİN..."
+                    />
+                  </div>
+                )}
+              />
             )}
             {errors.district && <span className="text-[10px] text-[var(--error)] font-bold mt-1 block">{errors.district.message}</span>}
           </FormField>

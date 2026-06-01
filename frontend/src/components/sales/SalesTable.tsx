@@ -16,9 +16,10 @@ interface SalesTableProps {
   sortConfigs: { key: string; direction: 'asc' | 'desc' }[];
   onSort: (key: string, multi: boolean) => void;
   onView: (id: string | number) => void;
-  onApprove: (id: string | number) => void;
-  onShip: (id: string | number) => void;
-  onCancel: (id: string | number) => void;
+  onApprove?: (id: string | number) => void;
+  onShip?: (id: string | number) => void;
+  onCancel?: (id: string | number) => void;
+  isReadOnly?: boolean;
 }
 
 import { FiClock, FiCheckCircle, FiTruck, FiXCircle, FiCheck } from 'react-icons/fi';
@@ -36,7 +37,8 @@ export const SalesTable: React.FC<SalesTableProps> = ({
   onView,
   onApprove,
   onShip,
-  onCancel
+  onCancel,
+  isReadOnly = false
 }) => {
   const columns = useMemo<Column<Sale>[]>(() => [
     { 
@@ -89,12 +91,13 @@ export const SalesTable: React.FC<SalesTableProps> = ({
       header: 'DURUM', 
       accessor: (s) => {
         const config: Record<string, { label: string; icon: React.ReactNode; cls: string }> = {
-          draft: { label: 'BEKLİYOR', icon: <FiClock />, cls: 'bg-warning/10 text-warning border-warning/20' },
-          approved: { label: 'ONAYLI', icon: <FiCheckCircle />, cls: 'bg-info/10 text-info border-info/20' },
-          shipped: { label: 'TESLİM EDİLDİ', icon: <FiTruck />, cls: 'bg-success/10 text-success border-success/20' },
-          cancelled: { label: 'İPTAL', icon: <FiXCircle />, cls: 'bg-danger/10 text-danger border-danger/20' },
+          draft: { label: 'TASLAK', icon: <FiClock />, cls: 'bg-slate-100 text-slate-600 border border-slate-200' },
+          approved: { label: 'ONAYLANDI', icon: <FiCheckCircle />, cls: 'bg-blue-50 text-blue-600 border border-blue-100' },
+          shipped: { label: 'SEVK EDİLDİ', icon: <FiTruck />, cls: 'bg-amber-50 text-amber-600 border border-amber-100' },
+          invoiced: { label: 'TAMAMLANDI', icon: <FiCheckCircle />, cls: 'bg-emerald-50 text-emerald-600 border border-emerald-100' },
+          cancelled: { label: 'İPTAL EDİLDİ', icon: <FiXCircle />, cls: 'bg-rose-50 text-rose-600 border border-rose-100' },
         };
-        const st = config[s.status] || config.draft;
+        const st = config[s.status] || { label: s.status.toUpperCase(), icon: <FiClock />, cls: 'bg-slate-50 text-slate-400 border border-slate-250' };
         return (
           <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-black tracking-widest ${st.cls}`}>
             {st.icon} {st.label}
@@ -132,14 +135,13 @@ export const SalesTable: React.FC<SalesTableProps> = ({
       onSort={onSort}
       getRowKey={(s) => s.id}
       onEdit={(s) => onView(s.id)}
-      onRestore={s => {
-        if (s.status === 'draft') return onApprove(s.id);
-        if (s.status === 'approved') return onShip(s.id);
+      onRestore={isReadOnly ? undefined : s => {
+        if (s.status === 'draft') return onApprove?.(s.id);
         return undefined;
       }}
-      onArchive={s => s.status === 'draft' || s.status === 'approved' ? onCancel(s.id) : undefined}
+      onArchive={isReadOnly ? undefined : s => s.status === 'draft' || s.status === 'approved' ? onCancel?.(s.id) : undefined}
       customIcons={{
-        restore: (s: Sale) => s.status === 'approved' ? <FiTruck /> : <FiCheck />,
+        restore: () => <FiCheck />,
         archive: () => <FiXCircle />
       }}
 

@@ -7,19 +7,38 @@ import { useQuickCreateStore } from '../../../../store/useQuickCreateStore';
 import { Staff, Account } from '../../../../types';
 import { SalesWizardFormData } from '../schema';
 
+const today = new Date().toISOString().split('T')[0];
+
 const DepositField = memo(() => {
-  const { register } = useFormContext<SalesWizardFormData>();
+  const { register, setValue, watch, formState: { errors } } = useFormContext<SalesWizardFormData>();
+  const depositValue = watch('deposit');
+
   return (
-    <FormField label="ALINAN KAPORA" className="!mb-0">
+    <FormField label="ALINAN KAPORA *" className="!mb-0">
       <div className="relative">
         <input 
           type="number"
-          className="input-premium h-9 w-full pr-8 text-sm font-black text-[var(--success)] tabular-nums"
-          placeholder="0.00"
+          className="input-premium h-9 w-full pr-8 text-sm font-black text-emerald-600 tabular-nums"
+          placeholder="Kapora giriniz"
           {...register('deposit', { valueAsNumber: true })}
+          onFocus={(e) => {
+            if (depositValue === undefined || depositValue === null || isNaN(Number(depositValue))) {
+              setValue('deposit', 0, { shouldValidate: true });
+            }
+          }}
         />
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300">₺</span>
       </div>
+      {errors.deposit && (
+        <span className="text-xs text-red-600 font-black mt-1 block uppercase tracking-wide animate-pulse">
+          ⚠️ {errors.deposit.message?.toString()}
+        </span>
+      )}
+      {(!errors.deposit && !depositValue && depositValue !== 0) && (
+        <span className="text-xs text-red-600 font-black mt-1 block uppercase tracking-wide animate-pulse">
+          ⚠️ Lütfen kapora giriniz
+        </span>
+      )}
     </FormField>
   );
 });
@@ -60,7 +79,7 @@ const AccountSelect = memo(({ options, accounts }: { options: any[], accounts: A
   return (
     <div className="relative">
       <SearchableSelect
-        label="ÖDEME HESABI / KASA"
+        label="ÖDEME HESABI / KASA *"
         placeholder="Tahsilat yapılacak hesap"
         options={options}
         value={paymentAccountId ? String(paymentAccountId) : null}
@@ -71,13 +90,17 @@ const AccountSelect = memo(({ options, accounts }: { options: any[], accounts: A
           store.setDraftData({ ...store.draftData, paymentAccount: account });
         }}
       />
-      {errors.paymentAccountId && <span className="text-[10px] text-[var(--error)] font-bold mt-1 block">{errors.paymentAccountId.message}</span>}
+      {errors.paymentAccountId && (
+        <span className="text-xs text-red-600 font-black mt-1 block uppercase tracking-wide">
+          ⚠️ {errors.paymentAccountId.message?.toString()}
+        </span>
+      )}
     </div>
   );
 });
 
 export const LogisticsPhase = memo(({ staff, accounts, refreshLookups }: { staff: Staff[], accounts: Account[], refreshLookups: () => void }) => {
-  const { register, control, setValue } = useFormContext<SalesWizardFormData>();
+  const { register, control, setValue, formState: { errors } } = useFormContext<SalesWizardFormData>();
   const isTaxed = useWatch({ control, name: 'isTaxed' });
 
   const staffOptions = React.useMemo(() => {
@@ -97,10 +120,26 @@ export const LogisticsPhase = memo(({ staff, accounts, refreshLookups }: { staff
        
        <div className="grid grid-cols-2 gap-2">
           <FormField label="İŞLEM TARİHİ" className="!mb-0">
-            <input type="date" className="input-premium h-8 text-xs font-bold" {...register('date')} />
+            <input 
+              type="date" 
+              className="input-premium h-8 text-xs font-bold bg-slate-50/50 text-slate-500 cursor-not-allowed" 
+              {...register('date')} 
+              readOnly 
+            />
           </FormField>
           <FormField label="TESLİMAT TARİHİ" className="!mb-0">
-            <input type="date" className="input-premium h-8 text-xs font-bold" {...register('deliveryDate')} />
+            <input 
+              type="date" 
+              className="input-premium h-8 text-xs font-bold" 
+              {...register('deliveryDate')} 
+              min={today}
+              onFocus={(e) => {
+                if (!e.target.value) {
+                  setValue('deliveryDate', today, { shouldValidate: true });
+                }
+              }}
+            />
+            {errors.deliveryDate && <span className="text-[10px] text-[var(--error)] font-bold mt-1 block">{errors.deliveryDate.message}</span>}
           </FormField>
        </div>
 
