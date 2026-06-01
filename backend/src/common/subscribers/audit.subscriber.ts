@@ -8,11 +8,12 @@ import {
 } from 'typeorm';
 import { ClsService } from 'nestjs-cls';
 import { Injectable, Logger } from '@nestjs/common';
+import { SystemLog } from '../../modules/logs/entities/log.entity';
 
 /**
  * AuditSubscriber — Veritabanı işlemlerini izler ve loglar.
- * ROAST COMPLIANCE: Artik AuditLog tablosuna yazmak yerine JSON formatında stdout'a basar.
- * Bu, RDBMS üzerindeki yükü azaltır ve log yönetimini ELK/Loki gibi dış sistemlere devreder.
+ * Hibrit Sistem: Düşük seviyeli teknik loglar sadece stdout/Loki'de kalırken,
+ * yüksek değerli iş/audit logları (Cari, Satış, Üretim vb.) doğrudan system_logs veritabanı tablosuna da yazılır.
  */
 @EventSubscriber()
 @Injectable()
@@ -44,25 +45,39 @@ export class AuditSubscriber implements EntitySubscriberInterface {
   }
 
   async afterInsert(event: InsertEvent<unknown>) {
-    this.logAction(event, 'INSERT');
+    await this.logAction(event, 'INSERT');
   }
 
   async afterUpdate(event: UpdateEvent<unknown>) {
-    this.logAction(event, 'UPDATE');
+    await this.logAction(event, 'UPDATE');
   }
 
   async afterRemove(event: RemoveEvent<unknown>) {
-    this.logAction(event, 'DELETE');
+    await this.logAction(event, 'DELETE');
   }
 
-  private logAction(event: InsertEvent<unknown> | UpdateEvent<unknown> | RemoveEvent<unknown>, action: string) {
-    const userId = this.cls.get('userId');
+  private async logAction(
+    event: InsertEvent<unknown> | UpdateEvent<unknown> | RemoveEvent<unknown>,
+    action: string,
+  ) {
     const entityName = event.metadata.name;
-    
-    // Infinite loop ve gereksiz log önleme
-    if (entityName === 'AuditLog' || entityName === 'OutboxEvent') return;
 
-    const entity = event.entity;
+    // Sonsuz döngüyü ve gereksiz logları önleme
+    if (
+      entityName === 'SystemLog' ||
+      entityName === 'AuditLog' ||
+      entityName === 'OutboxEvent' ||
+      entityName === 'SystemLogEntity'
+    ) {
+      return;
+    }
+
+    const userId = this.cls.get('userId');
+    const username = this.cls.get('username') || null;
+    const fullName = this.cls.get('fullName') || null;
+    const ipAddress = this.cls.get('ipAddress') || null;
+
+    const entity = event.entity || (event as any).databaseEntity || {};
     const entityId = (entity as { id?: string | number })?.id || (event as { databaseEntity?: { id?: string | number } }).databaseEntity?.id || 'unknown';
 
     const logPayload = {
@@ -72,18 +87,106 @@ export class AuditSubscriber implements EntitySubscriberInterface {
       entity: entityName,
       entityId,
       userId: userId || null,
+      username,
+      fullName,
+      ipAddress,
       changes: action === 'UPDATE' ? {
         updatedFields: (event as UpdateEvent<unknown>).updatedColumns
-          .slice(0, 20) // Cap at 20 fields to prevent oversized payloads
+          .slice(0, 20)
           .map(c => c.propertyName)
       } : { id: entityId }
     };
 
-    // Safe serialization: payload is metadata-only (no entity data), so size is bounded
+    // 1. Stdout (Enterprise Standard)
     try {
       this.logger.log(JSON.stringify(logPayload));
     } catch {
-      this.logger.warn(`Audit log serialization failed for ${entityName}:${entityId}`);
+      this.logger.warn(`Audit log stdout serialization failed for ${entityName}:${entityId}`);
     }
+
+    // 2. Hibrit DB Logging: Yüksek değerli iş mantığı tabloları veritabanındaki system_logs tablosuna yazılır.
+    const trackedEntities = [
+      'User',
+      'Role',
+      'Party',
+      'Item',
+      'Bom',
+      'ProductionOrder',
+      'CommercialAccount',
+      'Transaction',
+      'Sale',
+      'Department',
+      'Staff',
+    ];
+
+    if (trackedEntities.includes(entityName) && process.env.DB_LOGGING_ENABLED !== 'false') {
+      try {
+        const friendlyName = this.getFriendlyEntityName(entityName);
+        const moduleName = this.getEntityModule(entityName);
+        const detailsText = this.getEntityFriendlyDescription(entityName, entity, action);
+
+        await event.manager.insert(SystemLog, {
+          userId: userId ? String(userId) : undefined,
+          username: username || undefined,
+          fullName: fullName || undefined,
+          action,
+          module: moduleName || undefined,
+          tag: 'INFO',
+          details: detailsText || undefined,
+          ipAddress: ipAddress || undefined,
+        });
+      } catch (err) {
+        this.logger.error(`Failed to save DB audit log for ${entityName}: ${err.message}`);
+      }
+    }
+  }
+
+  private getFriendlyEntityName(entityName: string): string {
+    const map: Record<string, string> = {
+      'User': 'Kullanıcı',
+      'Role': 'Rol',
+      'Party': 'Müşteri/Cari',
+      'Item': 'Ürün',
+      'Bom': 'Ürün Reçetesi',
+      'ProductionOrder': 'Üretim Emri',
+      'CommercialAccount': 'Kasa/Banka Hesabı',
+      'Transaction': 'Hesap Hareketi',
+      'Sale': 'Satış',
+      'Department': 'Departman',
+      'Staff': 'Personel',
+    };
+    return map[entityName] || entityName;
+  }
+
+  private getEntityModule(entityName: string): string {
+    const map: Record<string, string> = {
+      'User': 'users',
+      'Role': 'roles',
+      'Party': 'parties',
+      'Item': 'items',
+      'Bom': 'production',
+      'ProductionOrder': 'production',
+      'CommercialAccount': 'finance',
+      'Transaction': 'finance',
+      'Sale': 'sales',
+      'Department': 'departments',
+      'Staff': 'staff',
+    };
+    return map[entityName] || 'system';
+  }
+
+  private getEntityFriendlyDescription(entityName: string, entity: any, action: string): string {
+    const name = entity?.name || entity?.fullName || entity?.username || entity?.code || entity?.title || '';
+    const label = name ? `"${name}"` : '';
+    const friendlyEntity = this.getFriendlyEntityName(entityName);
+
+    if (action === 'INSERT') {
+      return `Yeni ${friendlyEntity} sisteme eklendi: ${label}`.trim();
+    } else if (action === 'UPDATE') {
+      return `${friendlyEntity} bilgileri güncellendi: ${label}`.trim();
+    } else if (action === 'DELETE') {
+      return `${friendlyEntity} sistemden silindi: ${label}`.trim();
+    }
+    return `${friendlyEntity} üzerinde işlem yapıldı: ${label}`.trim();
   }
 }

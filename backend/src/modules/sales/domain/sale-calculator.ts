@@ -51,6 +51,7 @@ export class SaleCalculator {
     itemDataMap: Map<string, ItemData>,
     headerDiscountAmount: number | Decimal | string = 0,
     headerDiscountPercent: number | Decimal | string = 0,
+    isRetail = false,
   ): CalculationResult {
     const hDiscountAmount = new Decimal(headerDiscountAmount);
     const hDiscountPercent = new Decimal(headerDiscountPercent);
@@ -64,13 +65,19 @@ export class SaleCalculator {
       const item = itemDataMap.get(input.itemId);
       if (!item) throw new Error(`Item data missing for ID ${input.itemId}`);
 
+      const kdvRate = new Decimal(input.kdvRate ?? 20);
       const unitPrice = new Decimal(item.salePrice || 0);
       const purchasePrice = new Decimal(item.purchasePrice || 0);
       const qty = new Decimal(input.quantity);
       const dAmount = new Decimal(input.discountAmount || 0);
       const dPercent = new Decimal(input.discountPercent || 0);
 
-      let netPrice = unitPrice;
+      // For retail, unitPrice is VAT-inclusive. Extract the base price.
+      const basePrice = isRetail
+        ? unitPrice.div(new Decimal(1).add(kdvRate.div(100)))
+        : unitPrice;
+
+      let netPrice = basePrice;
       if (dAmount.gt(0)) {
         netPrice = FH.sub(netPrice, dAmount);
       } else if (dPercent.gt(0)) {
@@ -85,12 +92,12 @@ export class SaleCalculator {
       lines.push({
         itemId: input.itemId,
         quantity: qty,
-        price: unitPrice,
+        price: basePrice,
         costPrice: purchasePrice,
         discountAmount: dAmount,
         discountPercent: dPercent,
         netPrice,
-        kdvRate: new Decimal(input.kdvRate ?? 20),
+        kdvRate,
         kdvAmount: new Decimal(0), // Calculated in next step
         lineTotal: new Decimal(0), // Calculated in next step
         description: input.description,

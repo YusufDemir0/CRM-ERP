@@ -9,8 +9,9 @@ export class DecimalTransformer implements ValueTransformer {
   /**
    * Transforms the object value to a value that is stored in the database. (Object -> DB)
    */
-  to(value: Decimal | number | string | null): string | null {
-    if (value === null || value === undefined) return null;
+  to(value: Decimal | number | string | null | undefined): string | null | undefined {
+    if (value === undefined) return undefined;
+    if (value === null) return null;
     return value.toString();
   }
 

@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 import { StocksService } from '../../inventory/stocks/stocks.service';
 import { Sale } from '../entities/sale.entity';
 import { StockMovement } from '../../inventory/stocks/entities/stock-movement.entity';
+import { Shipment } from '../../inventory/stocks/entities/shipment.entity';
 import { RabbitMQService } from '../../../common/services/rabbitmq.service';
 
 @Injectable()
@@ -43,28 +44,30 @@ export class InventorySaleListener implements OnModuleInit {
     trySubscribe();
   }
 
-  async handleSaleApproved(payload: { sale: Sale, departmentId: string, userId: string }) {
+  async handleSaleApproved(payload: { sale: Sale, departmentId: string, userId: string, items?: { itemId: string; departmentId: string; quantity: number }[] }) {
     const { sale, departmentId, userId } = payload;
     
     await this.dataSource.transaction(async (manager) => {
-      // 🔥 IDEMPOTENCY CHECK: Has this sale already caused a stock reservation?
-      const existingMovement = await manager.findOne(StockMovement, {
-        where: { referenceType: 'sale', referenceId: sale.id }
+      const existingShipment = await manager.findOne(Shipment, {
+        where: { saleId: sale.id }
       });
 
-      if (existingMovement) {
-        this.logger.warn(`Idempotency: Inventory reservation for sale.id=${sale.id} already processed. Skipping.`);
+      if (existingShipment) {
+        this.logger.warn(`Idempotency: Shipment for sale.id=${sale.id} already exists. Skipping.`);
         return;
       }
 
-      // DB-02: Reserve Stock for approved sales
-      await this.stocksService.reserveStockBulk(
-        sale.items,
-        departmentId,
-        manager,
-        { type: 'sale', id: sale.id, description: `Satış Onay Rezervasyonu: ${sale.code}` },
-        userId
-      );
+      // Create shipment record automatically
+      const shipment = manager.create(Shipment, {
+        saleId: sale.id,
+        outgoingDepartmentId: sale.departmentId || departmentId,
+        deliveryCity: sale.city || 'İstanbul',
+        deliveryDistrict: sale.district || 'Merkez',
+        deliveryAddress: sale.address || 'Adres belirtilmemiş',
+        deadline: sale.deliveryDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: 'pending'
+      });
+      await manager.save(Shipment, shipment);
     });
   }
 
@@ -95,27 +98,33 @@ export class InventorySaleListener implements OnModuleInit {
     const { sale, userId } = payload;
     
     await this.dataSource.transaction(async (manager) => {
+      // Find all reserve movements for this sale to see where they were reserved!
+      const reserveMovements = await manager.find(StockMovement, {
+        where: { referenceType: 'sale', referenceId: sale.id },
+        relations: ['stock']
+      });
+
+      // Group by departmentId
+      const deptUnreserves = new Map<string, Array<{ itemId: string; quantity: any }>>();
+      
+      for (const mov of reserveMovements) {
+        const stock = mov.stock;
+        if (!stock) continue;
+        
+        const deptId = stock.departmentId;
+        const list = deptUnreserves.get(deptId) || [];
+        list.push({ itemId: stock.itemId, quantity: mov.quantity });
+        deptUnreserves.set(deptId, list);
+      }
+
       // Revert stock movements
       await this.stocksService.revertStockMovementsByReference('sale', sale.id, manager, userId);
 
-      // Unreserve any remaining unshipped quantity
-      const itemsToUnreserve = sale.items.map(si => {
-        // We have to use Decimal since shippedQuantity can be decimal in some cases
-        const qty = typeof si.quantity === 'object' && si.quantity !== null && 'minus' in si.quantity 
-          ? (si.quantity as any) 
-          : new (require('decimal.js').Decimal)(si.quantity);
-        const shipped = typeof si.shippedQuantity === 'object' && si.shippedQuantity !== null && 'minus' in si.shippedQuantity
-          ? (si.shippedQuantity as any)
-          : new (require('decimal.js').Decimal)(si.shippedQuantity || 0);
-
-        return {
-          itemId: String(si.itemId),
-          quantity: qty.minus(shipped)
-        };
-      }).filter(i => i.quantity.gt(0));
-
-      if (itemsToUnreserve.length > 0) {
-        await this.stocksService.unreserveStockBulk(itemsToUnreserve, sale.departmentId || '1', manager, userId);
+      // Now unreserve bulk for each department!
+      for (const [deptId, items] of deptUnreserves.entries()) {
+        if (items.length > 0) {
+          await this.stocksService.unreserveStockBulk(items, deptId, manager, userId);
+        }
       }
     });
   }

@@ -31,6 +31,9 @@ export class CreateSaleDto {
   @IsOptional() @IsString() city?: string;
   @IsOptional() @IsString() district?: string;
   @IsOptional() @IsString() commercialAccountId?: string;
+  @IsOptional() @IsNumber() @Min(0) maturityDays?: number;
+  @IsOptional() @IsString() paymentType?: string;
+  @IsOptional() @IsNumber() @Min(1) installments?: number;
 
   @IsArray()
   @ValidateNested({ each: true })
@@ -56,6 +59,9 @@ export class UpdateSaleDto {
   @IsOptional() @IsString() city?: string;
   @IsOptional() @IsString() district?: string;
   @IsOptional() @IsString() commercialAccountId?: string;
+  @IsOptional() @IsNumber() @Min(0) maturityDays?: number;
+  @IsOptional() @IsString() paymentType?: string;
+  @IsOptional() @IsNumber() @Min(1) installments?: number;
 
   @IsOptional()
   @IsArray()
@@ -71,13 +77,24 @@ export class CreateSaleTypeDto {
 }
 
 export class ApproveSaleDto {
-  @IsString() departmentId: string;
-  @IsOptional() @IsString() commercialAccountId: string;
+  @Transform(({ value }) => value !== null && value !== undefined ? String(value) : value)
+  @IsString()
+  departmentId: string;
+
+  @IsOptional()
+  @Transform(({ value }) => value !== null && value !== undefined ? String(value) : value)
+  @IsString()
+  commercialAccountId?: string;
+
+  @IsOptional()
+  @IsArray()
+  items?: { itemId: string; departmentId: string; quantity: number }[];
 }
 
 export class SalesQueryDto extends PaginationDto {
   @IsOptional() @IsString() status?: string;
   @IsOptional() @IsString() partyId?: string;
+  @IsOptional() @IsString() ownSalesOnly?: string | boolean;
 }
 
 export class ShipSaleDto {

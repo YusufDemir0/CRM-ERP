@@ -91,22 +91,25 @@ export class FinanceSaleListener implements OnModuleInit {
         if (party) {
           party.balance = FH.add(party.balance, tlGrandTotal);
           
-          // 2. Handle Deposit if exists
-          if (deposit.gt(0) && commercialAccountId) {
+          const deposit = new Decimal(sale.deposit || 0);
+
+          // If a deposit is paid, record it in the target commercial account
+          if (commercialAccountId && deposit.gt(0)) {
+            const tlDeposit = FH.mul(deposit, sale.exchangeRate);
             const txCode = await this.sequenceGenerator.generateTransactionCode(qr, 'MKB');
             
             await qr.save(qr.create(Transaction, {
               code: txCode, 
               partyId: party.id, 
               commercialAccountId,
-              amount: sale.deposit, 
+              amount: deposit, 
               currencyId: sale.currencyId, 
               exchangeRate: sale.exchangeRate,
               type: 'in', 
-              referenceType: 'sale', 
+              referenceType: 'sale_deposit', 
               referenceId: sale.id, 
               date: DateUtils.getToday(),
-              description: `${sale.code} Nolu Sipariş Peşinat / Kaporası`, 
+              description: `${sale.code} Nolu Satış Kaporası / Ön Ödemesi`, 
               status: 'completed', 
               createdBy: userId
             }));
@@ -116,13 +119,16 @@ export class FinanceSaleListener implements OnModuleInit {
               partyId: party.id,
               accountId: commercialAccountId,
               debit: new Decimal(0),
-              credit: deposit, 
+              credit: tlDeposit, 
               transactionId: sale.id,
               source: 'DEPOSIT',
-              description: `${sale.code} Sipariş Peşinat Tahsilatı`
+              description: `${sale.code} Satış Kaporası`
             }));
 
-            party.balance = FH.sub(party.balance, deposit);
+            party.balance = FH.sub(party.balance, tlDeposit);
+
+            // Update paidAmount to deposit
+            await qr.update(Sale, sale.id, { paidAmount: deposit });
           }
 
           party.updatedBy = userId || null;
@@ -187,7 +193,8 @@ export class FinanceSaleListener implements OnModuleInit {
         });
 
         if (party) {
-          const targetBalance = FH.add(FH.sub(party.balance, tlGrandTotal), tlDeposit);
+          // Revert the sale invoice debit (subtract tlGrandTotal from party balance)
+          party.balance = FH.sub(party.balance, tlGrandTotal);
           
           await qr.save(qr.create(AccountingLedger, {
             date: DateUtils.getToday(),
@@ -199,31 +206,31 @@ export class FinanceSaleListener implements OnModuleInit {
             description: `${sale.code} Satış İptali - Borç Revert`
           }));
 
-          if (tlDeposit.gt(0)) {
-            const depositTx = await qr.findOne(Transaction, {
-              where: { referenceType: 'sale', referenceId: sale.id, type: 'in' }
-            });
+          const depositTx = await qr.findOne(Transaction, {
+            where: { referenceId: sale.id, type: 'in' }
+          });
 
+          if (depositTx) {
+            const tlDepositActual = FH.mul(depositTx.amount, depositTx.exchangeRate);
             await qr.save(qr.create(AccountingLedger, {
               date: DateUtils.getToday(),
               partyId: party.id,
-              accountId: depositTx?.commercialAccountId,
-              debit: tlDeposit,
+              accountId: depositTx.commercialAccountId,
+              debit: tlDepositActual,
               credit: new Decimal(0),
               transactionId: sale.id,
               source: 'CANCEL_DEPOSIT',
-              description: `${sale.code} Kapora İptali - Alacak Revert`
+              description: `${sale.code} Tahsilat İptali - Alacak Revert`
             }));
             
-            // Cancel the deposit transaction too
-            if (depositTx) {
-              depositTx.status = 'cancelled';
-              depositTx.updatedBy = userId;
-              await qr.save(Transaction, depositTx);
-            }
+            depositTx.status = 'cancelled';
+            depositTx.updatedBy = userId;
+            await qr.save(Transaction, depositTx);
+
+            // Revert deposit payment (adds balance back to party)
+            party.balance = FH.add(party.balance, tlDepositActual);
           }
 
-          party.balance = targetBalance;
           party.updatedBy = userId || null;
           await qr.save(Party, party);
         }

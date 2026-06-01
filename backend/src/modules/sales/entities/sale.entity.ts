@@ -82,6 +82,10 @@ export class Sale extends BaseEntity {
   @Column({ name: 'profit', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
   profit: Decimal = new Decimal(0);
 
+  @Transform(({ value }) => value ? String(value) : value)
+  @Column({ name: 'paid_amount', type: 'decimal', precision: 15, scale: 2, default: 0, transformer: new DecimalTransformer() })
+  paidAmount: Decimal = new Decimal(0);
+
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 
@@ -108,6 +112,15 @@ export class Sale extends BaseEntity {
 
   @Column({ name: 'commercial_account_id', type: 'bigint', nullable: true })
   commercialAccountId: string | null;
+
+  @Column({ name: 'maturity_days', type: 'int', default: 0 })
+  maturityDays: number;
+
+  @Column({ name: 'payment_type', type: 'varchar', length: 20, default: 'NAKİT' })
+  paymentType: string;
+
+  @Column({ name: 'installments', type: 'int', default: 1 })
+  installments: number;
 
   @ManyToOne(() => Party)
   @JoinColumn({ name: 'party_id' })

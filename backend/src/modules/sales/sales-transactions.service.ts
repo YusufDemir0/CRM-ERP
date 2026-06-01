@@ -7,6 +7,7 @@ import { Transactional } from '@nestjs-cls/transactional';
 import { Sale } from './entities/sale.entity';
 import { SaleItem } from './entities/sale-item.entity';
 import { SaleType } from './entities/sale-type.entity';
+import { SaleInstallment } from './entities/sale-installment.entity';
 import { Party } from '../parties/entities/party.entity';
 import { Currency } from '../finance/currencies/entities/currency.entity';
 import { User } from '../auth/entities/user.entity';
@@ -16,6 +17,8 @@ import { AccountingLedger } from '../parties/entities/ledger.entity';
 import { Transaction } from '../finance/transactions/entities/transaction.entity';
 
 import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto, ShipSaleDto } from './dto/sale.dto';
+import { StockMovement } from '../inventory/stocks/entities/stock-movement.entity';
+import { Shipment } from '../inventory/stocks/entities/shipment.entity';
 import { StocksService } from '../inventory/stocks/stocks.service';
 import { LogsService } from '../logs/logs.service';
 import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
@@ -80,12 +83,15 @@ export class SalesTransactionsService {
 
     const code = await this.sequenceGenerator.generateSaleCode(manager, String(userDeptId));
 
+    const isRetail = saleType.abbreviation === 'PRK';
+
     const itemDataMap = await this.reportsService.fetchItemData(manager, dto.items.map(i => i.itemId));
     const calcResult = SaleCalculator.calculate(
       dto.items,
       itemDataMap,
       dto.discountAmount,
-      dto.discountPercent
+      dto.discountPercent,
+      isRetail
     );
 
     const sale = manager.create(Sale, {
@@ -102,6 +108,9 @@ export class SalesTransactionsService {
       totalCost: calcResult.totalCost,
       profit: calcResult.profit,
       createdBy: userId,
+      maturityDays: dto.maturityDays || 0,
+      paymentType: dto.paymentType || 'NAKİT',
+      installments: dto.installments || 1,
     });
 
     const savedSale = await manager.save(sale);
@@ -114,6 +123,40 @@ export class SalesTransactionsService {
       createdBy: userId
     }));
     await manager.save(SaleItem, saleItemEntities);
+
+    // Dynamic Installment rows generation if paymentType is VADELİ or installments > 1
+    if (savedSale.paymentType === 'VADELİ' || savedSale.installments > 1) {
+      const totalToPay = calcResult.grandTotal;
+      const n = savedSale.installments && savedSale.installments > 0 ? savedSale.installments : 1;
+      const installmentBase = totalToPay.div(n).toDecimalPlaces(2, Decimal.ROUND_DOWN);
+      let totalAssigned = new Decimal(0);
+      
+      const installmentEntities = [];
+      const baseDate = new Date();
+      
+      for (let i = 1; i <= n; i++) {
+        let amt = installmentBase;
+        if (i === n) {
+          amt = totalToPay.minus(totalAssigned);
+        } else {
+          totalAssigned = totalAssigned.add(installmentBase);
+        }
+        
+        const dueDate = new Date(baseDate);
+        dueDate.setDate(baseDate.getDate() + (i * 30));
+        const formattedDueDate = dueDate.toISOString().split('T')[0];
+        
+        installmentEntities.push(manager.create(SaleInstallment, {
+          saleId: savedSale.id,
+          installmentNo: i,
+          dueDate: formattedDueDate,
+          amount: amt,
+          paymentStatus: 'pasif',
+          createdBy: userId
+        }));
+      }
+      await manager.save(SaleInstallment, installmentEntities);
+    }
 
     return this.reportsService.findOne(savedSale.id, manager);
   }
@@ -128,7 +171,8 @@ export class SalesTransactionsService {
 
     const updatableFields: (keyof UpdateSaleDto)[] = [
       'notes', 'deliveryDate', 'staffId', 'phone', 'address', 'taxNumber',
-      'email', 'source', 'city', 'district', 'commercialAccountId'
+      'email', 'source', 'city', 'district', 'commercialAccountId',
+      'maturityDays', 'paymentType', 'installments'
     ];
     updatableFields.forEach(field => {
       if (dto[field] !== undefined) (sale as unknown as Record<string, unknown>)[field] = dto[field];
@@ -136,12 +180,14 @@ export class SalesTransactionsService {
     sale.updatedBy = userId || null;
 
     if (dto.items && dto.items.length > 0) {
+      const isRetail = sale.saleType?.abbreviation === 'PRK' || sale.saleTypeId === '2';
       const itemDataMap = await this.reportsService.fetchItemData(manager, dto.items.map(i => i.itemId));
       const calcResult = SaleCalculator.calculate(
         dto.items,
         itemDataMap,
         dto.discountAmount !== undefined ? dto.discountAmount : sale.discountAmount,
-        dto.discountPercent !== undefined ? dto.discountPercent : sale.discountPercent
+        dto.discountPercent !== undefined ? dto.discountPercent : sale.discountPercent,
+        isRetail
       );
 
       sale.totalAmount = calcResult.totalAmount;
@@ -166,6 +212,53 @@ export class SalesTransactionsService {
     }
 
     await manager.save(sale);
+
+    // Delete existing installments and recreate them if any financial/installment field changes
+    const shouldRecreateInstallments = 
+      dto.items !== undefined || 
+      dto.installments !== undefined || 
+      dto.maturityDays !== undefined || 
+      dto.paymentType !== undefined ||
+      dto.discountAmount !== undefined ||
+      dto.discountPercent !== undefined ||
+      dto.deposit !== undefined;
+
+    if (shouldRecreateInstallments) {
+      await manager.delete(SaleInstallment, { saleId: sale.id });
+      if (sale.paymentType === 'VADELİ' || sale.installments > 1) {
+        const totalToPay = new Decimal(sale.grandTotal);
+        const n = sale.installments && sale.installments > 0 ? sale.installments : 1;
+        const installmentBase = totalToPay.div(n).toDecimalPlaces(2, Decimal.ROUND_DOWN);
+        let totalAssigned = new Decimal(0);
+        
+        const installmentEntities = [];
+        const baseDate = new Date(sale.createdAt || new Date());
+        
+        for (let i = 1; i <= n; i++) {
+          let amt = installmentBase;
+          if (i === n) {
+            amt = totalToPay.minus(totalAssigned);
+          } else {
+            totalAssigned = totalAssigned.add(installmentBase);
+          }
+          
+          const dueDate = new Date(baseDate);
+          dueDate.setDate(baseDate.getDate() + (i * 30));
+          const formattedDueDate = dueDate.toISOString().split('T')[0];
+          
+          installmentEntities.push(manager.create(SaleInstallment, {
+            saleId: sale.id,
+            installmentNo: i,
+            dueDate: formattedDueDate,
+            amount: amt,
+            paymentStatus: 'pasif',
+            updatedBy: userId
+          }));
+        }
+        await manager.save(SaleInstallment, installmentEntities);
+      }
+    }
+
     return this.reportsService.findOne(id, manager);
   }
 
@@ -186,24 +279,69 @@ export class SalesTransactionsService {
     const tlGrandTotal = FH.mul(sale.grandTotal, sale.exchangeRate);
     const depositToTL = FH.mul(sale.deposit, sale.exchangeRate);
 
-    if (party.creditLimit.gt(0) && (FH.add(party.balance, tlGrandTotal)).gt(party.creditLimit)) {
-      throw new BadRequestException(`Cari limit aşıldı! Sipariş sonrası bakiye: ${FH.add(party.balance, tlGrandTotal)} olmaktadır.`);
-    }
+    // if (party.creditLimit.gt(0) && (FH.add(party.balance, tlGrandTotal)).gt(party.creditLimit)) {
+    //   throw new BadRequestException(`Cari limit aşıldı! Sipariş sonrası bakiye: ${FH.add(party.balance, tlGrandTotal)} olmaktadır.`);
+    // }
 
     sale.status = 'approved';
     sale.departmentId = dto.departmentId;
+    if (dto.commercialAccountId) {
+      sale.commercialAccountId = dto.commercialAccountId;
+    }
     sale.updatedBy = userId || null;
     await manager.save(Sale, sale);
+
+    // Create shipment record automatically in same transaction
+    const existingShipment = await manager.findOne(Shipment, {
+      where: { saleId: sale.id }
+    });
+
+    if (!existingShipment) {
+      const shipment = manager.create(Shipment, {
+        saleId: sale.id,
+        outgoingDepartmentId: dto.departmentId || sale.departmentId,
+        deliveryCity: sale.city || 'İstanbul',
+        deliveryDistrict: sale.district || 'Merkez',
+        deliveryAddress: sale.address || 'Adres belirtilmemiş',
+        deadline: sale.deliveryDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: 'pending'
+      });
+      await manager.save(Shipment, shipment);
+    }
+
+    const plainSale = {
+      id: sale.id,
+      code: sale.code,
+      partyId: sale.partyId,
+      currencyId: sale.currencyId,
+      exchangeRate: sale.exchangeRate?.toString() || '1',
+      deposit: sale.deposit?.toString() || '0',
+      grandTotal: sale.grandTotal?.toString() || '0',
+      totalAmount: sale.totalAmount?.toString() || '0',
+      status: sale.status,
+      items: sale.items?.map(item => ({
+        saleId: item.saleId,
+        itemId: item.itemId,
+        quantity: item.quantity?.toString() || '0',
+        shippedQuantity: item.shippedQuantity?.toString() || '0',
+        price: item.price?.toString() || '0',
+        netPrice: item.netPrice?.toString() || '0',
+        lineTotal: item.lineTotal?.toString() || '0',
+        kdvRate: item.kdvRate?.toString() || '0',
+        kdvAmount: item.kdvAmount?.toString() || '0',
+      }))
+    };
 
     await this.outboxService.saveEvent({
       topic: 'sale.approved',
       payload: {
-        sale,
-        tlGrandTotal,
-        deposit: depositToTL,
+        sale: plainSale as any,
+        tlGrandTotal: tlGrandTotal.toString(),
+        deposit: depositToTL.toString(),
         departmentId: dto.departmentId,
-        commercialAccountId: dto.commercialAccountId,
+        commercialAccountId: dto.commercialAccountId || sale.commercialAccountId,
         userId,
+        items: dto.items,
       },
       manager,
     });
@@ -236,12 +374,36 @@ export class SalesTransactionsService {
       const tlGrandTotal = FH.mul(sale.grandTotal, sale.exchangeRate);
       const tlDeposit = FH.mul(sale.deposit, sale.exchangeRate);
 
+      const plainSale = {
+        id: sale.id,
+        code: sale.code,
+        partyId: sale.partyId,
+        paymentType: sale.paymentType,
+        currencyId: sale.currencyId,
+        exchangeRate: sale.exchangeRate?.toString() || '1',
+        deposit: sale.deposit?.toString() || '0',
+        grandTotal: sale.grandTotal?.toString() || '0',
+        totalAmount: sale.totalAmount?.toString() || '0',
+        status: sale.status,
+        items: sale.items?.map(item => ({
+          saleId: item.saleId,
+          itemId: item.itemId,
+          quantity: item.quantity?.toString() || '0',
+          shippedQuantity: item.shippedQuantity?.toString() || '0',
+          price: item.price?.toString() || '0',
+          netPrice: item.netPrice?.toString() || '0',
+          lineTotal: item.lineTotal?.toString() || '0',
+          kdvRate: item.kdvRate?.toString() || '0',
+          kdvAmount: item.kdvAmount?.toString() || '0',
+        }))
+      };
+
       await this.outboxService.saveEvent({
         topic: 'sale.cancelled',
         payload: {
-          sale,
-          tlGrandTotal,
-          tlDeposit,
+          sale: plainSale as any,
+          tlGrandTotal: tlGrandTotal.toString(),
+          tlDeposit: tlDeposit.toString(),
           userId,
         },
         manager,
@@ -251,7 +413,7 @@ export class SalesTransactionsService {
       await manager.update(Transaction, { referenceType: 'sale', referenceId: sale.id }, { status: 'cancelled', updatedBy: userId });
     }
 
-    await manager.update(Sale, sale.id, { status: 'cancelled', updatedBy: userId });
+    await manager.update(Sale, sale.id, { status: 'cancelled', paidAmount: 0, updatedBy: userId });
     return this.reportsService.findOne(saleId, manager);
   }
 
@@ -283,13 +445,64 @@ export class SalesTransactionsService {
       }
     }
 
-    await this.stocksService.finalizeShipmentBulk(
-      shipItems,
-      sale.departmentId,
-      manager,
-      { type: 'sale', id: sale.id, description: `Sevkiyat Çıkışı: ${sale.code}` },
-      userId
-    );
+    // Find reserve movements to determine departments
+    const reserveMovements = await manager.find(StockMovement, {
+      where: { referenceType: 'sale', referenceId: sale.id },
+      relations: ['stock']
+    });
+
+    const deptShipments = new Map<string, Array<{ itemId: string; quantity: number }>>();
+
+    for (const reqItem of shipItems) {
+      const itemMovements = reserveMovements.filter(m => m.stock?.itemId === String(reqItem.itemId));
+      let remainingQtyToShip = new Decimal(reqItem.quantity);
+
+      for (const mov of itemMovements) {
+        if (remainingQtyToShip.lte(0)) break;
+        const stock = mov.stock;
+        if (!stock) continue;
+
+        // Sum up already shipped quantity from this stockId
+        const shippedResult = await manager.createQueryBuilder(StockMovement, 'm')
+          .where('m.stockId = :stockId', { stockId: stock.id })
+          .andWhere('m.referenceType = "sale"')
+          .andWhere('m.referenceId = :saleId', { saleId: sale.id })
+          .andWhere('m.id != :movId', { movId: mov.id })
+          .select('SUM(m.quantity)', 'total')
+          .getRawOne();
+
+        const alreadyShippedFromStock = new Decimal(shippedResult?.total || 0);
+        const maxShippableFromDept = new Decimal(mov.quantity).sub(alreadyShippedFromStock);
+
+        if (maxShippableFromDept.gt(0)) {
+          const qtyToShipFromDept = Decimal.min(remainingQtyToShip, maxShippableFromDept);
+          const deptId = stock.departmentId;
+          const list = deptShipments.get(deptId) || [];
+          list.push({ itemId: reqItem.itemId, quantity: qtyToShipFromDept.toNumber() });
+          deptShipments.set(deptId, list);
+          remainingQtyToShip = remainingQtyToShip.sub(qtyToShipFromDept);
+        }
+      }
+
+      if (remainingQtyToShip.gt(0)) {
+        const deptId = sale.departmentId || '1';
+        const list = deptShipments.get(deptId) || [];
+        list.push({ itemId: reqItem.itemId, quantity: remainingQtyToShip.toNumber() });
+        deptShipments.set(deptId, list);
+      }
+    }
+
+    for (const [deptId, items] of deptShipments.entries()) {
+      if (items.length > 0) {
+        await this.stocksService.finalizeShipmentBulk(
+          items,
+          deptId,
+          manager,
+          { type: 'sale', id: sale.id, description: `Sevkiyat Çıkışı: ${sale.code}` },
+          userId
+        );
+      }
+    }
 
     const saleItemsToUpdate: SaleItem[] = [];
     for (const item of shipItems) {

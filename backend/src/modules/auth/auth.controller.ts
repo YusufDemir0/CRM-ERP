@@ -18,8 +18,11 @@ export class AuthController {
   async login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
+    @Req() req: import('express').Request,
   ) {
-    const { access_token, refresh_token, user } = await this.authService.login(dto);
+    const rawIp = req.ip || req.headers['x-forwarded-for'];
+    const ipAddress = Array.isArray(rawIp) ? rawIp[0] : (rawIp || undefined);
+    const { access_token, refresh_token, user } = await this.authService.login(dto, ipAddress);
 
     res.cookie('erp_token', access_token, {
       httpOnly: true,
@@ -69,7 +72,26 @@ export class AuthController {
 
   @Public()
   @Post('logout')
-  async logout(@Res({ passthrough: true }) res: Response) {
+  async logout(@Req() req: import('express').Request, @Res({ passthrough: true }) res: Response) {
+    const token = req.cookies['erp_token'];
+    if (token) {
+      try {
+        const payload = this.authService.decodeToken(token);
+        if (payload && payload.sub) {
+          const rawIp = req.ip || req.headers['x-forwarded-for'];
+          const ipAddress = Array.isArray(rawIp) ? rawIp[0] : (rawIp || undefined);
+          await this.authService.logout(
+            String(payload.sub),
+            payload.username,
+            payload.fullName,
+            ipAddress,
+          );
+        }
+      } catch (e) {
+        // Ignore errors decoding token on logout
+      }
+    }
+
     res.clearCookie('erp_token');
     res.clearCookie('erp_refresh_token', { path: '/api/auth/refresh' });
     return { message: 'Çıkış başarılı' };

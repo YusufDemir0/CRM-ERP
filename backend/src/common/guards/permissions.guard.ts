@@ -51,15 +51,14 @@ export class PermissionsGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    // Eğer handler'da @RequirePermissions yoksa, geçiş serbest
-    if (!requiredPermissions || requiredPermissions.length === 0) {
-      return true;
-    }
-
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
+    // Eğer yetkilendirme bilgisi yoksa ve @RequirePermissions yoksa serbest, varsa yetkisiz fırlat
     if (!user || !user.sub) {
+      if (!requiredPermissions || requiredPermissions.length === 0) {
+        return true;
+      }
       throw new ForbiddenException('Yetkilendirme bilgisi bulunamadı');
     }
 
@@ -84,12 +83,6 @@ export class PermissionsGuard implements CanActivate {
     
     // Güvenlik Düzeltmesi (1.4): Hardcode isim kontrolü yerine DB kolonuna bakıyoruz.
     const isSystemAdmin = userRoles.some((ur) => ur.role?.isSystemAdmin === true);
-    
-    if (isSystemAdmin) {
-      request.user.isSystemAdmin = true;
-      request.user.permissions = []; // System admins don't need explicit permissions
-      return true;
-    }
 
     // ─── CACHE CHECK ───
     const cacheKey = `user_perms_${userId}`;
@@ -128,8 +121,18 @@ export class PermissionsGuard implements CanActivate {
       await this.cacheManager.set(cacheKey, finalPermissions, 60000); // 1 dk cache
     }
 
-    request.user.permissions = finalPermissions;
+    // Her durumda downstream servisler için request.user bilgilerini set et
     request.user.isSystemAdmin = isSystemAdmin;
+    request.user.permissions = finalPermissions;
+
+    // Eğer handler'da @RequirePermissions yoksa, geçiş serbest
+    if (!requiredPermissions || requiredPermissions.length === 0) {
+      return true;
+    }
+
+    if (isSystemAdmin) {
+      return true;
+    }
 
     // 4. Her required permission için kontrol
     const hasAll = requiredPermissions.every(key => finalPermissions.includes(key));

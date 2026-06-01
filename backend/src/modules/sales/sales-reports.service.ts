@@ -32,7 +32,8 @@ export class SalesReportsService {
       .select([
         'sale.id', 'sale.code', 'sale.status', 'sale.totalAmount', 'sale.grandTotal',
         'sale.kdv', 'sale.discountAmount', 'sale.createdAt', 'sale.updatedAt',
-        'sale.deliveryDate', 'sale.phone', 'sale.address', 'sale.profit'
+        'sale.deliveryDate', 'sale.phone', 'sale.address', 'sale.profit',
+        'sale.maturityDays', 'sale.paymentType', 'sale.installments', 'sale.paidAmount'
       ])
       .leftJoin('sale.party', 'party')
       .addSelect(['party.id', 'party.name', 'party.type'])
@@ -53,8 +54,15 @@ export class SalesReportsService {
     if (query.partyId) qb.andWhere('sale.partyId = :partyId', { partyId: query.partyId });
 
     if (user && !user.isSystemAdmin) {
-      // tam satis yetkisi: sales_approve veya SALES_VIEW_ALL
-      const hasFullSales = user.permissions?.includes('sales_approve') || user.permissions?.includes('SALES_VIEW_ALL');
+      const forceOwnSales = query.ownSalesOnly === 'true' || query.ownSalesOnly === true;
+      const hasFullSales = !forceOwnSales && (
+        user.permissions?.includes('SALES_APPROVE') || 
+        user.permissions?.includes('SALES_MASTER_APPROVE') || 
+        user.permissions?.includes('SALES_MASTER_VIEW') || 
+        user.permissions?.includes('SALES_VIEW_ALL') ||
+        user.permissions?.includes('sales_approve') || 
+        user.permissions?.includes('sales_master_approve')
+      );
       
       if (hasFullSales) {
         if (user.departmentId) {
@@ -135,7 +143,13 @@ export class SalesReportsService {
     if (query.status) qb.andWhere('sale.status = :status', { status: query.status });
     
     if (user && !user.isSystemAdmin) {
-      const hasFullSales = user.permissions?.includes('sales_approve') || user.permissions?.includes('SALES_VIEW_ALL');
+      const hasFullSales = 
+        user.permissions?.includes('SALES_APPROVE') || 
+        user.permissions?.includes('SALES_MASTER_APPROVE') || 
+        user.permissions?.includes('SALES_MASTER_VIEW') || 
+        user.permissions?.includes('SALES_VIEW_ALL') ||
+        user.permissions?.includes('sales_approve') || 
+        user.permissions?.includes('sales_master_approve');
       if (hasFullSales) {
         if (user.departmentId) {
           qb.andWhere('sale.departmentId = :userDeptId', { userDeptId: user.departmentId });
@@ -162,6 +176,14 @@ export class SalesReportsService {
       { header: 'Kar/Zarar', key: 'profit', width: 15 },
     ];
 
+    const statusMap: Record<string, string> = {
+      'draft': 'Taslak',
+      'approved': 'Onaylandı',
+      'shipped': 'Sevk Edildi',
+      'invoiced': 'Faturalandı',
+      'cancelled': 'İptal'
+    };
+
     sales.forEach(s => {
       worksheet.addRow({
         code: s.code,
@@ -170,7 +192,7 @@ export class SalesReportsService {
         phone: s.phone || s.party?.phone1 || '—',
         total: s.grandTotal.toNumber(),
         currency: s.currency?.symbol || '₺',
-        status: s.status,
+        status: statusMap[s.status] || s.status,
         delivery: s.deliveryDate || '—',
         profit: s.profit.toNumber(),
       });

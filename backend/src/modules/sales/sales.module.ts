@@ -6,6 +6,7 @@ import { Sale } from './entities/sale.entity';
 import { SaleItem } from './entities/sale-item.entity';
 import { SaleType } from './entities/sale-type.entity';
 import { SaleSequence } from './entities/sale-sequence.entity';
+import { SaleInstallment } from './entities/sale-installment.entity';
 import { Party } from '../parties/entities/party.entity';
 import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
 import { InventoryModule } from '../inventory/inventory.module';
@@ -21,7 +22,7 @@ import { SalesTransactionsService } from './sales-transactions.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-      Sale, SaleItem, SaleType, SaleSequence, Party, AccountingLedger, Transaction
+      Sale, SaleItem, SaleType, SaleSequence, SaleInstallment, Party, AccountingLedger, Transaction
     ]),
     CommonModule,
     InventoryModule,

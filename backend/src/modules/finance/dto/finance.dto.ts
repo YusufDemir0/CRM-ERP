@@ -59,6 +59,7 @@ export class TransactionsQueryDto extends PaginationDto {
   @IsOptional() @IsString() partyId: string;
   @IsOptional() @IsString() type?: string;
   @IsOptional() @IsString() status?: string;
+  @IsOptional() @IsString() commercialAccountId?: string;
 }
 
 export class AccountsQueryDto extends PaginationDto {

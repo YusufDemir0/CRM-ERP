@@ -64,7 +64,7 @@ export class SalesController {
    * Tümü tek transaction içinde.
    */
   @Post(':id/approve')
-  @RequirePermissions('SALES_APPROVE')
+  @RequirePermissions('SALES_MASTER_APPROVE')
   approve(
     @Param('id') id: string,
     @Body() dto: ApproveSaleDto,
@@ -74,13 +74,13 @@ export class SalesController {
   }
 
   @Post(':id/cancel')
-  @RequirePermissions('SALES_CANCEL')
+  @RequirePermissions('SALES_MASTER_CANCEL')
   cancel(@Param('id') id: string, @CurrentUser('sub') userId: string) {
     return this.salesService.cancelSale(id, userId);
   }
 
   @Post(':id/ship')
-  @RequirePermissions('SALES_APPROVE') // Reuse approval permission or add 'satis_sevk'
+  @RequirePermissions('SALES_MASTER_SHIP')
   ship(@Param('id') id: string, @Body() dto: ShipSaleDto, @CurrentUser('sub') userId: string) {
     return this.salesService.shipSale(id, dto, userId);
   }

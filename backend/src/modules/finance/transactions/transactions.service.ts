@@ -5,6 +5,7 @@ import { Decimal } from 'decimal.js';
 import { Transaction } from './entities/transaction.entity';
 import { Party } from '../../parties/entities/party.entity';
 import { Currency } from '../currencies/entities/currency.entity';
+import { Sale } from '../../sales/entities/sale.entity';
 import { SequenceGeneratorService } from '../../../common/services/sequence-generator.service';
 import { CreateTransactionDto, TransactionsQueryDto } from '../dto/finance.dto';
 import { AccountingLedger } from '../../parties/entities/ledger.entity';
@@ -45,6 +46,7 @@ export class TransactionsService {
     if (query.partyId) qb.andWhere('tx.partyId = :partyId', { partyId: query.partyId });
     if (query.type) qb.andWhere('tx.type = :type', { type: query.type });
     if (query.status) qb.andWhere('tx.status = :status', { status: query.status });
+    if (query.commercialAccountId) qb.andWhere('tx.commercialAccountId = :commercialAccountId', { commercialAccountId: query.commercialAccountId });
 
     const allowedSortCols = ['date', 'amount', 'createdAt', 'code', 'party.name', 'commercialAccount.name', 'status'];
     const sortField = allowedSortCols.includes(query.sortBy || '') ? query.sortBy! : 'date';
@@ -139,6 +141,53 @@ export class TransactionsService {
         description: dto.description || `Kasa Fişi: ${code}`
       }));
 
+      // --- FIFO ALLOCATION ---
+      if (isCredit) {
+        let remainingPayment = new Decimal(dto.amount);
+        console.log(`[FIFO Payment] Starting allocation of payment amount ${dto.amount} ${dto.currencyId || 'TRY'} for customer ${party.name}`);
+        
+        const unpaidSales = await manager.find(Sale, {
+          where: [
+            { partyId: party.id, status: 'approved' },
+            { partyId: party.id, status: 'shipped' },
+            { partyId: party.id, status: 'invoiced' }
+          ],
+          order: { createdAt: 'ASC' }
+        });
+
+        for (const sale of unpaidSales) {
+          if (remainingPayment.lte(0)) break;
+
+          const grandTotal = new Decimal(sale.grandTotal || 0);
+          const paidAmount = new Decimal(sale.paidAmount || 0);
+          const remainingDebtOnSale = grandTotal.sub(paidAmount);
+
+          if (remainingDebtOnSale.gt(0)) {
+            const txExchangeRate = exchangeRate;
+            const saleExchangeRate = new Decimal(sale.exchangeRate || 1);
+            
+            const remainingPaymentInTl = remainingPayment.mul(txExchangeRate);
+            const remainingPaymentInSaleCurrency = remainingPaymentInTl.div(saleExchangeRate);
+
+            const allocationInSaleCurrency = Decimal.min(remainingDebtOnSale, remainingPaymentInSaleCurrency);
+            
+            if (allocationInSaleCurrency.gt(0)) {
+              const newPaidAmount = paidAmount.add(allocationInSaleCurrency);
+              
+              sale.paidAmount = newPaidAmount;
+              await manager.save(Sale, sale);
+
+              console.log(`[FIFO Payment] Allocated ${allocationInSaleCurrency} ${sale.currencyId} to Sale Code ${sale.code} (Grand Total: ${grandTotal}, Paid: ${newPaidAmount})`);
+
+              const allocationInTxCurrency = allocationInSaleCurrency.mul(saleExchangeRate).div(txExchangeRate);
+              remainingPayment = remainingPayment.sub(allocationInTxCurrency);
+            }
+          }
+        }
+        console.log(`[FIFO Payment] Completed allocation. Remaining unallocated: ${remainingPayment}`);
+      }
+      // --- END FIFO ALLOCATION ---
+
       const sign = (dto.type === 'in' && !isSupplierRefund) ? '-' : '+';
       await manager.createQueryBuilder()
         .update(Party)
@@ -180,6 +229,48 @@ export class TransactionsService {
           source: 'CANCEL',
           description: `İptal Fişi: ${tx.code}`
         }));
+
+        // --- REVERSE FIFO ALLOCATION ---
+        if (!isReverseCredit) {
+          let amountToRevert = new Decimal(tx.amount);
+          console.log(`[FIFO Payment Cancel] Reverting payment amount ${tx.amount} ${tx.currencyId || 'TRY'} for customer ${party.name}`);
+          
+          const paidSales = await manager.find(Sale, {
+            where: [
+              { partyId: party.id, status: 'approved' },
+              { partyId: party.id, status: 'shipped' },
+              { partyId: party.id, status: 'invoiced' }
+            ],
+            order: { createdAt: 'DESC' }
+          });
+
+          for (const sale of paidSales) {
+            if (amountToRevert.lte(0)) break;
+
+            const paidAmount = new Decimal(sale.paidAmount || 0);
+            if (paidAmount.gt(0)) {
+              const txExchangeRate = new Decimal(tx.exchangeRate || 1);
+              const saleExchangeRate = new Decimal(sale.exchangeRate || 1);
+              
+              const amountToRevertInTl = amountToRevert.mul(txExchangeRate);
+              const amountToRevertInSaleCurrency = amountToRevertInTl.div(saleExchangeRate);
+
+              const revertInSaleCurrency = Decimal.min(paidAmount, amountToRevertInSaleCurrency);
+              
+              if (revertInSaleCurrency.gt(0)) {
+                const newPaidAmount = paidAmount.sub(revertInSaleCurrency);
+                sale.paidAmount = newPaidAmount;
+                await manager.save(Sale, sale);
+
+                console.log(`[FIFO Payment Cancel] Reverted ${revertInSaleCurrency} ${sale.currencyId} from Sale Code ${sale.code} (Remaining Paid: ${newPaidAmount})`);
+
+                const revertInTxCurrency = revertInSaleCurrency.mul(saleExchangeRate).div(txExchangeRate);
+                amountToRevert = amountToRevert.sub(revertInTxCurrency);
+              }
+            }
+          }
+        }
+        // --- END REVERSE FIFO ALLOCATION ---
 
         const sign = (tx.type === 'in' && !isSupplierRefund) ? '+' : '-';
         await manager.createQueryBuilder()

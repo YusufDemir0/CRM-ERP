@@ -11,6 +11,7 @@ import { RolePermission } from './entities/role-permission.entity';
 import { UserPermission } from './entities/user-permission.entity';
 import { LoginDto, RegisterDto, ForgotPasswordDto, ChangePasswordDto } from './dto/auth.dto';
 import { RecordState } from '../../common/enums/record-state.enum';
+import { SystemLog } from '../logs/entities/log.entity';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -33,7 +34,7 @@ export class AuthService implements OnModuleInit {
   onModuleInit(): void {
   }
 
-  async login(dto: LoginDto): Promise<{ access_token: string; refresh_token: string; user: UserProfile }> {
+  async login(dto: LoginDto, ipAddress?: string | null): Promise<{ access_token: string; refresh_token: string; user: UserProfile }> {
     const user = await this.userRepo.findOne({
       where: { username: dto.username },
       relations: ['roles'],
@@ -86,6 +87,7 @@ export class AuthService implements OnModuleInit {
     const payload = {
       sub: user.id,
       username: user.username,
+      fullName: user.fullName,
       departmentId: user.departmentId,
       tokenVersion: user.tokenVersion,
     };
@@ -101,6 +103,22 @@ export class AuthService implements OnModuleInit {
     const refreshSalt = await bcrypt.genSalt(10);
     user.refreshTokenHash = await bcrypt.hash(refresh_token, refreshSalt);
     await this.userRepo.save(user);
+
+    // Save LOGIN system audit log to DB
+    try {
+      await this.userRepo.manager.insert(SystemLog, {
+        userId: String(user.id),
+        username: user.username,
+        fullName: user.fullName,
+        action: 'LOGIN',
+        module: 'auth',
+        tag: 'SUCCESS',
+        details: `${user.fullName} (${user.username}) sisteme başarılı bir şekilde giriş yaptı.`,
+        ipAddress: ipAddress || undefined,
+      });
+    } catch (e) {
+      this.logger.error(`Failed to write LOGIN audit log: ${e.message}`);
+    }
 
     return {
       access_token,
@@ -136,6 +154,7 @@ export class AuthService implements OnModuleInit {
       const newPayload = {
         sub: user.id,
         username: user.username,
+        fullName: user.fullName,
         departmentId: user.departmentId,
         tokenVersion: user.tokenVersion,
       };
@@ -268,5 +287,30 @@ export class AuthService implements OnModuleInit {
 
     await this.userRepo.save(user);
     return { message: 'Şifre başarıyla değiştirildi. Lütfen yeni şifrenizle giriş yapınız.' };
+  }
+
+  decodeToken(token: string): any {
+    try {
+      return this.jwtService.decode(token);
+    } catch {
+      return null;
+    }
+  }
+
+  async logout(userId: string, username: string, fullName: string, ipAddress?: string | null): Promise<void> {
+    try {
+      await this.userRepo.manager.insert(SystemLog, {
+        userId,
+        username,
+        fullName,
+        action: 'LOGOUT',
+        module: 'auth',
+        tag: 'SUCCESS',
+        details: `${fullName} (${username}) sistemden güvenli bir şekilde çıkış yaptı.`,
+        ipAddress: ipAddress || undefined,
+      });
+    } catch (e) {
+      this.logger.error(`Failed to write LOGOUT audit log: ${e.message}`);
+    }
   }
 }
