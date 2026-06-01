@@ -640,6 +640,7 @@ export class FixMissingTablesV61715760000006 implements MigrationInterface {
             `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('SALES_APPROVE','Satış Onayla','sales','manage')`,
             `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('SALES_CANCEL','Satış İptal Et','sales','manage')`,
             `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('SALES_DELETE','Satış Sil','sales','delete')`,
+            `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('SALES_MASTER_APPROVE','Yetkili Satış Onaylama','sales','manage')`,
 
             // Cari Modülü
             `INSERT IGNORE INTO \`permissions\` (\`key\`, name, module, action) VALUES ('CUSTOMER_VIEW','Carileri Görüntüle','parties','read')`,
