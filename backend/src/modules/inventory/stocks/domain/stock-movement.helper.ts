@@ -31,6 +31,11 @@ export class StockMovementHelper {
     const unitCost = new Decimal(stock.item?.movingAverageCost || 0);
     const totalCost = quantity.mul(unitCost);
 
+    let defaultDesc = type === 'in' ? 'Stok Girişi' : 'Stok Çıkışı';
+    if (referenceInfo?.type === 'create') defaultDesc = 'Yeni Ürün Eklendi';
+    else if (referenceInfo?.type === 'production') defaultDesc = 'Üretim Yapıldı';
+    else if (referenceInfo?.type === 'import') defaultDesc = 'İthal Edildi';
+
     return manager.create(StockMovement, {
       stockId: stock.id,
       quantity,
@@ -41,15 +46,15 @@ export class StockMovementHelper {
       type,
       referenceType: referenceInfo?.type || 'manual',
       referenceId: referenceInfo?.id || null,
-      description: referenceInfo?.description || (type === 'in' ? 'Stok Girişi' : 'Stok Çıkışı'),
+      description: referenceInfo?.description || defaultDesc,
       createdBy: userId,
     });
   }
 
-  static validateStockLimit(itemId: string, departmentId: string, currentQty: Decimal, delta: Decimal, limit: number = -100) {
+  static validateStockLimit(itemId: string, departmentId: string, currentQty: Decimal, delta: Decimal) {
     const after = currentQty.sub(delta);
-    if (after.lt(limit)) {
-      throw new BadRequestException(`Yetersiz stok limitleri aşıldı (${limit} sınırı). Ürün ID: ${itemId}`);
+    if (after.lt(0)) {
+      console.warn(`[STOK UYARISI] Stok seviyesi sıfırın altına düştü! Ürün ID: ${itemId}, Depo ID: ${departmentId}, Yeni Stok: ${after.toString()}`);
     }
   }
 }

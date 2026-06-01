@@ -8,7 +8,6 @@ import { DecimalTransformer } from '../../../../common/transformers/decimal.tran
 
 @Entity('stocks')
 @Unique(['itemId', 'departmentId'])
-@Check(`"quantity" >= 0`)
 export class Stock extends BaseEntity {
   @Column({ name: 'item_id', type: 'bigint' })
   itemId: string;

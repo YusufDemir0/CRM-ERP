@@ -212,7 +212,7 @@ export class StocksTransactionsService {
         quantityBefore: qBefore,
         quantityAfter: qBefore,
         type: 'out',
-        referenceType: referenceInfo?.type || 'reserve',
+        referenceType: referenceInfo?.type || 'lock',
         referenceId: referenceInfo?.id || null,
         description: referenceInfo?.description || 'Stok Rezervasyonu',
         createdBy: userId
@@ -257,6 +257,61 @@ export class StocksTransactionsService {
     }
 
     await manager.save(Stock, stocks);
+  }
+
+  async releaseStockBulk(
+    items: Array<{ itemId: string; quantity: number | Decimal | string }>,
+    departmentId: string,
+    manager: EntityManager = this.transactionContext.manager,
+    referenceInfo?: { type: StockMovement['referenceType']; id: string; description: string },
+    userId?: string
+  ): Promise<void> {
+    if (!items || items.length === 0) return;
+
+    const reducedItems = new Map<string, Decimal>();
+    for (const item of items) {
+      const q = new Decimal(item.quantity);
+      reducedItems.set(item.itemId, (reducedItems.get(item.itemId) || new Decimal(0)).add(q));
+    }
+    const uniqueItemIds = Array.from(reducedItems.keys()).sort();
+
+    const stocks = await manager.find(Stock, {
+      where: { itemId: In(uniqueItemIds), departmentId },
+      lock: { mode: 'pessimistic_write' }
+    });
+
+    const stockMap = new Map<string, Stock>();
+    stocks.forEach((s: Stock) => stockMap.set(s.itemId, s));
+
+    const movements: StockMovement[] = [];
+
+    for (const itemId of uniqueItemIds) {
+      const qty = reducedItems.get(itemId)!;
+      const stock = stockMap.get(itemId);
+
+      if (stock) {
+        const qBefore = new Decimal(stock.quantity);
+        stock.reservedQuantity = Decimal.max(0, new Decimal(stock.reservedQuantity || 0).sub(qty));
+        stock.updatedBy = userId || null;
+
+        movements.push(manager.create(StockMovement, {
+          stockId: stock.id,
+          quantity: qty,
+          quantityBefore: qBefore,
+          quantityAfter: qBefore,
+          type: 'in',
+          referenceType: referenceInfo?.type || 'revert',
+          referenceId: referenceInfo?.id || null,
+          description: referenceInfo?.description || 'Rezervasyon İptali',
+          createdBy: userId
+        }));
+      }
+    }
+
+    await manager.save(Stock, stocks);
+    if (movements.length > 0) {
+      await manager.save(StockMovement, movements);
+    }
   }
 
   async finalizeShipmentBulk(
@@ -314,7 +369,7 @@ export class StocksTransactionsService {
         unitCost,
         totalCost,
         type: 'out',
-        referenceType: referenceInfo?.type || 'shipment',
+        referenceType: referenceInfo?.type || 'deduct',
         referenceId: referenceInfo?.id || null,
         description: referenceInfo?.description || 'Sevkiyat Çıkışı',
         createdBy: userId

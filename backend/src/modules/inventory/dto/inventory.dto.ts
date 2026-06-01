@@ -68,7 +68,9 @@ export class UpdateItemDto {
 }
 
 export class ImportItemDto {
-  @IsString() @IsNotEmpty() code: string;
+  @IsOptional() @IsString() code?: string;
+  @IsOptional() @IsString() codeGroup?: string;
+  @IsOptional() @IsString() codeSequence?: string;
   @IsString() @IsNotEmpty() name: string;
   @IsOptional() @IsString() typeName?: string;
   @IsOptional() @IsString() unitName?: string;
@@ -76,6 +78,8 @@ export class ImportItemDto {
   @IsOptional() @IsNumber() @Type(() => Number) salePrice?: number;
   @IsOptional() @IsNumber() @Type(() => Number) criticalLimit?: number;
   @IsOptional() @IsNumber() @Type(() => Number) kdv?: number;
+  @IsOptional() @IsString() currencyCode?: string;
+  @IsOptional() @IsString() description?: string;
 }
 
 export class CreateItemTypeDto {

@@ -14,6 +14,7 @@ import { ItemCodeSequence } from './items/entities/item-code-sequence.entity';
 import { QuantityType } from './items/entities/quantity-type.entity';
 import { Stock } from './stocks/entities/stock.entity';
 import { StockMovement } from './stocks/entities/stock-movement.entity';
+import { Shipment } from './stocks/entities/shipment.entity';
 import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
 
 import { BomItem } from '../production/entities/bom-item.entity';
@@ -21,27 +22,29 @@ import { StocksReportsService } from './stocks/stocks-reports.service';
 import { StocksTransactionsService } from './stocks/stocks-transactions.service';
 import { ItemsReportsService } from './items/items-reports.service';
 import { ItemsTransactionsService } from './items/items-transactions.service';
+import { ShipmentsController } from './stocks/shipments.controller';
+import { ShipmentsService } from './stocks/shipments.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Item, ItemType, ItemSequence, ItemCodeGroup, 
-      ItemCodeSequence, QuantityType, Stock, StockMovement,
+      ItemCodeSequence, QuantityType, Stock, StockMovement, Shipment,
       BomItem
     ]),
     FinanceModule,
     LogsModule,
   ],
-  controllers: [ItemsController, StocksController],
+  controllers: [ItemsController, StocksController, ShipmentsController],
   providers: [
     ItemsService, ItemsReportsService, ItemsTransactionsService,
     StocksService, StocksReportsService, StocksTransactionsService, 
-    SequenceGeneratorService
+    ShipmentsService, SequenceGeneratorService
   ],
   exports: [
     ItemsService, ItemsReportsService, ItemsTransactionsService,
     StocksService, StocksReportsService, StocksTransactionsService, 
-    SequenceGeneratorService
+    ShipmentsService, SequenceGeneratorService
   ],
 })
 export class InventoryModule {}
