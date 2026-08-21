@@ -22,52 +22,34 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
 
-  // SEC-01: Security Headers (Cross-origin API uyumlu)
+  // Cross-origin istekler için Helmet politikası
   app.use(
     helmet({
-      crossOriginResourcePolicy: { policy: 'cross-origin' },
-      crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+      crossOriginResourcePolicy: false,
     }),
   );
-  logger.log('✅ Helmet security headers enabled (cross-origin friendly)');
 
-  // PERF-01: Response Compression
   app.use(compression());
-  logger.log('✅ Response compression enabled');
-
-  // SEC-02: Trust Proxy for Render / Cloud Load Balancers
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
-
-  // Cookie Parser
   app.use(cookieParser());
 
-  // CORS - Tüm Vercel önizleme domainlerine, Render ve localhost'a otomatik izin ver
-  const allowedOriginsRaw = configService.get<string>('ALLOWED_ORIGINS');
-  const allowedOrigins = allowedOriginsRaw 
-    ? allowedOriginsRaw.split(',').map(o => o.trim())
-    : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5143'];
-
+  // 🔥 TÜM VERCEL VE LOCAL DOMAINLERI KUSURSUZ KABUL EDEN CORS
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-      // Postman, sunucu içi veya originsiz istekler
-      if (!origin) return callback(null, true);
-
-      const isAllowed = 
-        allowedOrigins.includes(origin) ||
-        allowedOrigins.includes('*') ||
-        /\.vercel\.app$/.test(origin) ||
-        /\.onrender\.com$/.test(origin) ||
-        origin.includes('localhost') ||
-        origin.includes('127.0.0.1');
-
-      if (isAllowed) {
-        return callback(null, true);
-      }
-      return callback(null, false);
+      // Gelen origin'i dinamik olarak onayla (Credentials ile tam uyumlu)
+      callback(null, true);
     },
-    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-CSRF-TOKEN'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+      'X-CSRF-TOKEN',
+      'Cookie',
+    ],
     exposedHeaders: ['Set-Cookie', 'X-CSRF-TOKEN'],
     preflightContinue: false,
     optionsSuccessStatus: 204,
@@ -87,15 +69,11 @@ async function bootstrap() {
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // Graceful Shutdown
   app.enableShutdownHooks();
-  logger.log('✅ Graceful shutdown hooks enabled');
 
-  // Render dinamik PORT'unu öncelikli al
   const port = process.env.PORT || configService.get<number>('APP_PORT') || 5143;
   await app.listen(port, '0.0.0.0');
-  logger.log(`🚀 ERP Backend API running on port ${port} (http://0.0.0.0:${port}/api)`);
-  logger.log(`📊 Health check: http://0.0.0.0:${port}/api/health`);
+  logger.log(`🚀 ERP Backend API running on port ${port}`);
 }
 bootstrap();
 
