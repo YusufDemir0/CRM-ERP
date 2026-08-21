@@ -12,27 +12,30 @@ import { Logger } from 'nestjs-pino';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
-    bufferLogs: true, // Wait for Pino to be ready
+    bufferLogs: true,
   });
   
-  // Use Pino for global logging
   const logger = app.get(Logger);
   app.useLogger(logger);
   
   const configService = app.get(ConfigService);
 
-  // Global prefix
   app.setGlobalPrefix('api');
 
-  // SEC-01: Security Headers
-  app.use(helmet());
-  logger.log('✅ Helmet security headers enabled');
+  // SEC-01: Security Headers (Cross-origin API uyumlu)
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+    }),
+  );
+  logger.log('✅ Helmet security headers enabled (cross-origin friendly)');
 
   // PERF-01: Response Compression
   app.use(compression());
   logger.log('✅ Response compression enabled');
 
-  // SEC-02: Trust Proxy
+  // SEC-02: Trust Proxy for Render / Cloud Load Balancers
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
   // Cookie Parser
@@ -46,55 +49,53 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-      // Postman, curl veya originsiz isteklere izin ver
+      // Postman, sunucu içi veya originsiz istekler
       if (!origin) return callback(null, true);
 
-      // İzin verilen tam originler, tüm *.vercel.app domainleri, *.onrender.com veya localhost
-      if (
+      const isAllowed = 
         allowedOrigins.includes(origin) ||
         allowedOrigins.includes('*') ||
         /\.vercel\.app$/.test(origin) ||
         /\.onrender\.com$/.test(origin) ||
-        origin.startsWith('http://localhost') ||
-        origin.startsWith('http://127.0.0.1')
-      ) {
+        origin.includes('localhost') ||
+        origin.includes('127.0.0.1');
+
+      if (isAllowed) {
         return callback(null, true);
       }
-
-      return callback(new Error(`CORS blocked for origin: ${origin}`), false);
+      return callback(null, false);
     },
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true,
-    exposedHeaders: ['X-CSRF-TOKEN'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-CSRF-TOKEN'],
+    exposedHeaders: ['Set-Cookie', 'X-CSRF-TOKEN'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 
-  // Global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
       transformOptions: {
-        enableImplicitConversion: false, // ROAST FIX: Kapalı, artık tipler string olarak kalacak (BigInt vs)
+        enableImplicitConversion: false,
       },
     }),
   );
 
-  // Global interceptors
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
-
-  // Global exception filter
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // 🔥 ENTERPRISE: Graceful Shutdown — K8s SIGTERM handling
+  // Graceful Shutdown
   app.enableShutdownHooks();
   logger.log('✅ Graceful shutdown hooks enabled');
 
-  // Use ConfigService for Port
-  const port = configService.get<number>('APP_PORT') || 5143;
+  // Render dinamik PORT'unu öncelikli al
+  const port = process.env.PORT || configService.get<number>('APP_PORT') || 5143;
   await app.listen(port, '0.0.0.0');
-  logger.log(`🚀 ERP Backend API running on http://0.0.0.0:${port}/api`);
-  logger.log(`📊 Health check: http://localhost:${port}/api/health`);
+  logger.log(`🚀 ERP Backend API running on port ${port} (http://0.0.0.0:${port}/api)`);
+  logger.log(`📊 Health check: http://0.0.0.0:${port}/api/health`);
 }
 bootstrap();
 
