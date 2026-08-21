@@ -38,7 +38,7 @@ async function bootstrap() {
   // Cookie Parser
   app.use(cookieParser());
 
-  // CORS - Enhanced configuration for Vercel & Production domains
+  // CORS - Tüm Vercel önizleme domainlerine, Render ve localhost'a otomatik izin ver
   const allowedOriginsRaw = configService.get<string>('ALLOWED_ORIGINS');
   const allowedOrigins = allowedOriginsRaw 
     ? allowedOriginsRaw.split(',').map(o => o.trim())
@@ -46,16 +46,22 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      // Postman, curl veya originsiz isteklere izin ver
       if (!origin) return callback(null, true);
+
+      // İzin verilen tam originler, tüm *.vercel.app domainleri, *.onrender.com veya localhost
       if (
         allowedOrigins.includes(origin) ||
         allowedOrigins.includes('*') ||
-        origin.endsWith('.vercel.app') ||
-        origin.endsWith('.onrender.com')
+        /\.vercel\.app$/.test(origin) ||
+        /\.onrender\.com$/.test(origin) ||
+        origin.startsWith('http://localhost') ||
+        origin.startsWith('http://127.0.0.1')
       ) {
         return callback(null, true);
       }
-      return callback(null, true);
+
+      return callback(new Error(`CORS blocked for origin: ${origin}`), false);
     },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
