@@ -1,10 +1,12 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional, Inject } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, In } from 'typeorm';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { OutboxEvent, OutboxStatus } from '../entities/outbox-event.entity';
 import { RabbitMQService } from './rabbitmq.service';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import dayjs from 'dayjs';
 
 /**
@@ -12,16 +14,10 @@ import dayjs from 'dayjs';
  * 
  * ARCHITECTURE:
  *   - Runs in a SEPARATE process (worker.ts), NOT in the API process
- *   - Uses in-process EventEmitter for instant notification when new events are saved
+ *   - Uses in-process EventEmitter + Redis Pub/Sub for instant notification across containers
  *   - Adaptive polling: fast when busy, slow when idle (fallback only)
  *   - Uses SELECT ... FOR UPDATE SKIP LOCKED for multi-replica safety
  *   - Failed events go to Dead Letter Queue after 5 attempts
- * 
- * TRIGGER MECHANISM (MySQL-compatible):
- *   1. Primary: OutboxService emits 'outbox.new-event' after saving → Worker picks up immediately
- *   2. Fallback: 60-second heartbeat poll for edge cases (worker restart, missed events)
- * 
- * Flow: DB (outbox_events) → Worker → RabbitMQ (durable) → Consumers
  */
 @Injectable()
 export class OutboxWorker implements OnModuleInit {
@@ -37,10 +33,30 @@ export class OutboxWorker implements OnModuleInit {
     private readonly outboxRepo: Repository<OutboxEvent>,
     private readonly rabbitmq: RabbitMQService,
     private readonly eventEmitter: EventEmitter2,
+    @Optional() @Inject(CACHE_MANAGER) private readonly cacheManager?: Cache,
   ) {}
 
   onModuleInit() {
-    this.logger.log('OutboxWorker initialized — listening for outbox.new-event');
+    this.logger.log('OutboxWorker initialized — listening for outbox.new-event and Redis signals');
+    
+    // Subscribe to Redis pub/sub if available
+    try {
+      if (this.cacheManager) {
+        const cm = this.cacheManager as unknown as {
+          store?: { client?: { subscribe?: (channel: string, cb: () => void) => Promise<unknown> } };
+          stores?: Array<{ client?: { subscribe?: (channel: string, cb: () => void) => Promise<unknown> } }>;
+        };
+        const store = cm.store || cm.stores?.[0];
+        const redisClient = store?.client;
+        if (redisClient && typeof redisClient.subscribe === 'function') {
+          redisClient.subscribe('outbox:events', () => {
+            this.onNewEvent().catch(() => {});
+          });
+        }
+      }
+    } catch (e) {
+      this.logger.debug(`Redis pub/sub subscription skipped: ${e?.message || e}`);
+    }
   }
 
   /**
@@ -166,7 +182,9 @@ export class OutboxWorker implements OnModuleInit {
       .update(OutboxEvent)
       .set({ status: OutboxStatus.PENDING })
       .where('status = :status', { status: OutboxStatus.PROCESSING })
-      .andWhere('updatedAt < :threshold', { threshold: staleThreshold })
+      .andWhere('(processedAt < :threshold OR (processedAt IS NULL AND createdAt < :threshold))', {
+        threshold: staleThreshold,
+      })
       .execute();
 
     if (result.affected && result.affected > 0) {

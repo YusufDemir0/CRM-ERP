@@ -16,8 +16,13 @@ import { Decimal } from 'decimal.js';
 import { useDeferredValue } from 'react';
 import { queryKeys } from '../../services/queryKeys';
 import { ViewAccountTransactionsModal } from '../../components/modals/ViewAccountTransactionsModal';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function AccountsPage() {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('FINANCE_CREATE');
+  const canEdit = hasPermission('FINANCE_EDIT');
+  const canDelete = hasPermission('FINANCE_DELETE');
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -146,40 +151,34 @@ export default function AccountsPage() {
       header: 'IBAN DETAYI', 
       accessor: (acc) => (
         <div className="flex items-center gap-2">
-          <FiHash size={12} className="text-slate-400" />
-          <span className="tabular-nums text-xs font-bold text-on-surface-variant tracking-tighter">{acc.iban || 'BELİRTİLMEMİŞ'}</span>
+          <FiHash size={12} className="text-slate-400 shrink-0" />
+          <div className="flex flex-col">
+            <span className="tabular-nums text-xs font-bold text-on-surface-variant tracking-tighter">{acc.iban || 'BELİRTİLMEMİŞ'}</span>
+            {acc.ibanName && <span className="text-[10px] text-slate-400 font-semibold">{acc.ibanName}</span>}
+          </div>
         </div>
       ),
       sortKey: 'iban'
     },
     { 
-      header: 'KRİTİK LİMİT', 
+      header: 'NET BAKİYE', 
       accessor: (acc) => {
-        const limit = new Decimal(acc.criticalLimit || 0);
+        const balNum = Number(acc.balance || 0);
+        const formatAmount = (val: number) =>
+          val.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return (
-          <div className="text-right flex flex-col items-end">
-            <span className={`tabular-nums font-black text-base tracking-tighter ${limit.lt(0) ? 'text-danger' : 'text-on-surface'}`}>
-              {limit.toNumber().toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {acc.currency?.symbol || '₺'}
+          <div className="flex items-center gap-2">
+            <span className={`tabular-nums font-black text-sm tracking-tight ${
+              balNum >= 0 ? 'text-emerald-600' : 'text-rose-600'
+            }`}>
+              {balNum >= 0 ? '+' : ''}{formatAmount(balNum)}
+            </span>
+            <span className="text-[10px] font-bold text-slate-400">
+              {acc.currency?.symbol || '₺'}
             </span>
           </div>
         );
-      },
-      sortKey: 'criticalLimit',
-      className: 'text-right'
-    },
-    {
-      header: 'DURUM',
-      accessor: (acc) => (
-        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-          acc.state === 1 
-            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
-            : 'bg-red-50 text-red-600 border border-red-100'
-        }`}>
-          <div className={`w-1.5 h-1.5 rounded-full ${acc.state === 1 ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-          {acc.state === 1 ? 'AKTİF' : 'ARŞİV'}
-        </div>
-      ),
-      sortKey: 'state'
+      }
     }
   ];
 
@@ -198,30 +197,13 @@ export default function AccountsPage() {
         </div>
         
         <div className="flex flex-wrap gap-4 items-center">
-          <div className="flex bg-surface-container-low p-1 rounded-2xl border border-surface-container shadow-sm">
-            {[
-              { id: 'active', label: 'Aktif', icon: <FiActivity /> },
-              { id: 'passive', label: 'Arşiv', icon: <FiArchive /> },
-              { id: 'all', label: 'Tümü', icon: <FiFilter /> }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setFilterTab(tab.id)}
-                className={`h-9 px-4 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
-                  filterTab === tab.id 
-                    ? 'bg-white text-primary shadow-premium ring-1 ring-black/5' 
-                    : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50/50'
-                }`}
-              >
-                {tab.icon} {tab.label.toUpperCase()}
-              </button>
-            ))}
-          </div>
-          <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
-            openCreate('account', { onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all({}) }) });
-          }}>
-            <FiPlus size={20} /> Yeni Hesap
-          </button>
+          {canCreate && (
+            <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
+              openCreate('account', { onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all({}) }) });
+            }}>
+              <FiPlus size={20} /> Yeni Hesap
+            </button>
+          )}
         </div>
       </div>
 
@@ -234,9 +216,9 @@ export default function AccountsPage() {
           onSort={toggleSort}
           getRowKey={(acc) => acc.id}
           hasState={(acc) => acc.state === 1}
-          onEdit={handleEdit}
-          onArchive={(acc) => toggleState(acc.id, 1)}
-          onRestore={(acc) => toggleState(acc.id, 0)}
+          onEdit={canEdit ? handleEdit : undefined}
+          onArchive={canDelete ? (acc) => toggleState(acc.id, 1) : undefined}
+          onRestore={canDelete ? (acc) => toggleState(acc.id, 0) : undefined}
           getRowOpacity={(acc) => acc.state === 0 ? 0.5 : 1}
           renderExtraActions={(acc) => (
             <button 

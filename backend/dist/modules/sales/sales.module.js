@@ -36,7 +36,7 @@ exports.SalesModule = SalesModule = __decorate([
                 sale_entity_1.Sale, sale_item_entity_1.SaleItem, sale_type_entity_1.SaleType, sale_sequence_entity_1.SaleSequence, sale_installment_entity_1.SaleInstallment, party_entity_1.Party, ledger_entity_1.AccountingLedger, transaction_entity_1.Transaction
             ]),
             common_module_1.CommonModule,
-            inventory_module_1.InventoryModule,
+            (0, common_1.forwardRef)(() => inventory_module_1.InventoryModule),
             logs_module_1.LogsModule,
         ],
         controllers: [sales_controller_1.SalesController],

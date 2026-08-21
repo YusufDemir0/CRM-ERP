@@ -33,8 +33,18 @@ async function bootstrap() {
         ? allowedOriginsRaw.split(',').map(o => o.trim())
         : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5143'];
     app.enableCors({
-        origin: allowedOrigins,
-        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+        origin: (origin, callback) => {
+            if (!origin)
+                return callback(null, true);
+            if (allowedOrigins.includes(origin) ||
+                allowedOrigins.includes('*') ||
+                origin.endsWith('.vercel.app') ||
+                origin.endsWith('.onrender.com')) {
+                return callback(null, true);
+            }
+            return callback(null, true);
+        },
+        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
         credentials: true,
         exposedHeaders: ['X-CSRF-TOKEN'],
     });

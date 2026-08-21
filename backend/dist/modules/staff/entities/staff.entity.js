@@ -77,6 +77,10 @@ __decorate([
     __metadata("design:type", Boolean)
 ], Staff.prototype, "isActive", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', nullable: true, default: null }),
+    __metadata("design:type", Object)
+], Staff.prototype, "unit", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => department_entity_1.Department),
     (0, typeorm_1.JoinColumn)({ name: 'department_id' }),
     __metadata("design:type", department_entity_1.Department)

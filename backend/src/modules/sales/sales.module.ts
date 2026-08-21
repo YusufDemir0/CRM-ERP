@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SalesController } from './sales.controller';
 import { SalesService } from './sales.service';
@@ -25,7 +25,7 @@ import { SalesTransactionsService } from './sales-transactions.service';
       Sale, SaleItem, SaleType, SaleSequence, SaleInstallment, Party, AccountingLedger, Transaction
     ]),
     CommonModule,
-    InventoryModule,
+    forwardRef(() => InventoryModule),
     LogsModule,
   ],
   controllers: [SalesController],

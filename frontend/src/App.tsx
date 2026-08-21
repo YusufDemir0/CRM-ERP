@@ -25,12 +25,12 @@ const MasterSalesPage = lazy(() => import('./pages/MasterSalesPage'));
 const SaleWizardPage = lazy(() => import('./pages/modules/SalesWizard/SaleWizardPage'));
 const AccountsPage = lazy(() => import('./pages/modules/AccountsPage'));
 const TransactionsPage = lazy(() => import('./pages/modules/TransactionsPage'));
-const PaymentsPage = lazy(() => import('./pages/modules/PaymentsPage'));
 const BomsPage = lazy(() => import('./pages/modules/BomsPage').then(m => ({ default: m.BomsPage })));
 const ProductionPage = lazy(() => import('./pages/modules/ProductionPage').then(m => ({ default: m.ProductionPage })));
 const NotesPage = lazy(() => import('./pages/modules/NotesPage'));
 const LogsPage = lazy(() => import('./pages/modules/LogsPage'));
 const UnauthorizedPage = lazy(() => import('./pages/modules/UnauthorizedPage'));
+const PersonnelUnitsPage = lazy(() => import('./pages/modules/PersonnelUnitsPage'));
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -54,11 +54,11 @@ function ProfileLoader() {
   const location = useLocation();
 
   useEffect(() => {
-    // Only fetch profile if not on login page
-    if (location.pathname !== '/login') {
+    // Only fetch profile once on mount if not on login page
+    if (window.location.pathname !== '/login') {
       fetchProfile();
     }
-  }, [location.pathname, fetchProfile]);
+  }, [fetchProfile]);
 
   return null;
 }
@@ -67,66 +67,67 @@ export default function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-          <BrowserRouter>
-            <ProfileLoader />
-            <GlobalLoader />
-            <Suspense fallback={<GlobalLoader mode="trigger" message="SAYFA YÜKLENİYOR..." />}>
-              <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/unauthorized" element={<UnauthorizedPage />} />
-                <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-                  <Route index element={<ErrorBoundary><DashboardPage /></ErrorBoundary>} />
-                  <Route path="users" element={<ErrorBoundary><ProtectedRoute requiredPermission="USER_VIEW"><UsersPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="roles" element={<ErrorBoundary><ProtectedRoute requiredPermission="ROLE_VIEW"><RolesPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="departments" element={<ErrorBoundary><ProtectedRoute requiredPermission="SYSTEM_MANAGE"><DepartmentsPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="parties" element={<ErrorBoundary><ProtectedRoute requiredPermission="CUSTOMER_VIEW"><PartiesPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="items" element={<ErrorBoundary><ProtectedRoute requiredPermission="INVENTORY_VIEW"><ItemsPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="stocks" element={<ErrorBoundary><ProtectedRoute requiredPermission="INVENTORY_VIEW"><StocksPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="stocks/movements" element={<ErrorBoundary><ProtectedRoute requiredPermission="INVENTORY_VIEW"><StockMovementsPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="shipments" element={<ErrorBoundary><ProtectedRoute requiredPermission="SHIPMENT_VIEW"><ShipmentsPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="sales" element={<ErrorBoundary><ProtectedRoute requiredPermission="SALES_VIEW"><SalesPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="mastersale" element={<ErrorBoundary><ProtectedRoute requiredPermission="SALES_MASTER_VIEW"><MasterSalesPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="sales/wizard" element={<ErrorBoundary><ProtectedRoute requiredPermission="SALES_CREATE"><SaleWizardPage /></ProtectedRoute></ErrorBoundary>} />
+        <BrowserRouter>
+          <ProfileLoader />
+          <GlobalLoader />
+          <Suspense fallback={<GlobalLoader mode="trigger" message="SAYFA YÜKLENİYOR..." />}>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/unauthorized" element={<UnauthorizedPage />} />
+              <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+                <Route index element={<ErrorBoundary><DashboardPage /></ErrorBoundary>} />
+                <Route path="users" element={<ErrorBoundary><ProtectedRoute requiredPermission="USERS_PAGE"><UsersPage /></ProtectedRoute></ErrorBoundary>} />
+                <Route path="roles" element={<ErrorBoundary><ProtectedRoute requiredPermission="ROLES_PAGE"><RolesPage /></ProtectedRoute></ErrorBoundary>} />
+                <Route path="departments" element={<ErrorBoundary><ProtectedRoute requiredPermission="DEPARTMENTS_PAGE"><DepartmentsPage /></ProtectedRoute></ErrorBoundary>} />
+                <Route path="parties" element={<ErrorBoundary><ProtectedRoute requiredPermission="PARTIES_PAGE"><PartiesPage /></ProtectedRoute></ErrorBoundary>} />
+                <Route path="parties/movements" element={<ErrorBoundary><ProtectedRoute requiredPermission="PARTIES_PAGE"><PartiesPage /></ProtectedRoute></ErrorBoundary>} />
+                <Route path="items" element={<ErrorBoundary><ProtectedRoute requiredPermission="INVENTORY_PAGE"><ItemsPage /></ProtectedRoute></ErrorBoundary>} />
+                <Route path="stocks" element={<ErrorBoundary><ProtectedRoute requiredPermission="INVENTORY_PAGE"><StocksPage /></ProtectedRoute></ErrorBoundary>} />
+                <Route path="stocks/movements" element={<ErrorBoundary><ProtectedRoute requiredPermission="INVENTORY_PAGE"><StockMovementsPage /></ProtectedRoute></ErrorBoundary>} />
+                <Route path="shipments" element={<ErrorBoundary><ProtectedRoute requiredPermission="SHIPMENT_VIEW"><ShipmentsPage /></ProtectedRoute></ErrorBoundary>} />
+                <Route path="sales" element={<ErrorBoundary><ProtectedRoute requiredPermission="SALES_PAGE"><SalesPage /></ProtectedRoute></ErrorBoundary>} />
+                <Route path="mastersale" element={<ErrorBoundary><ProtectedRoute requiredPermission="SALES_VIEW_ALL"><MasterSalesPage /></ProtectedRoute></ErrorBoundary>} />
+                <Route path="sales/wizard" element={<ErrorBoundary><ProtectedRoute requiredPermission="SALES_CREATE"><SaleWizardPage /></ProtectedRoute></ErrorBoundary>} />
 
-                  <Route path="accounts" element={<ErrorBoundary><ProtectedRoute requiredPermission="FINANCE_VIEW"><AccountsPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="payments" element={<ErrorBoundary><ProtectedRoute requiredPermission="FINANCE_VIEW"><PaymentsPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="transactions" element={<ErrorBoundary><ProtectedRoute requiredPermission="FINANCE_VIEW"><TransactionsPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="boms" element={<ErrorBoundary><ProtectedRoute requiredPermission="PRODUCTION_VIEW"><BomsPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="production" element={<ErrorBoundary><ProtectedRoute requiredPermission="PRODUCTION_VIEW"><ProductionPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="settings" element={<ErrorBoundary><ProtectedRoute requiredPermission="SYSTEM_MANAGE"><SettingsPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="logs" element={<ErrorBoundary><ProtectedRoute requiredPermission="AUDIT_LOG_VIEW"><LogsPage /></ProtectedRoute></ErrorBoundary>} />
-                  <Route path="notes" element={<ErrorBoundary><NotesPage /></ErrorBoundary>} />
-                </Route>
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Suspense>
-            <QuickCreateManager />
-            <ReAuthModal />
-            <CommandPalette />
-            <GlobalConfirmModal />
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: 'var(--bg-card)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  padding: '12px 16px',
-                  boxShadow: 'var(--shadow-lg)',
-                },
-                success: {
-                  iconTheme: { primary: 'var(--success)', secondary: '#fff' },
-                },
-                error: {
-                  iconTheme: { primary: 'var(--danger)', secondary: '#fff' },
-                },
-              }}
-            />
-          </BrowserRouter>
+                <Route path="accounts" element={<ErrorBoundary><ProtectedRoute requiredPermission="FINANCE_PAGE"><AccountsPage /></ProtectedRoute></ErrorBoundary>} />
+                <Route path="transactions" element={<ErrorBoundary><ProtectedRoute requiredPermission="FINANCE_PAGE"><TransactionsPage /></ProtectedRoute></ErrorBoundary>} />
+                <Route path="boms" element={<ErrorBoundary><ProtectedRoute requiredPermission="PRODUCTION_PAGE"><BomsPage /></ProtectedRoute></ErrorBoundary>} />
+                <Route path="production" element={<ErrorBoundary><ProtectedRoute requiredPermission="PRODUCTION_PAGE"><ProductionPage /></ProtectedRoute></ErrorBoundary>} />
+                <Route path="settings" element={<ErrorBoundary><ProtectedRoute requiredPermission="SYSTEM_PAGE"><SettingsPage /></ProtectedRoute></ErrorBoundary>} />
+                <Route path="logs" element={<ErrorBoundary><ProtectedRoute requiredPermission="SYSTEM_VIEW_LOGS"><LogsPage /></ProtectedRoute></ErrorBoundary>} />
+                <Route path="notes" element={<ErrorBoundary><NotesPage /></ErrorBoundary>} />
+                <Route path="personnel/units" element={<ErrorBoundary><ProtectedRoute requiredPermission="DEPARTMENTS_PAGE"><PersonnelUnitsPage /></ProtectedRoute></ErrorBoundary>} />
+              </Route>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+          <QuickCreateManager />
+          <ReAuthModal />
+          <CommandPalette />
+          <GlobalConfirmModal />
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: 'var(--bg-card)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '14px',
+                fontWeight: '600',
+                padding: '12px 16px',
+                boxShadow: 'var(--shadow-lg)',
+              },
+              success: {
+                iconTheme: { primary: 'var(--success)', secondary: '#fff' },
+              },
+              error: {
+                iconTheme: { primary: 'var(--danger)', secondary: '#fff' },
+              },
+            }}
+          />
+        </BrowserRouter>
       </QueryClientProvider>
     </ErrorBoundary>
   );

@@ -17,6 +17,7 @@ export declare class CreateSaleDto {
     deposit?: string;
     discountAmount?: string;
     discountPercent?: string;
+    representativePrice?: string;
     notes?: string;
     phone?: string;
     address?: string;
@@ -35,10 +36,12 @@ export declare class UpdateSaleDto {
     partyId: string;
     currencyId: string;
     staffId: string;
+    saleTypeId?: string;
     deliveryDate?: string;
     deposit?: string;
     discountAmount?: string;
     discountPercent?: string;
+    representativePrice?: string;
     notes?: string;
     phone?: string;
     address?: string;
@@ -70,10 +73,17 @@ export declare class SalesQueryDto extends PaginationDto {
     status?: string;
     partyId?: string;
     ownSalesOnly?: string | boolean;
+    departmentId?: string;
 }
 export declare class ShipSaleDto {
     items?: {
         itemId: string;
         quantity: string | number;
     }[];
+    payments?: {
+        commercialAccountId: string;
+        amount: string | number;
+    }[];
+    vehicleIds?: string[];
+    assignedStaffIds?: string[];
 }

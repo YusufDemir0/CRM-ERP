@@ -7,4 +7,5 @@ export declare class UpdateStaffDto {
     isActive?: boolean;
     state?: number;
     tckn?: string;
+    unit?: string;
 }

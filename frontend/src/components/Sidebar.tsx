@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { FiX } from 'react-icons/fi';
 import { useAuth } from '../hooks/useAuth';
 import { navItems } from '../config/navigation';
@@ -11,6 +11,7 @@ import { memo } from 'react';
 export const Sidebar = memo(({ isCollapsed, isMobileOpen, onClose }: { isCollapsed: boolean; isMobileOpen?: boolean; onClose?: () => void }) => {
   const { user, hasPermission } = useAuth();
   const queryClient = useQueryClient();
+  const location = useLocation();
 
   const handlePrefetch = (to: string) => {
     // Intent-to-Fetch: Prefetch data based on navigation target
@@ -129,8 +130,11 @@ export const Sidebar = memo(({ isCollapsed, isMobileOpen, onClose }: { isCollaps
               <NavLink
                 key={item.to}
                 to={item.to}
-                end={item.to === '/' || item.to === '/stocks'}
-                className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+                className={({ isActive }) => {
+                  const isExact = item.to === '/' || item.to === '/parties' || item.to === '/stocks';
+                  const active = isExact ? location.pathname === item.to : isActive;
+                  return `nav-link ${active ? 'active' : ''}`;
+                }}
                 onMouseEnter={() => handlePrefetch(item.to)}
                 title={isCollapsed ? item.label : undefined}
               >

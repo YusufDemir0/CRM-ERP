@@ -312,7 +312,7 @@ let ItemsTransactionsService = class ItemsTransactionsService {
             }
         }
         catch (dbErr) {
-            throw new common_1.BadRequestException(`Veritabanı kayıt işlemi başarısız oldu: ${dbErr.message}`);
+            throw new common_1.BadRequestException(`Veritabanı kayıt işlemi başarısız oldu: ${dbErr instanceof Error ? dbErr.message : String(dbErr)}`);
         }
         return { updatedCount, insertedCount, errors };
     }
@@ -346,12 +346,16 @@ let ItemsTransactionsService = class ItemsTransactionsService {
                 if (!val)
                     return 0;
                 const clean = val.replace(/\s/g, '').replace(/,/g, '.');
-                const num = parseFloat(clean);
-                if (isNaN(num)) {
+                try {
+                    const d = new decimal_js_1.Decimal(clean);
+                    if (d.isNaN())
+                        throw new Error('NaN');
+                    return d.toDecimalPlaces(4).toNumber();
+                }
+                catch {
                     errors.push(`Satır ${rowNum}: '${colName}' geçersiz sayı formatı içeriyor: '${val}'. Değer '0' olarak kabul edildi.`);
                     return 0;
                 }
-                return num;
             };
             const purchasePrice = parseNumber(purchasePriceStr, 'Alış Fiyatı', rowNumber);
             const salePrice = parseNumber(salePriceStr, 'Satış Fiyatı', rowNumber);

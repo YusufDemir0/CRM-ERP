@@ -1,5 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseIntPipe, Res } from '@nestjs/common';
-import { Response } from 'express';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseIntPipe, StreamableFile, Header, ForbiddenException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { SalesService } from './sales.service';
 import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto, SalesQueryDto, ShipSaleDto } from './dto/sale.dto';
@@ -22,28 +21,73 @@ export class SalesController {
   }
 
   @Get('status')
-  @RequirePermissions('SALES_VIEW')
+  @RequirePermissions('SALES_VIEW_OWN', 'SALES_VIEW_DEPT', 'SALES_VIEW_ALL')
   getStatus() {
     return this.salesService.getStatus();
   }
 
   // ────── SALES ──────
   @Get('export')
-  @RequirePermissions('SALES_VIEW')
-  export(@Query() query: SalesQueryDto, @CurrentUser() user: JwtPayload, @Res() res: Response) {
-    return this.salesService.exportToExcel(query, user, res);
+  @RequirePermissions('SALES_VIEW_OWN', 'SALES_VIEW_DEPT', 'SALES_VIEW_ALL')
+  @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  @Header('Content-Disposition', 'attachment; filename="Satis_Raporu.xlsx"')
+  export(@Query() query: SalesQueryDto, @CurrentUser() user: JwtPayload): Promise<StreamableFile> {
+    return this.salesService.exportToExcel(query, user);
   }
 
   @Get()
-  @RequirePermissions('SALES_VIEW')
   findAll(@Query() query: SalesQueryDto, @CurrentUser() user: JwtPayload) {
-    return this.salesService.findAll(query, user);
+    const hasSalesView = user.isSystemAdmin || 
+                         user.permissions?.includes('SALES_VIEW_OWN') || 
+                         user.permissions?.includes('SALES_VIEW_DEPT') || 
+                         user.permissions?.includes('SALES_VIEW_ALL') ||
+                         user.permissions?.includes('sales_view_own') || 
+                         user.permissions?.includes('sales_view_dept') || 
+                         user.permissions?.includes('sales_view_all');
+    const hasCustomerView = user.isSystemAdmin || 
+                            user.permissions?.includes('PARTIES_VIEW_OWN') || 
+                            user.permissions?.includes('PARTIES_VIEW_DEPT') || 
+                            user.permissions?.includes('PARTIES_VIEW_ALL') ||
+                            user.permissions?.includes('parties_view_own') || 
+                            user.permissions?.includes('parties_view_dept') || 
+                            user.permissions?.includes('parties_view_all') ||
+                            user.permissions?.includes('PARTIES_VIEW_SALES_HISTORY');
+    
+    if (hasSalesView || (hasCustomerView && query.partyId)) {
+      return this.salesService.findAll(query, user);
+    }
+    
+    throw new ForbiddenException('Bu işlem için yetkiniz bulunmamaktadır.');
+  }
+
+  @Get('minimal-lookup')
+  findMinimalLookup(@CurrentUser() user: JwtPayload) {
+    return this.salesService.findMinimalLookup(user);
   }
 
   @Get(':id')
-  @RequirePermissions('SALES_VIEW')
-  findOne(@Param('id') id: string) {
-    return this.salesService.findOne(id);
+  async findOne(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    const hasSalesView = user.isSystemAdmin || 
+                         user.permissions?.includes('SALES_VIEW_OWN') || 
+                         user.permissions?.includes('SALES_VIEW_DEPT') || 
+                         user.permissions?.includes('SALES_VIEW_ALL') ||
+                         user.permissions?.includes('sales_view_own') || 
+                         user.permissions?.includes('sales_view_dept') || 
+                         user.permissions?.includes('sales_view_all');
+    const hasCustomerView = user.isSystemAdmin || 
+                            user.permissions?.includes('PARTIES_VIEW_OWN') || 
+                            user.permissions?.includes('PARTIES_VIEW_DEPT') || 
+                            user.permissions?.includes('PARTIES_VIEW_ALL') ||
+                            user.permissions?.includes('parties_view_own') || 
+                            user.permissions?.includes('parties_view_dept') || 
+                            user.permissions?.includes('parties_view_all') ||
+                            user.permissions?.includes('PARTIES_VIEW_SALES_HISTORY');
+
+    if (hasSalesView || hasCustomerView) {
+      return this.salesService.findOne(id);
+    }
+
+    throw new ForbiddenException('Bu işlem için yetkiniz bulunmamaktadır.');
   }
 
   @Post()
@@ -53,9 +97,13 @@ export class SalesController {
   }
 
   @Put(':id')
-  @RequirePermissions('SALES_EDIT')
-  update(@Param('id') id: string, @Body() dto: UpdateSaleDto, @CurrentUser('sub') userId: string) {
-    return this.salesService.update(id, dto, userId);
+  @RequirePermissions('SALES_EDIT_OWN', 'SALES_EDIT_ALL')
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateSaleDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.salesService.update(id, dto, String(user.sub), user);
   }
 
   /**
@@ -64,30 +112,36 @@ export class SalesController {
    * Tümü tek transaction içinde.
    */
   @Post(':id/approve')
-  @RequirePermissions('SALES_MASTER_APPROVE')
+  @RequirePermissions('SALES_APPROVE')
   approve(
     @Param('id') id: string,
     @Body() dto: ApproveSaleDto,
-    @CurrentUser('sub') userId: string,
+    @CurrentUser() user: JwtPayload,
   ) {
-    return this.salesService.approveSale(id, dto, userId);
+    return this.salesService.approveSale(id, dto, String(user.sub), user);
   }
 
   @Post(':id/cancel')
-  @RequirePermissions('SALES_MASTER_CANCEL')
-  cancel(@Param('id') id: string, @CurrentUser('sub') userId: string) {
-    return this.salesService.cancelSale(id, userId);
+  @RequirePermissions('SALES_CANCEL')
+  cancel(@Param('id') id: string, @Body() dto: { reason: string }, @CurrentUser('sub') userId: string) {
+    return this.salesService.cancelSale(id, dto.reason, userId);
+  }
+
+  @Post(':id/revert-to-draft')
+  @RequirePermissions('SALES_APPROVE')
+  revertToDraft(@Param('id') id: string, @CurrentUser('sub') userId: string) {
+    return this.salesService.revertToDraft(id, userId);
   }
 
   @Post(':id/ship')
-  @RequirePermissions('SALES_MASTER_SHIP')
+  @RequirePermissions('SALES_SHIP')
   ship(@Param('id') id: string, @Body() dto: ShipSaleDto, @CurrentUser('sub') userId: string) {
     return this.salesService.shipSale(id, dto, userId);
   }
 
   @Delete(':id')
-  @RequirePermissions('SALES_DELETE')
-  remove(@Param('id') id: string) {
-    return this.salesService.softDelete(id);
+  @RequirePermissions('SALES_DELETE_OWN')
+  remove(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.salesService.softDelete(id, String(user.sub), user);
   }
 }

@@ -2,7 +2,7 @@ import { useConfirmStore } from '../../store/useConfirmStore';
 import Modal from '../Modal';
 
 export default function GlobalConfirmModal() {
-  const { isOpen, message, isDestructive, handleConfirm, handleCancel } = useConfirmStore();
+  const { isOpen, message, isDestructive, confirmText, handleConfirm, handleCancel } = useConfirmStore();
 
   return (
     <Modal
@@ -10,6 +10,7 @@ export default function GlobalConfirmModal() {
       onClose={handleCancel}
       title="Onay Gerekiyor"
       width="400px"
+      zIndex={9900}
       footer={
         <>
           <button
@@ -26,7 +27,7 @@ export default function GlobalConfirmModal() {
                 : 'bg-[var(--primary)] hover:bg-indigo-600 shadow-indigo-500/20'
             }`}
           >
-            {isDestructive ? 'Evet, Sil' : 'Onayla'}
+            {confirmText || (isDestructive ? 'Evet, Sil' : 'Onayla')}
           </button>
         </>
       }

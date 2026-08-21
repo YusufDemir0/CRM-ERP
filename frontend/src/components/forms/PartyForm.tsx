@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { partiesAPI, currenciesAPI } from '../../services/api';
-import { FiCheck, FiSave, FiX } from 'react-icons/fi';
+import { FiCheck, FiSave, FiX, FiChevronDown } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { useTurkiyeCities, useTurkiyeDistricts } from '../../hooks/useTurkiyeApi';
 import type { Party, Currency } from '../../types';
@@ -44,6 +44,8 @@ export const PartyForm: React.FC<PartyFormProps> = ({
   onCancel,
 }) => {
   const [currencies, setCurrencies] = useState<Currency[]>([]);
+  const [showMore, setShowMore] = useState(!!editingId);
+  const moreRef = useRef<HTMLDivElement>(null);
   const { cities } = useTurkiyeCities();
   const { updateCache, getCache, clearCache } = useQuickCreateStore();
   const userDepartmentCityId = useAuthStore(s => s.user?.department?.cityId);
@@ -232,108 +234,137 @@ export const PartyForm: React.FC<PartyFormProps> = ({
         </FormField>
       </div>
 
-      {/* 4. E-Posta */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <FormField label="Kurumsal E-Posta" className="relative">
-          <input 
-            type="text" 
-            className="input-premium lowercase font-bold text-[var(--primary)]" 
-            {...register('email', { onChange: (e) => e.target.value = e.target.value.toLowerCase() })}
-            onFocus={() => setEmailFocus(true)}
-            onBlur={() => setTimeout(() => setEmailFocus(false), 200)}
-            placeholder="muhasebe@sirket.com" 
-          />
-          {emailFocus && emailWatcher && (
-            <div className="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded-2xl z-50 shadow-2xl mt-2 overflow-hidden ring-4 ring-[var(--primary-glow)]">
-              {emailWatcher.includes('@') ? (
-                ['@gmail.com', '@hotmail.com', '@outlook.com'].map(ext => (
-                  <div 
-                    key={ext} 
-                    className="p-3 cursor-pointer hover:bg-slate-50 text-sm font-black flex justify-between items-center group"
-                    onClick={() => setValue('email', emailWatcher.split('@')[0] + ext)}
-                  >
-                    <span className="text-slate-600">{emailWatcher.split('@')[0]}</span>
-                    <span className="text-[var(--primary)] group-hover:scale-110 transition-transform">{ext}</span>
-                  </div>
-                ))
-              ) : (
-                ['@gmail.com', '@hotmail.com', '@outlook.com'].map(ext => (
-                  <div 
-                    key={ext} 
-                    className="p-3 cursor-pointer hover:bg-slate-50 text-sm font-black flex justify-between items-center group"
-                    onClick={() => setValue('email', emailWatcher + ext)}
-                  >
-                    <span className="text-slate-600">{emailWatcher}</span>
-                    <span className="text-[var(--primary)] group-hover:scale-110 transition-transform">{ext}</span>
-                  </div>
-                ))
+      {/* ── "Daha Fazla Bilgi" Toggle ── */}
+      <button
+        type="button"
+        onClick={() => setShowMore(prev => !prev)}
+        className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 hover:bg-slate-100/80 hover:border-slate-400 transition-all group"
+      >
+        <FiChevronDown 
+          size={16} 
+          className={`text-slate-400 group-hover:text-[var(--primary)] transition-all duration-300 ${showMore ? 'rotate-180' : ''}`} 
+        />
+        <span className="text-[11px] font-black text-slate-400 group-hover:text-[var(--primary)] uppercase tracking-wider transition-colors">
+          {showMore ? 'Daha Az Göster' : 'Daha Fazla Bilgi'}
+        </span>
+        <FiChevronDown 
+          size={16} 
+          className={`text-slate-400 group-hover:text-[var(--primary)] transition-all duration-300 ${showMore ? 'rotate-180' : ''}`} 
+        />
+      </button>
+
+      {/* ── Collapsible Section ── */}
+      <div 
+        ref={moreRef}
+        className="overflow-hidden transition-all duration-400 ease-in-out"
+        style={{
+          maxHeight: showMore ? `${(moreRef.current?.scrollHeight || 800) + 40}px` : '0px',
+          opacity: showMore ? 1 : 0,
+          visibility: showMore ? 'visible' : 'hidden',
+        }}
+      >
+        <div className="flex flex-col gap-6 pt-1">
+          {/* Cari Tipi & VKN/TCKN */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <FormField label="Cari Tipi" error={errors.type?.message} required>
+              <select {...register('type')} className="form-input text-sm font-bold" disabled={mode === 'quick'}>
+                <option value="customer">Müşteri</option>
+                <option value="provider">Tedarikçi</option>
+              </select>
+            </FormField>
+            <FormField label={getTaxLabel()}>
+              <input 
+                className="input-premium font-black tabular-nums tracking-widest text-center" 
+                {...register('taxNumber', { onChange: (e) => e.target.value = e.target.value.replace(/\D/g, '').substring(0, 11) })}
+                placeholder="0000000000"
+              />
+            </FormField>
+          </div>
+
+          {/* E-Posta */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <FormField label="Kurumsal E-Posta" className="relative">
+              <input 
+                type="text" 
+                className="input-premium lowercase font-bold text-[var(--primary)]" 
+                {...register('email', { onChange: (e) => e.target.value = e.target.value.toLowerCase() })}
+                onFocus={() => setEmailFocus(true)}
+                onBlur={() => setTimeout(() => setEmailFocus(false), 200)}
+                placeholder="muhasebe@sirket.com" 
+              />
+              {emailFocus && emailWatcher && (
+                <div className="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded-2xl z-50 shadow-2xl mt-2 overflow-hidden ring-4 ring-[var(--primary-glow)]">
+                  {emailWatcher.includes('@') ? (
+                    ['@gmail.com', '@hotmail.com', '@outlook.com', '@icloud.com'].map(ext => (
+                      <div 
+                        key={ext} 
+                        className="p-3 cursor-pointer hover:bg-slate-50 text-sm font-black flex justify-between items-center group"
+                        onClick={() => setValue('email', emailWatcher.split('@')[0] + ext)}
+                      >
+                        <span className="text-slate-600">{emailWatcher.split('@')[0]}</span>
+                        <span className="text-[var(--primary)] group-hover:scale-110 transition-transform">{ext}</span>
+                      </div>
+                    ))
+                  ) : (
+                    ['@gmail.com', '@hotmail.com', '@outlook.com', '@icloud.com'].map(ext => (
+                      <div 
+                        key={ext} 
+                        className="p-3 cursor-pointer hover:bg-slate-50 text-sm font-black flex justify-between items-center group"
+                        onClick={() => setValue('email', emailWatcher + ext)}
+                      >
+                        <span className="text-slate-600">{emailWatcher}</span>
+                        <span className="text-[var(--primary)] group-hover:scale-110 transition-transform">{ext}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
               )}
-            </div>
-          )}
-        </FormField>
-      </div>
+            </FormField>
+          </div>
 
-      {/* 5. Cari Tipi ve VKN/TCKN */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <FormField
-          label="Cari Tipi"
-          error={errors.type?.message}
-          required
-        >
-          <select {...register('type')} className="form-input" disabled={mode === 'quick'}>
-            <option value="customer">Müşteri</option>
-            <option value="provider">Tedarikçi</option>
-          </select>
-        </FormField>
-        <FormField label={getTaxLabel()}>
-          <input 
-            className="input-premium font-black tabular-nums tracking-widest text-center" 
-            {...register('taxNumber', { onChange: (e) => e.target.value = e.target.value.replace(/\D/g, '').substring(0, 11) })}
-            placeholder="0000000000"
-          />
-        </FormField>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-4 border-t border-slate-100">
-        {mode !== 'quick' && (
-          <FormField label="Kredi Limiti">
-            <div className="flex flex-col gap-2">
-              <div className="relative">
-                <PremiumNumberInput 
-                  value={watch('creditLimit')} 
-                  onChange={val => setValue('creditLimit', val)} 
-                  className="h-14"
+          {/* Kredi Limiti, Para Birimi, Notlar */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-4 border-t border-slate-100">
+            {mode !== 'quick' && (
+              <FormField label="Kredi Limiti">
+                <div className="flex flex-col gap-2">
+                  <div className="relative">
+                    <PremiumNumberInput 
+                      value={watch('creditLimit')} 
+                      onChange={val => setValue('creditLimit', val)} 
+                      className="h-14"
+                    />
+                    <span className="absolute right-12 top-1/2 -translate-y-1/2 font-black text-slate-400 pointer-events-none">TRY</span>
+                  </div>
+                  <div className="flex gap-1">
+                    {[-10000, -1000, 1000, 10000].map(val => (
+                      <button 
+                        key={val}
+                        type="button" 
+                        className="flex-1 h-8 rounded-lg bg-slate-50 border border-slate-200 text-[10px] font-black text-slate-600 hover:bg-[var(--primary)] hover:text-white transition-all"
+                        onClick={() => setValue('creditLimit', Number(getValues('creditLimit') || 0) + val)}
+                      >
+                        {val > 0 ? `+${val/1000}K` : `${val/1000}K`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </FormField>
+            )}
+            <div className="flex flex-col gap-5">
+              <FormField label="Çalışma Para Birimi">
+                <select className="input-premium font-black h-14" {...register('currencyId')}>
+                  {currencies.map(c => <option key={c.id} value={c.id}>{c.code} - {c.name.toUpperCase()}</option>)}
+                </select>
+              </FormField>
+              <FormField label="Özel Notlar">
+                <input 
+                  className="input-premium h-14 font-medium" 
+                  {...register('notes')}
+                  placeholder="Vadesine sadık, VIP müşteri..." 
                 />
-                <span className="absolute right-12 top-1/2 -translate-y-1/2 font-black text-slate-400 pointer-events-none">TRY</span>
-              </div>
-              <div className="flex gap-1">
-                {[-10000, -1000, 1000, 10000].map(val => (
-                  <button 
-                    key={val}
-                    type="button" 
-                    className="flex-1 h-8 rounded-lg bg-slate-50 border border-slate-200 text-[10px] font-black text-slate-600 hover:bg-[var(--primary)] hover:text-white transition-all"
-                    onClick={() => setValue('creditLimit', Number(getValues('creditLimit') || 0) + val)}
-                  >
-                    {val > 0 ? `+${val/1000}K` : `${val/1000}K`}
-                  </button>
-                ))}
-              </div>
+              </FormField>
             </div>
-          </FormField>
-        )}
-        <div className="flex flex-col gap-5">
-          <FormField label="Çalışma Para Birimi">
-            <select className="input-premium font-black h-14" {...register('currencyId')}>
-              {currencies.map(c => <option key={c.id} value={c.id}>{c.code} - {c.name.toUpperCase()}</option>)}
-            </select>
-          </FormField>
-          <FormField label="Özel Notlar">
-            <input 
-              className="input-premium h-14 font-medium" 
-              {...register('notes')}
-              placeholder="Vadesine sadık, VIP müşteri..." 
-            />
-          </FormField>
+          </div>
         </div>
       </div>
 

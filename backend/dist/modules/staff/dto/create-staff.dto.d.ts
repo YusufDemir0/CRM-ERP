@@ -6,4 +6,5 @@ export declare class CreateStaffDto {
     departmentId: string;
     isActive?: boolean;
     tckn?: string;
+    unit?: string;
 }

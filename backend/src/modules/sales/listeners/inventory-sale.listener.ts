@@ -5,6 +5,7 @@ import { Sale } from '../entities/sale.entity';
 import { StockMovement } from '../../inventory/stocks/entities/stock-movement.entity';
 import { Shipment } from '../../inventory/stocks/entities/shipment.entity';
 import { RabbitMQService } from '../../../common/services/rabbitmq.service';
+import { Decimal } from 'decimal.js';
 
 @Injectable()
 export class InventorySaleListener implements OnModuleInit {
@@ -57,10 +58,12 @@ export class InventorySaleListener implements OnModuleInit {
         return;
       }
 
-      // Create shipment record automatically
+      // Create shipment record automatically from the physical warehouse
+      const outgoingDeptId = sale.departmentId || departmentId || '1';
+
       const shipment = manager.create(Shipment, {
         saleId: sale.id,
-        outgoingDepartmentId: sale.departmentId || departmentId,
+        outgoingDepartmentId: outgoingDeptId,
         deliveryCity: sale.city || 'İstanbul',
         deliveryDistrict: sale.district || 'Merkez',
         deliveryAddress: sale.address || 'Adres belirtilmemiş',
@@ -98,16 +101,27 @@ export class InventorySaleListener implements OnModuleInit {
     const { sale, userId } = payload;
     
     await this.dataSource.transaction(async (manager) => {
+      // Get the virtual department (sanaldepo) ID
+      const sanalDept = await manager.query(
+        "SELECT id FROM departments WHERE name = 'sanaldepo' LIMIT 1"
+      );
+      const sanalDeptId = (sanalDept && sanalDept.length > 0) ? String(sanalDept[0].id) : '1';
+
       // Find all reserve movements for this sale to see where they were reserved!
       const reserveMovements = await manager.find(StockMovement, {
         where: { referenceType: 'sale', referenceId: sale.id },
         relations: ['stock']
       });
 
+      // Filter out sanaldepo movements as it does not hold reservations
+      const physicalReserveMovements = reserveMovements.filter(
+        m => m.stock && String(m.stock.departmentId) !== String(sanalDeptId)
+      );
+
       // Group by departmentId
-      const deptUnreserves = new Map<string, Array<{ itemId: string; quantity: any }>>();
+      const deptUnreserves = new Map<string, Array<{ itemId: string; quantity: Decimal }>>();
       
-      for (const mov of reserveMovements) {
+      for (const mov of physicalReserveMovements) {
         const stock = mov.stock;
         if (!stock) continue;
         
@@ -117,13 +131,43 @@ export class InventorySaleListener implements OnModuleInit {
         deptUnreserves.set(deptId, list);
       }
 
-      // Revert stock movements
-      await this.stocksService.revertStockMovementsByReference('sale', sale.id, manager, userId);
+      // Revert virtual stock deduction
+      if (sale.items && sale.items.length > 0) {
+        for (const item of sale.items) {
+          await this.stocksService.increaseStock(
+            String(item.itemId),
+            sanalDeptId,
+            item.quantity,
+            item.costPrice || 0,
+            manager,
+            {
+              type: 'revert',
+              id: sale.id,
+              description: `Sanal Stok İptal İadesi: ${sale.code}`
+            },
+            userId
+          );
+        }
+      }
 
-      // Now unreserve bulk for each department!
+      // Now release/unreserve bulk for each physical department!
       for (const [deptId, items] of deptUnreserves.entries()) {
         if (items.length > 0) {
-          await this.stocksService.unreserveStockBulk(items, deptId, manager, userId);
+          const itemsToRelease = items.map(item => ({
+            itemId: item.itemId,
+            quantity: new Decimal(item.quantity).toNumber()
+          }));
+          await this.stocksService.releaseStockBulk(
+            itemsToRelease,
+            deptId,
+            manager,
+            {
+              type: 'revert',
+              id: sale.id,
+              description: `Sipariş İptali Rezervasyon İadesi: ${sale.code}`
+            },
+            userId
+          );
         }
       }
     });

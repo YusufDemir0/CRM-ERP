@@ -16,6 +16,7 @@ exports.CurrenciesService = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
+const decimal_js_1 = require("decimal.js");
 const currency_entity_1 = require("./entities/currency.entity");
 let CurrenciesService = class CurrenciesService {
     constructor(currencyRepo) {
@@ -52,7 +53,7 @@ let CurrenciesService = class CurrenciesService {
         if (dto.symbol !== undefined)
             curr.symbol = dto.symbol;
         if (dto.exchangeRate !== undefined)
-            curr.exchangeRate = dto.exchangeRate;
+            curr.exchangeRate = new decimal_js_1.Decimal(dto.exchangeRate);
         if (dto.isDefault !== undefined)
             curr.isDefault = dto.isDefault;
         if (dto.state !== undefined)

@@ -11,51 +11,51 @@ export class RolesController {
 
   // ────── ROLES ──────
   @Get()
-  @RequirePermissions('ROLE_VIEW')
+  @RequirePermissions('ROLES_VIEW_ALL')
   findAllRoles(@Query() query: PaginationDto) {
     return this.rolesService.findAllRoles(query);
   }
 
   @Get('status')
-  @RequirePermissions('ROLE_VIEW')
+  @RequirePermissions('ROLES_VIEW_ALL')
   getStatus() {
     return this.rolesService.getStatus();
   }
 
   @Post()
-  @RequirePermissions('ROLE_CREATE')
+  @RequirePermissions('ROLES_CREATE')
   createRole(@Body() dto: CreateRoleDto, @CurrentUser('sub') userId: string) {
     return this.rolesService.createRole(dto, userId);
   }
 
   @Put(':id')
-  @RequirePermissions('ROLE_EDIT')
+  @RequirePermissions('ROLES_EDIT')
   updateRole(@Param('id') id: string, @Body() dto: UpdateRoleDto, @CurrentUser('sub') userId: string) {
     return this.rolesService.updateRole(id, dto, userId);
   }
 
   // ────── PERMISSIONS ──────
   @Get('permissions/all')
-  @RequirePermissions('ROLE_VIEW')
+  @RequirePermissions('ROLES_VIEW_ALL')
   findAllPermissions(@Query() query: PaginationDto) {
     return this.rolesService.findAllPermissions(query);
   }
 
   @Post('permissions')
-  @RequirePermissions('ROLE_CREATE')
+  @RequirePermissions('ROLES_CREATE')
   createPermission(@Body() dto: CreatePermissionDto, @CurrentUser('sub') userId: string) {
     return this.rolesService.createPermission(dto, userId);
   }
 
   // ────── USER ROLE ASSIGNMENT ──────
   @Post('assign')
-  @RequirePermissions('ROLE_ASSIGN')
+  @RequirePermissions('ROLES_ASSIGN')
   assignRole(@Body() dto: AssignRoleDto) {
     return this.rolesService.assignRole(dto);
   }
 
   @Delete('assign')
-  @RequirePermissions('ROLE_ASSIGN')
+  @RequirePermissions('ROLES_ASSIGN')
   removeRole(@Body() dto: AssignRoleDto) {
     return this.rolesService.removeRole(dto);
   }
@@ -64,13 +64,13 @@ export class RolesController {
 
   // ────── WILDCARDS (Place at bottom to avoid route clashes) ──────
   @Get(':id')
-  @RequirePermissions('ROLE_VIEW')
+  @RequirePermissions('ROLES_VIEW_ALL')
   findOneRole(@Param('id') id: string) {
     return this.rolesService.findOneRole(id);
   }
 
   @Delete(':id')
-  @RequirePermissions('ROLE_DELETE')
+  @RequirePermissions('ROLES_DELETE')
   deleteRole(@Param('id') id: string) {
     return this.rolesService.deleteRole(id);
   }

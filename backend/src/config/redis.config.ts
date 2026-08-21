@@ -4,12 +4,13 @@ import { registerAs } from '@nestjs/config';
  * Redis Configuration — Enterprise Ready
  * 
  * Supports:
- *   - Password authentication
+ *   - REDIS_URL (Upstash rediss:// format with TLS)
+ *   - Host, port, password fallback
  *   - Key prefix for multi-tenant isolation
  *   - Configurable TTL
- *   - Future: Sentinel / Cluster mode
  */
 export default registerAs('redis', () => ({
+  url: process.env.REDIS_URL || undefined,
   host: process.env.REDIS_HOST || 'localhost',
   port: parseInt(process.env.REDIS_PORT || '6379', 10),
   password: process.env.REDIS_PASSWORD || undefined,

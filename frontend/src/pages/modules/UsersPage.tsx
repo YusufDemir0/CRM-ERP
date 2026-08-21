@@ -15,10 +15,17 @@ import { queryKeys } from '../../services/queryKeys';
 // Sub-components
 import { UserPermissionsModal } from './users/components/UserPermissionsModal';
 
+import { useAuth } from '../../hooks/useAuth';
+
 export default function UsersPage() {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('USERS_CREATE');
+  const canEdit = hasPermission('USERS_EDIT');
+  const canDelete = hasPermission('USERS_DELETE');
+
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  
+
   const page = Number(searchParams.get('page')) || 1;
   const searchTerm = searchParams.get('q') || '';
   const filterTab = (searchParams.get('tab') as 'active' | 'passive' | 'all') || 'active';
@@ -91,13 +98,13 @@ export default function UsersPage() {
   const paginationMeta = usersData?.meta || { total: 0, page: 1, limit: 20, totalPages: 0 };
 
   const { sortedData, sortConfigs, toggleSort } = useSort<User>(
-    users, 
+    users,
     [{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }],
     (configs) => {
       if (configs.length > 0) {
         setSort(
-          configs[0].key, 
-          configs[0].direction.toUpperCase() as 'ASC' | 'DESC' 
+          configs[0].key,
+          configs[0].direction.toUpperCase() as 'ASC' | 'DESC'
         );
       }
     }
@@ -143,7 +150,7 @@ export default function UsersPage() {
     const question = currentState === 1
       ? 'Kullanıcının sisteme erişimini durdurmak ve arşivlemek istiyor musunuz?'
       : 'Kullanıcıyı tekrar aktif etmek istiyor musunuz?';
-    
+
     if (String(id) === String(currentUser?.id)) {
       toast.error("Kendi hesabınızı arşivleyemezsiniz!");
       return;
@@ -160,7 +167,7 @@ export default function UsersPage() {
       const userRes = await usersAPI.getOne(u.id);
       const fullUser = userRes.data;
       setSelectedUserForPerms(fullUser);
-      
+
       const res = await rolesAPI.getUserPermissions(fullUser.id);
       setUserSpecificPerms(res.data);
       setIsPermissionsModalOpen(true);
@@ -192,22 +199,18 @@ export default function UsersPage() {
   };
 
   const columns: Column<User>[] = [
-    { 
-      header: 'KULLANICI ADI', 
+    {
+      header: 'KULLANICI ADI',
       accessor: (u) => (
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 text-lg font-black uppercase shadow-sm">
-            {u.username?.charAt(0)}
-          </div>
-          <span className="font-black text-slate-900 text-sm tracking-wider uppercase">
-            {u.username}
-          </span>
-        </div>
+        <span className="font-black text-slate-900 text-sm tracking-wider uppercase">
+          {u.username}
+        </span>
       ),
       sortKey: 'username'
     },
-    { 
-      header: 'AD SOYAD', 
+
+    {
+      header: 'AD SOYAD',
       accessor: (u) => (
         <span className="font-bold text-on-surface text-sm tracking-tighter uppercase">
           {u.fullName}
@@ -215,13 +218,13 @@ export default function UsersPage() {
       ),
       sortKey: 'fullName'
     },
-    { 
-      header: 'DEPARTMAN', 
+    {
+      header: 'DEPARTMAN',
       accessor: (u) => <span className="font-bold text-xs text-secondary bg-surface-container px-2.5 py-1 rounded-lg uppercase tracking-wider">{u.department?.name || 'BELİRTİLMEMİŞ'}</span>,
       sortKey: 'department.name'
     },
-    { 
-      header: 'YETKİ ROLLERİ', 
+    {
+      header: 'YETKİ ROLLERİ',
       accessor: (u) => (
         <div className="flex flex-wrap gap-1">
           {(u.roles?.length ?? 0) > 0 ? u.roles?.map((r: Role) => (
@@ -234,19 +237,18 @@ export default function UsersPage() {
     {
       header: 'DURUM',
       accessor: (u) => (
-        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-          u.state === 1 
-            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
+        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${u.state === 1
+            ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
             : 'bg-red-50 text-red-600 border border-red-100'
-        }`}>
+          }`}>
           <div className={`w-1.5 h-1.5 rounded-full ${u.state === 1 ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
           {u.state === 1 ? 'AKTİF' : 'PASİF'}
         </div>
       ),
       sortKey: 'state'
     },
-    { 
-      header: 'İLETİŞİM', 
+    {
+      header: 'İLETİŞİM',
       accessor: (u) => (
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-1">
@@ -282,7 +284,7 @@ export default function UsersPage() {
 
   return (
     <div className="animate-in flex flex-col gap-8">
-      
+
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6">
         <div>
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
@@ -292,7 +294,7 @@ export default function UsersPage() {
             Kullanıcı <span className="text-primary">Yönetimi</span>
           </h1>
         </div>
-        
+
         <div className="flex flex-wrap gap-4 items-center">
           <div className="flex bg-surface-container-low p-1 rounded-2xl border border-surface-container">
             {[
@@ -303,19 +305,20 @@ export default function UsersPage() {
               <button
                 key={tab.id}
                 onClick={() => setFilterTab(tab.id)}
-                className={`h-9 px-4 rounded-xl text-xs font-black flex items-center gap-2 transition-colors ${
-                  filterTab === tab.id ? 'bg-white text-primary shadow-premium' : 'text-slate-400 hover:text-slate-600'
-                }`}
+                className={`h-9 px-4 rounded-xl text-xs font-black flex items-center gap-2 transition-colors ${filterTab === tab.id ? 'bg-white text-primary shadow-premium' : 'text-slate-400 hover:text-slate-600'
+                  }`}
               >
                 {tab.icon} {tab.label.toUpperCase()}
               </button>
             ))}
           </div>
-          <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
-            openCreate('user', { onSuccess: handleFormSubmit });
-          }}>
-            <FiPlus size={20} /> Yeni Personel
-          </button>
+          {canCreate && (
+            <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
+              openCreate('user', { onSuccess: handleFormSubmit });
+            }}>
+              <FiPlus size={20} /> Yeni Personel
+            </button>
+          )}
         </div>
       </div>
 
@@ -328,23 +331,23 @@ export default function UsersPage() {
           onSort={toggleSort}
           getRowKey={(u) => u.id}
           hasState={(u) => u.state === 1}
-          onEdit={handleEdit}
-          onArchive={(u) => {
+          onEdit={canEdit ? handleEdit : undefined}
+          onArchive={canDelete ? (u) => {
             if (currentUser && String(u.id) === String(currentUser.id)) {
               toast.error("Kendi kullanıcınızı arşivleyemezsiniz.");
               return;
             }
             toggleState(u.id, 1);
-          }}
+          } : undefined}
           isArchivable={(u) => String(u.id) !== String(currentUser?.id)}
-          onRestore={(u) => toggleState(u.id, 0)}
+          onRestore={canDelete ? (u) => toggleState(u.id, 0) : undefined}
           getRowOpacity={(u) => u.state === 0 ? 0.5 : 1}
           renderExtraActions={(u) => (
             <button className="btn-icon circle" title="Özel Yetki Yönetimi" onClick={() => openPermissionsModal(u)}>
               <FiShield size={16} />
             </button>
           )}
-          
+
           search={searchTerm}
           onSearchChange={(val) => setSearchTerm(val)}
           total={paginationMeta.total}

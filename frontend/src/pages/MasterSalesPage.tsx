@@ -1,19 +1,31 @@
 import { useState, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { salesAPI, departmentsAPI } from '../services/api';
+import { salesAPI, departmentsAPI, transactionsAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import { confirmDialog } from '../utils/confirmDialog';
 import { Sale, Department } from '../types';
-import { AdvancedApproveSaleModal } from '../components/modals/AdvancedApproveSaleModal';
+import { SalesCheckWizardModal } from '../components/modals/SalesCheckWizardModal';
+import { ShipmentWizardModal } from '../components/modals/ShipmentWizardModal';
 import { ViewSaleModal } from '../components/modals/ViewSaleModal';
+import CancelSaleModal from '../components/modals/CancelSaleModal';
+import { ReportErrorModal } from '../components/modals/ReportErrorModal';
 import { SalesHeader } from '../components/sales/SalesHeader';
 import { SalesTable } from '../components/sales/SalesTable';
 import { useDebounce } from '../hooks/useDebounce';
 import { queryKeys } from '../services/queryKeys';
 import { useSalesWizardStore } from '../store/useSalesWizardStore';
+import { useAuth } from '../hooks/useAuth';
 
 export default function MasterSalesPage() {
+  const { user, hasPermission } = useAuth();
+  const canCreate = hasPermission('SALES_CREATE');
+  const canApprove = hasPermission('SALES_APPROVE');
+  const canShip = hasPermission('SALES_SHIP');
+  const canCancel = hasPermission('SALES_CANCEL');
+  const canEditOwn = hasPermission('SALES_EDIT_OWN');
+  const canEditAll = hasPermission('SALES_EDIT_ALL');
+
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -49,15 +61,24 @@ export default function MasterSalesPage() {
   };
 
   const [filters] = useState<Record<string, string | number | undefined>>({});
+  const selectedDeptFilterId = searchParams.get('departmentId') || '';
 
   const setSort = (key: string, order: 'ASC' | 'DESC') => updateParams({ sortBy: key, sortOrder: order, page: 1 });
 
   // Modals state
   const [approveSaleData, setApproveSaleData] = useState<Sale | null>(null);
+  const [shipSaleData, setShipSaleData] = useState<Sale | null>(null);
 
   // View Modal State
   const [viewSaleData, setViewSaleData] = useState<Sale | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isReportErrorOpen, setIsReportErrorOpen] = useState(false);
+  const [selectedSaleForError, setSelectedSaleForError] = useState<Sale | null>(null);
+
+  const handleReportError = (sale: Sale) => {
+    setSelectedSaleForError(sale);
+    setIsReportErrorOpen(true);
+  };
 
   // ────── QUERIES ──────
 
@@ -65,13 +86,15 @@ export default function MasterSalesPage() {
     queryKey: queryKeys.sales.all({ 
       page, limit, search: debouncedSearch, 
       status: filterStatus === 'all' ? undefined : filterStatus, 
-      sort, filters 
+      sort, filters: { ...filters, departmentId: selectedDeptFilterId }
     }),
     queryFn: async ({ signal }) => {
       const res = await salesAPI.getAll({
         page, limit, search: debouncedSearch,
         status: filterStatus === 'all' ? undefined : filterStatus,
-        sortBy: sort.key, sortOrder: sort.order, ...filters
+        sortBy: sort.key, sortOrder: sort.order,
+        departmentId: selectedDeptFilterId || undefined,
+        ...filters
       }, { signal });
       return res.data;
     }
@@ -104,7 +127,7 @@ export default function MasterSalesPage() {
   });
 
   const cancelMutation = useMutation({
-    mutationFn: (id: string | number) => salesAPI.cancel(id),
+    mutationFn: ({ id, reason }: { id: string | number; reason: string }) => salesAPI.cancel(id, { reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all({}) });
       toast.success("Satış iptal edildi.");
@@ -112,8 +135,27 @@ export default function MasterSalesPage() {
     onError: () => toast.error("İptal işlemi başarısız oldu.")
   });
 
+  const revertMutation = useMutation({
+    mutationFn: ({ id }: { id: string | number }) => salesAPI.revertToDraft(id),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.sales.all({}) });
+      toast.success("Sipariş başarıyla taslağa döndürüldü.");
+      const sale = sales.find(s => String(s.id) === String(variables.id));
+      if (sale) {
+        updateParams({ status: 'draft', q: sale.code, page: 1 });
+      } else {
+        updateParams({ status: 'draft', page: 1 });
+      }
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'İşlem başarısız oldu.';
+      toast.error(msg);
+    }
+  });
+
   const shipMutation = useMutation({
-    mutationFn: (id: string | number) => salesAPI.ship(id, { items: [] }), 
+    mutationFn: ({ id, payments, vehicleIds, assignedStaffIds }: { id: string | number; payments?: Array<{ commercialAccountId: string | number; amount: string | number }>; vehicleIds?: string[]; assignedStaffIds?: string[] }) => 
+      salesAPI.ship(id, { payments, vehicleIds, assignedStaffIds }), 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all({}) });
       toast.success("Sevkiyat başarıyla gerçekleştirildi.");
@@ -134,7 +176,8 @@ export default function MasterSalesPage() {
       if (creditLimit > 0 && (balance + totalInTL) > creditLimit) {
         const confirmed = await confirmDialog(
           `DİKKAT: Bu müşterinin toplam bakiyesi (${(balance + totalInTL).toLocaleString('tr-TR')} ₺), kritik risk limitini (${creditLimit.toLocaleString('tr-TR')} ₺) aşmaktadır! Yine de satışı onaylamak istiyor musunuz?`,
-          true
+          true,
+          'Evet, Onayla'
         );
         if (!confirmed) {
           return;
@@ -156,15 +199,50 @@ export default function MasterSalesPage() {
     setApproveSaleData(null);
   };
 
-  const handleCancelSale = useCallback(async (id: string | number) => {
-    const confirmed = await confirmDialog('Bu satışı iptal etmek istediğinize emin misiniz?', true);
-    if (confirmed) cancelMutation.mutate(id);
-  }, [cancelMutation]);
+  const [cancellingSaleId, setCancellingSaleId] = useState<string | number | null>(null);
+
+  const handleCancelSale = useCallback((id: string | number) => {
+    setCancellingSaleId(id);
+  }, []);
+
+  const handleRevertToDraft = useCallback(async (id: string | number) => {
+    const sale = sales.find(s => String(s.id) === String(id));
+    const codeStr = sale ? ` (${sale.code})` : '';
+    const confirmed = await confirmDialog(
+      `Bu siparişi${codeStr} taslağa geri döndürmek istediğinize emin misiniz?`,
+      false
+    );
+    if (confirmed) {
+      revertMutation.mutate({ id });
+    }
+  }, [sales, revertMutation]);
 
   const handleShipSale = useCallback(async (id: string | number) => {
-    const confirmed = await confirmDialog('Tüm ürünlerin sevkiyatı yapılsın mı?', false);
-    if (confirmed) shipMutation.mutate(id);
-  }, [shipMutation]);
+    try {
+      const res = await salesAPI.getOne(id);
+      setShipSaleData(res.data);
+    } catch (error) {
+      toast.error("Satış detayı getirilemedi.");
+    }
+  }, []);
+
+  const handleShipConfirm = async (
+    payments: Array<{ commercialAccountId: string; amount: number }>,
+    vehicleIds: string[],
+    assignedStaffIds: string[]
+  ) => {
+    if (!shipSaleData) return;
+
+    try {
+      await shipMutation.mutateAsync({ id: shipSaleData.id, payments, vehicleIds, assignedStaffIds });
+      setShipSaleData(null);
+      queryClient.invalidateQueries({ queryKey: ['parties'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.sales.all({}) });
+    } catch (error: unknown) {
+      const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Sevkiyat ve tahsilat işlemleri sırasında hata oluştu.';
+      toast.error(msg);
+    }
+  };
 
   const openViewModal = useCallback(async (id: string | number) => {
     try {
@@ -189,6 +267,17 @@ export default function MasterSalesPage() {
     const salesStore = useSalesWizardStore.getState();
     salesStore.reset();
     navigate('/sales/wizard');
+  }, [navigate]);
+
+  const handleEditSale = useCallback(async (id: string | number) => {
+    try {
+      const res = await salesAPI.getOne(id);
+      const salesStore = useSalesWizardStore.getState();
+      salesStore.loadDraftSale(res.data);
+      navigate('/sales/wizard');
+    } catch (error) {
+      toast.error("Satış bilgileri alınamadı.");
+    }
   }, [navigate]);
 
   const handleSortChange = useCallback((key: string) => {
@@ -236,6 +325,7 @@ export default function MasterSalesPage() {
         onSearchTermChange={(term) => updateParams({ q: term, page: 1 })}
         onNewSale={handleNewSale}
         onExport={handleExport}
+        canCreate={canCreate}
       />
 
       <SalesTable 
@@ -247,19 +337,44 @@ export default function MasterSalesPage() {
         sortConfigs={[{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }]}
         onSort={handleSortChange}
         onView={openViewModal}
-        onApprove={openApproveModal}
-        onShip={handleShipSale}
-        onCancel={handleCancelSale}
+        onEdit={canEditOwn || canEditAll ? handleEditSale : undefined}
+        isEditable={(s) => canEditAll || (canEditOwn && String(s.createdBy) === String(user?.id))}
+        onApprove={canApprove ? openApproveModal : undefined}
+        onShip={canShip ? handleShipSale : undefined}
+        onCancel={canCancel ? handleCancelSale : undefined}
+        onRevertToDraft={canApprove ? handleRevertToDraft : undefined}
+        onReportError={handleReportError}
         isReadOnly={false}
+        extraSearchFilters={
+          <select
+            value={selectedDeptFilterId}
+            onChange={(e) => updateParams({ departmentId: e.target.value || undefined, page: 1 })}
+            className="h-12 px-4 bg-slate-50 border-2 border-transparent focus:border-primary/10 focus:bg-white rounded-2xl text-xs font-black text-slate-700 outline-none transition-all uppercase"
+          >
+            <option value="">Depo / Birim (Tümü)</option>
+            {departments.map((dept: Department) => (
+              <option key={dept.id} value={dept.id}>{dept.name}</option>
+            ))}
+          </select>
+        }
       />
 
       {/* 🟣 MODALS */}
       {approveSaleData && (
-        <AdvancedApproveSaleModal 
+        <SalesCheckWizardModal 
           sale={approveSaleData}
           departments={departments}
           onSubmit={handleApproveConfirm}
           onClose={handleCloseApproveModal}
+        />
+      )}
+
+      {shipSaleData && (
+        <ShipmentWizardModal 
+          sale={shipSaleData}
+          departments={departments}
+          onSubmit={handleShipConfirm}
+          onClose={() => setShipSaleData(null)}
         />
       )}
 
@@ -269,6 +384,27 @@ export default function MasterSalesPage() {
           onClose={() => setIsViewModalOpen(false)}
         />
       )}
+
+      {cancellingSaleId && (
+        <CancelSaleModal
+          isOpen={!!cancellingSaleId}
+          onClose={() => setCancellingSaleId(null)}
+          onSubmit={(reason) => {
+            cancelMutation.mutate({ id: cancellingSaleId, reason });
+            setCancellingSaleId(null);
+          }}
+          loading={cancelMutation.isPending}
+        />
+      )}
+
+      <ReportErrorModal
+        isOpen={isReportErrorOpen}
+        onClose={() => {
+          setIsReportErrorOpen(false);
+          setSelectedSaleForError(null);
+        }}
+        sale={selectedSaleForError}
+      />
     </div>
   );
 }

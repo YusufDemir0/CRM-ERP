@@ -7,11 +7,13 @@ import {
 } from 'react-icons/fi';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 import { useSalesWizardStore } from '../../store/useSalesWizardStore';
+import { useAuth } from '../../hooks/useAuth';
 
 export const CommandPalette: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const { openCreate } = useQuickCreateStore();
+  const { hasPermission } = useAuth();
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -29,6 +31,19 @@ export const CommandPalette: React.FC = () => {
     action();
     setIsOpen(false);
   };
+
+  const showSalesWizard = hasPermission('SALES_CREATE');
+  const showAddParty = hasPermission('PARTIES_CREATE');
+  const showAddItem = hasPermission('INVENTORY_CREATE');
+  const hasQuickActions = showSalesWizard || showAddParty || showAddItem;
+
+  const showStocks = hasPermission('INVENTORY_PAGE');
+  const showTransactions = hasPermission('FINANCE_PAGE');
+  const showSales = hasPermission('SALES_PAGE');
+
+  const showSettings = hasPermission('SYSTEM_PAGE');
+  const showUsers = hasPermission('USERS_PAGE');
+  const hasSystemActions = showSettings || showUsers;
 
   return (
     <Command.Dialog 
@@ -54,30 +69,51 @@ export const CommandPalette: React.FC = () => {
             Aradığınız kriterde bir komut bulunamadı.
           </Command.Empty>
 
-          <Command.Group heading="Hızlı İşlemler" className="px-2 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            <Item icon={<FiPlus />} label="Yeni Satış Faturası" onSelect={() => runCommand(() => {
-              useSalesWizardStore.getState().reset();
-              navigate('/sales/wizard');
-            })} />
-            <Item icon={<FiUsers />} label="Yeni Cari/Müşteri Ekle" onSelect={() => runCommand(() => openCreate('party'))} />
-            <Item icon={<FiBox />} label="Yeni Ürün Kaydı" onSelect={() => runCommand(() => openCreate('item'))} />
-          </Command.Group>
+          {hasQuickActions && (
+            <Command.Group heading="Hızlı İşlemler" className="px-2 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              {showSalesWizard && (
+                <Item icon={<FiPlus />} label="Yeni Satış Faturası" onSelect={() => runCommand(() => {
+                  useSalesWizardStore.getState().reset();
+                  navigate('/sales/wizard');
+                })} />
+              )}
+              {showAddParty && (
+                <Item icon={<FiUsers />} label="Yeni Cari/Müşteri Ekle" onSelect={() => runCommand(() => openCreate('party'))} />
+              )}
+              {showAddItem && (
+                <Item icon={<FiBox />} label="Yeni Ürün Kaydı" onSelect={() => runCommand(() => openCreate('item'))} />
+              )}
+            </Command.Group>
+          )}
 
           <Command.Separator className="h-px bg-slate-50 my-2" />
 
           <Command.Group heading="Navigasyon" className="px-2 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
             <Item icon={<FiLayout />} label="Dashboard / Özet" onSelect={() => runCommand(() => navigate('/'))} />
-            <Item icon={<FiBox />} label="Stok Durumu" onSelect={() => runCommand(() => navigate('/stocks'))} />
-            <Item icon={<FiTrendingUp />} label="Finansal Hareketler" onSelect={() => runCommand(() => navigate('/transactions'))} />
-            <Item icon={<FiFileText />} label="Satış Listesi" onSelect={() => runCommand(() => navigate('/sales'))} />
+            {showStocks && (
+              <Item icon={<FiBox />} label="Stok Durumu" onSelect={() => runCommand(() => navigate('/stocks'))} />
+            )}
+            {showTransactions && (
+              <Item icon={<FiTrendingUp />} label="Finansal Hareketler" onSelect={() => runCommand(() => navigate('/transactions'))} />
+            )}
+            {showSales && (
+              <Item icon={<FiFileText />} label="Satış Listesi" onSelect={() => runCommand(() => navigate('/sales'))} />
+            )}
           </Command.Group>
 
-          <Command.Separator className="h-px bg-slate-50 my-2" />
-
-          <Command.Group heading="Sistem" className="px-2 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            <Item icon={<FiSettings />} label="Sistem Ayarları" onSelect={() => runCommand(() => navigate('/settings'))} />
-            <Item icon={<FiUsers />} label="Kullanıcı Yönetimi" onSelect={() => runCommand(() => navigate('/users'))} />
-          </Command.Group>
+          {hasSystemActions && (
+            <>
+              <Command.Separator className="h-px bg-slate-50 my-2" />
+              <Command.Group heading="Sistem" className="px-2 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                {showSettings && (
+                  <Item icon={<FiSettings />} label="Sistem Ayarları" onSelect={() => runCommand(() => navigate('/settings'))} />
+                )}
+                {showUsers && (
+                  <Item icon={<FiUsers />} label="Kullanıcı Yönetimi" onSelect={() => runCommand(() => navigate('/users'))} />
+                )}
+              </Command.Group>
+            </>
+          )}
         </Command.List>
 
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">

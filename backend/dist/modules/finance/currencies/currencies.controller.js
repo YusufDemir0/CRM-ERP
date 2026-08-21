@@ -18,6 +18,7 @@ const currencies_service_1 = require("./currencies.service");
 const finance_dto_1 = require("../dto/finance.dto");
 const current_user_decorator_1 = require("../../../common/decorators/current-user.decorator");
 const pagination_dto_1 = require("../../../common/dto/pagination.dto");
+const permissions_decorator_1 = require("../../../common/decorators/permissions.decorator");
 let CurrenciesController = class CurrenciesController {
     constructor(currenciesService) {
         this.currenciesService = currenciesService;
@@ -39,6 +40,7 @@ let CurrenciesController = class CurrenciesController {
 exports.CurrenciesController = CurrenciesController;
 __decorate([
     (0, common_1.Get)(),
+    (0, permissions_decorator_1.RequirePermissions)('FINANCE_VIEW', 'FINANCE_MANAGE', 'SALES_CREATE', 'SALES_VIEW', 'INVENTORY_VIEW', 'CUSTOMER_VIEW'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [pagination_dto_1.PaginationDto]),
@@ -46,12 +48,14 @@ __decorate([
 ], CurrenciesController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('default'),
+    (0, permissions_decorator_1.RequirePermissions)('FINANCE_VIEW', 'FINANCE_MANAGE', 'SALES_CREATE', 'SALES_VIEW', 'INVENTORY_VIEW', 'CUSTOMER_VIEW'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], CurrenciesController.prototype, "getDefault", null);
 __decorate([
     (0, common_1.Get)(':id'),
+    (0, permissions_decorator_1.RequirePermissions)('FINANCE_VIEW', 'FINANCE_MANAGE', 'SALES_CREATE', 'SALES_VIEW', 'INVENTORY_VIEW', 'CUSTOMER_VIEW'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -59,6 +63,7 @@ __decorate([
 ], CurrenciesController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Post)(),
+    (0, permissions_decorator_1.RequirePermissions)('SYSTEM_EDIT_CURRENCY'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -67,6 +72,7 @@ __decorate([
 ], CurrenciesController.prototype, "create", null);
 __decorate([
     (0, common_1.Put)(':id'),
+    (0, permissions_decorator_1.RequirePermissions)('SYSTEM_EDIT_CURRENCY'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
@@ -76,6 +82,7 @@ __decorate([
 ], CurrenciesController.prototype, "update", null);
 __decorate([
     (0, common_1.Put)(':id/default'),
+    (0, permissions_decorator_1.RequirePermissions)('SYSTEM_EDIT_CURRENCY'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -83,6 +90,7 @@ __decorate([
 ], CurrenciesController.prototype, "setDefault", null);
 __decorate([
     (0, common_1.Delete)(':id'),
+    (0, permissions_decorator_1.RequirePermissions)('SYSTEM_EDIT_CURRENCY'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),

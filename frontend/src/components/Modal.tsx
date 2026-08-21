@@ -8,9 +8,10 @@ interface ModalProps {
   children: ReactNode;
   footer?: ReactNode;
   width?: string;
+  zIndex?: number;
 }
 
-export default function Modal({ isOpen, onClose, title, children, footer, width }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, children, footer, width, zIndex }: ModalProps) {
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -28,7 +29,10 @@ export default function Modal({ isOpen, onClose, title, children, footer, width 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
+    <div 
+      className="fixed inset-0 z-modal flex items-center justify-center p-4"
+      style={zIndex ? { zIndex } : undefined}
+    >
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300" onClick={onClose} />
       <div 
         className="relative bg-white rounded-2xl shadow-premium overflow-hidden animate-in zoom-in duration-300 w-full" 

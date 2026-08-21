@@ -35,7 +35,7 @@ let UserPermissionsController = class UserPermissionsController {
 exports.UserPermissionsController = UserPermissionsController;
 __decorate([
     (0, common_1.Post)(),
-    (0, permissions_decorator_1.RequirePermissions)('PERMISSION_ASSIGN'),
+    (0, permissions_decorator_1.RequirePermissions)('USERS_OVERRIDE_PERM'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -44,7 +44,7 @@ __decorate([
 ], UserPermissionsController.prototype, "setUserPermission", null);
 __decorate([
     (0, common_1.Get)(':userId'),
-    (0, permissions_decorator_1.RequirePermissions)('PERMISSION_VIEW'),
+    (0, permissions_decorator_1.RequirePermissions)('USERS_OVERRIDE_PERM'),
     __param(0, (0, common_1.Param)('userId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -52,7 +52,7 @@ __decorate([
 ], UserPermissionsController.prototype, "getUserPermissions", null);
 __decorate([
     (0, common_1.Delete)(),
-    (0, permissions_decorator_1.RequirePermissions)('PERMISSION_ASSIGN'),
+    (0, permissions_decorator_1.RequirePermissions)('USERS_OVERRIDE_PERM'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [role_dto_1.RemoveUserPermissionDto]),

@@ -24,17 +24,20 @@ export class AuthController {
     const ipAddress = Array.isArray(rawIp) ? rawIp[0] : (rawIp || undefined);
     const { access_token, refresh_token, user } = await this.authService.login(dto, ipAddress);
 
+    const isProd = process.env.NODE_ENV === 'production';
+    const sameSiteMode = isProd ? ('none' as const) : ('lax' as const);
+
     res.cookie('erp_token', access_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: isProd,
+      sameSite: sameSiteMode,
       maxAge: 15 * 60 * 1000, // 15 minutes
     });
 
     res.cookie('erp_refresh_token', refresh_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: isProd,
+      sameSite: sameSiteMode,
       path: '/api/auth/refresh', // only sent to refresh endpoint!
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
@@ -52,17 +55,20 @@ export class AuthController {
     
     const { access_token, refresh_token } = await this.authService.refreshToken(oldRefreshToken);
 
+    const isProd = process.env.NODE_ENV === 'production';
+    const sameSiteMode = isProd ? ('none' as const) : ('lax' as const);
+
     res.cookie('erp_token', access_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: isProd,
+      sameSite: sameSiteMode,
       maxAge: 15 * 60 * 1000, // 15 minutes
     });
 
     res.cookie('erp_refresh_token', refresh_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: isProd,
+      sameSite: sameSiteMode,
       path: '/api/auth/refresh',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
@@ -83,7 +89,7 @@ export class AuthController {
           await this.authService.logout(
             String(payload.sub),
             payload.username,
-            payload.fullName,
+            payload.fullName || '',
             ipAddress,
           );
         }
@@ -92,14 +98,26 @@ export class AuthController {
       }
     }
 
-    res.clearCookie('erp_token');
-    res.clearCookie('erp_refresh_token', { path: '/api/auth/refresh' });
+    const isProd = process.env.NODE_ENV === 'production';
+    const sameSiteMode = isProd ? ('none' as const) : ('lax' as const);
+
+    res.clearCookie('erp_token', {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: sameSiteMode,
+    });
+    res.clearCookie('erp_refresh_token', {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: sameSiteMode,
+      path: '/api/auth/refresh',
+    });
     return { message: 'Çıkış başarılı' };
   }
 
   // SEC-06: Register endpoint artık Public DEĞİL.
-  // Sadece 'USER_CREATE' yetkisine sahip kullanıcılar (admin) kullanıcı oluşturabilir.
-  @RequirePermissions('USER_CREATE')
+  // Sadece 'USERS_CREATE' yetkisine sahip kullanıcılar (admin) kullanıcı oluşturabilir.
+  @RequirePermissions('USERS_CREATE')
   @Post('register')
   async register(@Body() dto: RegisterDto) {
     await this.authService.register(dto);

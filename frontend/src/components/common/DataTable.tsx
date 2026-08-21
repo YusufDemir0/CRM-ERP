@@ -79,12 +79,15 @@ interface DataTableProps<T> {
   onClone?: (item: T) => void;
   onTogglePin?: (item: T) => void;
   renderExtraActions?: (item: T) => ReactNode;
+  onRowClick?: (item: T) => void;
+  extraSearchFilters?: ReactNode;
   
   // Row metadata
   getRowKey: (item: T) => string | number;
   getRowOpacity?: (item: T) => number;
   isPinned?: (item: T) => boolean;
   hasState?: (item: T) => boolean;
+  isEditable?: (item: T) => boolean;
   isArchivable?: (item: T) => boolean;
   isRestorable?: (item: T) => boolean;
   customIcons?: {
@@ -117,6 +120,8 @@ const DataTableInner = <T,>({
   rowHeight = 60,
   containerHeight = 600,
   getRowKey,
+  onRowClick,
+  extraSearchFilters,
   ...rowProps
 }: DataTableProps<T>) => {
 
@@ -175,7 +180,7 @@ const DataTableInner = <T,>({
                 </button>
               )}
 
-              {rowProps.onEdit && (
+              {rowProps.onEdit && (!rowProps.isEditable || rowProps.isEditable(item)) && (
                 <button 
                   className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-slate-100 text-slate-400 hover:text-primary"
                   onClick={() => rowProps.onEdit!(item)} 
@@ -255,15 +260,18 @@ const DataTableInner = <T,>({
     <div className="bg-white border border-slate-100 shadow-premium rounded-2xl overflow-hidden animate-in">
       {onSearchChange !== undefined && (
         <div className="p-6 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="relative w-full md:max-w-md group">
-            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
-            <input 
-              type="text" 
-              placeholder={placeholder}
-              value={search || ''}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full h-12 pl-12 pr-4 bg-slate-50 border-2 border-transparent focus:border-primary/10 focus:bg-white rounded-2xl text-sm font-bold text-slate-700 transition-[border-color,background-color] duration-200 outline-none"
-            />
+          <div className="flex items-center gap-3 w-full md:max-w-xl">
+            <div className="relative flex-1 group">
+              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
+              <input 
+                type="text" 
+                placeholder={placeholder}
+                value={search || ''}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="w-full h-12 pl-12 pr-4 bg-slate-50 border-2 border-transparent focus:border-primary/10 focus:bg-white rounded-2xl text-sm font-bold text-slate-700 transition-[border-color,background-color] duration-200 outline-none"
+              />
+            </div>
+            {extraSearchFilters}
           </div>
         </div>
       )}
@@ -329,8 +337,9 @@ const DataTableInner = <T,>({
                   return (
                     <tr
                       key={row.id}
-                      className="group hover:bg-white hover:shadow-lg hover:shadow-slate-100 hover:-translate-y-[1px] transition-[background-color,box-shadow,transform] duration-200"
+                      className={`group hover:bg-white hover:shadow-lg hover:shadow-slate-100 hover:-translate-y-[1px] transition-[background-color,box-shadow,transform] duration-200 ${onRowClick ? 'cursor-pointer' : ''}`}
                       style={{ height: `${virtualRow.size}px` }}
+                      onClick={() => onRowClick?.(row.original)}
                     >
                       {row.getVisibleCells().map(cell => {
                         const meta = cell.column.columnDef.meta as { className?: string } | undefined;
@@ -347,7 +356,11 @@ const DataTableInner = <T,>({
               </>
             ) : (
               rows.map(row => (
-                <tr key={row.id} className="group hover:bg-white hover:shadow-lg hover:shadow-slate-100 hover:-translate-y-[1px] transition-[background-color,box-shadow,transform] duration-200">
+                <tr 
+                  key={row.id} 
+                  className={`group hover:bg-white hover:shadow-lg hover:shadow-slate-100 hover:-translate-y-[1px] transition-[background-color,box-shadow,transform] duration-200 ${onRowClick ? 'cursor-pointer' : ''}`}
+                  onClick={() => onRowClick?.(row.original)}
+                >
                   {row.getVisibleCells().map(cell => {
                     const meta = cell.column.columnDef.meta as { className?: string } | undefined;
                     return (

@@ -13,6 +13,8 @@ exports.Shipment = void 0;
 const typeorm_1 = require("typeorm");
 const sale_entity_1 = require("../../../sales/entities/sale.entity");
 const department_entity_1 = require("../../../departments/entities/department.entity");
+const vehicle_entity_1 = require("./vehicle.entity");
+const staff_entity_1 = require("../../../staff/entities/staff.entity");
 let Shipment = class Shipment {
 };
 exports.Shipment = Shipment;
@@ -84,6 +86,24 @@ __decorate([
     (0, typeorm_1.JoinColumn)({ name: 'outgoing_department_id' }),
     __metadata("design:type", department_entity_1.Department)
 ], Shipment.prototype, "outgoingDepartment", void 0);
+__decorate([
+    (0, typeorm_1.ManyToMany)(() => vehicle_entity_1.Vehicle),
+    (0, typeorm_1.JoinTable)({
+        name: 'shipment_vehicles',
+        joinColumn: { name: 'shipment_id', referencedColumnName: 'id' },
+        inverseJoinColumn: { name: 'vehicle_id', referencedColumnName: 'id' }
+    }),
+    __metadata("design:type", Array)
+], Shipment.prototype, "vehicles", void 0);
+__decorate([
+    (0, typeorm_1.ManyToMany)(() => staff_entity_1.Staff),
+    (0, typeorm_1.JoinTable)({
+        name: 'shipment_staff',
+        joinColumn: { name: 'shipment_id', referencedColumnName: 'id' },
+        inverseJoinColumn: { name: 'staff_id', referencedColumnName: 'id' }
+    }),
+    __metadata("design:type", Array)
+], Shipment.prototype, "assignedStaff", void 0);
 exports.Shipment = Shipment = __decorate([
     (0, typeorm_1.Entity)('shipments')
 ], Shipment);

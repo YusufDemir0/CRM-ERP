@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsInt, ValidateIf, Length } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsInt, ValidateIf, Length, Matches } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 
@@ -13,7 +13,8 @@ export class CreateDepartmentDto {
 
   @IsOptional()
   @IsString()
-  @Length(3, 10, { message: 'Kısaltma en az 3, en fazla 10 karakter olmalıdır' })
+  @Length(4, 4, { message: 'Kısaltma tam olarak 4 harf olmalıdır (örn: MERM)' })
+  @Matches(/^[A-Za-zĞÜŞİÖÇğüşıöç]{4}$/, { message: 'Kısaltma rakam içeremez ve tam 4 harften oluşmalıdır' })
   abbreviation?: string;
 
   @IsOptional()
@@ -37,7 +38,8 @@ export class UpdateDepartmentDto {
 
   @IsOptional()
   @IsString()
-  @Length(3, 10, { message: 'Kısaltma en az 3, en fazla 10 karakter olmalıdır' })
+  @Length(4, 4, { message: 'Kısaltma tam olarak 4 harf olmalıdır (örn: MERM)' })
+  @Matches(/^[A-Za-zĞÜŞİÖÇğüşıöç]{4}$/, { message: 'Kısaltma rakam içeremez ve tam 4 harften oluşmalıdır' })
   abbreviation?: string;
 
   @IsOptional()

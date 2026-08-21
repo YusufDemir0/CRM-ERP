@@ -16,9 +16,14 @@ import { queryKeys } from '../../services/queryKeys';
 
 import { Department } from '../../types';
 import { StaffList } from '../../components/departments/StaffList';
-import { DepartmentPartiesList } from '../../components/departments/DepartmentPartiesList';
+import { DepartmentPartiesList } from '../../components/departments/DepartmentPartiesList';import { useAuth } from '../../hooks/useAuth';
 
 export default function DepartmentsPage() {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('DEPARTMENTS_CREATE');
+  const canEdit = hasPermission('DEPARTMENTS_EDIT');
+  const canDelete = hasPermission('DEPARTMENTS_DELETE');
+
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -211,12 +216,14 @@ export default function DepartmentsPage() {
                 </div>
               </div>
 
-              <button 
-                onClick={() => handleEdit(viewingDepartment)}
-                className="w-full h-12 mt-8 bg-slate-50 text-slate-600 rounded-2xl font-black text-xs hover:bg-primary/10 hover:text-primary transition-all flex items-center justify-center gap-2"
-              >
-                <FiEdit2 /> BİLGİLERİ DÜZENLE
-              </button>
+              {canEdit && (
+                <button 
+                  onClick={() => handleEdit(viewingDepartment)}
+                  className="w-full h-12 mt-8 bg-slate-50 text-slate-600 rounded-2xl font-black text-xs hover:bg-primary/10 hover:text-primary transition-all flex items-center justify-center gap-2"
+                >
+                  <FiEdit2 /> BİLGİLERİ DÜZENLE
+                </button>
+              )}
             </div>
           </div>
 
@@ -279,11 +286,13 @@ export default function DepartmentsPage() {
               </button>
             ))}
           </div>
-          <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
-            openCreate('department', { onSuccess: handleFormSuccess });
-          }}>
-            <FiPlus size={20} /> Yeni Departman
-          </button>
+          {canCreate && (
+            <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
+              openCreate('department', { onSuccess: handleFormSuccess });
+            }}>
+              <FiPlus size={20} /> Yeni Departman
+            </button>
+          )}
         </div>
       </div>
 
@@ -296,9 +305,9 @@ export default function DepartmentsPage() {
           onSort={toggleSort}
           getRowKey={(d) => d.id}
           hasState={(d) => d.state === 1}
-          onEdit={handleEdit}
-          onArchive={(d) => toggleState(d.id, 1)}
-          onRestore={(d) => toggleState(d.id, 0)}
+          onEdit={canEdit ? handleEdit : undefined}
+          onArchive={canDelete ? (d) => toggleState(d.id, 1) : undefined}
+          onRestore={canDelete ? (d) => toggleState(d.id, 0) : undefined}
           renderExtraActions={(d) => (
             <button 
               onClick={() => setViewingDepartment(d)}

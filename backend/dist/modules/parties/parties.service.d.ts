@@ -1,18 +1,19 @@
 import { Repository } from 'typeorm';
 import { Party } from './entities/party.entity';
-import { CreatePartyDto, UpdatePartyDto, PartiesQueryDto } from './dto/party.dto';
+import { CreatePartyDto, UpdatePartyDto, PartiesQueryDto, MovementsQueryDto, StatementEntry, MovementRow } from './dto/party.dto';
 import { PaginatedResult } from '../../common/dto/pagination.dto';
 import { CurrenciesService } from '../finance/currencies/currencies.service';
 import { Decimal } from 'decimal.js';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 export declare class PartiesService {
     private partyRepo;
     private currenciesService;
     constructor(partyRepo: Repository<Party>, currenciesService: CurrenciesService);
-    lookup(type?: string): Promise<Partial<Party>[]>;
-    findAll(query: PartiesQueryDto): Promise<PaginatedResult<Party>>;
+    lookup(type?: string, currentUser?: JwtPayload): Promise<Partial<Party>[]>;
+    findAll(query: PartiesQueryDto, currentUser?: JwtPayload): Promise<PaginatedResult<Party>>;
     findOne(id: string): Promise<Party>;
     create(dto: CreatePartyDto, userId: string): Promise<Party>;
-    update(id: string, dto: UpdatePartyDto, userId: string): Promise<Party>;
+    update(id: string, dto: UpdatePartyDto, userId: string, currentUser?: JwtPayload): Promise<Party>;
     softDelete(id: string): Promise<void>;
     getBalance(id: string): Promise<{
         balance: string;
@@ -42,4 +43,6 @@ export declare class PartiesService {
             limit: Decimal;
         }[];
     }>;
+    getStatement(id: string): Promise<StatementEntry[]>;
+    findAllMovements(query: MovementsQueryDto, currentUser: JwtPayload): Promise<PaginatedResult<MovementRow>>;
 }

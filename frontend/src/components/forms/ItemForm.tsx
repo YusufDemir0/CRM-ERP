@@ -35,6 +35,11 @@ const KdvSelect = memo(({ control, register, customKdv, setCustomKdv }: { contro
           type="number" 
           className="input-premium font-black tabular-nums mt-2" 
           value={customKdv || ''} 
+          onKeyDown={(e) => {
+            if (['e', 'E', '+', '-'].includes(e.key)) {
+              e.preventDefault();
+            }
+          }}
           onChange={e => setCustomKdv(Number(e.target.value))} 
           placeholder="Özel KDV %" 
         />

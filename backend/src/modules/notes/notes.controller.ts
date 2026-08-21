@@ -1,29 +1,38 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { NotesService } from './notes.service';
 import { UserNote } from './entities/note.entity';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 
 @Controller('notes')
 export class NotesController {
   constructor(private readonly notesService: NotesService) {}
 
   @Get()
-  async findAll(@Request() req: { user: { id: string } }) {
-    return this.notesService.findAllByUser(req.user.id);
+  async findAll(@CurrentUser() user: JwtPayload) {
+    const userId = String(user.sub);
+    return this.notesService.findAllByUser(userId, user);
   }
 
   @Post()
-  async create(@Request() req: { user: { id: string } }, @Body() data: Partial<UserNote>) {
-    return this.notesService.create(req.user.id, data);
+  async create(@CurrentUser() user: JwtPayload, @Body() data: Partial<UserNote>) {
+    const userId = String(user.sub);
+    if (data.title?.startsWith('SATIŞ HATASI BİLDİRİMİ')) {
+      data.status = 'new';
+    }
+    return this.notesService.create(userId, data);
   }
 
   @Put(':id')
-  async update(@Request() req: { user: { id: string } }, @Param('id') id: string, @Body() data: Partial<UserNote>) {
-    return this.notesService.update(id, req.user.id, data);
+  async update(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Body() data: Partial<UserNote>) {
+    const userId = String(user.sub);
+    return this.notesService.update(id, userId, data, user);
   }
 
   @Delete(':id')
-  async remove(@Request() req: { user: { id: string } }, @Param('id') id: string) {
-    return this.notesService.remove(id, req.user.id);
+  async remove(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    const userId = String(user.sub);
+    return this.notesService.remove(id, userId, user);
   }
 }

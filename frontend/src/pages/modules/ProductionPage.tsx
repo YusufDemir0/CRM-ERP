@@ -9,6 +9,7 @@ import { Decimal } from 'decimal.js';
 import { useSort } from '../../hooks/useSort';
 import { useDeferredValue } from 'react';
 import { queryKeys } from '../../services/queryKeys';
+import { useAuth } from '../../hooks/useAuth';
 
 // Sub-components
 import { ProductionHeader } from './Production/ProductionHeader';
@@ -16,6 +17,9 @@ import { getProductionColumns } from './Production/ProductionColumns';
 import { ProductionModal } from './Production/ProductionModal';
 
 export function ProductionPage() {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('PRODUCTION_CREATE');
+  const canEdit = hasPermission('PRODUCTION_EDIT');
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearch = useDeferredValue(searchTerm);
@@ -114,21 +118,22 @@ export function ProductionPage() {
        }
     }
     const payload = editingId ? {
-      ...formData,
       bomId: String(formData.bomId),
       plannedQuantity: Number(formData.plannedQuantity),
       producedQuantity: Number(formData.producedQuantity),
       wastageQuantity: Number(formData.wastageQuantity),
       sourceDepartmentId: formData.sourceDepartmentId ? String(formData.sourceDepartmentId) : undefined,
-      targetDepartmentId: formData.targetDepartmentId ? String(formData.targetDepartmentId) : undefined
+      targetDepartmentId: formData.targetDepartmentId ? String(formData.targetDepartmentId) : undefined,
+      status: formData.status,
+      startDate: formData.startDate || undefined,
+      endDate: formData.endDate || undefined,
+      notes: formData.notes || undefined,
     } : {
       bomId: String(formData.bomId),
       plannedQuantity: Number(formData.plannedQuantity),
-      startDate: formData.startDate,
+      startDate: formData.startDate || undefined,
       endDate: formData.endDate || undefined,
-      notes: formData.notes,
-      unitCost: "0",
-      totalCost: "0"
+      notes: formData.notes || undefined,
     };
     mutation.mutate({ id: editingId, data: payload });
   };
@@ -150,6 +155,7 @@ export function ProductionPage() {
     <div className="animate-in flex flex-col gap-8">
       <ProductionHeader 
         setEditingId={setEditingId} setFormData={setFormData} setIsModalOpen={setIsModalOpen} 
+        canCreate={canCreate}
       />
 
       <div className="flex flex-col gap-4">
@@ -160,7 +166,7 @@ export function ProductionPage() {
           sortConfigs={sortConfigs} 
           onSort={toggleSort}
           getRowKey={(o) => o.id}
-          onEdit={(o) => o.status !== 'completed' && o.status !== 'cancelled' ? handleEdit(o) : undefined}
+          onEdit={canEdit ? (o) => o.status !== 'completed' && o.status !== 'cancelled' ? handleEdit(o) : undefined : undefined}
           
           // Integrated Search & Pagination
           search={searchTerm}

@@ -7,6 +7,7 @@ import { SaleItem } from './sale-item.entity';
 import { Staff } from '../../staff/entities/staff.entity';
 import { CommercialAccount } from '../../finance/accounts/entities/commercial-account.entity';
 import { Department } from '../../departments/entities/department.entity';
+import { User } from '../../auth/entities/user.entity';
 export declare class Sale extends BaseEntity {
     code: string;
     partyId: string;
@@ -38,11 +39,15 @@ export declare class Sale extends BaseEntity {
     maturityDays: number;
     paymentType: string;
     installments: number;
+    cancelledById: string | null;
+    cancelledAt: Date | null;
+    cancelReason: string | null;
     party: Party;
     saleType: SaleType;
     currency: Currency;
     staff: Staff | null;
     commercialAccount: CommercialAccount | null;
     department: Department | null;
+    cancelledBy: User | null;
     items: SaleItem[];
 }

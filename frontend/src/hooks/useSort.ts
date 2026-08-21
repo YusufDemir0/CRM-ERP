@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 
 export interface SortConfig {
   key: string;
@@ -9,11 +9,16 @@ const collator = new Intl.Collator('tr-TR', { numeric: true });
 
 export function useSort<T>(data: T[], initialSort: SortConfig[] = [], onSortChange?: (configs: SortConfig[]) => void) {
   const [sortConfigs, setSortConfigs] = useState<SortConfig[]>(initialSort);
+  const sortKey = initialSort.map(s => `${s.key}:${s.direction}`).join('|');
+  const prevSortKeyRef = useRef(sortKey);
 
   // Sync with external state changes (e.g. URL search params)
   useEffect(() => {
-    setSortConfigs(initialSort);
-  }, [JSON.stringify(initialSort)]);
+    if (prevSortKeyRef.current !== sortKey) {
+      prevSortKeyRef.current = sortKey;
+      setSortConfigs(initialSort);
+    }
+  }, [sortKey, initialSort]);
 
   const toggleSort = useCallback((key: string, multiSort: boolean = false) => {
     setSortConfigs(prev => {

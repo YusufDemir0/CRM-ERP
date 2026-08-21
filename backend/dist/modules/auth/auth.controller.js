@@ -28,16 +28,18 @@ let AuthController = class AuthController {
         const rawIp = req.ip || req.headers['x-forwarded-for'];
         const ipAddress = Array.isArray(rawIp) ? rawIp[0] : (rawIp || undefined);
         const { access_token, refresh_token, user } = await this.authService.login(dto, ipAddress);
+        const isProd = process.env.NODE_ENV === 'production';
+        const sameSiteMode = isProd ? 'none' : 'lax';
         res.cookie('erp_token', access_token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            secure: isProd,
+            sameSite: sameSiteMode,
             maxAge: 15 * 60 * 1000,
         });
         res.cookie('erp_refresh_token', refresh_token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            secure: isProd,
+            sameSite: sameSiteMode,
             path: '/api/auth/refresh',
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
@@ -49,16 +51,18 @@ let AuthController = class AuthController {
     async refresh(req, res) {
         const oldRefreshToken = req.cookies['erp_refresh_token'];
         const { access_token, refresh_token } = await this.authService.refreshToken(oldRefreshToken);
+        const isProd = process.env.NODE_ENV === 'production';
+        const sameSiteMode = isProd ? 'none' : 'lax';
         res.cookie('erp_token', access_token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            secure: isProd,
+            sameSite: sameSiteMode,
             maxAge: 15 * 60 * 1000,
         });
         res.cookie('erp_refresh_token', refresh_token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            secure: isProd,
+            sameSite: sameSiteMode,
             path: '/api/auth/refresh',
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
@@ -72,14 +76,25 @@ let AuthController = class AuthController {
                 if (payload && payload.sub) {
                     const rawIp = req.ip || req.headers['x-forwarded-for'];
                     const ipAddress = Array.isArray(rawIp) ? rawIp[0] : (rawIp || undefined);
-                    await this.authService.logout(String(payload.sub), payload.username, payload.fullName, ipAddress);
+                    await this.authService.logout(String(payload.sub), payload.username, payload.fullName || '', ipAddress);
                 }
             }
             catch (e) {
             }
         }
-        res.clearCookie('erp_token');
-        res.clearCookie('erp_refresh_token', { path: '/api/auth/refresh' });
+        const isProd = process.env.NODE_ENV === 'production';
+        const sameSiteMode = isProd ? 'none' : 'lax';
+        res.clearCookie('erp_token', {
+            httpOnly: true,
+            secure: isProd,
+            sameSite: sameSiteMode,
+        });
+        res.clearCookie('erp_refresh_token', {
+            httpOnly: true,
+            secure: isProd,
+            sameSite: sameSiteMode,
+            path: '/api/auth/refresh',
+        });
         return { message: 'Çıkış başarılı' };
     }
     async register(dto) {
@@ -127,7 +142,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "logout", null);
 __decorate([
-    (0, permissions_decorator_1.RequirePermissions)('USER_CREATE'),
+    (0, permissions_decorator_1.RequirePermissions)('USERS_CREATE'),
     (0, common_1.Post)('register'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),

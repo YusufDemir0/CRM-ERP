@@ -52,7 +52,7 @@ __decorate([
     __metadata("design:type", String)
 ], Transaction.prototype, "type", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'reference_type', type: 'enum', enum: ['sale', 'purchase', 'manual_adjustment', 'manual', 'sale_deposit'], nullable: true }),
+    (0, typeorm_1.Column)({ name: 'reference_type', type: 'enum', enum: ['sale', 'purchase', 'manual_adjustment', 'manual', 'sale_deposit', 'transfer'], nullable: true }),
     __metadata("design:type", Object)
 ], Transaction.prototype, "referenceType", void 0);
 __decorate([

@@ -1,17 +1,29 @@
 import { registerAs } from '@nestjs/config';
+import * as fs from 'fs';
 
 /**
  * Database Configuration — Enterprise Ready
  * 
  * Supports:
- *   - SSL/TLS connections (for managed databases like AWS RDS)
- *   - Configurable connection pool
- *   - Read replica routing (future)
+ *   - SSL/TLS connections with CA cert (for managed databases like Aiven MySQL, AWS RDS)
+ *   - Configurable connection pool (differentiated for API and Worker)
+ *   - Read replica routing
  *   - Environment-based logging levels
  */
 export default registerAs('database', () => {
   const sslEnabled = process.env.DB_SSL_ENABLED === 'true';
-  const poolSize = parseInt(process.env.DB_POOL_SIZE || '50', 10);
+  const isWorker = process.env.IS_WORKER === 'true';
+  const defaultPool = isWorker ? '10' : '30';
+  const poolSize = parseInt(process.env.DB_POOL_SIZE || defaultPool, 10);
+
+  const sslConfig = sslEnabled
+    ? {
+        rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+        ca: process.env.DB_CA_CERT_PATH
+          ? fs.readFileSync(process.env.DB_CA_CERT_PATH).toString()
+          : process.env.DB_CA_CERT || undefined,
+      }
+    : undefined;
 
   const baseConfig = {
     type: 'mysql' as const,
@@ -21,11 +33,11 @@ export default registerAs('database', () => {
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_DATABASE || 'benyaptim',
     entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-    synchronize: process.env.NODE_ENV !== 'production', // DEV-FIX: Yeni kolonların (department_id) eklenmesi için aktif edildi
-    migrationsRun: true,
+    synchronize: false,
+    migrationsRun: process.env.MIGRATIONS_RUN === 'true',
     migrations: [__dirname + '/../database/migrations/*{.ts,.js}'],
     logging: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
-    charset: 'utf8mb4',
+    charset: 'utf8mb4_unicode_ci',
     timezone: '+00:00',
     extra: {
       connectionLimit: poolSize,
@@ -34,17 +46,9 @@ export default registerAs('database', () => {
       // Keep-alive for long-running connections (managed DB firewall)
       enableKeepAlive: true,
       keepAliveInitialDelay: 30000,
+      ...(sslConfig ? { ssl: sslConfig } : {}),
     },
   };
-
-  // SSL/TLS for managed databases (AWS RDS, GCP Cloud SQL, etc.)
-  if (sslEnabled) {
-    Object.assign(baseConfig.extra, {
-      ssl: {
-        rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
-      },
-    });
-  }
 
   // Read replica configuration (activate when DB_READ_HOST is set)
   const readHost = process.env.DB_READ_HOST;

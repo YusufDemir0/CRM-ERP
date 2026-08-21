@@ -60,13 +60,13 @@ class AddShipmentAndAllowNegativeStock1716400000000 {
             const managePerm = await queryRunner.query(`SELECT id FROM \`permissions\` WHERE \`key\` = 'SHIPMENT_MANAGE' LIMIT 1`);
             if (viewPerm && viewPerm.length > 0) {
                 const viewPermId = viewPerm[0].id;
-                await queryRunner.query(`INSERT IGNORE INTO \`role_permissions\` (role_id, permission_id) VALUES (1, ${viewPermId})`);
-                await queryRunner.query(`INSERT IGNORE INTO \`role_permissions\` (role_id, permission_id) VALUES (3, ${viewPermId})`);
+                await queryRunner.query(`INSERT IGNORE INTO \`role_permissions\` (role_id, permission_id) VALUES (1, ?)`, [viewPermId]);
+                await queryRunner.query(`INSERT IGNORE INTO \`role_permissions\` (role_id, permission_id) VALUES (3, ?)`, [viewPermId]);
             }
             if (managePerm && managePerm.length > 0) {
                 const managePermId = managePerm[0].id;
-                await queryRunner.query(`INSERT IGNORE INTO \`role_permissions\` (role_id, permission_id) VALUES (1, ${managePermId})`);
-                await queryRunner.query(`INSERT IGNORE INTO \`role_permissions\` (role_id, permission_id) VALUES (3, ${managePermId})`);
+                await queryRunner.query(`INSERT IGNORE INTO \`role_permissions\` (role_id, permission_id) VALUES (1, ?)`, [managePermId]);
+                await queryRunner.query(`INSERT IGNORE INTO \`role_permissions\` (role_id, permission_id) VALUES (3, ?)`, [managePermId]);
             }
         }
         catch (e) {
@@ -78,7 +78,7 @@ class AddShipmentAndAllowNegativeStock1716400000000 {
         try {
             const perms = await queryRunner.query(`SELECT id FROM \`permissions\` WHERE \`key\` IN ('SHIPMENT_VIEW', 'SHIPMENT_MANAGE')`);
             for (const p of perms) {
-                await queryRunner.query(`DELETE FROM \`role_permissions\` WHERE permission_id = ${p.id}`);
+                await queryRunner.query(`DELETE FROM \`role_permissions\` WHERE permission_id = ?`, [p.id]);
             }
         }
         catch (e) { }

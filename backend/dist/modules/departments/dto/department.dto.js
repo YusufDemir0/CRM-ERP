@@ -29,7 +29,8 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.Length)(3, 10, { message: 'Kısaltma en az 3, en fazla 10 karakter olmalıdır' }),
+    (0, class_validator_1.Length)(4, 4, { message: 'Kısaltma tam olarak 4 harf olmalıdır (örn: MERM)' }),
+    (0, class_validator_1.Matches)(/^[A-Za-zĞÜŞİÖÇğüşıöç]{4}$/, { message: 'Kısaltma rakam içeremez ve tam 4 harften oluşmalıdır' }),
     __metadata("design:type", String)
 ], CreateDepartmentDto.prototype, "abbreviation", void 0);
 __decorate([
@@ -63,7 +64,8 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.Length)(3, 10, { message: 'Kısaltma en az 3, en fazla 10 karakter olmalıdır' }),
+    (0, class_validator_1.Length)(4, 4, { message: 'Kısaltma tam olarak 4 harf olmalıdır (örn: MERM)' }),
+    (0, class_validator_1.Matches)(/^[A-Za-zĞÜŞİÖÇğüşıöç]{4}$/, { message: 'Kısaltma rakam içeremez ve tam 4 harften oluşmalıdır' }),
     __metadata("design:type", String)
 ], UpdateDepartmentDto.prototype, "abbreviation", void 0);
 __decorate([

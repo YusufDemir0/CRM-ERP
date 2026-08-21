@@ -42,9 +42,9 @@ export default {
       zIndex: {
         'dropdown': '30',
         'header':   '40',
-        'modal':    '50',
-        'toast':    '60',
-        'tooltip':  '70',
+        'modal':    '9000',
+        'toast':    '9500',
+        'tooltip':  '9600',
         'loader':   '9999',
       },
     },

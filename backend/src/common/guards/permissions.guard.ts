@@ -15,15 +15,17 @@ import { RolePermission } from '../../modules/auth/entities/role-permission.enti
 import { UserRole } from '../../modules/auth/entities/user-role.entity';
 import { Permission } from '../../modules/auth/entities/permission.entity';
 import { User } from '../../modules/auth/entities/user.entity';
+import { RecordState } from '../enums/record-state.enum';
 
 /**
  * Gelişmiş RBAC Guard:
  *
- * 1. Kullanıcının rollerinden gelen permission'ları topla
- * 2. user_permissions tablosundaki allow/deny override'ları kontrol et
- * 3. deny her zaman kazanır (deny > allow)
- * 4. scope_type kontrolü: global, department, own
- * 5. İlk kullanıcı (ID=1) veya hiç permission tanımlı değilse → bypass
+ * 1. Kullanıcının state ve tokenVersion kontrolü (Banned User Bypass Fix)
+ * 2. Kullanıcının rollerinden gelen permission'ları topla
+ * 3. user_permissions tablosundaki allow/deny override'ları kontrol et
+ * 4. deny her zaman kazanır (deny > allow)
+ * 5. scope_type kontrolü: global, department, own
+ * 6. İlk kullanıcı (ID=1) veya hiç permission tanımlı değilse → bypass
  */
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
@@ -43,6 +45,8 @@ export class PermissionsGuard implements CanActivate {
     private userPermRepo: Repository<UserPermission>,
     @InjectRepository(Permission)
     private permissionRepo: Repository<Permission>,
+    @InjectRepository(User)
+    private userRepo: Repository<User>,
   ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -64,35 +68,57 @@ export class PermissionsGuard implements CanActivate {
 
     const userId = user.sub;
 
-    // ─── BYPASS: İlk kullanıcı (superadmin) kontrolü ───
-    // Eğer permissions tablosunda hiç kayıt yoksa, tüm kullanıcılar geçebilir
-    // Bu, ilk kurulumda sistemin kilitlenmesini önler
-    const totalPermissions = await this.permissionRepo.count();
-    if (totalPermissions === 0) {
-      this.logger.warn(`No permissions defined in DB — bypassing guard for user ${userId}`);
-      return true;
+    // ─── SECURITY: Banned User / Token Version Check ───
+    // Prevents deactivated or banned users from using valid JWTs
+    const stateCacheKey = `user_state_${userId}`;
+    let userState: { state: RecordState; tokenVersion: number } | undefined;
+
+    const cachedState = await this.cacheManager.get<{ state: number; tokenVersion: number }>(stateCacheKey);
+    if (cachedState) {
+      userState = cachedState;
+    } else {
+      const dbUser = await this.userRepo.findOne({
+        where: { id: String(userId) },
+        select: ['id', 'state', 'tokenVersion'],
+      });
+      if (dbUser) {
+        userState = { state: dbUser.state, tokenVersion: dbUser.tokenVersion };
+        await this.cacheManager.set(stateCacheKey, userState, 60000); // 60s cache
+      }
     }
 
-    // ─── BYPASS: System Admin kontrolü ───
-    // 'isSystemAdmin' bayrağı true olan roller tüm endpoint'lere erişebilir
-    const userRoles = await this.userRoleRepo.find({
-      where: { userId },
-      relations: ['role'],
-    });
-    const roleIds = userRoles.map((ur) => ur.roleId);
-    
-    // Güvenlik Düzeltmesi (1.4): Hardcode isim kontrolü yerine DB kolonuna bakıyoruz.
-    const isSystemAdmin = userRoles.some((ur) => ur.role?.isSystemAdmin === true);
+    if (userState) {
+      // Block inactive/banned/locked users
+      if (userState.state !== RecordState.ACTIVE) {
+        this.logger.warn(`Blocked request from inactive user ${userId} (state=${userState.state})`);
+        throw new ForbiddenException('Hesabınız aktif değil. Lütfen yöneticinizle iletişime geçin.');
+      }
+      // Block stale tokens (tokenVersion mismatch = token was invalidated)
+      if (user.tokenVersion !== undefined && userState.tokenVersion !== user.tokenVersion) {
+        this.logger.warn(`Blocked stale token for user ${userId} (jwt.tv=${user.tokenVersion}, db.tv=${userState.tokenVersion})`);
+        throw new ForbiddenException('Oturumunuz geçersiz kılınmıştır. Lütfen tekrar giriş yapın.');
+      }
+    }
 
     // ─── CACHE CHECK ───
     const cacheKey = `user_perms_${userId}`;
-    const cachedPerms = await this.cacheManager.get<string[]>(cacheKey);
+    const cachedData = await this.cacheManager.get<{ permissions: string[]; isSystemAdmin: boolean }>(cacheKey);
     
     let finalPermissions: string[] = [];
+    let isSystemAdmin = false;
     
-    if (cachedPerms) {
-      finalPermissions = cachedPerms;
+    if (cachedData) {
+      finalPermissions = cachedData.permissions;
+      isSystemAdmin = cachedData.isSystemAdmin;
     } else {
+      // 1. Rol bilgilerini al
+      const userRoles = await this.userRoleRepo.find({
+        where: { userId },
+        relations: ['role'],
+      });
+      const roleIds = userRoles.map((ur) => ur.roleId);
+      isSystemAdmin = userRoles.some((ur) => ur.role?.isSystemAdmin === true);
+
       // 2. Rol bazlı permission'ları al
       let rolePermissionKeys: string[] = [];
       if (roleIds.length > 0) {
@@ -111,14 +137,14 @@ export class PermissionsGuard implements CanActivate {
         relations: ['permission'],
       });
 
-      // Combine and filter
+      // Combine and filter with Set (O(1) lookup)
+      const userDenySet = new Set(userPerms.filter(up => up.effect === 'deny').map(up => up.permission?.key));
       const userAllowKeys = userPerms.filter(up => up.effect === 'allow').map(up => up.permission?.key);
-      const userDenyKeys = userPerms.filter(up => up.effect === 'deny').map(up => up.permission?.key);
       
-      finalPermissions = Array.from(new Set([...rolePermissionKeys, ...userAllowKeys]))
-        .filter(key => key && !userDenyKeys.includes(key)) as string[];
+      const allCandidateKeys = [...rolePermissionKeys, ...userAllowKeys];
+      finalPermissions = Array.from(new Set(allCandidateKeys.filter(key => key && !userDenySet.has(key)))) as string[];
 
-      await this.cacheManager.set(cacheKey, finalPermissions, 60000); // 1 dk cache
+      await this.cacheManager.set(cacheKey, { permissions: finalPermissions, isSystemAdmin }, 60000); // 1 dk cache
     }
 
     // Her durumda downstream servisler için request.user bilgilerini set et
@@ -134,10 +160,10 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
 
-    // 4. Her required permission için kontrol
-    const hasAll = requiredPermissions.every(key => finalPermissions.includes(key));
+    // 4. Her required permission için kontrol (En az birine sahip olması yeterlidir)
+    const hasAny = requiredPermissions.some(key => finalPermissions.includes(key));
     
-    if (!hasAll) {
+    if (!hasAny) {
        this.logger.warn(`User ${userId} missing one of: ${requiredPermissions.join(', ')}`);
        throw new ForbiddenException(`Bu işlem için yetkiniz bulunmamaktadır.`);
     }
@@ -145,3 +171,4 @@ export class PermissionsGuard implements CanActivate {
     return true;
   }
 }
+

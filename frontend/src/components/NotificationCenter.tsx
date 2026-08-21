@@ -6,10 +6,12 @@ import { formatDisplayDate } from '../utils/date.helper';
 import { translateLog } from '../utils/logTranslator';
 import toast from 'react-hot-toast';
 
+import { useAuthStore } from '../store/useAuthStore';
 import { Log } from '../types';
 
 export const NotificationCenter = memo(() => {
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -19,7 +21,7 @@ export const NotificationCenter = memo(() => {
       const res = await logsAPI.getNotifications();
       return res.data;
     },
-    enabled: !!localStorage.getItem('token'), // Only fetch if token exists
+    enabled: !!user, // Fetch when user is authenticated
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 

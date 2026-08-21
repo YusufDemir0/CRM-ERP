@@ -48,20 +48,39 @@ export class CreateTransactionDto {
   @IsNotEmpty() @Transform(FinanceHelper.transformString) @IsString() amount: string; 
   @IsOptional() @IsString() currencyId: string;
   @IsEnum(['in', 'out']) type: 'in' | 'out';
-  @IsOptional() @Transform(({ value }) => (value === '' || value === null) ? undefined : value) @IsEnum(['sale', 'purchase', 'manual_adjustment', 'manual', 'sale_deposit']) referenceType?: 'sale' | 'purchase' | 'manual_adjustment' | 'manual' | 'sale_deposit';
+  @IsOptional() @Transform(({ value }) => (value === '' || value === null) ? undefined : value) @IsEnum(['sale', 'purchase', 'manual_adjustment', 'manual', 'sale_deposit', 'transfer']) referenceType?: 'sale' | 'purchase' | 'manual_adjustment' | 'manual' | 'sale_deposit' | 'transfer';
   @IsOptional() @IsString() referenceId: string;
   @IsDateString() date: string;
   @IsOptional() @IsString() description?: string;
 }
 
+export class CreateTransferDto {
+  @IsString() @IsNotEmpty() fromAccountId: string;
+  @IsString() @IsNotEmpty() toAccountId: string;
+  @IsNotEmpty() @Transform(FinanceHelper.transformString) @IsString() amount: string;
+  @IsOptional() @IsString() currencyId?: string;
+  @IsDateString() date: string;
+  @IsOptional() @IsString() description?: string;
+}
 
 export class TransactionsQueryDto extends PaginationDto {
   @IsOptional() @IsString() partyId: string;
   @IsOptional() @IsString() type?: string;
   @IsOptional() @IsString() status?: string;
   @IsOptional() @IsString() commercialAccountId?: string;
+  @IsOptional() @IsString() referenceType?: string; // Add filter support for referenceType
+  @IsOptional() @IsString() departmentId?: string; // Add filter support for departmentId
 }
 
 export class AccountsQueryDto extends PaginationDto {
   @IsOptional() @Type(() => Number) @IsInt() state?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return 'true';
+    if (value === 'false' || value === false) return 'false';
+    return value;
+  })
+  @IsString()
+  ignorePermissionRestrictions?: string;
 }

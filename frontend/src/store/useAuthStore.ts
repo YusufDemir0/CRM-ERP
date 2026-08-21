@@ -14,6 +14,7 @@ export interface AuthUser {
     id: string;
     name: string;
     cityId?: string | number | null;
+    commercialAccountId?: string | null;
   } | null;
   roles: string[];
   permissions: string[];

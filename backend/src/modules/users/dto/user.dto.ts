@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsNumber, IsEmail, MinLength, IsInt, IsIn, Matches, IsArray } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsEmail, MinLength, IsInt, IsIn, Matches, IsArray, ArrayMinSize } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateUserDto {
@@ -24,6 +24,7 @@ export class CreateUserDto {
 
   @IsArray()
   @IsString({ each: true })
+  @ArrayMinSize(1, { message: 'En az bir rol seçilmelidir' })
   roleIds: string[];
 }
 

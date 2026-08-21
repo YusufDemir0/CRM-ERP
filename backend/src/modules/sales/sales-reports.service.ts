@@ -1,7 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, StreamableFile } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, EntityManager } from 'typeorm';
-import { Response } from 'express';
 import * as ExcelJS from 'exceljs';
 import dayjs from 'dayjs';
 import { Decimal } from 'decimal.js';
@@ -27,49 +26,89 @@ export class SalesReportsService {
     return this.saleTypeRepo.find();
   }
 
+  async findMinimalLookup(user?: JwtPayload): Promise<any[]> {
+    const qb = this.saleRepo.createQueryBuilder('sale')
+      .leftJoin('sale.party', 'party')
+      .select([
+        'sale.id',
+        'sale.code',
+        'sale.grandTotal',
+        'sale.phone',
+        'party.id',
+        'party.name',
+        'party.phone1'
+      ]);
+
+    if (user && !user.isSystemAdmin) {
+      if (user.permissions?.includes('SALES_VIEW_ALL') || user.permissions?.includes('SALES_MASTER_VIEW') || user.permissions?.includes('sales_view_all') || user.permissions?.includes('sales_master_view')) {
+        // Full access
+      } else if (user.permissions?.includes('SALES_VIEW_DEPT') || user.permissions?.includes('sales_view_dept')) {
+        if (user.departmentId) {
+          qb.andWhere('sale.departmentId = :userDeptId', { userDeptId: user.departmentId });
+        } else {
+          qb.andWhere('1 = 0');
+        }
+      } else {
+        // Default to SALES_VIEW_OWN
+        qb.andWhere('sale.createdBy = :userId', { userId: user.sub });
+      }
+    }
+
+    return qb.orderBy('sale.createdAt', 'DESC')
+      .limit(1000)
+      .getMany();
+  }
+
   async findAll(query: SalesQueryDto, user?: JwtPayload): Promise<PaginatedResult<Sale>> {
     const qb = this.saleRepo.createQueryBuilder('sale')
       .select([
         'sale.id', 'sale.code', 'sale.status', 'sale.totalAmount', 'sale.grandTotal',
         'sale.kdv', 'sale.discountAmount', 'sale.createdAt', 'sale.updatedAt',
         'sale.deliveryDate', 'sale.phone', 'sale.address', 'sale.profit',
-        'sale.maturityDays', 'sale.paymentType', 'sale.installments', 'sale.paidAmount'
+        'sale.maturityDays', 'sale.paymentType', 'sale.installments', 'sale.paidAmount',
+        'sale.commercialAccountId', 'sale.city', 'sale.district', 'sale.notes', 'sale.email',
+        'sale.source', 'sale.deposit'
       ])
       .leftJoin('sale.party', 'party')
-      .addSelect(['party.id', 'party.name', 'party.type'])
+      .addSelect(['party.id', 'party.name', 'party.type', 'party.balance', 'party.creditLimit'])
       .leftJoin('sale.saleType', 'saleType')
       .addSelect(['saleType.id', 'saleType.name', 'saleType.abbreviation'])
       .leftJoin('sale.currency', 'currency')
       .addSelect(['currency.id', 'currency.symbol', 'currency.code'])
       .leftJoin('sale.department', 'department')
-      .addSelect(['department.id', 'department.name', 'department.abbreviation']);
+      .addSelect(['department.id', 'department.name', 'department.abbreviation'])
+      .leftJoin('sale.commercialAccount', 'commercialAccount')
+      .addSelect(['commercialAccount.id', 'commercialAccount.name', 'commercialAccount.bankName']);
 
     if (query.search) {
-      qb.andWhere(
-        '(sale.code LIKE :s OR sale.notes LIKE :s OR sale.phone LIKE :s OR sale.address LIKE :s OR sale.city LIKE :s OR sale.district LIKE :s OR sale.taxNumber LIKE :s OR sale.email LIKE :s OR sale.source LIKE :s OR party.name LIKE :s)',
-        { s: `%${query.search}%` }
-      );
+      const s = getSafeSearchPattern(query.search);
+      if (s) {
+        qb.andWhere(
+          '(sale.code LIKE :s OR sale.notes LIKE :s OR sale.phone LIKE :s OR sale.address LIKE :s OR sale.city LIKE :s OR sale.district LIKE :s OR sale.taxNumber LIKE :s OR sale.email LIKE :s OR sale.source LIKE :s OR party.name LIKE :s)',
+          { s }
+        );
+      }
     }
     if (query.status) qb.andWhere('sale.status = :status', { status: query.status });
     if (query.partyId) qb.andWhere('sale.partyId = :partyId', { partyId: query.partyId });
+    if (query.departmentId) qb.andWhere('sale.departmentId = :departmentId', { departmentId: query.departmentId });
 
     if (user && !user.isSystemAdmin) {
       const forceOwnSales = query.ownSalesOnly === 'true' || query.ownSalesOnly === true;
-      const hasFullSales = !forceOwnSales && (
-        user.permissions?.includes('SALES_APPROVE') || 
-        user.permissions?.includes('SALES_MASTER_APPROVE') || 
-        user.permissions?.includes('SALES_MASTER_VIEW') || 
-        user.permissions?.includes('SALES_VIEW_ALL') ||
-        user.permissions?.includes('sales_approve') || 
-        user.permissions?.includes('sales_master_approve')
-      );
-      
-      if (hasFullSales) {
+      if (forceOwnSales) {
+        qb.andWhere('sale.createdBy = :userId', { userId: user.sub });
+      } else if (user.permissions?.includes('SALES_VIEW_ALL')) {
+        // SALES_VIEW_ALL sees all sales across the company. No department constraint.
+      } else if (user.permissions?.includes('PARTIES_VIEW_SALES_HISTORY') && query.partyId) {
+        // Allow seeing all sales of this specific party if they have history view permission
+      } else if (user.permissions?.includes('SALES_VIEW_DEPT')) {
         if (user.departmentId) {
           qb.andWhere('sale.departmentId = :userDeptId', { userDeptId: user.departmentId });
+        } else {
+          qb.andWhere('1 = 0');
         }
       } else {
-        // Sadece kendi yaptigi satislar
+        // Default to SALES_VIEW_OWN
         qb.andWhere('sale.createdBy = :userId', { userId: user.sub });
       }
     }
@@ -103,7 +142,7 @@ export class SalesReportsService {
     const repo = manager ? manager.getRepository(Sale) : this.saleRepo;
     const sale = await repo.findOne({
       where: { id },
-      relations: ['party', 'saleType', 'currency', 'items', 'items.item'],
+      relations: ['party', 'saleType', 'currency', 'staff', 'commercialAccount', 'department', 'items', 'items.item', 'cancelledBy'],
     });
     if (!sale) throw new NotFoundException('Satış bulunamadı');
     return sale;
@@ -129,7 +168,7 @@ export class SalesReportsService {
     };
   }
 
-  async exportToExcel(query: SalesQueryDto, user: JwtPayload, res: Response) {
+  async exportToExcel(query: SalesQueryDto, user: JwtPayload): Promise<StreamableFile> {
     const qb = this.saleRepo.createQueryBuilder('sale')
       .leftJoin('sale.party', 'party')
       .leftJoin('sale.currency', 'currency')
@@ -143,19 +182,28 @@ export class SalesReportsService {
     if (query.status) qb.andWhere('sale.status = :status', { status: query.status });
     
     if (user && !user.isSystemAdmin) {
-      const hasFullSales = 
-        user.permissions?.includes('SALES_APPROVE') || 
-        user.permissions?.includes('SALES_MASTER_APPROVE') || 
-        user.permissions?.includes('SALES_MASTER_VIEW') || 
-        user.permissions?.includes('SALES_VIEW_ALL') ||
-        user.permissions?.includes('sales_approve') || 
-        user.permissions?.includes('sales_master_approve');
-      if (hasFullSales) {
-        if (user.departmentId) {
-          qb.andWhere('sale.departmentId = :userDeptId', { userDeptId: user.departmentId });
-        }
+      const hasViewAll = 
+        user.permissions?.includes('SALES_VIEW_ALL') || 
+        user.permissions?.includes('sales_view_all') ||
+        user.permissions?.includes('SALES_MASTER_VIEW') ||
+        user.permissions?.includes('sales_master_view');
+
+      if (hasViewAll) {
+        // No department constraint
       } else {
-        qb.andWhere('sale.createdBy = :userId', { userId: user.sub });
+        const hasViewDept = 
+          user.permissions?.includes('SALES_VIEW_DEPT') || 
+          user.permissions?.includes('sales_view_dept') ||
+          user.permissions?.includes('SALES_APPROVE') || 
+          user.permissions?.includes('sales_approve') ||
+          user.permissions?.includes('SALES_MASTER_APPROVE') || 
+          user.permissions?.includes('sales_master_approve');
+
+        if (hasViewDept && user.departmentId) {
+          qb.andWhere('sale.departmentId = :userDeptId', { userDeptId: user.departmentId });
+        } else {
+          qb.andWhere('sale.createdBy = :userId', { userId: user.sub });
+        }
       }
     }
 
@@ -200,11 +248,8 @@ export class SalesReportsService {
 
     worksheet.getRow(1).font = { bold: true };
     
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=Satis_Raporu_${dayjs().format('YYYYMMDD')}.xlsx`);
-
-    await workbook.xlsx.write(res);
-    res.end();
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new StreamableFile(Buffer.from(buffer));
   }
 
   async fetchItemData(manager: EntityManager, itemIds: string[]): Promise<Map<string, ItemData>> {

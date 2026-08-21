@@ -108,7 +108,7 @@ export const UserForm: React.FC<UserFormProps> = ({
 
   const onSubmit = async (data: UserFormData) => {
     if (!data.selectedRoles || data.selectedRoles.length === 0) {
-      toast.error("En az bir rol seçilmelidir.");
+      toast.error("⚠️ LÜTFEN EN AZ BİR ERİŞİM ROLÜ SEÇİNİZ!");
       return;
     }
 
@@ -280,11 +280,16 @@ export const UserForm: React.FC<UserFormProps> = ({
               </label>
             ))}
           </div>
+          {selectedRoles.length === 0 && (
+            <div className="mt-2 bg-red-50 text-red-600 border border-red-200 text-xs font-black p-3.5 rounded-2xl flex items-center justify-center gap-2 animate-pulse uppercase tracking-wider text-center">
+              ⚠️ LÜTFEN EN AZ BİR ERİŞİM ROLÜ SEÇİNİZ!
+            </div>
+          )}
         </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-slate-100">
-        <button type="submit" disabled={selectedRoles.length === 0 || isSubmitting} className="btn btn-primary btn-lg flex-1 shadow-2xl shadow-[var(--primary-glow)]">
+        <button type="submit" disabled={isSubmitting} className="btn btn-primary btn-lg flex-1 shadow-2xl shadow-[var(--primary-glow)]">
           {isSubmitting ? <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" /> : <FiCheck size={20} />} 
           {editingId ? 'GÜNCELLEMELERİ KAYDET' : 'YENİ PERSONELİ SİSTEME KAYDET'}
         </button>

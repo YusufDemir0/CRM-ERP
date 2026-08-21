@@ -1,10 +1,13 @@
 import { StreamableFile } from '@nestjs/common';
 import { ItemsService } from './items.service';
 import { CreateItemDto, UpdateItemDto, CreateItemTypeDto, CreateQuantityTypeDto, CreateItemCodeGroupDto, ItemsQueryDto, UpdateItemTypeDto, UpdateQuantityTypeDto, UpdateItemCodeGroupDto } from '../dto/inventory.dto';
+import { JwtPayload } from '../../../common/interfaces/jwt-payload.interface';
 export declare class ItemsController {
     private readonly itemsService;
     constructor(itemsService: ItemsService);
-    importItems(body: any, file: any, userId: string): Promise<{
+    importItems(body: unknown, file: {
+        buffer: Buffer;
+    } | undefined, userId: string): Promise<{
         updatedCount: number;
         insertedCount: number;
         errors: string[];
@@ -30,7 +33,7 @@ export declare class ItemsController {
     removeQuantityType(id: string): Promise<void>;
     updateItemType(id: string, dto: UpdateItemTypeDto, userId: string): Promise<import("./entities/item-type.entity").ItemType>;
     updateCodeGroup(id: string, dto: UpdateItemCodeGroupDto, userId: string): Promise<import("./entities/item-code-group.entity").ItemCodeGroup>;
-    update(id: string, dto: UpdateItemDto, userId: string): Promise<import("./entities/item.entity").Item>;
+    update(id: string, dto: UpdateItemDto, user: JwtPayload): Promise<import("./entities/item.entity").Item>;
     removeItemType(id: string): Promise<void>;
     removeCodeGroup(id: string): Promise<void>;
     remove(id: string, userId: string): Promise<void>;

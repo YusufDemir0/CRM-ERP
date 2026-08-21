@@ -20,27 +20,27 @@ let StocksService = StocksService_1 = class StocksService {
         this.transactionsService = transactionsService;
         this.logger = new common_1.Logger(StocksService_1.name);
     }
-    async findAll(query) {
-        return this.reportsService.findAll(query);
+    async findAll(query, user) {
+        return this.reportsService.findAll(query, user);
     }
-    async findAllMovements(query) {
-        return this.reportsService.findAllMovements(query);
+    async findAllMovements(query, user) {
+        return this.reportsService.findAllMovements(query, user);
     }
-    async getMovements(stockId, query) {
-        return this.reportsService.getMovements(stockId, query);
+    async getMovements(stockId, query, user) {
+        return this.reportsService.getMovements(stockId, query, user);
     }
-    async getCriticalStocks(query = {}) {
+    async getCriticalStocks(query = {}, user) {
         if (query.limit) {
-            return this.reportsService.getCriticalStocks(query);
+            return this.reportsService.getCriticalStocks(query, user);
         }
-        const res = await this.reportsService.getCriticalStocks({ page: 1, limit: 100000 });
+        const res = await this.reportsService.getCriticalStocks({ page: 1, limit: 100000 }, user);
         return res.data;
     }
     async getStockReport() {
         return this.reportsService.getStockReport();
     }
-    async getStatus() {
-        return this.reportsService.getStatus();
+    async getStatus(user) {
+        return this.reportsService.getStatus(user);
     }
     async decreaseStock(itemId, departmentId, quantity, manager, referenceInfo, userId) {
         return this.transactionsService.decreaseStock(itemId, departmentId, quantity, manager, referenceInfo, userId);
@@ -56,6 +56,9 @@ let StocksService = StocksService_1 = class StocksService {
     }
     async finalizeShipmentBulk(items, departmentId, manager, referenceInfo, userId) {
         return this.transactionsService.finalizeShipmentBulk(items, departmentId, manager, referenceInfo, userId);
+    }
+    async releaseStockBulk(items, departmentId, manager, referenceInfo, userId) {
+        return this.transactionsService.releaseStockBulk(items, departmentId, manager, referenceInfo, userId);
     }
     async increaseStock(itemId, departmentId, quantity, inUnitCost, manager, referenceInfo, userId) {
         return this.transactionsService.increaseStock(itemId, departmentId, quantity, inUnitCost, manager, referenceInfo, userId);

@@ -1,9 +1,10 @@
 import { DepartmentsService } from './departments.service';
 import { CreateDepartmentDto, UpdateDepartmentDto, CreateDepartmentTypeDto, UpdateDepartmentTypeDto, DepartmentsQueryDto } from './dto/department.dto';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 export declare class DepartmentsController {
     private readonly deptService;
     constructor(deptService: DepartmentsService);
-    findAll(query: DepartmentsQueryDto): Promise<import("../../common/dto/pagination.dto").PaginatedResult<import("./entities/department.entity").Department>>;
+    findAll(query: DepartmentsQueryDto, user: JwtPayload): Promise<import("../../common/dto/pagination.dto").PaginatedResult<import("./entities/department.entity").Department>>;
     getStatus(): Promise<{
         active: number;
         passive: number;

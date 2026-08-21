@@ -11,9 +11,9 @@ async function diagnose() {
 
   const connection = await mysql.createConnection({
     host: process.env.DB_HOST || '127.0.0.1',
-    port: process.env.DB_PORT || 3306,
-    user: process.env.DB_USERNAME || 'erp_user',
-    password: process.env.DB_PASSWORD || 'ermay_db_2026',
+    port: parseInt(process.env.DB_PORT || '3306', 10),
+    user: process.env.DB_USERNAME || 'root',
+    password: process.env.DB_PASSWORD || '',
     database: process.env.DB_DATABASE || 'ERPCRMDB',
   });
 

@@ -114,13 +114,23 @@ exports.AppModule = AppModule = __decorate([
                 isGlobal: true,
                 imports: [config_1.ConfigModule],
                 inject: [config_1.ConfigService],
-                useFactory: async (config) => ({
-                    store: cache_manager_redis_yet_1.redisStore,
-                    host: config.get('redis.host'),
-                    port: config.get('redis.port'),
-                    password: config.get('redis.password'),
-                    ttl: config.get('redis.ttl'),
-                }),
+                useFactory: async (config) => {
+                    const redisUrl = config.get('redis.url');
+                    if (redisUrl) {
+                        return {
+                            store: cache_manager_redis_yet_1.redisStore,
+                            url: redisUrl,
+                            ttl: config.get('redis.ttl', 60000),
+                        };
+                    }
+                    return {
+                        store: cache_manager_redis_yet_1.redisStore,
+                        host: config.get('redis.host'),
+                        port: config.get('redis.port'),
+                        password: config.get('redis.password'),
+                        ttl: config.get('redis.ttl', 60000),
+                    };
+                },
             }),
             rabbitmq_module_1.RabbitMQModule,
             telemetry_module_1.TelemetryModule, auth_module_1.AuthModule, users_module_1.UsersModule, roles_module_1.RolesModule, departments_module_1.DepartmentsModule, parties_module_1.PartiesModule, inventory_module_1.InventoryModule,

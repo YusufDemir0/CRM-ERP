@@ -11,7 +11,7 @@ export declare class Transaction extends BaseEntity {
     currencyId: string | null;
     exchangeRate: Decimal;
     type: 'in' | 'out';
-    referenceType: 'sale' | 'purchase' | 'manual_adjustment' | 'manual' | 'sale_deposit' | null;
+    referenceType: 'sale' | 'purchase' | 'manual_adjustment' | 'manual' | 'sale_deposit' | 'transfer' | null;
     referenceId: string | null;
     date: string;
     description: string | null;

@@ -57,7 +57,7 @@ let RolesController = class RolesController {
 exports.RolesController = RolesController;
 __decorate([
     (0, common_1.Get)(),
-    (0, permissions_decorator_1.RequirePermissions)('ROLE_VIEW'),
+    (0, permissions_decorator_1.RequirePermissions)('ROLES_VIEW_ALL'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [pagination_dto_1.PaginationDto]),
@@ -65,14 +65,14 @@ __decorate([
 ], RolesController.prototype, "findAllRoles", null);
 __decorate([
     (0, common_1.Get)('status'),
-    (0, permissions_decorator_1.RequirePermissions)('ROLE_VIEW'),
+    (0, permissions_decorator_1.RequirePermissions)('ROLES_VIEW_ALL'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], RolesController.prototype, "getStatus", null);
 __decorate([
     (0, common_1.Post)(),
-    (0, permissions_decorator_1.RequirePermissions)('ROLE_CREATE'),
+    (0, permissions_decorator_1.RequirePermissions)('ROLES_CREATE'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -81,7 +81,7 @@ __decorate([
 ], RolesController.prototype, "createRole", null);
 __decorate([
     (0, common_1.Put)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('ROLE_EDIT'),
+    (0, permissions_decorator_1.RequirePermissions)('ROLES_EDIT'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
@@ -91,7 +91,7 @@ __decorate([
 ], RolesController.prototype, "updateRole", null);
 __decorate([
     (0, common_1.Get)('permissions/all'),
-    (0, permissions_decorator_1.RequirePermissions)('ROLE_VIEW'),
+    (0, permissions_decorator_1.RequirePermissions)('ROLES_VIEW_ALL'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [pagination_dto_1.PaginationDto]),
@@ -99,7 +99,7 @@ __decorate([
 ], RolesController.prototype, "findAllPermissions", null);
 __decorate([
     (0, common_1.Post)('permissions'),
-    (0, permissions_decorator_1.RequirePermissions)('ROLE_CREATE'),
+    (0, permissions_decorator_1.RequirePermissions)('ROLES_CREATE'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -108,7 +108,7 @@ __decorate([
 ], RolesController.prototype, "createPermission", null);
 __decorate([
     (0, common_1.Post)('assign'),
-    (0, permissions_decorator_1.RequirePermissions)('ROLE_ASSIGN'),
+    (0, permissions_decorator_1.RequirePermissions)('ROLES_ASSIGN'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [role_dto_1.AssignRoleDto]),
@@ -116,7 +116,7 @@ __decorate([
 ], RolesController.prototype, "assignRole", null);
 __decorate([
     (0, common_1.Delete)('assign'),
-    (0, permissions_decorator_1.RequirePermissions)('ROLE_ASSIGN'),
+    (0, permissions_decorator_1.RequirePermissions)('ROLES_ASSIGN'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [role_dto_1.AssignRoleDto]),
@@ -124,7 +124,7 @@ __decorate([
 ], RolesController.prototype, "removeRole", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('ROLE_VIEW'),
+    (0, permissions_decorator_1.RequirePermissions)('ROLES_VIEW_ALL'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -132,7 +132,7 @@ __decorate([
 ], RolesController.prototype, "findOneRole", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('ROLE_DELETE'),
+    (0, permissions_decorator_1.RequirePermissions)('ROLES_DELETE'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),

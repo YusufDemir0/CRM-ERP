@@ -14,9 +14,14 @@ import { useQuickCreateStore } from '../../store/useQuickCreateStore';
 import { useSort } from '../../hooks/useSort';
 import { useDebounce } from '../../hooks/useDebounce';
 import { queryKeys } from '../../services/queryKeys';
-
+import { useAuth } from '../../hooks/useAuth';
 
 export function BomsPage() {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('PRODUCTION_CREATE');
+  const canEdit = hasPermission('PRODUCTION_EDIT');
+  const canDelete = hasPermission('PRODUCTION_DELETE');
+
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -216,11 +221,13 @@ export function BomsPage() {
               </button>
             ))}
           </div>
-          <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
-            openCreate('bom', { onSuccess: handleFormSuccess });
-          }}>
-            <FiPlus size={20} /> Yeni Reçete
-          </button>
+          {canCreate && (
+            <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
+              openCreate('bom', { onSuccess: handleFormSuccess });
+            }}>
+              <FiPlus size={20} /> Yeni Reçete
+            </button>
+          )}
         </div>
       </div>
 
@@ -233,10 +240,10 @@ export function BomsPage() {
         onSort={toggleSort}
         getRowKey={(b) => b.id}
         hasState={(b) => b.state === 1}
-        onEdit={handleEdit}
-        onClone={handleClone}
-        onArchive={(b) => toggleState(b.id, 1)}
-        onRestore={(b) => toggleState(b.id, 0)}
+        onEdit={canEdit ? handleEdit : undefined}
+        onClone={canCreate ? handleClone : undefined}
+        onArchive={canDelete ? (b) => toggleState(b.id, 1) : undefined}
+        onRestore={canDelete ? (b) => toggleState(b.id, 0) : undefined}
         getRowOpacity={(b) => b.state === 0 ? 0.5 : 1}
         
         // Integrated Search & Pagination

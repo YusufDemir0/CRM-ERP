@@ -5,13 +5,14 @@ import { User } from '../auth/entities/user.entity';
 import { Stock } from '../inventory/stocks/entities/stock.entity';
 import { CreateDepartmentDto, UpdateDepartmentDto, CreateDepartmentTypeDto, UpdateDepartmentTypeDto, DepartmentsQueryDto } from './dto/department.dto';
 import { PaginatedResult } from '../../common/dto/pagination.dto';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 export declare class DepartmentsService {
     private deptRepo;
     private typeRepo;
     private userRepo;
     private stockRepo;
     constructor(deptRepo: Repository<Department>, typeRepo: Repository<DepartmentType>, userRepo: Repository<User>, stockRepo: Repository<Stock>);
-    findAll(query: DepartmentsQueryDto): Promise<PaginatedResult<Department>>;
+    findAll(query: DepartmentsQueryDto, currentUser?: JwtPayload): Promise<PaginatedResult<Department>>;
     findOne(id: string): Promise<Department>;
     create(dto: CreateDepartmentDto, userId: string): Promise<Department>;
     update(id: string, dto: UpdateDepartmentDto, userId: string): Promise<Department>;

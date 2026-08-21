@@ -1,4 +1,3 @@
-
 import { FiBriefcase, FiShoppingCart } from 'react-icons/fi';
 import { Column } from '../../../components/common/DataTable';
 import { Party } from '../../../types';
@@ -64,17 +63,47 @@ export const getPartiesColumns = (
   { 
     header: 'BAKİYE DURUMU', 
     accessor: (p) => {
+      // .negated() kaldırılarak orijinal bakiye yönü korundu.
+      // Pozitif değerler alacaklı olduğumuzu (şirket alacaklı), negatifler borçlu olduğumuzu gösterir.
       const balance = new Decimal(p.balance || 0);
-      const isDebt = balance.gt(0);
+      const isZero = balance.isZero();
+      
+      let label = 'BAKİYESİZ';
+      let colorClass = 'text-slate-500';
+      let bgBorderClass = 'bg-slate-50 text-slate-400 border-slate-200';
+      
+      if (!isZero) {
+        if (p.type === 'customer') {
+          if (balance.gt(0)) {
+            label = 'BORÇLU';
+            colorClass = 'text-danger';
+            bgBorderClass = 'bg-danger/5 text-danger border-danger/10';
+          } else {
+            label = 'ALACAKLI';
+            colorClass = 'text-success';
+            bgBorderClass = 'bg-success/5 text-success border-success/10';
+          }
+        } else {
+          // provider (supplier)
+          if (balance.gt(0)) {
+            label = 'ALACAKLI';
+            colorClass = 'text-success';
+            bgBorderClass = 'bg-success/5 text-success border-success/10';
+          } else {
+            label = 'BORÇLU';
+            colorClass = 'text-danger';
+            bgBorderClass = 'bg-danger/5 text-danger border-danger/10';
+          }
+        }
+      }
+
       return (
         <div className="text-right flex flex-col items-end">
-          <div className={`tabular-nums font-black text-[17px] tracking-tighter ${isDebt ? 'text-danger' : 'text-success'}`}>
-            {isDebt ? '' : '-'}{balance.abs().toNumber().toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {p.currency?.symbol || '₺'}
+          <div className={`tabular-nums font-black text-[17px] tracking-tighter ${colorClass}`}>
+            {balance.abs().toNumber().toLocaleString('tr-TR', { minimumFractionDigits: 2 })} {p.currency?.symbol || '₺'}
           </div>
-          <div className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border ${
-            isDebt ? 'bg-danger/5 text-danger border-danger/10' : 'bg-success/5 text-success border-success/10'
-          }`}>
-            {isDebt ? 'BORÇLU' : 'ALACAKLI'}
+          <div className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg border ${bgBorderClass}`}>
+            {label}
           </div>
         </div>
       );
@@ -83,24 +112,39 @@ export const getPartiesColumns = (
     className: 'text-right'
   },
   {
-    header: 'SATIŞ ÖZETİ',
+    header: 'KAYIT TARİHİ',
+    accessor: (p) => (
+      <div className="flex flex-col">
+        <span className="font-bold text-slate-700 text-xs">
+          {p.createdAt ? new Date(p.createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+        </span>
+      </div>
+    ),
+    sortKey: 'createdAt'
+  },
+  { 
+    header: 'HAREKET ÖZETİ',
     accessor: (p) => (
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-slate-400 font-black uppercase">Adet:</span>
+          <span className="text-[10px] text-slate-400 font-black uppercase">
+            {p.type === 'customer' ? 'Satış Adet:' : 'Tedarik Adet:'}
+          </span>
           <span className="font-black text-slate-700 tabular-nums">{p.totalSalesCount || 0}</span>
           {onViewSales && (
             <button 
               onClick={(e) => { e.stopPropagation(); onViewSales(p); }}
               className="ml-2 p-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-lg transition-all border border-indigo-100 shadow-sm"
-              title="Satış Geçmişini Gör"
+              title={p.type === 'customer' ? "Satış Geçmişini Gör" : "Tedarik Geçmişini Gör"}
             >
               <FiShoppingCart size={12} />
             </button>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-slate-400 font-black uppercase">Son:</span>
+          <span className="text-[10px] text-slate-400 font-black uppercase">
+            {p.type === 'customer' ? 'Son Satış:' : 'Son Tedarik:'}
+          </span>
           <span className="text-[11px] font-bold text-slate-600">
             {p.lastSaleDate ? new Date(p.lastSaleDate).toLocaleDateString('tr-TR') : '—'}
           </span>

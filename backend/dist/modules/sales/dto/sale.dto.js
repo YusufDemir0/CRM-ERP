@@ -102,6 +102,12 @@ __decorate([
 ], CreateSaleDto.prototype, "discountPercent", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(finance_helper_1.FinanceHelper.transformString),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateSaleDto.prototype, "representativePrice", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateSaleDto.prototype, "notes", void 0);
@@ -188,6 +194,11 @@ __decorate([
 ], UpdateSaleDto.prototype, "staffId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateSaleDto.prototype, "saleTypeId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsDateString)(),
     __metadata("design:type", String)
 ], UpdateSaleDto.prototype, "deliveryDate", void 0);
@@ -209,6 +220,12 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateSaleDto.prototype, "discountPercent", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(finance_helper_1.FinanceHelper.transformString),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateSaleDto.prototype, "representativePrice", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -328,6 +345,11 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", Object)
 ], SalesQueryDto.prototype, "ownSalesOnly", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], SalesQueryDto.prototype, "departmentId", void 0);
 class ShipSaleDto {
 }
 exports.ShipSaleDto = ShipSaleDto;
@@ -336,4 +358,21 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Array)
 ], ShipSaleDto.prototype, "items", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], ShipSaleDto.prototype, "payments", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
+], ShipSaleDto.prototype, "vehicleIds", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
+], ShipSaleDto.prototype, "assignedStaffIds", void 0);
 //# sourceMappingURL=sale.dto.js.map

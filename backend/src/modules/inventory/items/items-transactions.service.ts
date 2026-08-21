@@ -325,8 +325,8 @@ export class ItemsTransactionsService {
           await manager.save(Stock, initialStocks, { chunk: 100 });
         }
       }
-    } catch (dbErr: any) {
-      throw new BadRequestException(`Veritabanı kayıt işlemi başarısız oldu: ${dbErr.message}`);
+    } catch (dbErr) {
+      throw new BadRequestException(`Veritabanı kayıt işlemi başarısız oldu: ${dbErr instanceof Error ? dbErr.message : String(dbErr)}`);
     }
 
     return { updatedCount, insertedCount, errors };
@@ -335,7 +335,7 @@ export class ItemsTransactionsService {
   @Transactional()
   async importFromExcel(buffer: Buffer, userId: string) {
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer as any);
+    await workbook.xlsx.load(buffer as unknown as never);
     const worksheet = workbook.worksheets[0];
     if (!worksheet) {
       throw new BadRequestException('Excel dosyasında geçerli bir çalışma sayfası bulunamadı.');
@@ -369,12 +369,14 @@ export class ItemsTransactionsService {
       const parseNumber = (val: string, colName: string, rowNum: number) => {
         if (!val) return 0;
         const clean = val.replace(/\s/g, '').replace(/,/g, '.');
-        const num = parseFloat(clean);
-        if (isNaN(num)) {
+        try {
+          const d = new Decimal(clean);
+          if (d.isNaN()) throw new Error('NaN');
+          return d.toDecimalPlaces(4).toNumber();
+        } catch {
           errors.push(`Satır ${rowNum}: '${colName}' geçersiz sayı formatı içeriyor: '${val}'. Değer '0' olarak kabul edildi.`);
           return 0;
         }
-        return num;
       };
 
       const purchasePrice = parseNumber(purchasePriceStr, 'Alış Fiyatı', rowNumber);

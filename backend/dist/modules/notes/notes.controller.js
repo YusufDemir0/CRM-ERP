@@ -15,34 +15,42 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.NotesController = void 0;
 const common_1 = require("@nestjs/common");
 const notes_service_1 = require("./notes.service");
+const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 let NotesController = class NotesController {
     constructor(notesService) {
         this.notesService = notesService;
     }
-    async findAll(req) {
-        return this.notesService.findAllByUser(req.user.id);
+    async findAll(user) {
+        const userId = String(user.sub);
+        return this.notesService.findAllByUser(userId, user);
     }
-    async create(req, data) {
-        return this.notesService.create(req.user.id, data);
+    async create(user, data) {
+        const userId = String(user.sub);
+        if (data.title?.startsWith('SATIŞ HATASI BİLDİRİMİ')) {
+            data.status = 'new';
+        }
+        return this.notesService.create(userId, data);
     }
-    async update(req, id, data) {
-        return this.notesService.update(id, req.user.id, data);
+    async update(user, id, data) {
+        const userId = String(user.sub);
+        return this.notesService.update(id, userId, data, user);
     }
-    async remove(req, id) {
-        return this.notesService.remove(id, req.user.id);
+    async remove(user, id) {
+        const userId = String(user.sub);
+        return this.notesService.remove(id, userId, user);
     }
 };
 exports.NotesController = NotesController;
 __decorate([
     (0, common_1.Get)(),
-    __param(0, (0, common_1.Request)()),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], NotesController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Post)(),
-    __param(0, (0, common_1.Request)()),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
@@ -50,7 +58,7 @@ __decorate([
 ], NotesController.prototype, "create", null);
 __decorate([
     (0, common_1.Put)(':id'),
-    __param(0, (0, common_1.Request)()),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
     __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -59,7 +67,7 @@ __decorate([
 ], NotesController.prototype, "update", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    __param(0, (0, common_1.Request)()),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, String]),

@@ -50,25 +50,33 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const shipment_entity_1 = require("./entities/shipment.entity");
+const stock_movement_entity_1 = require("./entities/stock-movement.entity");
 const shipment_dto_1 = require("./dto/shipment.dto");
 const stocks_transactions_service_1 = require("./stocks-transactions.service");
 const sale_entity_1 = require("../../sales/entities/sale.entity");
+const sale_item_entity_1 = require("../../sales/entities/sale-item.entity");
 const transaction_context_service_1 = require("../../../common/services/transaction-context.service");
 const logs_service_1 = require("../../logs/logs.service");
 const transactional_1 = require("@nestjs-cls/transactional");
 const ExcelJS = __importStar(require("exceljs"));
+const decimal_js_1 = require("decimal.js");
+const sql_helper_1 = require("../../../common/utils/sql.helper");
+const sales_transactions_service_1 = require("../../sales/sales-transactions.service");
 let ShipmentsService = class ShipmentsService {
-    constructor(shipmentRepo, stocksTransactionsService, transactionContext, logsService) {
+    constructor(shipmentRepo, stocksTransactionsService, transactionContext, logsService, salesTransactionsService) {
         this.shipmentRepo = shipmentRepo;
         this.stocksTransactionsService = stocksTransactionsService;
         this.transactionContext = transactionContext;
         this.logsService = logsService;
+        this.salesTransactionsService = salesTransactionsService;
     }
     async findAll(query) {
         const qb = this.shipmentRepo.createQueryBuilder('shipment')
             .leftJoinAndSelect('shipment.sale', 'sale')
             .leftJoinAndSelect('sale.party', 'party')
             .leftJoinAndSelect('shipment.outgoingDepartment', 'outgoingDepartment')
+            .leftJoinAndSelect('shipment.vehicles', 'vehicle')
+            .leftJoinAndSelect('shipment.assignedStaff', 'staff')
             .select([
             'shipment.id', 'shipment.saleId', 'shipment.outgoingDepartmentId',
             'shipment.deliveryCity', 'shipment.deliveryDistrict', 'shipment.deliveryAddress',
@@ -76,7 +84,9 @@ let ShipmentsService = class ShipmentsService {
             'shipment.deadline', 'shipment.createdAt', 'shipment.updatedAt',
             'sale.id', 'sale.code', 'sale.grandTotal', 'sale.status',
             'party.id', 'party.name',
-            'outgoingDepartment.id', 'outgoingDepartment.name'
+            'outgoingDepartment.id', 'outgoingDepartment.name',
+            'vehicle.id', 'vehicle.name', 'vehicle.plate',
+            'staff.id', 'staff.firstName', 'staff.lastName'
         ]);
         if (query.status && query.status !== 'all') {
             qb.andWhere('shipment.status = :status', { status: query.status });
@@ -87,12 +97,15 @@ let ShipmentsService = class ShipmentsService {
         if (query.district) {
             qb.andWhere('shipment.deliveryDistrict = :district', { district: query.district });
         }
-        if (query.today === 'true' || query.today === true) {
+        if (String(query.today) === 'true') {
             const todayStr = new Date().toISOString().split('T')[0];
             qb.andWhere('shipment.deadline = :todayStr', { todayStr });
         }
         if (query.search) {
-            qb.andWhere('(shipment.deliveryCity LIKE :s OR shipment.deliveryDistrict LIKE :s OR shipment.deliveryAddress LIKE :s OR shipment.carrierNameOrPlate LIKE :s OR sale.code LIKE :s OR party.name LIKE :s)', { s: `%${query.search}%` });
+            const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            if (s) {
+                qb.andWhere('(shipment.deliveryCity LIKE :s OR shipment.deliveryDistrict LIKE :s OR shipment.deliveryAddress LIKE :s OR shipment.carrierNameOrPlate LIKE :s OR sale.code LIKE :s OR party.name LIKE :s)', { s });
+            }
         }
         const sortCol = 'shipment.createdAt';
         qb.orderBy(sortCol, 'DESC');
@@ -111,7 +124,7 @@ let ShipmentsService = class ShipmentsService {
     async findOne(id) {
         const shipment = await this.shipmentRepo.findOne({
             where: { id: String(id) },
-            relations: ['sale', 'sale.items', 'sale.party', 'outgoingDepartment']
+            relations: ['sale', 'sale.items', 'sale.party', 'outgoingDepartment', 'vehicles', 'assignedStaff']
         });
         if (!shipment) {
             throw new common_1.NotFoundException('Sevkiyat kaydı bulunamadı');
@@ -142,6 +155,25 @@ let ShipmentsService = class ShipmentsService {
         if (shipment.status !== 'pending') {
             throw new common_1.BadRequestException('Sadece bekleyen sevkiyatlar yola çıkarılabilir');
         }
+        if (shipment.sale && shipment.sale.paymentType !== 'VADELİ') {
+            const paidAmount = new decimal_js_1.Decimal(shipment.sale.paidAmount || 0);
+            const grandTotal = new decimal_js_1.Decimal(shipment.sale.grandTotal || 0);
+            if (grandTotal.minus(paidAmount).abs().gt(0.01)) {
+                throw new common_1.BadRequestException(`Bu siparişin ödemesi tam olarak kapatılmamıştır! ` +
+                    `Toplam Ödenen: ${paidAmount.toFixed(2)}, Toplam Tutar: ${grandTotal.toFixed(2)}. ` +
+                    `Siparişi sevk edebilmek için toplam ödemenin net satış tutarını karşılaması gerekmektedir.`);
+            }
+        }
+        const outgoingDeptId = shipment.outgoingDepartmentId;
+        if (outgoingDeptId) {
+            const selectedDept = await manager.query("SELECT name FROM departments WHERE id = ? LIMIT 1", [outgoingDeptId]);
+            if (selectedDept && selectedDept.length > 0) {
+                const deptName = selectedDept[0].name.toLowerCase();
+                if (deptName === 'sanaldepo' || deptName === 'satisdepo') {
+                    throw new common_1.BadRequestException("Sevkiyat çıkış deposu 'sanaldepo' veya 'satisdepo' olamaz. Lütfen geçerli bir fiziksel depo seçiniz.");
+                }
+            }
+        }
         shipment.status = 'shipped';
         shipment.carrierNameOrPlate = dto.carrierNameOrPlate || null;
         shipment.approvedAt = new Date();
@@ -149,17 +181,6 @@ let ShipmentsService = class ShipmentsService {
         if (shipment.sale) {
             shipment.sale.status = 'shipped';
             await manager.save(sale_entity_1.Sale, shipment.sale);
-            if (shipment.sale.items && shipment.sale.items.length > 0) {
-                const itemsToReserve = shipment.sale.items.map(item => ({
-                    itemId: item.itemId,
-                    quantity: item.quantity
-                }));
-                await this.stocksTransactionsService.reserveStockBulk(itemsToReserve, shipment.outgoingDepartmentId, manager, {
-                    type: 'reserve',
-                    id: shipment.id,
-                    description: 'Stok Kilitlendi'
-                }, userId);
-            }
         }
         this.logsService.logActivity({
             userId,
@@ -188,11 +209,70 @@ let ShipmentsService = class ShipmentsService {
                 itemId: item.itemId,
                 quantity: item.quantity
             }));
-            await this.stocksTransactionsService.finalizeShipmentBulk(itemsToDeduct, shipment.outgoingDepartmentId, manager, {
-                type: 'shipment',
-                id: shipment.id,
-                description: 'Stok Düştü'
-            }, userId);
+            const sanalDept = await manager.query("SELECT id FROM departments WHERE name = 'sanaldepo' LIMIT 1");
+            const sanalDeptId = (sanalDept && sanalDept.length > 0) ? String(sanalDept[0].id) : '1';
+            const reserveMovements = await manager.find(stock_movement_entity_1.StockMovement, {
+                where: { referenceType: 'sale', referenceId: shipment.sale.id },
+                relations: ['stock']
+            });
+            const physicalReserveMovements = reserveMovements.filter(m => m.stock && String(m.stock.departmentId) !== String(sanalDeptId));
+            const deptShipments = new Map();
+            for (const reqItem of itemsToDeduct) {
+                const itemMovements = physicalReserveMovements.filter(m => m.stock?.itemId === String(reqItem.itemId));
+                let remainingQtyToShip = new decimal_js_1.Decimal(reqItem.quantity);
+                for (const mov of itemMovements) {
+                    if (remainingQtyToShip.lte(0))
+                        break;
+                    const stock = mov.stock;
+                    if (!stock)
+                        continue;
+                    const shippedResult = await manager.createQueryBuilder(stock_movement_entity_1.StockMovement, 'm')
+                        .where('m.stockId = :stockId', { stockId: stock.id })
+                        .andWhere('m.referenceType IN (:...refTypes)', { refTypes: ['sale', 'shipment'] })
+                        .andWhere('m.referenceId = :saleId', { saleId: shipment.sale.id })
+                        .andWhere('m.id != :movId', { movId: mov.id })
+                        .select('SUM(m.quantity)', 'total')
+                        .getRawOne();
+                    const alreadyShippedFromStock = new decimal_js_1.Decimal(shippedResult?.total || 0);
+                    const maxShippableFromDept = new decimal_js_1.Decimal(mov.quantity).sub(alreadyShippedFromStock);
+                    if (maxShippableFromDept.gt(0)) {
+                        const qtyToShipFromDept = decimal_js_1.Decimal.min(remainingQtyToShip, maxShippableFromDept);
+                        const deptId = stock.departmentId;
+                        const list = deptShipments.get(deptId) || [];
+                        list.push({ itemId: String(reqItem.itemId), quantity: qtyToShipFromDept.toNumber() });
+                        deptShipments.set(deptId, list);
+                        remainingQtyToShip = remainingQtyToShip.sub(qtyToShipFromDept);
+                    }
+                }
+                if (remainingQtyToShip.gt(0)) {
+                    const deptId = shipment.outgoingDepartmentId || '1';
+                    const list = deptShipments.get(deptId) || [];
+                    list.push({ itemId: String(reqItem.itemId), quantity: remainingQtyToShip.toNumber() });
+                    deptShipments.set(deptId, list);
+                }
+            }
+            for (const [deptId, items] of deptShipments.entries()) {
+                if (items.length > 0) {
+                    await this.stocksTransactionsService.finalizeShipmentBulk(items, deptId, manager, {
+                        type: 'shipment',
+                        id: shipment.id,
+                        description: 'Stok Düştü'
+                    }, userId);
+                }
+            }
+            for (const item of shipment.sale.items) {
+                await this.stocksTransactionsService.increaseStock(String(item.itemId), sanalDeptId, item.quantity, item.costPrice || 0, manager, {
+                    type: 'shipment',
+                    id: shipment.id,
+                    description: `Sanal Stok Sevk Girişi: ${shipment.sale.code}`
+                }, userId);
+            }
+            const saleItemsToUpdate = [];
+            for (const item of shipment.sale.items) {
+                item.shippedQuantity = new decimal_js_1.Decimal(item.shippedQuantity || 0).add(item.quantity);
+                saleItemsToUpdate.push(item);
+            }
+            await manager.save(sale_item_entity_1.SaleItem, saleItemsToUpdate);
             shipment.sale.status = 'invoiced';
             await manager.save(sale_entity_1.Sale, shipment.sale);
         }
@@ -209,39 +289,31 @@ let ShipmentsService = class ShipmentsService {
         const manager = this.transactionContext.manager;
         const shipment = await manager.findOne(shipment_entity_1.Shipment, {
             where: { id: String(id) },
-            relations: ['sale', 'sale.items']
+            relations: ['sale']
         });
         if (!shipment)
             throw new common_1.NotFoundException('Sevkiyat kaydı bulunamadı');
         if (shipment.status === 'completed' || shipment.status === 'cancelled') {
             throw new common_1.BadRequestException('Tamamlanmış veya zaten iptal edilmiş sevkiyatlar iptal edilemez');
         }
-        const previousStatus = shipment.status;
-        shipment.status = 'cancelled';
-        const saved = await manager.save(shipment_entity_1.Shipment, shipment);
-        if (previousStatus === 'shipped' && shipment.sale && shipment.sale.items && shipment.sale.items.length > 0) {
-            const itemsToRelease = shipment.sale.items.map(item => ({
-                itemId: item.itemId,
-                quantity: item.quantity
-            }));
-            await this.stocksTransactionsService.releaseStockBulk(itemsToRelease, shipment.outgoingDepartmentId, manager, {
-                type: 'revert',
-                id: shipment.id,
-                description: 'Rezervasyon İptali'
-            }, userId);
-        }
         if (shipment.sale) {
-            shipment.sale.status = 'cancelled';
-            await manager.save(sale_entity_1.Sale, shipment.sale);
+            await this.salesTransactionsService.cancelSale(shipment.sale.id, 'Sevkiyat İptal Edildi', userId);
+        }
+        else {
+            shipment.status = 'cancelled';
+            await manager.save(shipment_entity_1.Shipment, shipment);
         }
         this.logsService.logActivity({
             userId,
             module: 'inventory',
             action: 'SHIPMENT_CANCEL',
             tag: 'CANCEL',
-            details: `Sevkiyat iptal edildi ve stok rezervasyonları serbest bırakıldı. ID: ${shipment.id}, Satış Kodu: ${shipment.sale?.code}`,
+            details: `Sevkiyat iptal edildi. ID: ${shipment.id}`,
         });
-        return saved;
+        const refreshed = await manager.findOne(shipment_entity_1.Shipment, { where: { id: String(id) } });
+        if (!refreshed)
+            throw new common_1.NotFoundException('Sevkiyat kaydı bulunamadı');
+        return refreshed;
     }
     async getMetrics() {
         const [pending, shipped, completed, cancelled] = await Promise.all([
@@ -355,9 +427,11 @@ __decorate([
 exports.ShipmentsService = ShipmentsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(shipment_entity_1.Shipment)),
+    __param(4, (0, common_1.Inject)((0, common_1.forwardRef)(() => sales_transactions_service_1.SalesTransactionsService))),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         stocks_transactions_service_1.StocksTransactionsService,
         transaction_context_service_1.TransactionContextService,
-        logs_service_1.LogsService])
+        logs_service_1.LogsService,
+        sales_transactions_service_1.SalesTransactionsService])
 ], ShipmentsService);
 //# sourceMappingURL=shipments.service.js.map

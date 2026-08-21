@@ -74,6 +74,7 @@ export class StocksTransactionsService {
   async syncItemTotalStock(itemIds: string[], manager: EntityManager): Promise<void> {
     if (!itemIds || itemIds.length === 0) return;
     const uniqueIds = Array.from(new Set(itemIds));
+    const placeholders = uniqueIds.map(() => '?').join(',');
 
     await manager.query(`
       UPDATE items 
@@ -82,8 +83,8 @@ export class StocksTransactionsService {
         FROM stocks 
         WHERE stocks.item_id = items.id
       )
-      WHERE items.id IN (${uniqueIds.join(',')})
-    `);
+      WHERE items.id IN (${placeholders})
+    `, uniqueIds);
   }
 
   async decreaseStock(
@@ -180,6 +181,16 @@ export class StocksTransactionsService {
     }
     const uniqueItemIds = Array.from(reducedItems.keys()).sort();
 
+    // Ensure stock records exist atomically before locking
+    for (const itemId of uniqueItemIds) {
+      await manager.query(
+        `INSERT INTO \`stocks\` (\`item_id\`, \`department_id\`, \`quantity\`, \`reserved_quantity\`, \`state\`)
+         VALUES (?, ?, 0, 0, 1)
+         ON DUPLICATE KEY UPDATE \`item_id\` = \`item_id\``,
+        [itemId, departmentId]
+      );
+    }
+
     const stocks = await manager.find(Stock, {
       where: { itemId: In(uniqueItemIds), departmentId },
       lock: { mode: 'pessimistic_write' }
@@ -191,20 +202,11 @@ export class StocksTransactionsService {
     const movements: StockMovement[] = [];
     for (const itemId of uniqueItemIds) {
       const qty = reducedItems.get(itemId)!;
-      let stock = stockMap.get(itemId);
-
-      if (!stock) {
-        stock = manager.create(Stock, { itemId, departmentId, quantity: new Decimal(0), reservedQuantity: new Decimal(0) });
-        stock = await manager.save(Stock, stock);
-      }
+      const stock = stockMap.get(itemId)!;
 
       const qBefore = new Decimal(stock.quantity);
       stock.reservedQuantity = new Decimal(stock.reservedQuantity || 0).add(qty);
       stock.updatedBy = userId || null;
-
-      if (!stocks.find((s: Stock) => s.id === stock!.id)) {
-        stocks.push(stock!);
-      }
 
       movements.push(manager.create(StockMovement, {
         stockId: stock.id,
@@ -343,10 +345,25 @@ export class StocksTransactionsService {
 
     for (const itemId of uniqueItemIds) {
       const qty = reducedItems.get(itemId)!;
-      const stock = stockMap.get(itemId);
+      let stock: Stock | null | undefined = stockMap.get(itemId);
 
       if (!stock) {
-        throw new BadRequestException(`Stok kaydı bulunamadı. Ürün ID: ${itemId}`);
+        stock = manager.create(Stock, {
+          itemId,
+          departmentId,
+          quantity: new Decimal(0),
+          reservedQuantity: new Decimal(0),
+          createdBy: userId || null
+        });
+        stock = await manager.save(Stock, stock);
+        stock = await manager.findOne(Stock, {
+          where: { id: stock.id },
+          relations: ['item'],
+          lock: { mode: 'pessimistic_write' }
+        });
+        if (!stock) {
+          throw new BadRequestException(`Stok kaydı oluşturulamadı. Ürün ID: ${itemId}`);
+        }
       }
 
       StockMovementHelper.validateStockLimit(itemId, departmentId, new Decimal(stock.quantity), qty);

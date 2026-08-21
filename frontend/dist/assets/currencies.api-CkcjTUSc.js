@@ -1,1 +1,0 @@
-import{c}from"./index-Co0ulNep.js";const s={getAll:(e,t)=>c.get("/currencies",{params:e,...t}),getDefault:e=>c.get("/currencies/default",e),create:(e,t)=>c.post("/currencies",e,t),update:(e,t,r)=>c.put(`/currencies/${e}`,t,r),setDefault:(e,t)=>c.put(`/currencies/${e}/default`,{},t),delete:(e,t)=>c.delete(`/currencies/${e}`,t)};export{s as c};

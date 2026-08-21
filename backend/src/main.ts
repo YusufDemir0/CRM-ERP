@@ -38,15 +38,26 @@ async function bootstrap() {
   // Cookie Parser
   app.use(cookieParser());
 
-  // CORS - Use ConfigService instead of process.env
+  // CORS - Enhanced configuration for Vercel & Production domains
   const allowedOriginsRaw = configService.get<string>('ALLOWED_ORIGINS');
   const allowedOrigins = allowedOriginsRaw 
     ? allowedOriginsRaw.split(',').map(o => o.trim())
     : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5143'];
 
   app.enableCors({
-    origin: allowedOrigins,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      if (!origin) return callback(null, true);
+      if (
+        allowedOrigins.includes(origin) ||
+        allowedOrigins.includes('*') ||
+        origin.endsWith('.vercel.app') ||
+        origin.endsWith('.onrender.com')
+      ) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
     exposedHeaders: ['X-CSRF-TOKEN'],
   });

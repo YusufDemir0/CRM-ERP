@@ -53,6 +53,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const bcrypt = __importStar(require("bcrypt"));
 const user_entity_1 = require("./entities/user.entity");
+const role_entity_1 = require("./entities/role.entity");
 const user_role_entity_1 = require("./entities/user-role.entity");
 const role_permission_entity_1 = require("./entities/role-permission.entity");
 const user_permission_entity_1 = require("./entities/user-permission.entity");
@@ -75,7 +76,7 @@ let AuthService = AuthService_1 = class AuthService {
             relations: ['roles'],
         });
         if (!user) {
-            throw new common_1.UnauthorizedException('Kullanıcı adı veya şifre hatalı');
+            throw new common_1.UnauthorizedException('Böyle bir kullanıcı bulunmamaktadır. Lütfen YETKİLİ ile iletişime geçiniz.');
         }
         if (user.state === 2) {
             throw new common_1.UnauthorizedException('Hesabınız kalıcı olarak kilitlenmiştir. Lütfen sistem yöneticisi ile iletişime geçiniz.');
@@ -97,7 +98,7 @@ let AuthService = AuthService_1 = class AuthService {
                 updates.failedLoginAttempts = 0;
             }
             await this.userRepo.update(user.id, updates);
-            throw new common_1.UnauthorizedException('Kullanıcı adı veya şifre hatalı');
+            throw new common_1.UnauthorizedException('Hatalı şifre girişi yaptınız. Lütfen tekrar deneyiniz.');
         }
         if (user.failedLoginAttempts > 0 || user.lockedUntil) {
             await this.userRepo.update(user.id, {
@@ -157,6 +158,9 @@ let AuthService = AuthService_1 = class AuthService {
             }
             const isMatch = await bcrypt.compare(oldRefreshToken, user.refreshTokenHash || '');
             if (!isMatch) {
+                user.refreshTokenHash = null;
+                user.tokenVersion += 1;
+                await this.userRepo.save(user);
                 throw new common_1.UnauthorizedException('Invalid refresh token');
             }
             const newPayload = {
@@ -190,6 +194,13 @@ let AuthService = AuthService_1 = class AuthService {
         });
         try {
             const savedUser = await this.userRepo.save(user);
+            const defaultRole = await this.userRepo.manager.findOne(role_entity_1.Role, { where: { id: '2' } });
+            if (defaultRole) {
+                await this.userRepo.manager.insert(user_role_entity_1.UserRole, {
+                    userId: savedUser.id,
+                    roleId: defaultRole.id,
+                });
+            }
             return {
                 id: savedUser.id,
                 username: savedUser.username,
@@ -198,7 +209,8 @@ let AuthService = AuthService_1 = class AuthService {
             };
         }
         catch (error) {
-            if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062) {
+            const err = error;
+            if (err.code === 'ER_DUP_ENTRY' || err.errno === 1062) {
                 throw new common_1.ConflictException('Bu kullanıcı adı veya email zaten kullanılıyor');
             }
             throw error;
@@ -222,6 +234,7 @@ let AuthService = AuthService_1 = class AuthService {
             'department.id',
             'department.name',
             'department.cityId',
+            'department.commercialAccountId',
             'role.id',
             'role.name',
             'permission.id',
@@ -259,11 +272,12 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async forgotPassword(dto) {
         const user = await this.userRepo.findOne({ where: { email: dto.email, state: record_state_enum_1.RecordState.ACTIVE } });
-        if (!user) {
-            throw new common_1.NotImplementedException('E-posta altyapısı (SMTP) henüz kurulmadığı için şifre sıfırlama işlemi yapılamıyor. Lütfen sistem yöneticinizle iletişime geçin.');
+        if (user) {
+            this.logger.warn(`Password reset requested for ${dto.email} — email delivery infrastructure pending`);
         }
-        this.logger.warn(`Password reset requested for ${dto.email} — email delivery not configured`);
-        throw new common_1.NotImplementedException('E-posta altyapısı (SMTP) henüz kurulmadığı için şifre sıfırlama işlemi yapılamıyor. Lütfen sistem yöneticinizle iletişime geçin.');
+        return {
+            message: 'Eğer girdiğiniz e-posta adresi sistemimizde kayıtlı ise, şifre sıfırlama talimatları iletilecektir. Lütfen yöneticinizle iletişime geçiniz.',
+        };
     }
     async changePassword(userId, dto) {
         const user = await this.userRepo.findOne({ where: { id: String(userId) } });
@@ -288,6 +302,11 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async logout(userId, username, fullName, ipAddress) {
         try {
+            const user = await this.userRepo.findOne({ where: { id: userId } });
+            if (user) {
+                user.refreshTokenHash = null;
+                await this.userRepo.save(user);
+            }
             await this.userRepo.manager.insert(log_entity_1.SystemLog, {
                 userId,
                 username,
@@ -300,7 +319,7 @@ let AuthService = AuthService_1 = class AuthService {
             });
         }
         catch (e) {
-            this.logger.error(`Failed to write LOGOUT audit log: ${e.message}`);
+            this.logger.error(`Failed to write LOGOUT audit log or invalidate token: ${e.message}`);
         }
     }
 };

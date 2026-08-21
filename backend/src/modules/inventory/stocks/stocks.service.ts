@@ -9,6 +9,7 @@ import { PaginatedResult, PaginationDto } from '../../../common/dto/pagination.d
 
 import { StocksReportsService } from './stocks-reports.service';
 import { StocksTransactionsService } from './stocks-transactions.service';
+import { JwtPayload } from '../../../common/interfaces/jwt-payload.interface';
 
 @Injectable()
 export class StocksService {
@@ -21,24 +22,24 @@ export class StocksService {
 
   // ────── REPORTS DELEGATION ──────
 
-  async findAll(query: StocksQueryDto): Promise<PaginatedResult<Stock>> {
-    return this.reportsService.findAll(query);
+  async findAll(query: StocksQueryDto, user?: JwtPayload): Promise<PaginatedResult<Stock>> {
+    return this.reportsService.findAll(query, user);
   }
 
-  async findAllMovements(query: PaginationDto & { type?: string; search?: string }): Promise<PaginatedResult<StockMovement>> {
-    return this.reportsService.findAllMovements(query);
+  async findAllMovements(query: PaginationDto & { type?: string; search?: string }, user?: JwtPayload): Promise<PaginatedResult<StockMovement>> {
+    return this.reportsService.findAllMovements(query, user);
   }
 
-  async getMovements(stockId: string, query: PaginationDto): Promise<PaginatedResult<StockMovement>> {
-    return this.reportsService.getMovements(stockId, query);
+  async getMovements(stockId: string, query: PaginationDto, user?: JwtPayload): Promise<PaginatedResult<StockMovement>> {
+    return this.reportsService.getMovements(stockId, query, user);
   }
 
-  async getCriticalStocks(query: Partial<PaginationDto> = {}): Promise<PaginatedResult<Stock> | Stock[]> {
+  async getCriticalStocks(query: Partial<PaginationDto> = {}, user?: JwtPayload): Promise<PaginatedResult<Stock> | Stock[]> {
     if (query.limit) {
-      return this.reportsService.getCriticalStocks(query as PaginationDto);
+      return this.reportsService.getCriticalStocks(query as PaginationDto, user);
     }
     // Backward compatibility for calls without pagination
-    const res = await this.reportsService.getCriticalStocks({ page: 1, limit: 100000 } as PaginationDto);
+    const res = await this.reportsService.getCriticalStocks({ page: 1, limit: 100000 } as PaginationDto, user);
     return res.data;
   }
 
@@ -46,8 +47,8 @@ export class StocksService {
     return this.reportsService.getStockReport();
   }
 
-  async getStatus() {
-    return this.reportsService.getStatus();
+  async getStatus(user?: JwtPayload) {
+    return this.reportsService.getStatus(user);
   }
 
   // ────── TRANSACTIONS DELEGATION ──────
@@ -100,6 +101,16 @@ export class StocksService {
     userId?: string
   ): Promise<void> {
     return this.transactionsService.finalizeShipmentBulk(items, departmentId, manager, referenceInfo, userId);
+  }
+
+  async releaseStockBulk(
+    items: Array<{ itemId: string; quantity: number | Decimal | string }>,
+    departmentId: string,
+    manager?: EntityManager,
+    referenceInfo?: { type: StockMovement['referenceType']; id: string; description: string },
+    userId?: string
+  ): Promise<void> {
+    return this.transactionsService.releaseStockBulk(items, departmentId, manager, referenceInfo, userId);
   }
 
   async increaseStock(

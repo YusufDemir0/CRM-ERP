@@ -212,38 +212,6 @@ export const AccountForm: React.FC<AccountFormProps> = ({
         />
       </FormField>
 
-      {mode !== 'quick' && (
-        <FormField label="Kritik Bakiye / Eksi Limit" className="bg-[var(--primary-glow)] p-5 rounded-2xl border border-[var(--primary-glow)]">
-          <div className="flex flex-col gap-3">
-            <PremiumNumberInput 
-              value={watch('criticalLimit')} 
-              onChange={val => setValue('criticalLimit', val)} 
-              className="h-14"
-            />
-            <div className="flex gap-2">
-              {[
-                { val: -10000, label: '-10K', color: 'bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-600 hover:text-white' },
-                { val: -1000, label: '-1K', color: 'bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-600 hover:text-white' },
-                { val: 1000, label: '+1K', color: 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-600 hover:text-white' },
-                { val: 10000, label: '+10K', color: 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-600 hover:text-white' }
-              ].map(btn => (
-                <button
-                  key={btn.label}
-                  type="button"
-                  onClick={() => {
-                    const current = Number(getValues('criticalLimit') || 0);
-                    setValue('criticalLimit', Math.max(0, current + btn.val));
-                  }}
-                  className={`flex-1 h-10 rounded-xl border text-[10px] font-black transition-all ${btn.color}`}
-                >
-                  {btn.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </FormField>
-      )}
-
       <FormField label="Açıklama">
         <input 
           className="input-premium uppercase-input font-medium" 

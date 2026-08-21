@@ -29,32 +29,74 @@ let SalesController = class SalesController {
     getStatus() {
         return this.salesService.getStatus();
     }
-    export(query, user, res) {
-        return this.salesService.exportToExcel(query, user, res);
+    export(query, user) {
+        return this.salesService.exportToExcel(query, user);
     }
     findAll(query, user) {
-        return this.salesService.findAll(query, user);
+        const hasSalesView = user.isSystemAdmin ||
+            user.permissions?.includes('SALES_VIEW_OWN') ||
+            user.permissions?.includes('SALES_VIEW_DEPT') ||
+            user.permissions?.includes('SALES_VIEW_ALL') ||
+            user.permissions?.includes('sales_view_own') ||
+            user.permissions?.includes('sales_view_dept') ||
+            user.permissions?.includes('sales_view_all');
+        const hasCustomerView = user.isSystemAdmin ||
+            user.permissions?.includes('PARTIES_VIEW_OWN') ||
+            user.permissions?.includes('PARTIES_VIEW_DEPT') ||
+            user.permissions?.includes('PARTIES_VIEW_ALL') ||
+            user.permissions?.includes('parties_view_own') ||
+            user.permissions?.includes('parties_view_dept') ||
+            user.permissions?.includes('parties_view_all') ||
+            user.permissions?.includes('PARTIES_VIEW_SALES_HISTORY');
+        if (hasSalesView || (hasCustomerView && query.partyId)) {
+            return this.salesService.findAll(query, user);
+        }
+        throw new common_1.ForbiddenException('Bu işlem için yetkiniz bulunmamaktadır.');
     }
-    findOne(id) {
-        return this.salesService.findOne(id);
+    findMinimalLookup(user) {
+        return this.salesService.findMinimalLookup(user);
+    }
+    async findOne(id, user) {
+        const hasSalesView = user.isSystemAdmin ||
+            user.permissions?.includes('SALES_VIEW_OWN') ||
+            user.permissions?.includes('SALES_VIEW_DEPT') ||
+            user.permissions?.includes('SALES_VIEW_ALL') ||
+            user.permissions?.includes('sales_view_own') ||
+            user.permissions?.includes('sales_view_dept') ||
+            user.permissions?.includes('sales_view_all');
+        const hasCustomerView = user.isSystemAdmin ||
+            user.permissions?.includes('PARTIES_VIEW_OWN') ||
+            user.permissions?.includes('PARTIES_VIEW_DEPT') ||
+            user.permissions?.includes('PARTIES_VIEW_ALL') ||
+            user.permissions?.includes('parties_view_own') ||
+            user.permissions?.includes('parties_view_dept') ||
+            user.permissions?.includes('parties_view_all') ||
+            user.permissions?.includes('PARTIES_VIEW_SALES_HISTORY');
+        if (hasSalesView || hasCustomerView) {
+            return this.salesService.findOne(id);
+        }
+        throw new common_1.ForbiddenException('Bu işlem için yetkiniz bulunmamaktadır.');
     }
     create(dto, userId) {
         return this.salesService.create(dto, userId);
     }
-    update(id, dto, userId) {
-        return this.salesService.update(id, dto, userId);
+    update(id, dto, user) {
+        return this.salesService.update(id, dto, String(user.sub), user);
     }
-    approve(id, dto, userId) {
-        return this.salesService.approveSale(id, dto, userId);
+    approve(id, dto, user) {
+        return this.salesService.approveSale(id, dto, String(user.sub), user);
     }
-    cancel(id, userId) {
-        return this.salesService.cancelSale(id, userId);
+    cancel(id, dto, userId) {
+        return this.salesService.cancelSale(id, dto.reason, userId);
+    }
+    revertToDraft(id, userId) {
+        return this.salesService.revertToDraft(id, userId);
     }
     ship(id, dto, userId) {
         return this.salesService.shipSale(id, dto, userId);
     }
-    remove(id) {
-        return this.salesService.softDelete(id);
+    remove(id, user) {
+        return this.salesService.softDelete(id, String(user.sub), user);
     }
 };
 exports.SalesController = SalesController;
@@ -75,24 +117,24 @@ __decorate([
 ], SalesController.prototype, "createSaleType", null);
 __decorate([
     (0, common_1.Get)('status'),
-    (0, permissions_decorator_1.RequirePermissions)('SALES_VIEW'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_VIEW_OWN', 'SALES_VIEW_DEPT', 'SALES_VIEW_ALL'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], SalesController.prototype, "getStatus", null);
 __decorate([
     (0, common_1.Get)('export'),
-    (0, permissions_decorator_1.RequirePermissions)('SALES_VIEW'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_VIEW_OWN', 'SALES_VIEW_DEPT', 'SALES_VIEW_ALL'),
+    (0, common_1.Header)('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+    (0, common_1.Header)('Content-Disposition', 'attachment; filename="Satis_Raporu.xlsx"'),
     __param(0, (0, common_1.Query)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)()),
-    __param(2, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [sale_dto_1.SalesQueryDto, Object, Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:paramtypes", [sale_dto_1.SalesQueryDto, Object]),
+    __metadata("design:returntype", Promise)
 ], SalesController.prototype, "export", null);
 __decorate([
     (0, common_1.Get)(),
-    (0, permissions_decorator_1.RequirePermissions)('SALES_VIEW'),
     __param(0, (0, common_1.Query)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
@@ -100,12 +142,19 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], SalesController.prototype, "findAll", null);
 __decorate([
-    (0, common_1.Get)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('SALES_VIEW'),
-    __param(0, (0, common_1.Param)('id')),
+    (0, common_1.Get)('minimal-lookup'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
+], SalesController.prototype, "findMinimalLookup", null);
+__decorate([
+    (0, common_1.Get)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
 ], SalesController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Post)(),
@@ -118,36 +167,46 @@ __decorate([
 ], SalesController.prototype, "create", null);
 __decorate([
     (0, common_1.Put)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('SALES_EDIT'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_EDIT_OWN', 'SALES_EDIT_ALL'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
-    __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, sale_dto_1.UpdateSaleDto, String]),
+    __metadata("design:paramtypes", [String, sale_dto_1.UpdateSaleDto, Object]),
     __metadata("design:returntype", void 0)
 ], SalesController.prototype, "update", null);
 __decorate([
     (0, common_1.Post)(':id/approve'),
-    (0, permissions_decorator_1.RequirePermissions)('SALES_MASTER_APPROVE'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_APPROVE'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
-    __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, sale_dto_1.ApproveSaleDto, String]),
+    __metadata("design:paramtypes", [String, sale_dto_1.ApproveSaleDto, Object]),
     __metadata("design:returntype", void 0)
 ], SalesController.prototype, "approve", null);
 __decorate([
     (0, common_1.Post)(':id/cancel'),
-    (0, permissions_decorator_1.RequirePermissions)('SALES_MASTER_CANCEL'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_CANCEL'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, String]),
+    __metadata("design:returntype", void 0)
+], SalesController.prototype, "cancel", null);
+__decorate([
+    (0, common_1.Post)(':id/revert-to-draft'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_APPROVE'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
-], SalesController.prototype, "cancel", null);
+], SalesController.prototype, "revertToDraft", null);
 __decorate([
     (0, common_1.Post)(':id/ship'),
-    (0, permissions_decorator_1.RequirePermissions)('SALES_MASTER_SHIP'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_SHIP'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
@@ -157,10 +216,11 @@ __decorate([
 ], SalesController.prototype, "ship", null);
 __decorate([
     (0, common_1.Delete)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('SALES_DELETE'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_DELETE_OWN'),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], SalesController.prototype, "remove", null);
 exports.SalesController = SalesController = __decorate([

@@ -32,11 +32,15 @@ let SaleItem = class SaleItem {
 };
 exports.SaleItem = SaleItem;
 __decorate([
-    (0, typeorm_1.PrimaryColumn)({ name: 'sale_id', type: 'bigint' }),
+    (0, typeorm_1.PrimaryGeneratedColumn)('increment', { type: 'bigint' }),
+    __metadata("design:type", String)
+], SaleItem.prototype, "id", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'sale_id', type: 'bigint' }),
     __metadata("design:type", String)
 ], SaleItem.prototype, "saleId", void 0);
 __decorate([
-    (0, typeorm_1.PrimaryColumn)({ name: 'item_id', type: 'bigint' }),
+    (0, typeorm_1.Column)({ name: 'item_id', type: 'bigint' }),
     __metadata("design:type", String)
 ], SaleItem.prototype, "itemId", void 0);
 __decorate([

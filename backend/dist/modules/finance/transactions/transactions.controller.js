@@ -22,8 +22,8 @@ let TransactionsController = class TransactionsController {
     constructor(txService) {
         this.txService = txService;
     }
-    findAll(query) {
-        return this.txService.findAll(query);
+    findAll(query, user) {
+        return this.txService.findAll(query, user);
     }
     getStatus() {
         return this.txService.getStatus();
@@ -34,8 +34,21 @@ let TransactionsController = class TransactionsController {
     findOne(id) {
         return this.txService.findOne(id);
     }
-    create(dto, userId) {
-        return this.txService.create(dto, userId);
+    create(dto, user) {
+        const isSystemAdmin = user.isSystemAdmin;
+        const permissions = user.permissions || [];
+        if (!isSystemAdmin) {
+            if (dto.type === 'in' && !permissions.includes('FINANCE_RECEIVE_PAYMENT')) {
+                throw new common_1.ForbiddenException('Tahsilat almak için yetkiniz bulunmamaktadır.');
+            }
+            if (dto.type === 'out' && !permissions.includes('FINANCE_MAKE_PAYMENT')) {
+                throw new common_1.ForbiddenException('Ödeme yapmak için yetkiniz bulunmamaktadır.');
+            }
+        }
+        return this.txService.create(dto, String(user.sub));
+    }
+    transfer(dto, userId) {
+        return this.txService.transfer(dto, userId);
     }
     cancel(id, userId) {
         return this.txService.cancel(id, userId);
@@ -44,29 +57,30 @@ let TransactionsController = class TransactionsController {
 exports.TransactionsController = TransactionsController;
 __decorate([
     (0, common_1.Get)(),
-    (0, permissions_decorator_1.RequirePermissions)('FINANCE_VIEW'),
+    (0, permissions_decorator_1.RequirePermissions)('FINANCE_VIEW_DEPT', 'FINANCE_VIEW_ALL'),
     __param(0, (0, common_1.Query)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [finance_dto_1.TransactionsQueryDto]),
+    __metadata("design:paramtypes", [finance_dto_1.TransactionsQueryDto, Object]),
     __metadata("design:returntype", void 0)
 ], TransactionsController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)('status'),
-    (0, permissions_decorator_1.RequirePermissions)('FINANCE_VIEW'),
+    (0, permissions_decorator_1.RequirePermissions)('FINANCE_VIEW_DEPT', 'FINANCE_VIEW_ALL'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], TransactionsController.prototype, "getStatus", null);
 __decorate([
     (0, common_1.Get)('trends'),
-    (0, permissions_decorator_1.RequirePermissions)('FINANCE_VIEW'),
+    (0, permissions_decorator_1.RequirePermissions)('FINANCE_VIEW_DEPT', 'FINANCE_VIEW_ALL'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], TransactionsController.prototype, "getDailyTrends", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('FINANCE_VIEW'),
+    (0, permissions_decorator_1.RequirePermissions)('FINANCE_VIEW_DEPT', 'FINANCE_VIEW_ALL'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -74,16 +88,25 @@ __decorate([
 ], TransactionsController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Post)(),
-    (0, permissions_decorator_1.RequirePermissions)('FINANCE_MANAGE'),
+    (0, permissions_decorator_1.RequirePermissions)('FINANCE_RECEIVE_PAYMENT', 'FINANCE_MAKE_PAYMENT'),
     __param(0, (0, common_1.Body)()),
-    __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [finance_dto_1.CreateTransactionDto, String]),
+    __metadata("design:paramtypes", [finance_dto_1.CreateTransactionDto, Object]),
     __metadata("design:returntype", void 0)
 ], TransactionsController.prototype, "create", null);
 __decorate([
+    (0, common_1.Post)('transfer'),
+    (0, permissions_decorator_1.RequirePermissions)('FINANCE_TRANSFER'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [finance_dto_1.CreateTransferDto, String]),
+    __metadata("design:returntype", void 0)
+], TransactionsController.prototype, "transfer", null);
+__decorate([
     (0, common_1.Post)(':id/cancel'),
-    (0, permissions_decorator_1.RequirePermissions)('FINANCE_MANAGE'),
+    (0, permissions_decorator_1.RequirePermissions)('FINANCE_RECONCILE'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),

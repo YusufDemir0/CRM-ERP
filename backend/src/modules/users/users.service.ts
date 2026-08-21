@@ -1,5 +1,5 @@
 import * as crypto from 'crypto';
-import { Injectable, Inject, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, ConflictException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
@@ -13,6 +13,7 @@ import { Transactional } from '@nestjs-cls/transactional';
 import { TransactionContextService } from '../../common/services/transaction-context.service';
 import { Department } from '../departments/entities/department.entity';
 import { getSafeSearchPattern } from '../../common/utils/sql.helper';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 
 
 @Injectable()
@@ -27,7 +28,7 @@ export class UsersService {
     private transactionContext: TransactionContextService,
   ) {}
 
-  async findAll(query: PaginationDto): Promise<PaginatedResult<User>> {
+  async findAll(query: PaginationDto, currentUser?: JwtPayload): Promise<PaginatedResult<User>> {
     const qb = this.userRepo.createQueryBuilder('user')
       .leftJoinAndSelect('user.department', 'department')
       .leftJoinAndSelect('user.roles', 'roles')
@@ -38,6 +39,17 @@ export class UsersService {
         'department.id', 'department.name',
         'roles.id', 'roles.name',
       ]);
+
+    const hasViewAll = currentUser?.isSystemAdmin || 
+                       currentUser?.permissions?.includes('USERS_VIEW_ALL');
+    if (!hasViewAll) {
+      const hasViewDept = currentUser?.permissions?.includes('USERS_VIEW_DEPT');
+      if (hasViewDept && currentUser?.departmentId) {
+        qb.andWhere('user.departmentId = :deptId', { deptId: String(currentUser.departmentId) });
+      } else {
+        qb.andWhere('user.id = :userId', { userId: String(currentUser?.sub) });
+      }
+    }
 
     if (query.search) {
       const searchPattern = query.search.replace(/[+><()~*\"@\-]/g, ' ').trim();
@@ -83,12 +95,29 @@ export class UsersService {
   }
 
 
-  async findOne(id: string): Promise<User> {
+  async findOne(id: string, currentUser?: JwtPayload): Promise<User> {
     const user = await this.userRepo.findOne({
       where: { id: String(id) },
       relations: ['department', 'roles', 'roles.permissions'],
     });
     if (!user) throw new NotFoundException('Kullanıcı bulunamadı');
+
+    if (currentUser && !currentUser.isSystemAdmin) {
+      const hasViewAll = currentUser.permissions?.includes('USERS_VIEW_ALL');
+      if (!hasViewAll) {
+        const hasViewDept = currentUser.permissions?.includes('USERS_VIEW_DEPT');
+        if (hasViewDept && currentUser.departmentId) {
+          if (String(user.departmentId) !== String(currentUser.departmentId)) {
+            throw new ForbiddenException('Bu kullanıcının detaylarını görüntüleme yetkiniz bulunmamaktadır.');
+          }
+        } else {
+          if (String(user.id) !== String(currentUser.sub)) {
+            throw new ForbiddenException('Bu kullanıcının detaylarını görüntüleme yetkiniz bulunmamaktadır.');
+          }
+        }
+      }
+    }
+
     return user;
   }
 
@@ -111,6 +140,10 @@ export class UsersService {
       entryDate: today,
     });
 
+    if (!dto.roleIds || dto.roleIds.length === 0) {
+      throw new BadRequestException('En az bir rol seçilmelidir.');
+    }
+
     if (dto.roleIds && dto.roleIds.length > 0) {
       user.roles = await manager.find(Role, {
         where: { id: In(dto.roleIds) }
@@ -127,6 +160,7 @@ export class UsersService {
     }
   }
 
+  @Transactional()
   async update(id: string, dto: UpdateUserDto, currentUserId: string): Promise<User> {
     const user = await this.findOne(id);
     
@@ -160,13 +194,12 @@ export class UsersService {
     }
 
     if (dto.roleIds !== undefined) {
-      if (dto.roleIds.length > 0) {
-        user.roles = await this.roleRepo.find({
-          where: { id: In(dto.roleIds) }
-        });
-      } else {
-        user.roles = [];
+      if (dto.roleIds.length === 0) {
+        throw new BadRequestException('En az bir rol seçilmelidir.');
       }
+      user.roles = await this.roleRepo.find({
+        where: { id: In(dto.roleIds) }
+      });
     }
     
     if (dto.state !== undefined && user.state !== dto.state) {

@@ -55,12 +55,14 @@ const currencies_service_1 = require("../finance/currencies/currencies.service")
 const decimal_js_1 = require("decimal.js");
 const sql_helper_1 = require("../../common/utils/sql.helper");
 const sale_entity_1 = require("../sales/entities/sale.entity");
+const ledger_entity_1 = require("./entities/ledger.entity");
+const shipment_entity_1 = require("../inventory/stocks/entities/shipment.entity");
 let PartiesService = class PartiesService {
     constructor(partyRepo, currenciesService) {
         this.partyRepo = partyRepo;
         this.currenciesService = currenciesService;
     }
-    async lookup(type) {
+    async lookup(type, currentUser) {
         const qb = this.partyRepo.createQueryBuilder('party')
             .select([
             'party.id', 'party.name', 'party.type', 'party.currencyId',
@@ -68,26 +70,70 @@ let PartiesService = class PartiesService {
             'party.address', 'party.cityId', 'party.districtName', 'party.maturityDays'
         ])
             .where('party.state = :state', { state: 1 });
+        const hasViewAll = currentUser?.isSystemAdmin ||
+            currentUser?.permissions?.includes('PARTIES_VIEW_ALL') ||
+            currentUser?.permissions?.includes('parties_view_all') ||
+            currentUser?.permissions?.includes('PARTIES_USE_SELECTION') ||
+            currentUser?.permissions?.includes('parties_use_selection') ||
+            currentUser?.permissions?.includes('SALES_VIEW_ALL') ||
+            currentUser?.permissions?.includes('sales_view_all') ||
+            currentUser?.permissions?.includes('SALES_EDIT_ALL') ||
+            currentUser?.permissions?.includes('sales_edit_all');
+        if (!hasViewAll) {
+            const hasViewDept = currentUser?.permissions?.includes('PARTIES_VIEW_DEPT') ||
+                currentUser?.permissions?.includes('parties_view_dept') ||
+                currentUser?.permissions?.includes('SALES_VIEW_DEPT') ||
+                currentUser?.permissions?.includes('sales_view_dept');
+            if (hasViewDept && currentUser?.departmentId) {
+                qb.andWhere('party.departmentId = :userDeptId', { userDeptId: String(currentUser.departmentId) });
+            }
+            else {
+                qb.andWhere('party.createdBy = :userId', { userId: String(currentUser?.sub) });
+            }
+        }
         if (type) {
             qb.andWhere('party.type = :type', { type });
         }
-        return qb.orderBy('party.name', 'ASC').getMany();
+        return qb.orderBy('party.id', 'DESC').getMany();
     }
-    async findAll(query) {
+    async findAll(query, currentUser) {
         const qb = this.partyRepo.createQueryBuilder('party')
             .select([
             'party.id', 'party.name', 'party.type', 'party.state',
             'party.taxNumber', 'party.taxOffice', 'party.phone1', 'party.phone2',
             'party.email', 'party.balance', 'party.address', 'party.cityId',
-            'party.districtName', 'party.creditLimit', 'party.currencyId', 'party.notes', 'party.maturityDays'
+            'party.districtName', 'party.creditLimit', 'party.currencyId', 'party.notes', 'party.maturityDays',
+            'party.createdAt'
         ])
             .leftJoin('party.currency', 'currency')
             .addSelect(['currency.id', 'currency.symbol', 'currency.code']);
-        if (query.departmentId) {
-            qb.innerJoin('users', 'u', 'u.id = party.created_by AND u.department_id = :departmentId', { departmentId: query.departmentId });
+        const hasViewAll = currentUser?.isSystemAdmin ||
+            currentUser?.permissions?.includes('PARTIES_VIEW_ALL') ||
+            currentUser?.permissions?.includes('parties_view_all');
+        if (query.isMovements === 'true') {
+            if (!hasViewAll) {
+                qb.andWhere('party.createdBy = :userId', { userId: String(currentUser?.sub) });
+            }
+        }
+        else {
+            if (!hasViewAll) {
+                const hasViewDept = currentUser?.permissions?.includes('PARTIES_VIEW_DEPT') || currentUser?.permissions?.includes('parties_view_dept');
+                if (hasViewDept && currentUser?.departmentId) {
+                    qb.andWhere('party.departmentId = :userDeptId', { userDeptId: String(currentUser.departmentId) });
+                }
+                else {
+                    qb.andWhere('party.createdBy = :userId', { userId: String(currentUser?.sub) });
+                }
+            }
+            else if (query.departmentId) {
+                qb.innerJoin('users', 'u', 'u.id = party.created_by AND u.department_id = :departmentId', { departmentId: query.departmentId });
+            }
         }
         if (query.search) {
-            qb.andWhere('(party.name LIKE :s OR party.phone1 LIKE :s OR party.phone2 LIKE :s OR party.taxOffice LIKE :s OR party.taxNumber LIKE :s OR party.email LIKE :s OR party.address LIKE :s OR party.districtName LIKE :s OR party.notes LIKE :s)', { s: `%${query.search}%` });
+            const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            if (s) {
+                qb.andWhere('(party.name LIKE :s OR party.phone1 LIKE :s OR party.phone2 LIKE :s OR party.taxOffice LIKE :s OR party.taxNumber LIKE :s OR party.email LIKE :s OR party.address LIKE :s OR party.districtName LIKE :s OR party.notes LIKE :s)', { s });
+            }
         }
         const partyFilterMap = {
             name: 'party.name',
@@ -120,9 +166,10 @@ let PartiesService = class PartiesService {
         if (query.state !== undefined) {
             qb.andWhere('party.state = :state', { state: query.state });
         }
-        const allowedSortCols = ['name', 'balance', 'creditLimit', 'createdAt', 'taxNumber', 'phone1'];
-        const sortCol = allowedSortCols.includes(query.sortBy || '') ? query.sortBy : 'name';
-        qb.orderBy(`party.${sortCol}`, query.sortOrderSafe);
+        const allowedSortCols = ['name', 'balance', 'creditLimit', 'id', 'createdAt', 'taxNumber', 'phone1'];
+        const sortCol = allowedSortCols.includes(query.sortBy || '') ? query.sortBy : 'id';
+        const sortOrder = query.sortBy ? query.sortOrderSafe : 'DESC';
+        qb.orderBy(`party.${sortCol}`, sortOrder);
         qb.skip(query.skip).take(query.limit);
         qb.addSelect((subQuery) => {
             return subQuery
@@ -138,6 +185,14 @@ let PartiesService = class PartiesService {
                 .where('sale.party_id = party.id')
                 .andWhere('sale.deleted_at IS NULL');
         }, 'last_sale_date');
+        qb.addSelect((subQuery) => {
+            return subQuery
+                .select('COALESCE(SUM(sale.grand_total - sale.paid_amount), 0)')
+                .from('sales', 'sale')
+                .where('sale.party_id = party.id')
+                .andWhere("sale.status != 'cancelled'")
+                .andWhere('sale.deleted_at IS NULL');
+        }, 'total_remaining_balance');
         const { entities, raw } = await qb.getRawAndEntities();
         const count = await qb.getCount();
         const rawMap = new Map(raw.map(r => [r.party_id.toString(), r]));
@@ -146,7 +201,9 @@ let PartiesService = class PartiesService {
             if (rawData) {
                 entity.totalSalesCount = Number(rawData.total_sales_count || 0);
                 entity.lastSaleDate = rawData.last_sale_date || null;
-                entity.calculatedBalance = new decimal_js_1.Decimal(entity.balance || 0);
+                const remainingVal = new decimal_js_1.Decimal(rawData.total_remaining_balance || 0);
+                entity.balance = remainingVal;
+                entity.calculatedBalance = remainingVal;
             }
         });
         return {
@@ -158,6 +215,14 @@ let PartiesService = class PartiesService {
         const party = await this.partyRepo.findOne({ where: { id: String(id) }, relations: ['currency'] });
         if (!party)
             throw new common_1.NotFoundException('Cari hesap bulunamadı');
+        const remaining = await this.partyRepo.manager.createQueryBuilder()
+            .select('COALESCE(SUM(sale.grand_total - sale.paid_amount), 0)', 'total')
+            .from('sales', 'sale')
+            .where('sale.party_id = :id', { id })
+            .andWhere("sale.status != 'cancelled'")
+            .andWhere('sale.deleted_at IS NULL')
+            .getRawOne();
+        party.balance = new decimal_js_1.Decimal(remaining?.total || 0);
         return party;
     }
     async create(dto, userId) {
@@ -179,11 +244,23 @@ let PartiesService = class PartiesService {
                 console.warn('Default currency not found, setting to null');
             }
         }
-        const party = this.partyRepo.create({ ...dto, balance: new decimal_js_1.Decimal(0), createdBy: userId, departmentId: dto.departmentId });
+        let departmentId = dto.departmentId;
+        if (!departmentId && userId) {
+            const user = await this.partyRepo.manager.query("SELECT department_id FROM users WHERE id = ? LIMIT 1", [userId]);
+            if (user && user.length > 0 && user[0].department_id) {
+                departmentId = String(user[0].department_id);
+            }
+        }
+        const party = this.partyRepo.create({ ...dto, balance: new decimal_js_1.Decimal(0), createdBy: userId, departmentId });
         return this.partyRepo.save(party);
     }
-    async update(id, dto, userId) {
+    async update(id, dto, userId, currentUser) {
         const party = await this.findOne(id);
+        if (currentUser && !currentUser.isSystemAdmin && !currentUser.permissions?.includes('PARTIES_EDIT_ALL')) {
+            if (party.createdBy !== String(currentUser.sub)) {
+                throw new common_1.ForbiddenException('Sadece kendi oluşturduğunuz cari hesapları düzenleyebilirsiniz.');
+            }
+        }
         if (dto.taxNumber && dto.taxNumber !== party.taxNumber) {
             const existing = await this.partyRepo.findOne({ where: { taxNumber: dto.taxNumber } });
             if (existing && existing.id !== String(id)) {
@@ -294,6 +371,111 @@ let PartiesService = class PartiesService {
             healthyCount: allCount - atRisk.length,
             atRiskCount: atRisk.length,
             requiresAttention: atRisk.map(p => ({ id: p.id, name: p.name, balance: p.balance, limit: p.creditLimit }))
+        };
+    }
+    async getStatement(id) {
+        const party = await this.findOne(id);
+        const ledgerEntries = await this.partyRepo.manager.getRepository(ledger_entity_1.AccountingLedger).find({
+            where: { partyId: String(id) },
+            order: { date: 'ASC', createdAt: 'ASC' }
+        });
+        const shipments = await this.partyRepo.manager.getRepository(shipment_entity_1.Shipment).createQueryBuilder('shipment')
+            .innerJoinAndSelect('shipment.sale', 'sale')
+            .where('sale.partyId = :partyId', { partyId: String(id) })
+            .orderBy('shipment.createdAt', 'ASC')
+            .getMany();
+        const items = [];
+        for (const entry of ledgerEntries) {
+            items.push({
+                id: `ledger_${entry.id}`,
+                date: entry.date,
+                createdAt: entry.createdAt,
+                type: entry.source,
+                code: entry.source === 'SALE' || entry.source === 'CANCEL_SALE' || entry.source === 'DEPOSIT' || entry.source === 'CANCEL_DEPOSIT' ? 'SİPARİŞ' : 'İŞLEM',
+                description: entry.description,
+                debit: Number(entry.debit || 0),
+                credit: Number(entry.credit || 0),
+                transactionId: entry.transactionId,
+            });
+        }
+        for (const sh of shipments) {
+            items.push({
+                id: `shipment_${sh.id}`,
+                date: sh.createdAt.toISOString().split('T')[0],
+                createdAt: sh.createdAt,
+                type: 'SHIPMENT',
+                code: 'SEVKİYAT',
+                description: `${sh.sale.code} nolu Sipariş için Sevkiyat (Durum: ${sh.status === 'completed' ? 'TAMAMLANDI' :
+                    sh.status === 'shipped' ? 'YOLDA' :
+                        sh.status === 'cancelled' ? 'İPTAL EDİLDİ' : 'BEKLİYOR'})`,
+                debit: 0,
+                credit: 0,
+                transactionId: sh.saleId,
+            });
+        }
+        items.sort((a, b) => {
+            const dateCompare = a.date.localeCompare(b.date);
+            if (dateCompare !== 0)
+                return dateCompare;
+            return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        });
+        let runningBalance = 0;
+        const ledgerItems = items.map(item => {
+            runningBalance = runningBalance + item.debit - item.credit;
+            return {
+                ...item,
+                balance: runningBalance
+            };
+        });
+        return ledgerItems;
+    }
+    async findAllMovements(query, currentUser) {
+        const limit = Number(query.limit) || 20;
+        const page = Number(query.page) || 1;
+        const skip = (page - 1) * limit;
+        const qb = this.partyRepo.manager.getRepository(ledger_entity_1.AccountingLedger).createQueryBuilder('ledger')
+            .leftJoinAndSelect('ledger.party', 'party')
+            .leftJoinAndSelect('ledger.account', 'account')
+            .leftJoin('party.currency', 'currency')
+            .addSelect(['currency.id', 'currency.symbol', 'currency.code']);
+        const hasViewAll = currentUser?.isSystemAdmin ||
+            currentUser?.permissions?.includes('PARTIES_VIEW_ALL') ||
+            currentUser?.permissions?.includes('parties_view_all');
+        if (!hasViewAll) {
+            qb.andWhere('party.createdBy = :userId', { userId: String(currentUser?.sub) });
+        }
+        if (query.partyId) {
+            qb.andWhere('ledger.partyId = :partyId', { partyId: String(query.partyId) });
+        }
+        if (query.search) {
+            const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            qb.andWhere('(party.name LIKE :s OR ledger.description LIKE :s OR ledger.source LIKE :s)', { s });
+        }
+        qb.orderBy('ledger.date', 'DESC')
+            .addOrderBy('ledger.createdAt', 'DESC')
+            .skip(skip)
+            .take(limit);
+        const [data, total] = await qb.getManyAndCount();
+        return {
+            data: data.map(item => ({
+                id: item.id,
+                date: item.date,
+                partyName: item.party?.name,
+                partyType: item.party?.type,
+                partyId: item.partyId,
+                source: item.source,
+                description: item.description,
+                debit: Number(item.debit || 0),
+                credit: Number(item.credit || 0),
+                currency: item.party?.currency?.symbol || '₺',
+                transactionId: item.transactionId
+            })),
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
         };
     }
 };

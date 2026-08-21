@@ -36,5 +36,5 @@ export interface ItemData {
     purchasePrice: number | Decimal;
 }
 export declare class SaleCalculator {
-    static calculate(inputLines: InputSaleLine[], itemDataMap: Map<string, ItemData>, headerDiscountAmount?: number | Decimal | string, headerDiscountPercent?: number | Decimal | string, isRetail?: boolean): CalculationResult;
+    static calculate(inputLines: InputSaleLine[], itemDataMap: Map<string, ItemData>, headerDiscountAmount?: number | Decimal | string, headerDiscountPercent?: number | Decimal | string, isRetail?: boolean, representativePrice?: number | Decimal | string): CalculationResult;
 }

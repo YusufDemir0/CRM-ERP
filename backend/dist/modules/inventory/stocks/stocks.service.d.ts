@@ -6,20 +6,21 @@ import { StockAdjustmentDto, StocksQueryDto, TransferStockDto } from '../dto/inv
 import { PaginatedResult, PaginationDto } from '../../../common/dto/pagination.dto';
 import { StocksReportsService } from './stocks-reports.service';
 import { StocksTransactionsService } from './stocks-transactions.service';
+import { JwtPayload } from '../../../common/interfaces/jwt-payload.interface';
 export declare class StocksService {
     private readonly reportsService;
     private readonly transactionsService;
     private readonly logger;
     constructor(reportsService: StocksReportsService, transactionsService: StocksTransactionsService);
-    findAll(query: StocksQueryDto): Promise<PaginatedResult<Stock>>;
+    findAll(query: StocksQueryDto, user?: JwtPayload): Promise<PaginatedResult<Stock>>;
     findAllMovements(query: PaginationDto & {
         type?: string;
         search?: string;
-    }): Promise<PaginatedResult<StockMovement>>;
-    getMovements(stockId: string, query: PaginationDto): Promise<PaginatedResult<StockMovement>>;
-    getCriticalStocks(query?: Partial<PaginationDto>): Promise<PaginatedResult<Stock> | Stock[]>;
+    }, user?: JwtPayload): Promise<PaginatedResult<StockMovement>>;
+    getMovements(stockId: string, query: PaginationDto, user?: JwtPayload): Promise<PaginatedResult<StockMovement>>;
+    getCriticalStocks(query?: Partial<PaginationDto>, user?: JwtPayload): Promise<PaginatedResult<Stock> | Stock[]>;
     getStockReport(): Promise<any>;
-    getStatus(): Promise<{
+    getStatus(user?: JwtPayload): Promise<{
         totalItems: number;
         totalQuantity: string;
         criticalCount: number;
@@ -50,6 +51,14 @@ export declare class StocksService {
         quantity: number | Decimal | string;
     }>, departmentId: string, manager?: EntityManager, userId?: string): Promise<void>;
     finalizeShipmentBulk(items: Array<{
+        itemId: string;
+        quantity: number | Decimal | string;
+    }>, departmentId: string, manager?: EntityManager, referenceInfo?: {
+        type: StockMovement['referenceType'];
+        id: string;
+        description: string;
+    }, userId?: string): Promise<void>;
+    releaseStockBulk(items: Array<{
         itemId: string;
         quantity: number | Decimal | string;
     }>, departmentId: string, manager?: EntityManager, referenceInfo?: {

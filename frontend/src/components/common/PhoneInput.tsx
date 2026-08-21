@@ -13,16 +13,32 @@ interface PhoneInputProps {
 
 export const PhoneInput: React.FC<PhoneInputProps> = ({
   label,
-  value,
+  value = '',
   onChange,
   placeholder = '5XX XXX XX XX',
   className = '',
   disabled = false,
 }) => {
-  // Extract country code and local number from value (format: +90 5XX XXX XX XX)
-  const parts = value.split(' ');
-  const currentCountryCode = parts[0] || '+90';
-  const localNumber = parts.slice(1).join('').replace(/\D/g, '');
+  // Robust parsing of country code and local number
+  const parsePhone = (val: string) => {
+    if (!val) return { countryCode: '+90', local: '' };
+    const trimmed = val.trim();
+    const matchedCountry = COUNTRY_CODES.find(c => trimmed.startsWith(c.code));
+    if (matchedCountry) {
+      const rest = trimmed.substring(matchedCountry.code.length).replace(/\D/g, '').slice(0, 10);
+      return { countryCode: matchedCountry.code, local: rest };
+    }
+    const digits = trimmed.replace(/\D/g, '');
+    if (digits.startsWith('90') && digits.length === 12) {
+      return { countryCode: '+90', local: digits.substring(2).slice(0, 10) };
+    }
+    if (digits.startsWith('0') && digits.length === 11) {
+      return { countryCode: '+90', local: digits.substring(1).slice(0, 10) };
+    }
+    return { countryCode: '+90', local: digits.slice(0, 10) };
+  };
+
+  const { countryCode: currentCountryCode, local: localNumber } = parsePhone(value);
 
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -38,13 +54,13 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   }, []);
 
   const handleCountryChange = (code: string) => {
-    onChange(`${code} ${formatLocalNumber(localNumber)}`);
+    onChange(`${code} ${formatLocalNumber(localNumber)}`.trim());
     setIsOpen(false);
   };
 
   const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/\D/g, '').substring(0, 10);
-    onChange(`${currentCountryCode} ${formatLocalNumber(raw)}`);
+    onChange(`${currentCountryCode} ${formatLocalNumber(raw)}`.trim());
   };
 
   const formatLocalNumber = (raw: string) => {

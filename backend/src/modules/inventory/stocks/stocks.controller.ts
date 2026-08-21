@@ -5,31 +5,32 @@ import { StockAdjustmentDto, StocksQueryDto, TransferStockDto } from '../dto/inv
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
+import { JwtPayload } from '../../../common/interfaces/jwt-payload.interface';
 
 @Controller('stocks')
 export class StocksController {
   constructor(private readonly stocksService: StocksService) {}
 
   @Get()
-  @RequirePermissions('INVENTORY_VIEW')
-  findAll(@Query() query: StocksQueryDto) {
-    return this.stocksService.findAll(query);
+  @RequirePermissions('INVENTORY_VIEW_DEPT', 'INVENTORY_VIEW_ALL')
+  findAll(@Query() query: StocksQueryDto, @CurrentUser() user: JwtPayload) {
+    return this.stocksService.findAll(query, user);
   }
 
   @Get('critical')
-  @RequirePermissions('INVENTORY_VIEW')
-  getCriticalStocks() { return this.stocksService.getCriticalStocks(); }
+  @RequirePermissions('INVENTORY_VIEW_DEPT', 'INVENTORY_VIEW_ALL')
+  getCriticalStocks(@CurrentUser() user: JwtPayload) { return this.stocksService.getCriticalStocks({}, user); }
 
   @Get('movements')
-  @RequirePermissions('INVENTORY_VIEW')
-  findAllMovements(@Query() query: PaginationDto & { type?: string; search?: string }) {
-    return this.stocksService.findAllMovements(query);
+  @RequirePermissions('INVENTORY_VIEW_DEPT', 'INVENTORY_VIEW_ALL')
+  findAllMovements(@Query() query: PaginationDto & { type?: string; search?: string }, @CurrentUser() user: JwtPayload) {
+    return this.stocksService.findAllMovements(query, user);
   }
 
   @Get(':id/movements')
-  @RequirePermissions('INVENTORY_VIEW')
-  getMovements(@Param('id') id: string, @Query() query: PaginationDto) {
-    return this.stocksService.getMovements(id, query);
+  @RequirePermissions('INVENTORY_VIEW_DEPT', 'INVENTORY_VIEW_ALL')
+  getMovements(@Param('id') id: string, @Query() query: PaginationDto, @CurrentUser() user: JwtPayload) {
+    return this.stocksService.getMovements(id, query, user);
   }
 
   @Post('adjust')
@@ -46,6 +47,6 @@ export class StocksController {
   }
 
   @Get('status')
-  @RequirePermissions('INVENTORY_VIEW')
-  getStatus() { return this.stocksService.getStatus(); }
+  @RequirePermissions('INVENTORY_VIEW_DEPT', 'INVENTORY_VIEW_ALL')
+  getStatus(@CurrentUser() user: JwtPayload) { return this.stocksService.getStatus(user); }
 }

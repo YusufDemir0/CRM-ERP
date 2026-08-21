@@ -5,6 +5,7 @@ import { UserPermission } from '../../modules/auth/entities/user-permission.enti
 import { RolePermission } from '../../modules/auth/entities/role-permission.entity';
 import { UserRole } from '../../modules/auth/entities/user-role.entity';
 import { Permission } from '../../modules/auth/entities/permission.entity';
+import { User } from '../../modules/auth/entities/user.entity';
 import { Cache } from 'cache-manager';
 export declare class PermissionsGuard implements CanActivate {
     private reflector;
@@ -13,7 +14,8 @@ export declare class PermissionsGuard implements CanActivate {
     private rolePermRepo;
     private userPermRepo;
     private permissionRepo;
+    private userRepo;
     private readonly logger;
-    constructor(reflector: Reflector, cacheManager: Cache, userRoleRepo: Repository<UserRole>, rolePermRepo: Repository<RolePermission>, userPermRepo: Repository<UserPermission>, permissionRepo: Repository<Permission>);
+    constructor(reflector: Reflector, cacheManager: Cache, userRoleRepo: Repository<UserRole>, rolePermRepo: Repository<RolePermission>, userPermRepo: Repository<UserPermission>, permissionRepo: Repository<Permission>, userRepo: Repository<User>);
     canActivate(context: ExecutionContext): Promise<boolean>;
 }

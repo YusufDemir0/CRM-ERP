@@ -22,6 +22,7 @@ export class CreateSaleDto {
   @IsOptional() @Transform(FinanceHelper.transformString) @IsString() deposit?: string;
   @IsOptional() @Transform(FinanceHelper.transformString) @IsString() discountAmount?: string;
   @IsOptional() @Transform(FinanceHelper.transformString) @IsString() discountPercent?: string;
+  @IsOptional() @Transform(FinanceHelper.transformString) @IsString() representativePrice?: string;
   @IsOptional() @IsString() notes?: string;
   @IsOptional() @IsString() phone?: string;
   @IsOptional() @IsString() address?: string;
@@ -46,10 +47,12 @@ export class UpdateSaleDto {
   @IsOptional() @IsString() partyId: string;
   @IsOptional() @IsString() currencyId: string;
   @IsOptional() @IsString() staffId: string;
+  @IsOptional() @IsString() saleTypeId?: string;
   @IsOptional() @IsDateString() deliveryDate?: string;
   @IsOptional() @Transform(FinanceHelper.transformString) @IsString() deposit?: string;
   @IsOptional() @Transform(FinanceHelper.transformString) @IsString() discountAmount?: string;
   @IsOptional() @Transform(FinanceHelper.transformString) @IsString() discountPercent?: string;
+  @IsOptional() @Transform(FinanceHelper.transformString) @IsString() representativePrice?: string;
   @IsOptional() @IsString() notes?: string;
   @IsOptional() @IsString() phone?: string;
   @IsOptional() @IsString() address?: string;
@@ -95,10 +98,25 @@ export class SalesQueryDto extends PaginationDto {
   @IsOptional() @IsString() status?: string;
   @IsOptional() @IsString() partyId?: string;
   @IsOptional() @IsString() ownSalesOnly?: string | boolean;
+  @IsOptional() @IsString() departmentId?: string;
 }
 
 export class ShipSaleDto {
   @IsArray()
   @IsOptional()
   items?: { itemId: string; quantity: string | number }[];
+
+  @IsArray()
+  @IsOptional()
+  payments?: { commercialAccountId: string; amount: string | number }[];
+
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  vehicleIds?: string[];
+
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  assignedStaffIds?: string[];
 }

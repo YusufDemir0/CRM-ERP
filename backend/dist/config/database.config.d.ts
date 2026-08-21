@@ -13,6 +13,10 @@ declare const _default: (() => {
     charset: string;
     timezone: string;
     extra: {
+        ssl?: {
+            rejectUnauthorized: boolean;
+            ca: string | undefined;
+        } | undefined;
         connectionLimit: number;
         connectTimeout: number;
         enableKeepAlive: boolean;
@@ -49,6 +53,10 @@ declare const _default: (() => {
     charset: string;
     timezone: string;
     extra: {
+        ssl?: {
+            rejectUnauthorized: boolean;
+            ca: string | undefined;
+        } | undefined;
         connectionLimit: number;
         connectTimeout: number;
         enableKeepAlive: boolean;
@@ -69,6 +77,10 @@ declare const _default: (() => {
     charset: string;
     timezone: string;
     extra: {
+        ssl?: {
+            rejectUnauthorized: boolean;
+            ca: string | undefined;
+        } | undefined;
         connectionLimit: number;
         connectTimeout: number;
         enableKeepAlive: boolean;
@@ -105,6 +117,10 @@ declare const _default: (() => {
     charset: string;
     timezone: string;
     extra: {
+        ssl?: {
+            rejectUnauthorized: boolean;
+            ca: string | undefined;
+        } | undefined;
         connectionLimit: number;
         connectTimeout: number;
         enableKeepAlive: boolean;

@@ -11,6 +11,8 @@ import { confirmDialog } from '../utils/confirmDialog';
 import { Sale, Department } from '../types';
 import { ApproveSaleModal } from '../components/modals/ApproveSaleModal';
 import { ViewSaleModal } from '../components/modals/ViewSaleModal';
+import CancelSaleModal from '../components/modals/CancelSaleModal';
+import { ReportErrorModal } from '../components/modals/ReportErrorModal';
 import { DataTable, Column } from '../components/common/DataTable';
 import { SaleWizard } from './modules/SalesWizard/SaleWizard';
 import { Decimal } from 'decimal.js';
@@ -19,8 +21,16 @@ import { SalesTable } from '../components/sales/SalesTable';
 import { useDebounce } from '../hooks/useDebounce';
 import { queryKeys } from '../services/queryKeys';
 import { useSalesWizardStore } from '../store/useSalesWizardStore';
+import { useAuth } from '../hooks/useAuth';
 
 export default function SalesPage() {
+  const { user, hasPermission } = useAuth();
+  const canCreate = hasPermission('SALES_CREATE');
+  const canEditOwn = hasPermission('SALES_EDIT_OWN');
+  const canEditAll = hasPermission('SALES_EDIT_ALL');
+  const canCancel = hasPermission('SALES_CANCEL');
+  const canApprove = hasPermission('SALES_APPROVE');
+
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
@@ -58,6 +68,7 @@ export default function SalesPage() {
   };
 
   const [filters] = useState<Record<string, string | number | undefined>>({});
+  const selectedDeptFilterId = searchParams.get('departmentId') || '';
 
   const setSort = (key: string, order: 'ASC' | 'DESC') => updateParams({ sortBy: key, sortOrder: order, page: 1 });
 
@@ -68,6 +79,13 @@ export default function SalesPage() {
   // View/Ship Modal State
   const [viewSaleData, setViewSaleData] = useState<Sale | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isReportErrorOpen, setIsReportErrorOpen] = useState(false);
+  const [selectedSaleForError, setSelectedSaleForError] = useState<Sale | null>(null);
+
+  const handleReportError = (sale: Sale) => {
+    setSelectedSaleForError(sale);
+    setIsReportErrorOpen(true);
+  };
 
   // ────── QUERIES ──────
 
@@ -75,14 +93,14 @@ export default function SalesPage() {
     queryKey: queryKeys.sales.all({
       page, limit, search: debouncedSearch,
       status: filterStatus === 'all' ? undefined : filterStatus,
-      sort, filters
+      sort, filters: { ...filters, departmentId: selectedDeptFilterId }
     }),
     queryFn: async ({ signal }) => {
       const res = await salesAPI.getAll({
         page, limit, search: debouncedSearch,
         status: filterStatus === 'all' ? undefined : filterStatus,
         sortBy: sort.key, sortOrder: sort.order,
-        ownSalesOnly: 'true',
+        departmentId: selectedDeptFilterId || undefined,
         ...filters
       }, { signal });
       return res.data;
@@ -116,7 +134,7 @@ export default function SalesPage() {
   });
 
   const cancelMutation = useMutation({
-    mutationFn: (id: string | number) => salesAPI.cancel(id),
+    mutationFn: ({ id, reason }: { id: string | number; reason: string }) => salesAPI.cancel(id, { reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all({}) });
       toast.success("Satış iptal edildi.");
@@ -124,8 +142,30 @@ export default function SalesPage() {
     onError: () => toast.error("İptal işlemi başarısız oldu.")
   });
 
+  const revertMutation = useMutation({
+    mutationFn: ({ id }: { id: string | number }) => salesAPI.revertToDraft(id),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.sales.all({}) });
+      toast.success("Sipariş başarıyla taslağa döndürüldü.");
+      const sale = sales.find(s => String(s.id) === String(variables.id));
+      if (sale) {
+        updateParams({ status: 'draft', q: sale.code, page: 1 });
+      } else {
+        updateParams({ status: 'draft', page: 1 });
+      }
+    },
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || 'İşlem başarısız oldu.';
+      toast.error(msg);
+    }
+  });
+
   const shipMutation = useMutation({
-    mutationFn: (id: string | number) => salesAPI.ship(id, { items: [] }),
+    mutationFn: (arg: string | number | { id: string | number; payments?: Array<{ commercialAccountId: string | number; amount: string | number }> }) => {
+      const id = typeof arg === 'object' && arg !== null ? arg.id : arg;
+      const payments = typeof arg === 'object' && arg !== null ? arg.payments : undefined;
+      return salesAPI.ship(id, { payments });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sales.all({}) });
       toast.success("Sevkiyat başarıyla gerçekleştirildi.");
@@ -170,10 +210,23 @@ export default function SalesPage() {
     setSelectedDeptId('');
   };
 
-  const handleCancelSale = useCallback(async (id: string | number) => {
-    const confirmed = await confirmDialog('Bu satışı iptal etmek istediğinize emin misiniz?', true);
-    if (confirmed) cancelMutation.mutate(id);
-  }, [cancelMutation]);
+  const [cancellingSaleId, setCancellingSaleId] = useState<string | number | null>(null);
+
+  const handleCancelSale = useCallback((id: string | number) => {
+    setCancellingSaleId(id);
+  }, []);
+
+  const handleRevertToDraft = useCallback(async (id: string | number) => {
+    const sale = sales.find(s => String(s.id) === String(id));
+    const codeStr = sale ? ` (${sale.code})` : '';
+    const confirmed = await confirmDialog(
+      `Bu siparişi${codeStr} taslağa geri döndürmek istediğinize emin misiniz?`,
+      false
+    );
+    if (confirmed) {
+      revertMutation.mutate({ id });
+    }
+  }, [sales, revertMutation]);
 
   const handleShipSale = useCallback(async (id: string | number) => {
     const confirmed = await confirmDialog('Tüm ürünlerin sevkiyatı yapılsın mı?', false);
@@ -194,6 +247,17 @@ export default function SalesPage() {
     const salesStore = useSalesWizardStore.getState();
     salesStore.reset();
     navigate('/sales/wizard');
+  }, [navigate]);
+
+  const handleEditSale = useCallback(async (id: string | number) => {
+    try {
+      const res = await salesAPI.getOne(id);
+      const salesStore = useSalesWizardStore.getState();
+      salesStore.loadDraftSale(res.data);
+      navigate('/sales/wizard');
+    } catch (error) {
+      toast.error("Satış bilgileri alınamadı.");
+    }
   }, [navigate]);
   const handlePageChange = useCallback((p: number) => updateParams({ page: p }), []);
   const handleLimitChange = useCallback((l: number) => updateParams({ limit: l, page: 1 }), []);
@@ -237,6 +301,12 @@ export default function SalesPage() {
         onSearchTermChange={(term) => updateParams({ q: term, page: 1 })}
         onNewSale={handleNewSale}
         onExport={handleExport}
+        canCreate={canCreate}
+        departments={departments}
+        selectedDeptFilterId={selectedDeptFilterId}
+        onDeptFilterChange={(id) => {
+          updateParams({ departmentId: id || undefined, page: 1 });
+        }}
       />
 
       <SalesTable
@@ -248,7 +318,13 @@ export default function SalesPage() {
         sortConfigs={[{ key: sort.key, direction: sort.order.toLowerCase() as 'asc' | 'desc' }]}
         onSort={handleSortChange}
         onView={openViewModal}
-        isReadOnly={true}
+        onEdit={canEditOwn || canEditAll ? handleEditSale : undefined}
+        isEditable={(s) => canEditAll || (canEditOwn && String(s.createdBy) === String(user?.id))}
+        onCancel={canCancel ? handleCancelSale : undefined}
+        onRevertToDraft={canApprove ? handleRevertToDraft : undefined}
+        onReportError={handleReportError}
+        isReadOnly={false}
+        hideApprove={true}
       />
 
       {/* 🟣 MODALS */}
@@ -268,6 +344,27 @@ export default function SalesPage() {
           onClose={() => setIsViewModalOpen(false)}
         />
       )}
+
+      {cancellingSaleId && (
+        <CancelSaleModal
+          isOpen={!!cancellingSaleId}
+          onClose={() => setCancellingSaleId(null)}
+          onSubmit={(reason) => {
+            cancelMutation.mutate({ id: cancellingSaleId, reason });
+            setCancellingSaleId(null);
+          }}
+          loading={cancelMutation.isPending}
+        />
+      )}
+
+      <ReportErrorModal
+        isOpen={isReportErrorOpen}
+        onClose={() => {
+          setIsReportErrorOpen(false);
+          setSelectedSaleForError(null);
+        }}
+        sale={selectedSaleForError}
+      />
     </div>
   );
 }

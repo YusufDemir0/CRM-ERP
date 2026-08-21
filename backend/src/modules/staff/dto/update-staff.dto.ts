@@ -10,5 +10,6 @@ export class UpdateStaffDto {
   @IsOptional() @IsBoolean() isActive?: boolean;
   @IsOptional() @IsNumber() @IsInt() @Type(() => Number) state?: number;
   @IsOptional() @IsString() @MaxLength(11) tckn?: string;
+  @IsOptional() @IsString() unit?: string;
 
 }

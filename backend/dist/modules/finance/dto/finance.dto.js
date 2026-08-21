@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AccountsQueryDto = exports.TransactionsQueryDto = exports.CreateTransactionDto = exports.UpdateAccountDto = exports.CreateAccountDto = exports.UpdateCurrencyDto = exports.CreateCurrencyDto = void 0;
+exports.AccountsQueryDto = exports.TransactionsQueryDto = exports.CreateTransferDto = exports.CreateTransactionDto = exports.UpdateAccountDto = exports.CreateAccountDto = exports.UpdateCurrencyDto = exports.CreateCurrencyDto = void 0;
 const class_validator_1 = require("class-validator");
 const pagination_dto_1 = require("../../../common/dto/pagination.dto");
 const class_transformer_1 = require("class-transformer");
@@ -184,7 +184,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Transform)(({ value }) => (value === '' || value === null) ? undefined : value),
-    (0, class_validator_1.IsEnum)(['sale', 'purchase', 'manual_adjustment', 'manual', 'sale_deposit']),
+    (0, class_validator_1.IsEnum)(['sale', 'purchase', 'manual_adjustment', 'manual', 'sale_deposit', 'transfer']),
     __metadata("design:type", String)
 ], CreateTransactionDto.prototype, "referenceType", void 0);
 __decorate([
@@ -201,6 +201,39 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateTransactionDto.prototype, "description", void 0);
+class CreateTransferDto {
+}
+exports.CreateTransferDto = CreateTransferDto;
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateTransferDto.prototype, "fromAccountId", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateTransferDto.prototype, "toAccountId", void 0);
+__decorate([
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_transformer_1.Transform)(finance_helper_1.FinanceHelper.transformString),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateTransferDto.prototype, "amount", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateTransferDto.prototype, "currencyId", void 0);
+__decorate([
+    (0, class_validator_1.IsDateString)(),
+    __metadata("design:type", String)
+], CreateTransferDto.prototype, "date", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateTransferDto.prototype, "description", void 0);
 class TransactionsQueryDto extends pagination_dto_1.PaginationDto {
 }
 exports.TransactionsQueryDto = TransactionsQueryDto;
@@ -224,6 +257,16 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], TransactionsQueryDto.prototype, "commercialAccountId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TransactionsQueryDto.prototype, "referenceType", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], TransactionsQueryDto.prototype, "departmentId", void 0);
 class AccountsQueryDto extends pagination_dto_1.PaginationDto {
 }
 exports.AccountsQueryDto = AccountsQueryDto;
@@ -233,4 +276,16 @@ __decorate([
     (0, class_validator_1.IsInt)(),
     __metadata("design:type", Number)
 ], AccountsQueryDto.prototype, "state", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Transform)(({ value }) => {
+        if (value === 'true' || value === true)
+            return 'true';
+        if (value === 'false' || value === false)
+            return 'false';
+        return value;
+    }),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], AccountsQueryDto.prototype, "ignorePermissionRestrictions", void 0);
 //# sourceMappingURL=finance.dto.js.map

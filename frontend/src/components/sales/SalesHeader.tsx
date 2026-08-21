@@ -1,4 +1,5 @@
-import { FiShoppingBag, FiPlus, FiClock, FiCheckCircle, FiTruck, FiInfo, FiSearch, FiDownload } from 'react-icons/fi';
+import { Department } from '../../types';
+import { FiShoppingBag, FiPlus, FiClock, FiCheckCircle, FiTruck, FiInfo, FiSearch, FiDownload, FiAlertOctagon } from 'react-icons/fi';
 
 interface SalesHeaderProps {
   filterStatus: 'draft' | 'approved' | 'shipped' | 'cancelled' | 'all';
@@ -7,6 +8,11 @@ interface SalesHeaderProps {
   onSearchTermChange: (term: string) => void;
   onNewSale: () => void;
   onExport: () => void;
+  onReportError?: () => void;
+  canCreate?: boolean;
+  departments?: Department[];
+  selectedDeptFilterId?: string;
+  onDeptFilterChange?: (id: string) => void;
 }
 
 export const SalesHeader: React.FC<SalesHeaderProps> = ({
@@ -15,7 +21,12 @@ export const SalesHeader: React.FC<SalesHeaderProps> = ({
   searchTerm,
   onSearchTermChange,
   onNewSale,
-  onExport
+  onExport,
+  onReportError,
+  canCreate = true,
+  departments = [],
+  selectedDeptFilterId = '',
+  onDeptFilterChange
 }) => {
   return (
     <div className="flex flex-col gap-8">
@@ -59,12 +70,23 @@ export const SalesHeader: React.FC<SalesHeaderProps> = ({
             <FiDownload size={18} /> RAPOR AL (EXCEL)
           </button>
 
-          <button 
-            className="h-14 px-8 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:shadow-2xl hover:-translate-y-1 active:scale-95 transition-all flex items-center gap-3" 
-            onClick={onNewSale}
-          >
-            <FiPlus size={20} /> YENİ SATIŞ
-          </button>
+          {onReportError && (
+            <button 
+              className="h-14 px-6 bg-red-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-red-650/20 hover:shadow-2xl hover:-translate-y-1 active:scale-95 transition-all flex items-center gap-2" 
+              onClick={onReportError}
+            >
+              <FiAlertOctagon size={18} /> HATA BİLDİR
+            </button>
+          )}
+
+          {canCreate && (
+            <button 
+              className="h-14 px-8 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:shadow-2xl hover:-translate-y-1 active:scale-95 transition-all flex items-center gap-3" 
+              onClick={onNewSale}
+            >
+              <FiPlus size={20} /> YENİ SATIŞ
+            </button>
+          )}
         </div>
       </div>
 
@@ -80,6 +102,23 @@ export const SalesHeader: React.FC<SalesHeaderProps> = ({
             className="w-full pl-14 h-14 bg-surface-container-low border border-transparent focus:border-primary/20 focus:bg-white rounded-3xl transition-colors outline-none font-bold text-slate-700 placeholder:text-slate-300 placeholder:font-black placeholder:uppercase placeholder:text-[10px] placeholder:tracking-widest" 
           />
         </div>
+        {onDeptFilterChange && (
+          <select
+            value={selectedDeptFilterId}
+            onChange={(e) => onDeptFilterChange(e.target.value)}
+            className="h-14 px-5 bg-surface-container-low border border-transparent focus:border-primary/20 focus:bg-white rounded-2xl text-xs font-black text-slate-700 outline-none transition-all uppercase md:w-64 w-full cursor-pointer hover:border-slate-200"
+          >
+            <option value="">Birim (Tümü)</option>
+            {departments.map((dept: any) => {
+              const displayName = dept.abbreviation ? `${dept.abbreviation} - ${dept.name}` : dept.name;
+              return (
+                <option key={dept.id} value={dept.id}>
+                  {displayName}
+                </option>
+              );
+            })}
+          </select>
+        )}
       </div>
     </div>
   );

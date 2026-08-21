@@ -1,0 +1,283 @@
+---GİRİŞ---
+- Giriş ekranı orta üste logo eklenecek.
+- Kullanıcı adı ve şifre büyük yazılacak.
+- “İŞLEM YAPILIYOR. LÜTFEN KLAVYE MOUSE İLE TIKLAMA YAPMAYINIZ.” uyarısı kör ve engelliymiş gibi büyük ve belirgin gösterilecek.
+- Girişte kayıtlı kişi yoksa hata versin:
+  - “Böyle bir kullanıcı bulunmamaktadır.”
+  - “Lütfen “ YETKİLİ “ ile iletişime geçiniz” diye uyarı versin.
+- Kullanıcı adı doğru şifre hatalıysa: “Hatalı şifre girişi yaptınız. Lütfen tekrar deneyiniz.”
+- Giriş ekranında altta © (copyright) ibaresinden sonra "2011 Ermay Ofis Mobilyaları" yazacak.
+- Giriş sayfasından "Kurumsal Yönetim Sistemi" yazısı kalkacak, yerine daha gözükür güncel tarih ve saat gelecek.
+- Rolünüz kontrol ediliyor %1 - %100 yükleme barı tamamlanınca f5 ile sayfa yenilenecek.
+- Varsayılan test hesabı: testadmin - Test123!
+
+---DASHBOARD---
+- Hoş geldiniz “username” karşılama yazısı eklenecek.
+- Dashboard üzerinde sadece kullanıcının kaydettiği cariler listelenecek.
+- Dashboarddan aktif ürün çeşidi ve sistem personelini kaldıralım.
+- Dashboarddan finansal hareketleri kaldıralım.
+- Dashboard tasarımı defterde çizildiği şekilde güncellenecek.
+- Toplam kayıtlı müşteri, toplam satış miktarı, günün cirosu eklenecek.
+- Geçen ayın satış tutarı ve bu ayın satış tutarı bilgisi eklenecek.
+- Aylık hedef tamamlanma yüzdesine göre mesaj içeriği:
+  - %0 – %20
+    - 👉 “Başlangıç yapıldı, şimdi hızlanma zamanı.”
+    - 👉 “İlk adımı attın, devamını getirelim.”
+  - %20 – %40
+    - 🟠 “İyi gidiyorsun ama daha fazlası mümkün.”
+    - 👉 “Potansiyelin var, biraz daha zorla.”
+  - %40 – %60
+    - 🟡 “Yarısına geldin, bırakma.”
+    - 👉 “Hedef artık görünmeye başladı.”
+  - %60 – %80
+    - 🟢 “Ciddi ilerleme, bu hızla devam et.”
+    - 👉 “Hedefe çok yaklaştın, durma.”
+  - %80 – %100
+    - 🔵 “Son düzlüktesin, şimdi bitirme zamanı.”
+    - 👉 “Bu ay senin ayın olabilir.”
+  - %100 – %110
+    - 🟣 “Hedef tamam! Şimdi fark yaratıyorsun.”
+    - 👉 “Standartları aştın, devam et!”
+  - %110+
+    - 🟡🟢 “Sen artık oyunu değiştiren taraftasın.”
+    - 👉 “Bu performans üst seviye, devam et!”
+    - 👉 “Diğerlerinden ayrıldın, zirvedesin.”
+
+---NOTLAR---
+- Satış hatası bildir / kendime not ekle kısımları eklenecek.
+- Not durumları düzeltildi ve işlem bekleyen olarak satışlar gibi yapılacak.
+- Satış hatasında (notlar kısmında hata bildirme) o mağazaya ait satışlar listelensin:
+  - Satış no / müşteri adı / müşteri tel 1 / (tutar)
+- Satış hatası bildirildiğinde mastersale yetkisi ve üzeri yetkiye (admin) sahip olan kişiler o hatayı görebilmeli.
+- Durum önemsiz bulunur veya bir hata olmadığına karar verilirse geri çevrilebilmeli, eğer hata var ise düzeltildi olarak işaretleyebilmeli.
+
+---YETKİLİ SATIŞLAR---
+- Satışlar giriş yapılan departmana göre listelenecek, yetkili satışlar hepsini görecek.
+- SATIŞ VE YETKİLİ SATIŞLAR SAYFASI OLACAK.
+- Yetkili satışlarda listenin varsayılanı "bekleniyor" durumundan gelecek.
+- Satışlar sayfasından işlemler kalkacak. Yetkili satışlar güncel satışların kopyası ve işlemler yapılan hali olacak.
+- Master satışlarda tüm satışlar listelenecek, departmandan bağımsız.
+- Onaylama işleminde 3 adet ürün de olsa hepsi ayrı depo çıkışı tasarımı sende.
+
+---SEVKİYATLAR---
+- Sevk edilenler "teslim edildi" olarak güncellenecek.
+- SEVKİYAT ONAYLADA:
+  - Fiyat yazılı gelmeyecek.
+  - Rakamlar silmede veya değiştirmede kendilerini değiştirmeyecek.
+  - Buton işleminde iki kutu kalan tutara eşit değilse uyarı verecek, eşitse onaylayacak.
+- Sevkiyat onayında msgbox uyarısı:
+  - "MERM1023 numaralı fişi xxxxx şoförle xxxx bu araçla kalan tutar xxxx TL'yi xxxx kasasına giriş yapıyorsunuz. Evet / Hayır"
+
+---SATIŞLAR---
+- SİPARİŞLER DEĞİL - SATIŞLAR OLARAK DÜZELTİLECEK.
+- Satışlar sayfasında liste sınıflarında “tümü” de default gelecek.
+- Listelenecek sütunlar sırasıyla (sadece görüntüleme olacak):
+  - Satış no / müşteri adı / müşteri telefonu (aramaya eklenecek) / tutar / kar-zarar / durum (taslak değil bekleniyor olarak değiştirelim) / satış tarihi / teslimat tarihi
+- Satış kodu s olmayacak. MXXX99998 formatında 5 rakam, 00001'den başlayıp gidecek.
+- Satışlar sayfasında toplam tutar + kdv olarak yazılmış olacak.
+- Satış tutarında kuruş gözükmeyecek.
+- Satışlar sayfasında kar % olarak yazsın (satıştaki tutar / ürün maliyeti): `((100.000 / 70.000) * 100) - 100`
+- Satışlar tümünde hata bildir butonu eklenecek.
+- Satış düzenleme sayfası olacak. Müşteri farklı adres seçili gelsin (ileri gidemeyeceği için). Satış lojistiğinde satışa ait tüm bilgiler çekilerek yerlerine işlensin.
+- Düzenlemede işlem tarihi verisi veritabanından çekilip getirilecek.
+- Satış düzenlemede temsilci alanı kilitli gelecek.
+- Sipariş göze basınca 5'ten fazla satırda kapatma çarpısı ve yazdır butonu kaymayacak.
+- Onaylananda butonla taslağa dönsün (Evet / Hayır / Bekleyenlere geri dön).
+- Sipariş numarasını aratma özelliği eklenecek.
+- Referans kısmına geçerken "uğrayanlar" ve "letgo" eklenecek.
+- Hızlı cari kayıtta cari tipi ve tel 2 yer değiştirecek.
+- Hızlı cari kayıtta isteğe bağlı olanlar için "Daha fazla göster" butonu olacak.
+- Hızlı cari kaydında 2. numara eklenecek.
+- Hızlı caride kritik bakiye olmayacak.
+- Satışta sağ taraftaki alanlar: temsilci fiyatı -> ARA TUTAR, iskonto -> GENEL TOPLAM.
+- Perakende satış yapılması kontrol edilecek (PARAKENDE SATIŞ YAPMIYOR).
+- Satış pasif etme işleminde hangi depodan çıkış yapıldıysa stok iadesi yapılacak (pasife eden kişi ve sebebi kaydedilecek).
+- Sil kısmına 1 tane textbox konulacak, içerisi boşsa silinemez olacak.
+- SATIŞ EKLEME EKRANI (SEÇİM YAPILDIKÇA İLERLEME AŞAĞIDAKİ GİBİ):
+  - SATIŞ NUMARASI DİĞERLERİNDEN BÜYÜK DİKKAT ÇEKİCİ OLACAK.
+  - ( 1 ) Lütfen müşteri seçiniz. (Cari 1. aşamada cari butonu sola hizalanacak ve rengi yeşil olacak. Cari kaydı alınca cari seçili gelmesin ya da cari bilgileri tüm boşlukları doldursun.)
+  - ( 2 ) Lütfen bilgileri kontrol edin ve devam et deyiniz. (Giriş yapılınca değiştirilemeyecek. Cari kayıtta tab ilerlemesi sıralaması doğrulanacak. İlgili hesap seçili gelecek ama değiştirilebilir.)
+  - ( 3 ) Teslimat tarihini seçiniz. (Teslimat tarihi dün seçili gelecek. Satış yaparken bugünden önceye teslimat tarihi kontrolünde hata verecek - geçmiş tarih seçilemeyecek. İşlem tarihi bugün seçili gelecek ve değişmeyecek.)
+  - ( 4 ) Alınan kapora ve Temsilci seçiniz. (Kapora varsayılan olarak 1.000 değerinde gelecek. Satış kapora ve satış teklif tutarı üzerine tıklayınca ctrl + a şeklinde seçsin. Kapora boş ise satış yap butonu gri renk olacak. İçerisine giriş yapılınca satış tutarı kullanılabilir hale gelecek. Satış fiyatı sağ altta kaporadan sonra açılacak, temsilci girecek. Satış yap butonu yeşile dönecek. Teklif edilen tutar alanına 'e' harfi yazılamayacak. Satış temsilcisi ilk aşamada mağaza personeli otomatik gelecek. Temsilci ekleme butonu kullanıcı ekle butonunun yanında yer alacak, aktif/pasifi olacak. Ekleme işlemi yapılırken departman olması lazım, departman yokken eklenirse 'Lütfen departman ekleyin' diye uyarı verecek. Satış işlem temsilci sırasında departman ekleme alanı kalkacak.)
+  - ( 5 ) Lütfen kapora için kasa seçiniz. (Kasa seçmeden işlem yapılamaz. Kapora girilmemişse “lütfen kapora giriniz” şeklinde kırmızı uyarı verilecek ve devam et butonunda kontrol edilecek. İlişkilendirilen kasa neyse en üstte ve farklı renkte gösterilecek, diğerleri sonra gelecek. 2. aynı kasayı ekleme engellenecek. Satışta tüm kasalar listelenecek.)
+  - ( 6 ) Referans seçiniz. (Aşama 6'da kasa ve referans ortaya, kapora ve temsilci alta gelecek. Referans kaynağı girmek zorunlu olacak.)
+  - ( 7 ) Açıklama yazınız ya da devam ediniz (fatura tipini buradan kaldır).
+  - ( 8 ) Ürünlerinizi seçiniz. (Ürün seçiminde # sütunu kalkacak. Ürün adı yanına depoların adetleri eklenecek: "Ürün Adı (DEPO 1: ADET - DEPO 2: ADET)". Ürün seçimine sağ sona SEVK / DEPO eklenecek, satışta “bekleyen” olarak gelecek. Ürün stoklarında sanaldepo adetine göre düşme işlemi yapılacak. Ürün listelemede id numarası 1'den 999'a kadar gösterilecek.)
+  - ( 9 ) Müşteri anlaşılan tutarı giriniz (Aşama 3-4-5-6'da kapora < satış tutarı kontrolü ve satış tutarı null kontrolü yapılacak. Kapora satış tutarından büyük olamaz).
+  - ( 10 ) Fatura tipini seçiniz (seçili gelmesin, faturalı ya da faturasız radiobutton seçilmeden bir sonraki aşamaya geçiş engellenecek).
+  - ( 11 ) Satış yap -> fatura tipi kontrolü. (Satışı tamamla dendiğinde onay modalı açılacak: "Satışı yapan temsilci adı; X.XXX tutarında; ADI SOYADI müşterimize GG.AA.YYY - pazar-cuma tarihinde satış yapıyorusunuz. Onaylıyor musunuz?").
+- Onaylanan satışlarda işlemler butonları:
+  - Göz ikonu görüntülemeye döndü - mavi renk.
+  - Kalem ikonu düzenlemeye döndü - sarı renk.
+  - Tik ikonu sevk/teslime döndü - yeşil renk (bekleyenler gözükmeyecek).
+  - X ikonu teslimat iptale döndü - kırmızı renk.
+  - Tik ikonu tıklandığında açılacak ekran tasarımı defterde çizilen formatta olacak.
+  - Nakit ve diğer kısmı ayrı kasa hareketi olarak işlenecek.
+  - Fiş toplam tutar - kapora = kalan tutar olacak. Kalan nakit ve diğerin toplamında 0 kalıp kalmadığı kontrol edilecek, kalan 0 olmayacaksa 'lütfen kalanı sıfırlayın' diye uyarı verecek.
+- Satışı tamamla dediğinde: Kontrol halen “satisdepo” seçili ise "lütfen depo seçiniz" uyarısı verecek. Hangi ürün sütununda depo ismi ne seçildiyse o depodan ürün adeti kadar düşecek hareket girişi yapılacak ve satis depoya açıklaması “Satıştan iade. (Bedo)” yazacak.
+- Satışlar - işlemlerdeki kalem simgesi çıktısı bağlı olan yazıcıdan alınırken A5 formatına uygun tasarım ve ölçülere göre yazdırılacak.
+
+---HESAPLAR---
+- İBANA AİT AD - SOYAD EKLENECEK LİSTEYE.
+- Hesaplara güncel bakiye tutarı eklensin.
+- KRİTİK LİMİT KALKACAK.
+- AKTİF / PASİF GÖZÜKME KALKACAK.
+- ADMİN HARİÇ sadece kendine ait bankayı görecek ve hareketlerini görecek.
+- Yetkiye ait banka listelenecek. Adminse hepsi listelenecek.
+- PARA BİRİMİNİN GÖZÜKMESİNE GEREK YOK.
+
+---HESAP HAREKETLERİ---
+- Hesap hareketlerinde işlem tipleri:
+  - 1 - cariden tahsilat
+  - 2 - satıştan tahsilat (ara kapora alınabilir, kapora 2 satış sql'e eklensin)
+  - 3 - kasa transfer (kasa giriş ve çıkış)
+- Kasalara göre filtreleme eklenecek.
+- Mağazaya göre filtreleme eklenecek.
+- Hesap hareketlerinde hareket silme işlemi iptal edilecek.
+
+---MÜŞTERİLER---
+- Cari sayfasının tüm içeriklerini “ Müşteri / Cari ” buton, text, sol başlık... olarak değiştir.
+- Cari listesi sütunları: cari adı / cari telefonu / tel 2 / bakiye / cari tipi
+- Cari arama kısmı kontrol edilecek: telefon / ad / tipi üzerinden arama yapılacak.
+- Cari listesi şuandan geçmişe göre listelensin.
+- Cari düzenleme aktif pasifin yanına "Satış Yap" eklenecek. Seçilen cariye satış yapılsın mı diye soracak (Evet/Hayır).
+- Satış cari kaydı otomatik MÜŞTERİ olarak seçilecek.
+- Cari kayıtta sadece tek kritik bakiye olacak, bunu yazılımsal çözeceğiz.
+- Cari oluştururken il / ilçe ve bilinen olarak 2 list, 1 textbox olacak (OSM).
+- TCKNO (11 hane) / VERGİ No (10 hane) olarak değiştirelim.
+- E-POSTA kenarına hızlı uzantı butonları (tıklanmışsa silerek değiştirme): @hot, @gma, @out, @iclo
+- CARİ PASİF EDİLİRKEN BAKİYE “ - “ YA DA “+” OLAMAZ.
+- Cari tek tipe dönecek: cari tipleri tedarikçi ve müşteri olacak (her ikisi de seçeneği olmayacak, tedarikçi her ikisi de gibi olacak, yani müşteri özelliklerini müşteri isteyen yerlerde falan da kullanılabilecek).
+- Ad-soyad - tel 1 - il - ilçe zorunlu olacak.
+- Ad-soyad kısmına rakam yazılmayacak (SQL kontrolü olacak).
+- Ad-soyad tek yerde birleşecek.
+- Zorunlu olacak alanlar ve sıralaması:
+  - TEDARİKÇİ ( ZORUNLU )
+  - AD - SOYAD ( Z )
+  - TEL 1 ( Z )
+  - TEL 2 ( İSTEK )
+  - ADRES ( ZORUNLU )
+  - E POSTA ( İSTEK )
+  - VERGİ ( İSTEK )
+- Telefon numarası radiobuttonlu TR - YABANCI seçimi olacak:
+  - TR görünüşü: `0 (5 - -) - - - - - - -`
+  - Yabancı görünüşü: `+ - - - ...`
+
+---MÜŞTERİ HAREKETLERİ---
+- Müşteri hareketleri özet alanı: müşteri adı, telefonu, kalan tutar (cariye yapılan toplam satıştan eksi toplam alınan tutar çıkacak), son satış tarihi, toplam satış adeti (müşteriye daha önce girilen satış adeti).
+- Cari satış özetinde satışa basınca satış detayları açılacak.
+- Müşteri hareketleri kısmında tam yetkili ise tüm carilerin hareketlerini, tam yetkisi yok ise kendi kaydettiği carilerin hareketlerini görebilmeli (yapılan satışlar tedarikçi ise yapılan tedarik vb. detay ekranı olmalı).
+
+---STOK---
+- ADMİN HARİÇ sadece kendine ait ve depo stokları görecek ve hareketlerini görecek.
+- Stok adeti 0 olanlar listelenmesin.
+- Ürünler kritik stok eksik kontrolü eklenecek.
+- Stok ekleme, düzenleme ve silme işlemleri yetki kontrolüne alınacak.
+
+---STOK HAREKETLERİ---
+- Stok hareketleri sayfası yetki kontrolleri (Admin hariç sadece kendine ait ve depo hareketlerini görme).
+
+---ÜRÜNLER---
+- DÜZENLEME KONTROL EDİLECEK. YAPMIYOR.
+- EXCEL DİYE ÜRÜN EKLENİN YANINDA AYRI BUTON.
+- Ürün ekle kısmına excel tablom var / yok seçeneği (önce bakılacak çözüme göre gidilecek).
+- Ürün eklenirken kullanılacak birimler: ADET ( ad ), GRAM ( g ), Litre ( l ), Metre ( m )
+- Ürünler liste sıralaması: ADI, KODU, ALIŞI, SATIŞI.
+- Ürün listelendiğinde ilk aktif olanlar gösterilecek: "aktif - pasif - all" filtreli.
+- Detay filtreler her listelenen sayfa için not alınarak geliştirilecek.
+- Ürün ekleme formunda birimin yanına hızlı "birim ekleme" butonu eklenecek.
+- Birim kısaltmalarının listesi aramanın sağına eklensin, seçilene göre arama yapsın.
+- Ürün kaydında ürün türü düzenlenecek: ( ticari mamul, YAN MADDE, hammadde ).
+- ÜRÜNKOD1 VE KOD2 EKLEME SAYFASI eklenecek.
+- Ürün listeleme sıra numarası 1'den 999'a kadar gösterilecek.
+
+---ÜRETİM EMİRLERİ---
+- ÜRETİM EMİRİ ŞİMDİLİK ASKIYA ALINACAK.
+- Üretimde ya da satışta başlangıç default bugünü çekecek. Geçmiş ve gelecek seçilmeyecek.
+
+---ÜRÜN REÇETELERİ---
+- REÇETE SEARCH LİSTBOXA DÖNECEK.
+- REÇETE ANA ÜRÜNÜ ALTTA LİSTELENMEMESİ LAZIM. TİCARİ MAL OLANLARIN LİSTELENMEMESİ LAZIM.
+- Ürün pasife alınırken reçete kullanımı sorgulanacak. Eğer ürün aktif reçetede varsa uyar: "LÜTFEN ÜRÜNE AİT REÇETE RCT..."
+
+---KULLANICI---
+- Kullanıcı ismi ile kullanıcı adı yer değiştirecek. Kullanıcı adı üstte büyük punto ve kalın olacak.
+- Baştaki logolar kaldırılacak.
+- Kullanıcıdan yetki/rol seçili değilse uyarı versin.
+- Kayıt işlemi tamamlandığındaki mesaj açıklamaları güncellenecek.
+- Kişinin kayıt tarihi ve erişimin kesilme tarihi listelenecek.
+- Erişim tekrar aktif hale getirildiğinde kayıt tarihi güncellenecek, "şimdi" (güncel zaman) olacak.
+- Sırasıyla kontrol ve uyarı: AD/SOYAD, K.ADI / ŞİFRE (sistem şifresi yanına en az 8 hane olacak uyarısı), (“MERKEZ TANIMSIZ”dan Merkez silinecek, sadece TANIMSIZ kalacak), departman, telefon, e-posta (zorunlu değil).
+
+---ROLLER---
+- Roller sayfasında "sadece görüntüleme" seçeneği varsayılan olarak seçili olmayacak.
+- 5 tane ROL YETKİSİ tanımlanacak ve çözülecek: ( Admin, Satış, Depo, Muhasebe, Özel ).
+- Satış rol içeriğine: stok görüntüle tikli kalacak (yetkiye göre buton kontrol stok sayfası).
+- Yetki İçerikleri detaylandırılacak:
+  - SATIŞ YETKİLİSİ
+  - SATIŞ ALTI SATIŞLAR
+  - MÜŞTERİ ALTI MÜŞTERİLER
+  - HESAPLAR ALTI HESAP
+  - YETKİLİ SATIŞLAR KAPALI
+  - STOKLAR ALTI STOK
+  - Müşteri listesi admin hariç (bağlı departmanın kaydettikleri).
+- Side bar tasarımı ve rol detayları defterdeki listeye göre (Evet/Hayır olarak) yetkilendirilecek.
+
+---DEPARTMANLAR---
+- Departman kayıt alırken hesaplar listbox'ta listelenecek. Yanına buton ile hesap ekleme boxı gelecek.
+- Kısa kod içerisi: örn: MERM. Rakam içeremez ve 4 karakterden az / 4 karakterden fazla olamaz (tam 4 karakter).
+- Departman 2 liste halinde gösterilecek: aktifler üst listede, pasifler alt listede.
+- Hesap ekleme yapınca departman girişteki bilgiler silinmeyecek, kaldığı yerden devam edecek.
+- Departman kısaltmaları 4-10 karakter arası sınırlandırılacak.
+- Departman kayıtta il ataması yapılacak. Satışta o il default olarak gelecek.
+
+---PERSONEL BİRİMLERİ---
+- PERSONEL VT OLUŞTURULACAK:
+  - p_namesname
+  - p_telefon
+  - p_tc
+  - p_isegiristar
+  - p_istencikistar
+  - p_tecg/a/y
+- Personel tablosuna birim ekle: Mağaza kaydederse otomatik "mağaza" olarak kaydetsin. Depo sevkiyattan eklenirse otomatik "sevk" yazsın.
+- Bunların düzenleneceği yeni bir sayfa açılacak: Personel Birimler.
+- Personel eklemede bugün ve sonrası tarihler seçilemez olsun.
+
+---AYARLAR---
+- SİLME İŞLEMİ KESİNLİKLE YAPILMAYACAK.
+- HİÇ BİR TABLONUN İD DEĞERİNİ KULLANICININ GÖRMESİNE GEREK YOK.
+- SQL VERİ EKLEME VEYA GÜNCELLEME GÖNDERİLDİĞİNDE "İŞLENİYOR LÜTFEN BEKLEYİNİZ YAZACAK." Teyit alıp başarı mesajından sonra sayfayı yenileyecek (F5).
+- “ İŞLEM YAPILIYOR. LÜTFEN KLAVYE MOUSE İLE TIKLAMA YAPMAYINIZ. ” uyarısı global loader olarak işlem bitene kadar gösterilecek.
+- Para birimi kullanılan her yerde otomatik ve silik şekilde "TL" seçili gelecek.
+- Ctrl+K quick menüde kullanıcının yetkinliği olmayan işlemler listelenmeyecek/gözükmeyecek.
+
+---LOGLAR---
+- Sistem logları.
+
+---NAVBAR---
+- Çıkış sağ üstte profilin altına eklenecek.
+- Aktif, pasif, düzenleme gibi her butona uygun bir ikon seti seçilip standartlaştırılacak.
+- Side bar sıralaması:
+  - — genel —
+    - dash (Dashboard)
+    - not (Notlar)
+  - — satış —
+    - satışlar
+    - müşteri/cari
+    - ürünler
+    - üretim (Üretim Emirleri)
+    - ürün reçeteleri
+    - ürün emirleri
+    - stoklar
+      - stok
+      - stok hareketleri
+    - hesaplar
+      - hesaplar
+      - hesap har. (Hesap Hareketleri)
+  - yönetim
+    - kullanıcılar
+    - roller yetkiler
+    - departmanlar
+  - sistem
+    - ayarlar
+    - sistem logları

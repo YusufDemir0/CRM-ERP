@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Entity, Column, ManyToOne, OneToMany, JoinColumn, Index } from 'typeorm';
 import { Transform } from 'class-transformer';
 import { Decimal } from 'decimal.js';
 import { BaseEntity } from '../../../../common/entities/base.entity';
@@ -7,6 +7,7 @@ import { ItemCodeGroup } from './item-code-group.entity';
 import { Party } from '../../../parties/entities/party.entity';
 import { Currency } from '../../../finance/currencies/entities/currency.entity';
 import { QuantityType } from './quantity-type.entity';
+import { Stock } from '../../stocks/entities/stock.entity';
 import { DecimalTransformer } from '../../../../common/transformers/decimal.transformer';
 
 @Entity('items')
@@ -100,4 +101,7 @@ export class Item extends BaseEntity {
   @ManyToOne(() => QuantityType)
   @JoinColumn({ name: 'quantity_type_id' })
   quantityType: QuantityType;
+
+  @OneToMany(() => Stock, (stock) => stock.item)
+  stocks: Stock[];
 }

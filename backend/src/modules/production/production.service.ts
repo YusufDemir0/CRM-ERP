@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger, ForbiddenException } from '@nestjs/common';
 import { StocksService } from '../inventory/stocks/stocks.service';
 import { ItemsService } from '../inventory/items/items.service';
 import { LogsService } from '../logs/logs.service';
@@ -21,6 +21,7 @@ import { Decimal } from 'decimal.js';
 import { Transactional } from '@nestjs-cls/transactional';
 import { TransactionContextService } from '../../common/services/transaction-context.service';
 import { getSafeSearchPattern } from '../../common/utils/sql.helper';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 
 @Injectable()
 export class ProductionService {
@@ -258,7 +259,7 @@ export class ProductionService {
 
   // ────── PRODUCTION ORDERS ──────
 
-  async findAllOrders(query: ProductionOrderQueryDto): Promise<PaginatedResult<ProductionOrder>> {
+  async findAllOrders(query: ProductionOrderQueryDto, currentUser?: JwtPayload): Promise<PaginatedResult<ProductionOrder>> {
     const qb = this.poRepo.createQueryBuilder('po')
       .leftJoin('po.bom', 'bom')
       .leftJoin('po.sourceDepartment', 'sourceDept')
@@ -271,9 +272,24 @@ export class ProductionService {
         'targetDept.id', 'targetDept.name'
       ]);
 
+    const hasViewAll = currentUser?.isSystemAdmin || 
+                       currentUser?.permissions?.includes('PRODUCTION_VIEW_ALL');
+    
+    if (!hasViewAll) {
+      const hasViewDept = currentUser?.permissions?.includes('PRODUCTION_VIEW_DEPT');
+      if (hasViewDept && currentUser?.departmentId) {
+        qb.andWhere(
+          '(po.sourceDepartmentId = :deptId OR po.targetDepartmentId = :deptId)',
+          { deptId: String(currentUser.departmentId) }
+        );
+      } else {
+        qb.andWhere('po.createdBy = :userId', { userId: String(currentUser?.sub) });
+      }
+    }
+
     if (query.search) {
       const s = getSafeSearchPattern(query.search);
-      qb.where('(po.code LIKE :s OR bom.name LIKE :s)', { s });
+      qb.andWhere('(po.code LIKE :s OR bom.name LIKE :s)', { s });
     }
     if (query.status) qb.andWhere('po.status = :status', { status: query.status });
 
@@ -301,12 +317,29 @@ export class ProductionService {
     };
   }
 
-  async findOneOrder(id: string): Promise<ProductionOrder> {
+  async findOneOrder(id: string, currentUser?: JwtPayload): Promise<ProductionOrder> {
     const po = await this.transactionContext.manager.findOne(ProductionOrder, {
       where: { id },
       relations:['bom', 'bom.items', 'bom.items.item', 'sourceDepartment', 'targetDepartment'],
     });
     if (!po) throw new NotFoundException('Üretim emri bulunamadı');
+
+    const hasViewAll = currentUser?.isSystemAdmin || 
+                       currentUser?.permissions?.includes('PRODUCTION_VIEW_ALL');
+    if (!hasViewAll) {
+      const hasViewDept = currentUser?.permissions?.includes('PRODUCTION_VIEW_DEPT');
+      if (hasViewDept && currentUser?.departmentId) {
+        const isDeptRelated = String(po.sourceDepartmentId) === String(currentUser.departmentId) || 
+                              String(po.targetDepartmentId) === String(currentUser.departmentId);
+        if (!isDeptRelated) {
+          throw new ForbiddenException('Bu üretim emrini görüntüleme yetkiniz bulunmamaktadır.');
+        }
+      } else {
+        if (String(po.createdBy) !== String(currentUser?.sub)) {
+          throw new ForbiddenException('Bu üretim emrini görüntüleme yetkiniz bulunmamaktadır.');
+        }
+      }
+    }
     return po;
   }
 

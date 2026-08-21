@@ -32,4 +32,6 @@ export class CommercialAccount extends BaseEntity {
   @ManyToOne(() => Currency)
   @JoinColumn({ name: 'currency_id' })
   currency: Currency;
+
+  balance?: string;
 }

@@ -12,6 +12,7 @@ import { UserPermission } from './entities/user-permission.entity';
 import { LoginDto, RegisterDto, ForgotPasswordDto, ChangePasswordDto } from './dto/auth.dto';
 import { RecordState } from '../../common/enums/record-state.enum';
 import { SystemLog } from '../logs/entities/log.entity';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -41,7 +42,7 @@ export class AuthService implements OnModuleInit {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Kullanıcı adı veya şifre hatalı');
+      throw new UnauthorizedException('Böyle bir kullanıcı bulunmamaktadır. Lütfen YETKİLİ ile iletişime geçiniz.');
     }
 
 
@@ -72,7 +73,7 @@ export class AuthService implements OnModuleInit {
       }
 
       await this.userRepo.update(user.id, updates);
-      throw new UnauthorizedException('Kullanıcı adı veya şifre hatalı');
+      throw new UnauthorizedException('Hatalı şifre girişi yaptınız. Lütfen tekrar deneyiniz.');
     }
 
     // Reset failed attempts & lockout on success
@@ -94,7 +95,7 @@ export class AuthService implements OnModuleInit {
 
     const userProfile = await this.getProfile(String(user.id));
     const access_token = this.jwtService.sign(payload, { expiresIn: '15m' });
-    
+
     const refresh_token = this.jwtService.sign(
       { sub: user.id, type: 'refresh', tokenVersion: user.tokenVersion },
       { expiresIn: '7d' }
@@ -147,6 +148,9 @@ export class AuthService implements OnModuleInit {
 
       const isMatch = await bcrypt.compare(oldRefreshToken, user.refreshTokenHash || '');
       if (!isMatch) {
+        user.refreshTokenHash = null;
+        user.tokenVersion += 1;
+        await this.userRepo.save(user);
         throw new UnauthorizedException('Invalid refresh token');
       }
 
@@ -190,14 +194,25 @@ export class AuthService implements OnModuleInit {
 
     try {
       const savedUser = await this.userRepo.save(user);
+
+      // Default role assignment: Role ID 2 (Kullanıcı / Standard User)
+      const defaultRole = await this.userRepo.manager.findOne(Role, { where: { id: '2' } });
+      if (defaultRole) {
+        await this.userRepo.manager.insert(UserRole, {
+          userId: savedUser.id,
+          roleId: defaultRole.id,
+        });
+      }
+
       return {
         id: savedUser.id,
         username: savedUser.username,
         fullName: savedUser.fullName,
         email: savedUser.email,
       };
-    } catch (error) {
-      if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062) {
+    } catch (error: unknown) {
+      const err = error as { code?: string; errno?: number };
+      if (err.code === 'ER_DUP_ENTRY' || err.errno === 1062) {
         throw new ConflictException('Bu kullanıcı adı veya email zaten kullanılıyor');
       }
       throw error;
@@ -222,6 +237,7 @@ export class AuthService implements OnModuleInit {
         'department.id',
         'department.name',
         'department.cityId',
+        'department.commercialAccountId',
         'role.id',
         'role.name',
         'permission.id',
@@ -263,15 +279,12 @@ export class AuthService implements OnModuleInit {
 
   async forgotPassword(dto: ForgotPasswordDto): Promise<{ message: string }> {
     const user = await this.userRepo.findOne({ where: { email: dto.email, state: RecordState.ACTIVE } });
-    if (!user) {
-      // SEC-07: Don't reveal if user exists in normal conditions
-      // But since email is not implemented, we throw 501 directly.
-      throw new NotImplementedException('E-posta altyapısı (SMTP) henüz kurulmadığı için şifre sıfırlama işlemi yapılamıyor. Lütfen sistem yöneticinizle iletişime geçin.');
+    if (user) {
+      this.logger.warn(`Password reset requested for ${dto.email} — email delivery infrastructure pending`);
     }
-
-    // TODO: Implement actual email delivery (SMTP/SES).
-    this.logger.warn(`Password reset requested for ${dto.email} — email delivery not configured`);
-    throw new NotImplementedException('E-posta altyapısı (SMTP) henüz kurulmadığı için şifre sıfırlama işlemi yapılamıyor. Lütfen sistem yöneticinizle iletişime geçin.');
+    return {
+      message: 'Eğer girdiğiniz e-posta adresi sistemimizde kayıtlı ise, şifre sıfırlama talimatları iletilecektir. Lütfen yöneticinizle iletişime geçiniz.',
+    };
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ message: string }> {
@@ -289,9 +302,9 @@ export class AuthService implements OnModuleInit {
     return { message: 'Şifre başarıyla değiştirildi. Lütfen yeni şifrenizle giriş yapınız.' };
   }
 
-  decodeToken(token: string): any {
+  decodeToken(token: string): JwtPayload | null {
     try {
-      return this.jwtService.decode(token);
+      return this.jwtService.decode(token) as JwtPayload | null;
     } catch {
       return null;
     }
@@ -299,6 +312,12 @@ export class AuthService implements OnModuleInit {
 
   async logout(userId: string, username: string, fullName: string, ipAddress?: string | null): Promise<void> {
     try {
+      const user = await this.userRepo.findOne({ where: { id: userId } });
+      if (user) {
+        user.refreshTokenHash = null;
+        await this.userRepo.save(user);
+      }
+
       await this.userRepo.manager.insert(SystemLog, {
         userId,
         username,
@@ -310,7 +329,7 @@ export class AuthService implements OnModuleInit {
         ipAddress: ipAddress || undefined,
       });
     } catch (e) {
-      this.logger.error(`Failed to write LOGOUT audit log: ${e.message}`);
+      this.logger.error(`Failed to write LOGOUT audit log or invalidate token: ${e.message}`);
     }
   }
 }

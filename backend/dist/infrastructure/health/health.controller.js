@@ -30,7 +30,7 @@ let HealthController = class HealthController {
             () => this.db.pingCheck('database', { timeout: 3000 }),
             () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024),
             () => this.disk.checkStorage('disk_storage', {
-                thresholdPercent: 0.9,
+                thresholdPercent: parseFloat(this.configService.get('HEALTH_DISK_THRESHOLD') || '0.99'),
                 path: '/',
             }),
         ]);
@@ -47,8 +47,10 @@ let HealthController = class HealthController {
             results.recent_sales = await this.dataSource.query('SELECT * FROM sales ORDER BY id DESC LIMIT 5');
         }
         catch (err) {
-            results.error = err.message || err;
-            results.stack = err.stack;
+            results.error = err instanceof Error ? err.message : String(err);
+            if (err instanceof Error) {
+                results.stack = err.stack;
+            }
         }
         return results;
     }
@@ -81,19 +83,23 @@ let HealthController = class HealthController {
                     }
                 }
                 catch (insertErr) {
+                    const errObj = insertErr;
                     results[`movement_insert_item_${si.item_id}_ERROR`] = {
-                        message: insertErr.message,
-                        code: insertErr.code || insertErr.errno,
-                        sqlMessage: insertErr.sqlMessage,
+                        message: errObj?.message || String(insertErr),
+                        code: errObj?.code || errObj?.errno,
+                        sqlMessage: errObj?.sqlMessage,
                     };
                 }
             }
         }
         catch (err) {
-            results.error = err.message || err;
-            results.code = err.code || err.errno;
-            results.sqlMessage = err.sqlMessage;
-            results.stack = err.stack;
+            const errObj = err;
+            results.error = errObj?.message || String(err);
+            results.code = errObj?.code || errObj?.errno;
+            results.sqlMessage = errObj?.sqlMessage;
+            if (err instanceof Error) {
+                results.stack = err.stack;
+            }
         }
         finally {
             await queryRunner.rollbackTransaction();

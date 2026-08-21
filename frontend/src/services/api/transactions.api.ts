@@ -28,5 +28,6 @@ export const transactionsAPI = {
   getTrends: (config?: AxiosRequestConfig) => api.get('/transactions/trends', config),
   getOne: (id: string | number, config?: AxiosRequestConfig) => api.get<Transaction>(`/transactions/${id}`, config),
   create: (data: CreateTransactionDto, config?: AxiosRequestConfig) => api.post('/transactions', data, config),
+  transfer: (data: { fromAccountId: string; toAccountId: string; amount: string | number; currencyId?: string; date: string; description?: string }, config?: AxiosRequestConfig) => api.post('/transactions/transfer', data, config),
   cancel: (id: string | number, config?: AxiosRequestConfig) => api.post(`/transactions/${id}/cancel`, config),
 };

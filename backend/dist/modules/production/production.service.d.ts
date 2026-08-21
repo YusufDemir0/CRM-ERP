@@ -10,6 +10,7 @@ import { SequenceGeneratorService } from '../../common/services/sequence-generat
 import { CreateBomDto, UpdateBomDto, CreateProductionOrderDto, UpdateProductionOrderDto, BomQueryDto, ProductionOrderQueryDto } from './dto/production.dto';
 import { PaginatedResult } from '../../common/dto/pagination.dto';
 import { TransactionContextService } from '../../common/services/transaction-context.service';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 export declare class ProductionService {
     private bomRepo;
     private bomItemRepo;
@@ -29,8 +30,8 @@ export declare class ProductionService {
     private detectBomCycle;
     updateBom(id: string, dto: UpdateBomDto, userId: string): Promise<Bom>;
     deleteBom(id: string): Promise<void>;
-    findAllOrders(query: ProductionOrderQueryDto): Promise<PaginatedResult<ProductionOrder>>;
-    findOneOrder(id: string): Promise<ProductionOrder>;
+    findAllOrders(query: ProductionOrderQueryDto, currentUser?: JwtPayload): Promise<PaginatedResult<ProductionOrder>>;
+    findOneOrder(id: string, currentUser?: JwtPayload): Promise<ProductionOrder>;
     createOrder(dto: CreateProductionOrderDto, userId: string): Promise<ProductionOrder>;
     updateOrder(id: string, dto: UpdateProductionOrderDto, userId: string): Promise<ProductionOrder>;
     private completeOrder;

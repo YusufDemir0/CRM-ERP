@@ -9,19 +9,19 @@ export class UserPermissionsController {
   constructor(private readonly rolesService: RolesService) {}
 
   @Post()
-  @RequirePermissions('PERMISSION_ASSIGN')
+  @RequirePermissions('USERS_OVERRIDE_PERM')
   setUserPermission(@Body() dto: SetUserPermissionDto, @CurrentUser('sub') userId: string) {
     return this.rolesService.setUserPermission(dto, userId);
   }
 
   @Get(':userId')
-  @RequirePermissions('PERMISSION_VIEW')
+  @RequirePermissions('USERS_OVERRIDE_PERM')
   getUserPermissions(@Param('userId') userId: string) {
     return this.rolesService.getUserPermissions(userId);
   }
 
   @Delete()
-  @RequirePermissions('PERMISSION_ASSIGN')
+  @RequirePermissions('USERS_OVERRIDE_PERM')
   removeUserPermission(@Body() dto: RemoveUserPermissionDto) {
     return this.rolesService.removeUserPermission(dto);
   }

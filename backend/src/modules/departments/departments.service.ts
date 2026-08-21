@@ -8,6 +8,7 @@ import { Stock } from '../inventory/stocks/entities/stock.entity';
 import { CreateDepartmentDto, UpdateDepartmentDto, CreateDepartmentTypeDto, UpdateDepartmentTypeDto, DepartmentsQueryDto } from './dto/department.dto';
 import { PaginatedResult } from '../../common/dto/pagination.dto';
 import { getSafeSearchPattern } from '../../common/utils/sql.helper';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 
 @Injectable()
 export class DepartmentsService {
@@ -22,10 +23,31 @@ export class DepartmentsService {
     private stockRepo: Repository<Stock>,
   ) {}
 
-  async findAll(query: DepartmentsQueryDto): Promise<PaginatedResult<Department>> {
+  async findAll(query: DepartmentsQueryDto, currentUser?: JwtPayload): Promise<PaginatedResult<Department>> {
     const qb = this.deptRepo.createQueryBuilder('dept')
       .leftJoinAndSelect('dept.departmentType', 'type')
       .leftJoinAndSelect('dept.commercialAccount', 'account');
+
+    let hasViewAll = false;
+    if (currentUser?.isSystemAdmin || 
+        currentUser?.permissions?.includes('DEPARTMENTS_VIEW_ALL') ||
+        currentUser?.permissions?.includes('departments_view_all')) {
+      hasViewAll = true;
+    } else if (currentUser?.permissions &&
+               !currentUser?.permissions?.includes('DEPARTMENTS_PAGE') &&
+               !currentUser?.permissions?.includes('departments_page')) {
+      // If the user doesn't have DEPARTMENTS_PAGE permission, they are loading
+      // departments for selectors/dropdowns from other modules. Allow view all.
+      hasViewAll = true;
+    }
+
+    if (!hasViewAll) {
+      if (currentUser?.departmentId) {
+        qb.andWhere('dept.id = :deptId', { deptId: String(currentUser.departmentId) });
+      } else {
+        qb.andWhere('1 = 0');
+      }
+    }
  
     if (query.search) {
       const s = getSafeSearchPattern(query.search);

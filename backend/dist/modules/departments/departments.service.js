@@ -28,10 +28,29 @@ let DepartmentsService = class DepartmentsService {
         this.userRepo = userRepo;
         this.stockRepo = stockRepo;
     }
-    async findAll(query) {
+    async findAll(query, currentUser) {
         const qb = this.deptRepo.createQueryBuilder('dept')
             .leftJoinAndSelect('dept.departmentType', 'type')
             .leftJoinAndSelect('dept.commercialAccount', 'account');
+        let hasViewAll = false;
+        if (currentUser?.isSystemAdmin ||
+            currentUser?.permissions?.includes('DEPARTMENTS_VIEW_ALL') ||
+            currentUser?.permissions?.includes('departments_view_all')) {
+            hasViewAll = true;
+        }
+        else if (currentUser?.permissions &&
+            !currentUser?.permissions?.includes('DEPARTMENTS_PAGE') &&
+            !currentUser?.permissions?.includes('departments_page')) {
+            hasViewAll = true;
+        }
+        if (!hasViewAll) {
+            if (currentUser?.departmentId) {
+                qb.andWhere('dept.id = :deptId', { deptId: String(currentUser.departmentId) });
+            }
+            else {
+                qb.andWhere('1 = 0');
+            }
+        }
         if (query.search) {
             const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
             qb.andWhere('(dept.name LIKE :s OR dept.abbreviation LIKE :s OR dept.description LIKE :s OR type.name LIKE :s OR account.name LIKE :s)', { s });

@@ -32,4 +32,8 @@ export class CreateStaffDto {
   @IsOptional()
   @MaxLength(11)
   tckn?: string;
+
+  @IsString()
+  @IsOptional()
+  unit?: string;
 }

@@ -56,7 +56,7 @@ export const ViewAccountTransactionsModal: React.FC<ViewAccountTransactionsModal
     val.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white max-w-[1100px] w-full rounded-3xl shadow-2xl border border-slate-100 flex flex-col animate-in zoom-in-95 duration-300 relative overflow-hidden" style={{ maxHeight: '90vh' }}>
         
         {/* HEADER */}

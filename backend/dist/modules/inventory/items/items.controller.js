@@ -27,8 +27,17 @@ let ItemsController = class ItemsController {
         if (file) {
             return this.itemsService.importFromExcel(file.buffer, userId);
         }
-        const items = Array.isArray(body) ? body : (Array.isArray(body?.items) ? body.items : null);
-        if (!items || !Array.isArray(items)) {
+        let items = null;
+        if (Array.isArray(body)) {
+            items = body;
+        }
+        else if (body && typeof body === 'object') {
+            const bodyRecord = body;
+            if (Array.isArray(bodyRecord.items)) {
+                items = bodyRecord.items;
+            }
+        }
+        if (!items) {
             throw new common_1.BadRequestException('Veri formatı hatalı. Excel dosyası veya JSON listesi bekleniyor.');
         }
         return this.itemsService.importItems(items, userId);
@@ -61,8 +70,21 @@ let ItemsController = class ItemsController {
     updateCodeGroup(id, dto, userId) {
         return this.itemsService.updateItemCodeGroup(id, dto, userId);
     }
-    update(id, dto, userId) {
-        return this.itemsService.update(id, dto, userId);
+    update(id, dto, user) {
+        const isSystemAdmin = user.isSystemAdmin;
+        const permissions = user.permissions || [];
+        if (!isSystemAdmin) {
+            if (dto.salePrice !== undefined && !permissions.includes('INVENTORY_EDIT_PRICE')) {
+                throw new common_1.ForbiddenException('Satış fiyatlarını düzenlemek için yetkiniz bulunmamaktadır.');
+            }
+            if (dto.purchasePrice !== undefined && !permissions.includes('INVENTORY_EDIT_COST')) {
+                throw new common_1.ForbiddenException('Alış/maliyet fiyatlarını düzenlemek için yetkiniz bulunmamaktadır.');
+            }
+            if (dto.criticalLimit !== undefined && !permissions.includes('INVENTORY_EDIT_STOCK_LIMIT')) {
+                throw new common_1.ForbiddenException('Kritik stok limitlerini düzenlemek için yetkiniz bulunmamaktadır.');
+            }
+        }
+        return this.itemsService.update(id, dto, String(user.sub));
     }
     removeItemType(id) { return this.itemsService.softDeleteItemType(id); }
     removeCodeGroup(id) { return this.itemsService.softDeleteItemCodeGroup(id); }
@@ -84,14 +106,14 @@ __decorate([
 ], ItemsController.prototype, "importItems", null);
 __decorate([
     (0, common_1.Get)('import-template'),
-    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW_DEPT', 'INVENTORY_VIEW_ALL'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], ItemsController.prototype, "getImportTemplate", null);
 __decorate([
     (0, common_1.Get)('export'),
-    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW_DEPT', 'INVENTORY_VIEW_ALL'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [inventory_dto_1.ItemsQueryDto]),
@@ -99,32 +121,35 @@ __decorate([
 ], ItemsController.prototype, "exportItems", null);
 __decorate([
     (0, common_1.Get)('status'),
-    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW_DEPT', 'INVENTORY_VIEW_ALL'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "getStatus", null);
 __decorate([
     (0, common_1.Get)('types'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_USE_SELECTION', 'INVENTORY_VIEW', 'INVENTORY_VIEW_DEPT', 'INVENTORY_VIEW_ALL'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "findAllItemTypes", null);
 __decorate([
     (0, common_1.Get)('quantity-types'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_USE_SELECTION', 'INVENTORY_VIEW', 'INVENTORY_VIEW_DEPT', 'INVENTORY_VIEW_ALL'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "findAllQuantityTypes", null);
 __decorate([
     (0, common_1.Get)('code-groups'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_USE_SELECTION', 'INVENTORY_VIEW', 'INVENTORY_VIEW_DEPT', 'INVENTORY_VIEW_ALL'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "findAllCodeGroups", null);
 __decorate([
     (0, common_1.Get)(),
-    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_USE_SELECTION', 'INVENTORY_VIEW', 'INVENTORY_VIEW_DEPT', 'INVENTORY_VIEW_ALL'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [inventory_dto_1.ItemsQueryDto]),
@@ -132,7 +157,7 @@ __decorate([
 ], ItemsController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_USE_SELECTION', 'INVENTORY_VIEW', 'INVENTORY_VIEW_DEPT', 'INVENTORY_VIEW_ALL'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -158,6 +183,7 @@ __decorate([
 ], ItemsController.prototype, "createItemType", null);
 __decorate([
     (0, common_1.Post)('code-groups'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_CREATE'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -166,6 +192,7 @@ __decorate([
 ], ItemsController.prototype, "createCodeGroup", null);
 __decorate([
     (0, common_1.Post)('quantity-types'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_CREATE'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)('sub')),
     __metadata("design:type", Function),
@@ -174,6 +201,7 @@ __decorate([
 ], ItemsController.prototype, "createQuantityType", null);
 __decorate([
     (0, common_1.Put)('quantity-types/:id'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_EDIT'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
@@ -183,6 +211,7 @@ __decorate([
 ], ItemsController.prototype, "updateQuantityType", null);
 __decorate([
     (0, common_1.Delete)('quantity-types/:id'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_DELETE'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -200,6 +229,7 @@ __decorate([
 ], ItemsController.prototype, "updateItemType", null);
 __decorate([
     (0, common_1.Put)('code-groups/:id'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_EDIT'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
@@ -209,12 +239,12 @@ __decorate([
 ], ItemsController.prototype, "updateCodeGroup", null);
 __decorate([
     (0, common_1.Put)(':id'),
-    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_EDIT'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_EDIT', 'INVENTORY_EDIT_PRICE', 'INVENTORY_EDIT_COST', 'INVENTORY_EDIT_STOCK_LIMIT'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
-    __param(2, (0, current_user_decorator_1.CurrentUser)('sub')),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, inventory_dto_1.UpdateItemDto, String]),
+    __metadata("design:paramtypes", [String, inventory_dto_1.UpdateItemDto, Object]),
     __metadata("design:returntype", void 0)
 ], ItemsController.prototype, "update", null);
 __decorate([
@@ -227,6 +257,7 @@ __decorate([
 ], ItemsController.prototype, "removeItemType", null);
 __decorate([
     (0, common_1.Delete)('code-groups/:id'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_DELETE'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),

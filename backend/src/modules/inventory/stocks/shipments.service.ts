@@ -1,15 +1,20 @@
-import { Injectable, NotFoundException, BadRequestException, StreamableFile } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, StreamableFile, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, EntityManager } from 'typeorm';
 import { Shipment } from './entities/shipment.entity';
+import { StockMovement } from './entities/stock-movement.entity';
 import { CreateShipmentDto, UpdateShipmentDto, DispatchShipmentDto, ShipmentsQueryDto } from './dto/shipment.dto';
 import { StocksTransactionsService } from './stocks-transactions.service';
 import { Sale } from '../../sales/entities/sale.entity';
+import { SaleItem } from '../../sales/entities/sale-item.entity';
 import { TransactionContextService } from '../../../common/services/transaction-context.service';
 import { LogsService } from '../../logs/logs.service';
 import { Transactional } from '@nestjs-cls/transactional';
 import { PaginatedResult } from '../../../common/dto/pagination.dto';
 import * as ExcelJS from 'exceljs';
+import { Decimal } from 'decimal.js';
+import { getSafeSearchPattern } from '../../../common/utils/sql.helper';
+import { SalesTransactionsService } from '../../sales/sales-transactions.service';
 
 @Injectable()
 export class ShipmentsService {
@@ -18,6 +23,8 @@ export class ShipmentsService {
     private readonly stocksTransactionsService: StocksTransactionsService,
     private readonly transactionContext: TransactionContextService,
     private readonly logsService: LogsService,
+    @Inject(forwardRef(() => SalesTransactionsService))
+    private readonly salesTransactionsService: SalesTransactionsService,
   ) {}
 
   async findAll(query: ShipmentsQueryDto): Promise<PaginatedResult<Shipment>> {
@@ -25,6 +32,8 @@ export class ShipmentsService {
       .leftJoinAndSelect('shipment.sale', 'sale')
       .leftJoinAndSelect('sale.party', 'party')
       .leftJoinAndSelect('shipment.outgoingDepartment', 'outgoingDepartment')
+      .leftJoinAndSelect('shipment.vehicles', 'vehicle')
+      .leftJoinAndSelect('shipment.assignedStaff', 'staff')
       .select([
         'shipment.id', 'shipment.saleId', 'shipment.outgoingDepartmentId',
         'shipment.deliveryCity', 'shipment.deliveryDistrict', 'shipment.deliveryAddress',
@@ -32,7 +41,9 @@ export class ShipmentsService {
         'shipment.deadline', 'shipment.createdAt', 'shipment.updatedAt',
         'sale.id', 'sale.code', 'sale.grandTotal', 'sale.status',
         'party.id', 'party.name',
-        'outgoingDepartment.id', 'outgoingDepartment.name'
+        'outgoingDepartment.id', 'outgoingDepartment.name',
+        'vehicle.id', 'vehicle.name', 'vehicle.plate',
+        'staff.id', 'staff.firstName', 'staff.lastName'
       ]);
 
     if (query.status && query.status !== 'all') {
@@ -47,16 +58,19 @@ export class ShipmentsService {
       qb.andWhere('shipment.deliveryDistrict = :district', { district: query.district });
     }
 
-    if (query.today === 'true' || query.today === true as any) {
+    if (String(query.today) === 'true') {
       const todayStr = new Date().toISOString().split('T')[0];
       qb.andWhere('shipment.deadline = :todayStr', { todayStr });
     }
 
     if (query.search) {
-      qb.andWhere(
-        '(shipment.deliveryCity LIKE :s OR shipment.deliveryDistrict LIKE :s OR shipment.deliveryAddress LIKE :s OR shipment.carrierNameOrPlate LIKE :s OR sale.code LIKE :s OR party.name LIKE :s)',
-        { s: `%${query.search}%` }
-      );
+      const s = getSafeSearchPattern(query.search);
+      if (s) {
+        qb.andWhere(
+          '(shipment.deliveryCity LIKE :s OR shipment.deliveryDistrict LIKE :s OR shipment.deliveryAddress LIKE :s OR shipment.carrierNameOrPlate LIKE :s OR sale.code LIKE :s OR party.name LIKE :s)',
+          { s }
+        );
+      }
     }
 
     const sortCol = 'shipment.createdAt';
@@ -80,7 +94,7 @@ export class ShipmentsService {
   async findOne(id: string): Promise<Shipment> {
     const shipment = await this.shipmentRepo.findOne({
       where: { id: String(id) },
-      relations: ['sale', 'sale.items', 'sale.party', 'outgoingDepartment']
+      relations: ['sale', 'sale.items', 'sale.party', 'outgoingDepartment', 'vehicles', 'assignedStaff']
     });
     if (!shipment) {
       throw new NotFoundException('Sevkiyat kaydı bulunamadı');
@@ -115,6 +129,32 @@ export class ShipmentsService {
       throw new BadRequestException('Sadece bekleyen sevkiyatlar yola çıkarılabilir');
     }
 
+    if (shipment.sale && shipment.sale.paymentType !== 'VADELİ') {
+      const paidAmount = new Decimal(shipment.sale.paidAmount || 0);
+      const grandTotal = new Decimal(shipment.sale.grandTotal || 0);
+      if (grandTotal.minus(paidAmount).abs().gt(0.01)) {
+        throw new BadRequestException(
+          `Bu siparişin ödemesi tam olarak kapatılmamıştır! ` +
+          `Toplam Ödenen: ${paidAmount.toFixed(2)}, Toplam Tutar: ${grandTotal.toFixed(2)}. ` +
+          `Siparişi sevk edebilmek için toplam ödemenin net satış tutarını karşılaması gerekmektedir.`
+        );
+      }
+    }
+
+    const outgoingDeptId = shipment.outgoingDepartmentId;
+    if (outgoingDeptId) {
+      const selectedDept = await manager.query(
+        "SELECT name FROM departments WHERE id = ? LIMIT 1",
+        [outgoingDeptId]
+      );
+      if (selectedDept && selectedDept.length > 0) {
+        const deptName = selectedDept[0].name.toLowerCase();
+        if (deptName === 'sanaldepo' || deptName === 'satisdepo') {
+          throw new BadRequestException("Sevkiyat çıkış deposu 'sanaldepo' veya 'satisdepo' olamaz. Lütfen geçerli bir fiziksel depo seçiniz.");
+        }
+      }
+    }
+
     shipment.status = 'shipped';
     shipment.carrierNameOrPlate = dto.carrierNameOrPlate || null;
     shipment.approvedAt = new Date();
@@ -124,26 +164,6 @@ export class ShipmentsService {
     if (shipment.sale) {
       shipment.sale.status = 'shipped';
       await manager.save(Sale, shipment.sale);
-
-      // Reserve Stock bulk on dispatch
-      if (shipment.sale.items && shipment.sale.items.length > 0) {
-        const itemsToReserve = shipment.sale.items.map(item => ({
-          itemId: item.itemId,
-          quantity: item.quantity
-        }));
-
-        await this.stocksTransactionsService.reserveStockBulk(
-          itemsToReserve,
-          shipment.outgoingDepartmentId,
-          manager,
-          {
-            type: 'reserve',
-            id: shipment.id,
-            description: 'Stok Kilitlendi'
-          },
-          userId
-        );
-      }
     }
 
     this.logsService.logActivity({
@@ -180,17 +200,104 @@ export class ShipmentsService {
         quantity: item.quantity
       }));
 
-      await this.stocksTransactionsService.finalizeShipmentBulk(
-        itemsToDeduct,
-        shipment.outgoingDepartmentId,
-        manager,
-        {
-          type: 'shipment',
-          id: shipment.id,
-          description: 'Stok Düştü'
-        },
-        userId
+      // Get the virtual department (sanaldepo) ID
+      const sanalDept = await manager.query(
+        "SELECT id FROM departments WHERE name = 'sanaldepo' LIMIT 1"
       );
+      const sanalDeptId = (sanalDept && sanalDept.length > 0) ? String(sanalDept[0].id) : '1';
+
+      // Find physical reserve movements to determine which warehouses stock was reserved in
+      const reserveMovements = await manager.find(StockMovement, {
+        where: { referenceType: 'sale', referenceId: shipment.sale.id },
+        relations: ['stock']
+      });
+
+      // Filter out sanaldepo movements as it does not hold reservations
+      const physicalReserveMovements = reserveMovements.filter(
+        m => m.stock && String(m.stock.departmentId) !== String(sanalDeptId)
+      );
+
+      const deptShipments = new Map<string, Array<{ itemId: string; quantity: number }>>();
+
+      for (const reqItem of itemsToDeduct) {
+        const itemMovements = physicalReserveMovements.filter(m => m.stock?.itemId === String(reqItem.itemId));
+        let remainingQtyToShip = new Decimal(reqItem.quantity);
+
+        for (const mov of itemMovements) {
+          if (remainingQtyToShip.lte(0)) break;
+          const stock = mov.stock;
+          if (!stock) continue;
+
+          // Sum up already shipped quantity from this stockId (excluding current movement if applicable)
+          const shippedResult = await manager.createQueryBuilder(StockMovement, 'm')
+            .where('m.stockId = :stockId', { stockId: stock.id })
+            .andWhere('m.referenceType IN (:...refTypes)', { refTypes: ['sale', 'shipment'] })
+            .andWhere('m.referenceId = :saleId', { saleId: shipment.sale.id })
+            .andWhere('m.id != :movId', { movId: mov.id })
+            .select('SUM(m.quantity)', 'total')
+            .getRawOne();
+
+          const alreadyShippedFromStock = new Decimal(shippedResult?.total || 0);
+          const maxShippableFromDept = new Decimal(mov.quantity).sub(alreadyShippedFromStock);
+
+          if (maxShippableFromDept.gt(0)) {
+            const qtyToShipFromDept = Decimal.min(remainingQtyToShip, maxShippableFromDept);
+            const deptId = stock.departmentId;
+            const list = deptShipments.get(deptId) || [];
+            list.push({ itemId: String(reqItem.itemId), quantity: qtyToShipFromDept.toNumber() });
+            deptShipments.set(deptId, list);
+            remainingQtyToShip = remainingQtyToShip.sub(qtyToShipFromDept);
+          }
+        }
+
+        if (remainingQtyToShip.gt(0)) {
+          const deptId = shipment.outgoingDepartmentId || '1';
+          const list = deptShipments.get(deptId) || [];
+          list.push({ itemId: String(reqItem.itemId), quantity: remainingQtyToShip.toNumber() });
+          deptShipments.set(deptId, list);
+        }
+      }
+
+      for (const [deptId, items] of deptShipments.entries()) {
+        if (items.length > 0) {
+          await this.stocksTransactionsService.finalizeShipmentBulk(
+            items,
+            deptId,
+            manager,
+            {
+              type: 'shipment',
+              id: shipment.id,
+              description: 'Stok Düştü'
+            },
+            userId
+          );
+        }
+      }
+
+      // Replenish stock in virtual warehouse (sanaldepo) so it zeroes out
+      for (const item of shipment.sale.items) {
+        await this.stocksTransactionsService.increaseStock(
+          String(item.itemId),
+          sanalDeptId,
+          item.quantity,
+          item.costPrice || 0,
+          manager,
+          {
+            type: 'shipment',
+            id: shipment.id,
+            description: `Sanal Stok Sevk Girişi: ${shipment.sale.code}`
+          },
+          userId
+        );
+      }
+
+      // Also update shippedQuantity on SaleItem
+      const saleItemsToUpdate: SaleItem[] = [];
+      for (const item of shipment.sale.items) {
+        item.shippedQuantity = new Decimal(item.shippedQuantity || 0).add(item.quantity);
+        saleItemsToUpdate.push(item);
+      }
+      await manager.save(SaleItem, saleItemsToUpdate);
 
       shipment.sale.status = 'invoiced';
       await manager.save(Sale, shipment.sale);
@@ -212,41 +319,19 @@ export class ShipmentsService {
     const manager = this.transactionContext.manager;
     const shipment = await manager.findOne(Shipment, {
       where: { id: String(id) },
-      relations: ['sale', 'sale.items']
+      relations: ['sale']
     });
     if (!shipment) throw new NotFoundException('Sevkiyat kaydı bulunamadı');
     if (shipment.status === 'completed' || shipment.status === 'cancelled') {
       throw new BadRequestException('Tamamlanmış veya zaten iptal edilmiş sevkiyatlar iptal edilemez');
     }
 
-    const previousStatus = shipment.status;
-    shipment.status = 'cancelled';
-
-    const saved = await manager.save(Shipment, shipment);
-
-    // Call StocksTransactionsService.releaseStockBulk to revert reservations only if it was shipped
-    if (previousStatus === 'shipped' && shipment.sale && shipment.sale.items && shipment.sale.items.length > 0) {
-      const itemsToRelease = shipment.sale.items.map(item => ({
-        itemId: item.itemId,
-        quantity: item.quantity
-      }));
-
-      await this.stocksTransactionsService.releaseStockBulk(
-        itemsToRelease,
-        shipment.outgoingDepartmentId,
-        manager,
-        {
-          type: 'revert',
-          id: shipment.id,
-          description: 'Rezervasyon İptali'
-        },
-        userId
-      );
-    }
-
+    // Cancel the sale using SalesTransactionsService (which also cancels the shipment and handles all stock/financial logic)
     if (shipment.sale) {
-      shipment.sale.status = 'cancelled';
-      await manager.save(Sale, shipment.sale);
+      await this.salesTransactionsService.cancelSale(shipment.sale.id, 'Sevkiyat İptal Edildi', userId);
+    } else {
+      shipment.status = 'cancelled';
+      await manager.save(Shipment, shipment);
     }
 
     this.logsService.logActivity({
@@ -254,10 +339,12 @@ export class ShipmentsService {
       module: 'inventory',
       action: 'SHIPMENT_CANCEL',
       tag: 'CANCEL',
-      details: `Sevkiyat iptal edildi ve stok rezervasyonları serbest bırakıldı. ID: ${shipment.id}, Satış Kodu: ${shipment.sale?.code}`,
+      details: `Sevkiyat iptal edildi. ID: ${shipment.id}`,
     });
 
-    return saved;
+    const refreshed = await manager.findOne(Shipment, { where: { id: String(id) } });
+    if (!refreshed) throw new NotFoundException('Sevkiyat kaydı bulunamadı');
+    return refreshed;
   }
 
   async getMetrics() {

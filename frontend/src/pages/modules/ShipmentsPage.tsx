@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   FiPackage, FiTruck, FiCheckCircle, FiXCircle, 
-  FiMapPin, FiCalendar, FiDownload, FiSearch, FiRefreshCw 
+  FiMapPin, FiCalendar, FiDownload, FiSearch, FiRefreshCw, FiX, FiTrash 
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
-import { shipmentsAPI } from '../../services/api';
+import { shipmentsAPI, vehiclesAPI } from '../../services/api';
 import { confirmDialog } from '../../utils/confirmDialog';
 
 export default function ShipmentsPage() {
@@ -14,7 +14,11 @@ export default function ShipmentsPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'shipped' | 'completed' | 'cancelled'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Fetch shipments
+  // Vehicle management states
+  const [showVehicleManagement, setShowVehicleManagement] = useState(false);
+  const [newVehName, setNewVehName] = useState('');
+  const [newVehPlate, setNewVehPlate] = useState('');
+  const [newVehDesc, setNewVehDesc] = useState('');
 
   // Fetch shipments
   const { data: shipmentsData, isLoading, isFetching } = useQuery({
@@ -37,6 +41,16 @@ export default function ShipmentsPage() {
       const res = await shipmentsAPI.getMetrics();
       return res.data;
     },
+  });
+
+  // Fetch vehicles for vehicle management
+  const { data: vehiclesList = [], isLoading: vehiclesLoading } = useQuery({
+    queryKey: ['vehicles'],
+    queryFn: async () => {
+      const res = await vehiclesAPI.getAll();
+      return res.data || [];
+    },
+    enabled: showVehicleManagement
   });
 
   const shipments = shipmentsData?.data || [];
@@ -175,7 +189,7 @@ export default function ShipmentsPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div>
           <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
-            <FiTruck /> SEVKİYAT HAREKETLERİ & POOLING
+            <FiTruck /> SEVKİYAT HAREKETLERİ & PLANLAMA
           </div>
           <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-on-surface">
             Sevkiyat <span className="text-primary">Takip & Planlama</span>
@@ -183,6 +197,12 @@ export default function ShipmentsPage() {
         </div>
 
         <div className="flex flex-wrap gap-3">
+          <button 
+            onClick={() => setShowVehicleManagement(true)}
+            className="h-11 px-5 bg-teal-600 text-white rounded-2xl hover:bg-teal-700 text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-md shadow-teal-100/50"
+          >
+            <FiTruck /> Araç Yönetimi
+          </button>
           <button 
             onClick={downloadTodayReport}
             className="h-11 px-5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-md shadow-indigo-100/50"
@@ -241,7 +261,8 @@ export default function ShipmentsPage() {
         </div>
       </div>
 
-      {/* ROTUE POOLING & CONSOLIDATION WIDGET */}
+      {/* ROTUE POOLING & CONSOLIDATION WIDGET (Commented out as requested by the user) */}
+      {/* 
       <div className="bg-slate-900 text-white rounded-3xl p-6 shadow-xl relative overflow-hidden">
         <div className="absolute top-[-30%] right-[-10%] w-96 h-96 bg-primary/20 blur-[100px] rounded-full opacity-60" />
         <div className="relative z-10">
@@ -281,6 +302,7 @@ export default function ShipmentsPage() {
           )}
         </div>
       </div>
+      */}
 
       {/* FILTER & TABLE SECTION */}
       <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
@@ -341,7 +363,7 @@ export default function ShipmentsPage() {
                   <th className="px-4 py-3.5">Bağlı Sipariş / Müşteri</th>
                   <th className="px-4 py-3.5">Çıkış Deposu</th>
                   <th className="px-4 py-3.5">Teslimat Adresi</th>
-                  <th className="px-4 py-3.5">Araç / Plaka</th>
+                  <th className="px-4 py-3.5">Araç & Sorumlu</th>
                   <th className="px-4 py-3.5">Sevk Onay Tarihi</th>
                   <th className="px-4 py-3.5">Teslimat Tarihi / Deadline</th>
                   <th className="px-4 py-3.5">Durum</th>
@@ -390,15 +412,35 @@ export default function ShipmentsPage() {
                         </div>
                       </td>
 
-                      {/* ARAC */}
+                      {/* ARAC & SORUMLU */}
                       <td className="px-4 py-4">
-                        {item.carrierNameOrPlate ? (
-                          <span className="font-black text-slate-700 bg-slate-100 px-2.5 py-1 rounded-xl uppercase tracking-wider">
-                            {item.carrierNameOrPlate}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 italic text-[11px]">Belirtilmemiş</span>
-                        )}
+                        <div className="flex flex-col gap-1">
+                          {item.vehicles && item.vehicles.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {item.vehicles.map((v: any) => (
+                                <span key={v.id} className="font-black text-[10px] text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg uppercase tracking-tight" title={v.name}>
+                                  🚗 {v.plate}
+                                </span>
+                              ))}
+                            </div>
+                          ) : item.carrierNameOrPlate ? (
+                            <span className="font-black text-[10px] text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg uppercase tracking-tight">
+                              {item.carrierNameOrPlate}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 italic text-[10px]">Araç Yok</span>
+                          )}
+
+                          {item.assignedStaff && item.assignedStaff.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {item.assignedStaff.map((s: any) => (
+                                <span key={s.id} className="font-bold text-[9px] text-indigo-700 bg-indigo-50 border border-indigo-150 px-1.5 py-0.5 rounded uppercase tracking-tight">
+                                  👤 {s.firstName} {s.lastName}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       {/* SEVK ONAY TARIHI */}
@@ -482,7 +524,7 @@ export default function ShipmentsPage() {
               <button
                 disabled={page === 1}
                 onClick={() => setPage(p => Math.max(1, p - 1))}
-                className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 disabled:opacity-40 text-slate-600 disabled:hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 disabled:opacity-40 text-slate-650 disabled:hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
               >
                 Önceki
               </button>
@@ -500,7 +542,7 @@ export default function ShipmentsPage() {
               <button
                 disabled={page === meta.totalPages}
                 onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
-                className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 disabled:opacity-40 text-slate-600 disabled:hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 disabled:opacity-40 text-slate-650 disabled:hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
               >
                 Sonraki
               </button>
@@ -508,6 +550,120 @@ export default function ShipmentsPage() {
           </div>
         )}
       </div>
+
+      {/* 🟣 VEHICLE MANAGEMENT MODAL */}
+      {showVehicleManagement && (
+        <div className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-slate-900/60 animate-in fade-in duration-200 overflow-y-auto">
+          <div className="bg-white max-w-[600px] w-[95%] p-6 sm:p-8 rounded-3xl shadow-2xl border border-slate-100 flex flex-col gap-6 text-slate-800 my-8">
+            <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+              <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <FiTruck className="text-primary" /> Araç Yönetimi
+              </h2>
+              <button 
+                onClick={() => setShowVehicleManagement(false)}
+                className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:text-red-500 transition-colors"
+              >
+                <FiX size={20} />
+              </button>
+            </div>
+
+            {/* Add vehicle subform */}
+            <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl flex flex-col gap-3">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Yeni Araç Ekle</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <input 
+                  type="text" 
+                  placeholder="Araç Adı (örn: Ford Transit)"
+                  value={newVehName}
+                  onChange={e => setNewVehName(e.target.value)}
+                  className="h-10 px-3 text-xs border border-slate-200 rounded-xl bg-white"
+                />
+                <input 
+                  type="text" 
+                  placeholder="Plaka (örn: 34 DEF 456)"
+                  value={newVehPlate}
+                  onChange={e => setNewVehPlate(e.target.value)}
+                  className="h-10 px-3 text-xs border border-slate-200 rounded-xl bg-white"
+                />
+              </div>
+              <input 
+                type="text" 
+                placeholder="Açıklama (Opsiyonel)"
+                value={newVehDesc}
+                onChange={e => setNewVehDesc(e.target.value)}
+                className="h-10 px-3 text-xs border border-slate-200 rounded-xl bg-white"
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!newVehName || !newVehPlate) {
+                    toast.error("Araç adı ve plaka alanları zorunludur.");
+                    return;
+                  }
+                  try {
+                    await vehiclesAPI.create({ name: newVehName, plate: newVehPlate, description: newVehDesc });
+                    queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+                    toast.success("Araç başarıyla eklendi.");
+                    setNewVehName('');
+                    setNewVehPlate('');
+                    setNewVehDesc('');
+                  } catch (e: any) {
+                    toast.error(e.response?.data?.message || "Araç eklenemedi.");
+                  }
+                }}
+                className="h-10 w-full text-xs font-black bg-primary text-white rounded-xl hover:brightness-110"
+              >
+                KAYDET VE EKLE
+              </button>
+            </div>
+
+            {/* List vehicles with delete buttons */}
+            <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto">
+              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Mevcut Araç Listesi</h4>
+              {vehiclesLoading ? (
+                <div className="py-4 text-center text-xs text-slate-400 font-bold uppercase animate-pulse">Yükleniyor...</div>
+              ) : vehiclesList.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-350 italic font-bold">Kayıtlı araç bulunmuyor.</div>
+              ) : (
+                vehiclesList.map((v: any) => (
+                  <div key={v.id} className="p-3.5 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between">
+                    <div>
+                      <div className="font-extrabold text-slate-800 text-sm">{v.name}</div>
+                      <div className="text-[10px] text-slate-400 font-bold tracking-wider mt-0.5">{v.plate}</div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (await confirmDialog("Bu aracı silmek istediğinize emin misiniz?", true)) {
+                          try {
+                            await vehiclesAPI.delete(v.id);
+                            queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+                            toast.success("Araç silindi.");
+                          } catch (e: any) {
+                            toast.error("Araç silinemedi.");
+                          }
+                        }
+                      }}
+                      className="w-8 h-8 flex items-center justify-center bg-rose-50 hover:bg-rose-500 hover:text-white text-rose-500 rounded-lg border border-rose-100 transition-colors"
+                      title="Sil"
+                    >
+                      <FiTrash size={14} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-slate-100">
+              <button 
+                onClick={() => setShowVehicleManagement(false)}
+                className="h-11 px-6 bg-slate-100 hover:bg-slate-200 text-xs font-black rounded-2xl transition-all"
+              >
+                Kapat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

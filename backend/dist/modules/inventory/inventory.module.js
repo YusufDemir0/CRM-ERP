@@ -24,6 +24,7 @@ const quantity_type_entity_1 = require("./items/entities/quantity-type.entity");
 const stock_entity_1 = require("./stocks/entities/stock.entity");
 const stock_movement_entity_1 = require("./stocks/entities/stock-movement.entity");
 const shipment_entity_1 = require("./stocks/entities/shipment.entity");
+const vehicle_entity_1 = require("./stocks/entities/vehicle.entity");
 const sequence_generator_service_1 = require("../../common/services/sequence-generator.service");
 const bom_item_entity_1 = require("../production/entities/bom-item.entity");
 const stocks_reports_service_1 = require("./stocks/stocks-reports.service");
@@ -32,6 +33,9 @@ const items_reports_service_1 = require("./items/items-reports.service");
 const items_transactions_service_1 = require("./items/items-transactions.service");
 const shipments_controller_1 = require("./stocks/shipments.controller");
 const shipments_service_1 = require("./stocks/shipments.service");
+const vehicles_controller_1 = require("./stocks/vehicles.controller");
+const vehicles_service_1 = require("./stocks/vehicles.service");
+const sales_module_1 = require("../sales/sales.module");
 let InventoryModule = class InventoryModule {
 };
 exports.InventoryModule = InventoryModule;
@@ -40,22 +44,23 @@ exports.InventoryModule = InventoryModule = __decorate([
         imports: [
             typeorm_1.TypeOrmModule.forFeature([
                 item_entity_1.Item, item_type_entity_1.ItemType, item_sequence_entity_1.ItemSequence, item_code_group_entity_1.ItemCodeGroup,
-                item_code_sequence_entity_1.ItemCodeSequence, quantity_type_entity_1.QuantityType, stock_entity_1.Stock, stock_movement_entity_1.StockMovement, shipment_entity_1.Shipment,
+                item_code_sequence_entity_1.ItemCodeSequence, quantity_type_entity_1.QuantityType, stock_entity_1.Stock, stock_movement_entity_1.StockMovement, shipment_entity_1.Shipment, vehicle_entity_1.Vehicle,
                 bom_item_entity_1.BomItem
             ]),
             finance_module_1.FinanceModule,
             logs_module_1.LogsModule,
+            (0, common_1.forwardRef)(() => sales_module_1.SalesModule),
         ],
-        controllers: [items_controller_1.ItemsController, stocks_controller_1.StocksController, shipments_controller_1.ShipmentsController],
+        controllers: [items_controller_1.ItemsController, stocks_controller_1.StocksController, shipments_controller_1.ShipmentsController, vehicles_controller_1.VehiclesController],
         providers: [
             items_service_1.ItemsService, items_reports_service_1.ItemsReportsService, items_transactions_service_1.ItemsTransactionsService,
             stocks_service_1.StocksService, stocks_reports_service_1.StocksReportsService, stocks_transactions_service_1.StocksTransactionsService,
-            shipments_service_1.ShipmentsService, sequence_generator_service_1.SequenceGeneratorService
+            shipments_service_1.ShipmentsService, vehicles_service_1.VehiclesService, sequence_generator_service_1.SequenceGeneratorService
         ],
         exports: [
             items_service_1.ItemsService, items_reports_service_1.ItemsReportsService, items_transactions_service_1.ItemsTransactionsService,
             stocks_service_1.StocksService, stocks_reports_service_1.StocksReportsService, stocks_transactions_service_1.StocksTransactionsService,
-            shipments_service_1.ShipmentsService, sequence_generator_service_1.SequenceGeneratorService
+            shipments_service_1.ShipmentsService, vehicles_service_1.VehiclesService, sequence_generator_service_1.SequenceGeneratorService
         ],
     })
 ], InventoryModule);

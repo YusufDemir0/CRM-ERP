@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { SaleWizard } from './SaleWizard';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -6,8 +7,6 @@ import { useSalesWizardStore } from '../../../store/useSalesWizardStore';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { salesWizardSchema, SalesWizardFormData } from './schema';
-import { SelectedItem } from './types';
-
 
 export default function SaleWizardPage() {
   const navigate = useNavigate();
@@ -31,12 +30,12 @@ export default function SaleWizardPage() {
       address: initialDraft.address || '',
       date: initialDraft.date || new Date().toISOString().split('T')[0],
       deliveryDate: initialDraft.deliveryDate || '',
-      deposit: (initialDraft.deposit && initialDraft.deposit !== '0') ? Number(initialDraft.deposit) : undefined as any,
+      deposit: (initialDraft.deposit && initialDraft.deposit !== '0') ? Number(initialDraft.deposit) : 0,
       discountAmount: Number(initialDraft.discountAmount) || 0,
       source: initialDraft.source || '',
       isTaxed: initialDraft.isTaxed ?? true,
-      isInvoiced: initialDraft.isInvoiced ?? true,
-      representativePrice: initialDraft.representativePrice || '0',
+      isInvoiced: initialDraft.isInvoiced,
+      representativePrice: initialDraft.representativePrice || '',
       description: initialDraft.description || '',
       maturityDays: initialDraft.maturityDays || 0,
       paymentType: initialDraft.paymentType || 'NAKİT',
@@ -52,8 +51,24 @@ export default function SaleWizardPage() {
     mode: 'onTouched'
   });
 
-  // NO watch subscription — Zustand is only updated on phase transitions
-  // and form submission (handled in SaleWizard.tsx handleNext/handleBack)
+  // Real-time subscription to form changes to auto-persist in Zustand draft
+  useEffect(() => {
+    const subscription = methods.watch((values) => {
+      const setDraftData = useSalesWizardStore.getState().setDraftData;
+      setDraftData({
+        phone: values.phone || '',
+        address: values.address || '',
+        cityId: values.cityId || '',
+        district: values.district || '',
+        deliveryDate: values.deliveryDate || '',
+        deposit: values.deposit !== undefined ? String(values.deposit) : '0',
+        representativePrice: values.representativePrice || '0',
+        isInvoiced: values.isInvoiced,
+        description: values.description || '',
+      });
+    });
+    return () => subscription.unsubscribe();
+  }, [methods]);
 
   return (
     <div className="animate-in max-w-[1600px] mx-auto h-[calc(100vh-var(--header-h)-5rem)]">

@@ -22,32 +22,31 @@ let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGenera
         this.dataSource = dataSource;
         this.logger = new common_1.Logger(SequenceGeneratorService_1.name);
     }
-    async getNextNumber(table, idField, idValue) {
-        const queryRunner = this.dataSource.createQueryRunner();
-        await queryRunner.connect();
-        await queryRunner.startTransaction();
+    async getNextNumber(manager, table, idField, idValue) {
         try {
-            await queryRunner.query(`INSERT IGNORE INTO ${table} (${idField}, current_number) VALUES (?, 0)`, [idValue]);
-            const [row] = await queryRunner.query(`SELECT current_number as id FROM ${table} WHERE ${idField} = ? FOR UPDATE`, [idValue]);
-            const next = Number(row.id) + 1;
-            await queryRunner.query(`UPDATE ${table} SET current_number = ? WHERE ${idField} = ?`, [next, idValue]);
-            await queryRunner.commitTransaction();
-            return next;
+            const allowedTables = ['item_code_sequences', 'sale_sequences', 'production_sequences', 'transaction_sequences'];
+            const allowedFields = ['item_code_group_id', 'department_id', 'prefix'];
+            if (!allowedTables.includes(table) || !allowedFields.includes(idField)) {
+                throw new Error(`Güvensiz tablo/alan adı tespit edildi: ${table}.${idField}`);
+            }
+            await manager.query(`INSERT INTO \`${table}\` (\`${idField}\`, \`current_number\`)
+         VALUES (?, 1)
+         ON DUPLICATE KEY UPDATE \`current_number\` = LAST_INSERT_ID(\`current_number\` + 1)`, [idValue]);
+            const res = await manager.query(`SELECT LAST_INSERT_ID() as nextVal`);
+            const nextVal = res && res[0] && res[0].nextVal !== undefined ? Number(res[0].nextVal) : 1;
+            return isNaN(nextVal) || nextVal <= 0 ? 1 : nextVal;
         }
         catch (err) {
-            await queryRunner.rollbackTransaction();
-            this.logger.error(`Error generating sequence for ${table} (${idField}=${idValue}): ${err.message}`);
+            const error = err;
+            this.logger.error(`Error generating sequence for ${table} (${idField}=${idValue}): ${error.message}`);
             throw err;
-        }
-        finally {
-            await queryRunner.release();
         }
     }
     async generateItemCode(manager = this.transactionContext.manager, itemCodeGroupId) {
         const codeGroup = await manager.findOne(item_code_group_entity_1.ItemCodeGroup, { where: { id: itemCodeGroupId } });
         if (!codeGroup)
             throw new common_1.NotFoundException(`Item code group bulunamadı: ${itemCodeGroupId}`);
-        const currentNumber = await this.getNextNumber('item_code_sequences', 'item_code_group_id', itemCodeGroupId);
+        const currentNumber = await this.getNextNumber(manager, 'item_code_sequences', 'item_code_group_id', itemCodeGroupId);
         const code = `${codeGroup.prefix}-${String(currentNumber).padStart(3, '0')}`;
         return code;
     }
@@ -57,17 +56,17 @@ let SequenceGeneratorService = SequenceGeneratorService_1 = class SequenceGenera
             throw new common_1.NotFoundException(`Departman bulunamadı: ${departmentId}`);
         const deptPrefix = (department.abbreviation || 'GEN').toUpperCase();
         const finalPrefix = deptPrefix;
-        const currentNumber = await this.getNextNumber('sale_sequences', 'department_id', departmentId);
+        const currentNumber = await this.getNextNumber(manager, 'sale_sequences', 'department_id', departmentId);
         const code = `${finalPrefix}${String(currentNumber).padStart(5, '0')}`;
         return code;
     }
     async generateProductionCode(manager = this.transactionContext.manager, prefix = 'URT') {
-        const currentNumber = await this.getNextNumber('production_sequences', 'prefix', prefix);
+        const currentNumber = await this.getNextNumber(manager, 'production_sequences', 'prefix', prefix);
         const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
         return code;
     }
     async generateTransactionCode(manager = this.transactionContext.manager, prefix) {
-        const currentNumber = await this.getNextNumber('transaction_sequences', 'prefix', prefix);
+        const currentNumber = await this.getNextNumber(manager, 'transaction_sequences', 'prefix', prefix);
         const code = `${prefix}-${String(currentNumber).padStart(3, '0')}`;
         return code;
     }

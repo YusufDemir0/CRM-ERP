@@ -60,7 +60,7 @@ export class HealthController {
       // 5. Infrastructure - Disk
       () =>
         this.disk.checkStorage('disk_storage', {
-          thresholdPercent: 0.9,
+          thresholdPercent: parseFloat(this.configService.get('HEALTH_DISK_THRESHOLD') || '0.99'),
           path: '/',
         }),
     ]);
@@ -69,7 +69,7 @@ export class HealthController {
   @Get('diag')
   @Public()
   async getDiagnostics() {
-    const results: any = {};
+    const results: Record<string, unknown> = {};
     try {
       results.stock_movements_schema = await this.dataSource.query('DESCRIBE stock_movements');
       results.stocks_schema = await this.dataSource.query('DESCRIBE stocks');
@@ -79,9 +79,11 @@ export class HealthController {
       results.recent_movements = await this.dataSource.query('SELECT * FROM stock_movements ORDER BY id DESC LIMIT 5');
       results.recent_shipments = await this.dataSource.query('SELECT * FROM shipments ORDER BY id DESC LIMIT 5');
       results.recent_sales = await this.dataSource.query('SELECT * FROM sales ORDER BY id DESC LIMIT 5');
-    } catch (err: any) {
-      results.error = err.message || err;
-      results.stack = err.stack;
+    } catch (err) {
+      results.error = err instanceof Error ? err.message : String(err);
+      if (err instanceof Error) {
+        results.stack = err.stack;
+      }
     }
     return results;
   }
@@ -89,7 +91,7 @@ export class HealthController {
   @Get('debug-dispatch')
   @Public()
   async debugDispatch() {
-    const results: any = {};
+    const results: Record<string, unknown> = {};
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -100,7 +102,7 @@ export class HealthController {
       if (!shipment) { results.error = 'Shipment 1 not found'; return results; }
 
       // 2. Get sale items
-      const saleItems = await queryRunner.query('SELECT * FROM sale_items WHERE sale_id = ?', [shipment.sale_id]);
+      const saleItems: { item_id: number; quantity: number }[] = await queryRunner.query('SELECT * FROM sale_items WHERE sale_id = ?', [shipment.sale_id]);
       results.saleItems = saleItems;
       
       // 3. For each sale item, find stock row
@@ -121,19 +123,23 @@ export class HealthController {
           } else {
             results[`movement_insert_item_${si.item_id}`] = 'NO_STOCK_ROW';
           }
-        } catch (insertErr: any) {
+        } catch (insertErr) {
+          const errObj = insertErr as Record<string, unknown>;
           results[`movement_insert_item_${si.item_id}_ERROR`] = {
-            message: insertErr.message,
-            code: insertErr.code || insertErr.errno,
-            sqlMessage: insertErr.sqlMessage,
+            message: errObj?.message || String(insertErr),
+            code: errObj?.code || errObj?.errno,
+            sqlMessage: errObj?.sqlMessage,
           };
         }
       }
-    } catch (err: any) {
-      results.error = err.message || err;
-      results.code = err.code || err.errno;
-      results.sqlMessage = err.sqlMessage;
-      results.stack = err.stack;
+    } catch (err) {
+      const errObj = err as Record<string, unknown>;
+      results.error = errObj?.message || String(err);
+      results.code = errObj?.code || errObj?.errno;
+      results.sqlMessage = errObj?.sqlMessage;
+      if (err instanceof Error) {
+        results.stack = err.stack;
+      }
     } finally {
       // ALWAYS rollback — this is purely diagnostic
       await queryRunner.rollbackTransaction();

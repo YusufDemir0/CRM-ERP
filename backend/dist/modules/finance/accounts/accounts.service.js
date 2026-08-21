@@ -21,13 +21,14 @@ const decimal_js_1 = require("decimal.js");
 const currencies_service_1 = require("../currencies/currencies.service");
 const ledger_entity_1 = require("../../parties/entities/ledger.entity");
 const sql_helper_1 = require("../../../common/utils/sql.helper");
+const department_entity_1 = require("../../departments/entities/department.entity");
 let AccountsService = class AccountsService {
     constructor(accRepo, dataSource, currenciesService) {
         this.accRepo = accRepo;
         this.dataSource = dataSource;
         this.currenciesService = currenciesService;
     }
-    async findAll(query) {
+    async findAll(query, currentUser) {
         const qb = this.accRepo.createQueryBuilder('acc')
             .select([
             'acc.id', 'acc.name', 'acc.bankName', 'acc.iban', 'acc.ibanName',
@@ -35,12 +36,56 @@ let AccountsService = class AccountsService {
             'acc.state', 'acc.createdAt'
         ])
             .leftJoin('acc.currency', 'currency')
-            .addSelect(['currency.id', 'currency.symbol', 'currency.code']);
+            .addSelect(['currency.id', 'currency.symbol', 'currency.code'])
+            .addSelect((subQuery) => {
+            return subQuery
+                .select("COALESCE(SUM(CASE WHEN tx.type = 'in' THEN tx.amount ELSE -tx.amount END), 0)")
+                .from('transactions', 'tx')
+                .where('tx.commercial_account_id = acc.id')
+                .andWhere("tx.status != 'cancelled'")
+                .andWhere('tx.deleted_at IS NULL');
+        }, 'acc_balance');
+        let hasViewAll = false;
+        if (currentUser?.isSystemAdmin) {
+            hasViewAll = true;
+        }
+        else if (String(query.ignorePermissionRestrictions) === 'true') {
+            hasViewAll = !!(currentUser?.permissions?.includes('FINANCE_SELECT_ALL_CASH') ||
+                currentUser?.permissions?.includes('finance_select_all_cash') ||
+                currentUser?.permissions?.includes('FINANCE_USE_SELECTION') ||
+                currentUser?.permissions?.includes('finance_use_selection') ||
+                currentUser?.permissions?.includes('FINANCE_VIEW_ALL') ||
+                currentUser?.permissions?.includes('finance_view_all') ||
+                currentUser?.permissions?.includes('SALES_VIEW_ALL') ||
+                currentUser?.permissions?.includes('sales_view_all') ||
+                currentUser?.permissions?.includes('SALES_EDIT_ALL') ||
+                currentUser?.permissions?.includes('sales_edit_all'));
+        }
+        else {
+            hasViewAll = !!(currentUser?.permissions?.includes('FINANCE_VIEW_ALL') ||
+                currentUser?.permissions?.includes('finance_view_all'));
+        }
+        if (!hasViewAll) {
+            if (currentUser?.departmentId) {
+                const department = await this.dataSource.getRepository(department_entity_1.Department).findOne({
+                    where: { id: String(currentUser.departmentId) }
+                });
+                if (department && department.commercialAccountId) {
+                    qb.andWhere('acc.id = :deptAccountId', { deptAccountId: String(department.commercialAccountId) });
+                }
+                else {
+                    qb.andWhere('1 = 0');
+                }
+            }
+            else {
+                qb.andWhere('1 = 0');
+            }
+        }
         if (query.search) {
             const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
             const cleanTerm = query.search.replace(/[\s-]/g, '').replace(/^TR/i, '');
             const cleanS = (0, sql_helper_1.getSafeSearchPattern)(cleanTerm);
-            qb.andWhere('(acc.name LIKE :s OR acc.bankName LIKE :s OR acc.description LIKE :s OR acc.iban LIKE :s OR REPLACE(REPLACE(acc.iban, " ", ""), "TR", "") LIKE :cleanS)', { s, cleanS });
+            qb.andWhere('(acc.name LIKE :s OR acc.bankName LIKE :s OR acc.ibanName LIKE :s OR acc.description LIKE :s OR acc.iban LIKE :s OR REPLACE(REPLACE(acc.iban, " ", ""), "TR", "") LIKE :cleanS)', { s, cleanS });
         }
         if (query.state !== undefined) {
             qb.andWhere('acc.state = :state', { state: query.state });
@@ -49,16 +94,35 @@ let AccountsService = class AccountsService {
         const sortField = allowedSortCols.includes(query.sortBy || '') ? query.sortBy : 'name';
         qb.orderBy(`acc.${sortField}`, query.sortOrderSafe);
         qb.skip(query.skip).take(query.limit);
-        const [data, total] = await qb.getManyAndCount();
+        const { entities, raw } = await qb.getRawAndEntities();
+        const count = await qb.getCount();
+        const rawMap = new Map(raw.map(r => [r.acc_id.toString(), r]));
+        entities.forEach(entity => {
+            const rawData = rawMap.get(entity.id.toString());
+            if (rawData) {
+                entity.balance = new decimal_js_1.Decimal(rawData.acc_balance || 0).toFixed(2);
+            }
+            else {
+                entity.balance = '0.00';
+            }
+        });
         return {
-            data,
-            meta: { total, page: query.page || 1, limit: query.limit || 20, totalPages: Math.ceil(total / (query.limit || 20)) },
+            data: entities,
+            meta: { total: count, page: query.page || 1, limit: query.limit || 20, totalPages: Math.ceil(count / (query.limit || 20)) },
         };
     }
     async findOne(id) {
         const acc = await this.accRepo.findOne({ where: { id: String(id) }, relations: ['currency'] });
         if (!acc)
             throw new common_1.NotFoundException('Hesap bulunamadı');
+        const balanceRaw = await this.accRepo.manager.createQueryBuilder()
+            .select("COALESCE(SUM(CASE WHEN tx.type = 'in' THEN tx.amount ELSE -tx.amount END), 0)", 'balance')
+            .from('transactions', 'tx')
+            .where('tx.commercial_account_id = :id', { id })
+            .andWhere("tx.status != 'cancelled'")
+            .andWhere('tx.deleted_at IS NULL')
+            .getRawOne();
+        acc.balance = new decimal_js_1.Decimal(balanceRaw?.balance || 0).toFixed(2);
         return acc;
     }
     async create(dto, userId) {

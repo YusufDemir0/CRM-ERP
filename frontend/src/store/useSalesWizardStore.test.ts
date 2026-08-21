@@ -43,4 +43,26 @@ describe('useSalesWizardStore', () => {
     expect(state.draftData.selectedItems).toHaveLength(0);
     expect(state.draftData.step).toBe(1);
   });
+
+  it('should auto-compute phase when step changes', () => {
+    const { setStep } = useSalesWizardStore.getState();
+
+    setStep(1);
+    expect(useSalesWizardStore.getState().draftData.phase).toBe('customer');
+
+    setStep(2);
+    expect(useSalesWizardStore.getState().draftData.phase).toBe('customer');
+
+    setStep(3);
+    expect(useSalesWizardStore.getState().draftData.phase).toBe('logistics');
+
+    setStep(7);
+    expect(useSalesWizardStore.getState().draftData.phase).toBe('logistics');
+
+    setStep(8);
+    expect(useSalesWizardStore.getState().draftData.phase).toBe('products');
+
+    setStep(11);
+    expect(useSalesWizardStore.getState().draftData.phase).toBe('preview');
+  });
 });

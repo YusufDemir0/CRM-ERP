@@ -65,7 +65,7 @@ let UsersService = class UsersService {
         this.cacheManager = cacheManager;
         this.transactionContext = transactionContext;
     }
-    async findAll(query) {
+    async findAll(query, currentUser) {
         const qb = this.userRepo.createQueryBuilder('user')
             .leftJoinAndSelect('user.department', 'department')
             .leftJoinAndSelect('user.roles', 'roles')
@@ -76,6 +76,17 @@ let UsersService = class UsersService {
             'department.id', 'department.name',
             'roles.id', 'roles.name',
         ]);
+        const hasViewAll = currentUser?.isSystemAdmin ||
+            currentUser?.permissions?.includes('USERS_VIEW_ALL');
+        if (!hasViewAll) {
+            const hasViewDept = currentUser?.permissions?.includes('USERS_VIEW_DEPT');
+            if (hasViewDept && currentUser?.departmentId) {
+                qb.andWhere('user.departmentId = :deptId', { deptId: String(currentUser.departmentId) });
+            }
+            else {
+                qb.andWhere('user.id = :userId', { userId: String(currentUser?.sub) });
+            }
+        }
         if (query.search) {
             const searchPattern = query.search.replace(/[+><()~*\"@\-]/g, ' ').trim();
             const safeLikePattern = (0, sql_helper_1.getSafeSearchPattern)(query.search);
@@ -109,13 +120,29 @@ let UsersService = class UsersService {
             },
         };
     }
-    async findOne(id) {
+    async findOne(id, currentUser) {
         const user = await this.userRepo.findOne({
             where: { id: String(id) },
             relations: ['department', 'roles', 'roles.permissions'],
         });
         if (!user)
             throw new common_1.NotFoundException('Kullanıcı bulunamadı');
+        if (currentUser && !currentUser.isSystemAdmin) {
+            const hasViewAll = currentUser.permissions?.includes('USERS_VIEW_ALL');
+            if (!hasViewAll) {
+                const hasViewDept = currentUser.permissions?.includes('USERS_VIEW_DEPT');
+                if (hasViewDept && currentUser.departmentId) {
+                    if (String(user.departmentId) !== String(currentUser.departmentId)) {
+                        throw new common_1.ForbiddenException('Bu kullanıcının detaylarını görüntüleme yetkiniz bulunmamaktadır.');
+                    }
+                }
+                else {
+                    if (String(user.id) !== String(currentUser.sub)) {
+                        throw new common_1.ForbiddenException('Bu kullanıcının detaylarını görüntüleme yetkiniz bulunmamaktadır.');
+                    }
+                }
+            }
+        }
         return user;
     }
     async create(dto, currentUserId) {
@@ -133,6 +160,9 @@ let UsersService = class UsersService {
             createdBy: currentUserId || null,
             entryDate: today,
         });
+        if (!dto.roleIds || dto.roleIds.length === 0) {
+            throw new common_1.BadRequestException('En az bir rol seçilmelidir.');
+        }
         if (dto.roleIds && dto.roleIds.length > 0) {
             user.roles = await manager.find(role_entity_1.Role, {
                 where: { id: (0, typeorm_2.In)(dto.roleIds) }
@@ -180,14 +210,12 @@ let UsersService = class UsersService {
             user.departmentId = dto.departmentId || null;
         }
         if (dto.roleIds !== undefined) {
-            if (dto.roleIds.length > 0) {
-                user.roles = await this.roleRepo.find({
-                    where: { id: (0, typeorm_2.In)(dto.roleIds) }
-                });
+            if (dto.roleIds.length === 0) {
+                throw new common_1.BadRequestException('En az bir rol seçilmelidir.');
             }
-            else {
-                user.roles = [];
-            }
+            user.roles = await this.roleRepo.find({
+                where: { id: (0, typeorm_2.In)(dto.roleIds) }
+            });
         }
         if (dto.state !== undefined && user.state !== dto.state) {
             user.state = dto.state;
@@ -241,6 +269,12 @@ __decorate([
     __metadata("design:paramtypes", [user_dto_1.CreateUserDto, String]),
     __metadata("design:returntype", Promise)
 ], UsersService.prototype, "create", null);
+__decorate([
+    (0, transactional_1.Transactional)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, user_dto_1.UpdateUserDto, String]),
+    __metadata("design:returntype", Promise)
+], UsersService.prototype, "update", null);
 exports.UsersService = UsersService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(user_entity_1.User)),

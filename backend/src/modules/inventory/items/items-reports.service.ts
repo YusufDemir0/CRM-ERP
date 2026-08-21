@@ -10,6 +10,7 @@ import { ItemCodeGroup } from './entities/item-code-group.entity';
 import { Currency } from '../../finance/currencies/entities/currency.entity';
 import { ItemsQueryDto } from '../dto/inventory.dto';
 import { PaginatedResult } from '../../../common/dto/pagination.dto';
+import { getSafeSearchPattern } from '../../../common/utils/sql.helper';
 
 @Injectable()
 export class ItemsReportsService {
@@ -27,6 +28,8 @@ export class ItemsReportsService {
       .leftJoin('item.provider', 'provider')
       .leftJoin('item.currency', 'currency')
       .leftJoin('item.itemCodeGroup', 'itemCodeGroup')
+      .leftJoin('item.stocks', 'stocks')
+      .leftJoin('stocks.department', 'stockDepartment')
       .select([
         'item.id', 'item.name', 'item.code', 'item.code1', 'item.code2',
         'item.purchasePrice', 'item.salePrice', 'item.totalStock',
@@ -35,14 +38,19 @@ export class ItemsReportsService {
         'quantityType.id', 'quantityType.abbreviation',
         'provider.id', 'provider.name',
         'currency.id', 'currency.symbol', 'currency.code',
-        'itemCodeGroup.id', 'itemCodeGroup.prefix', 'itemCodeGroup.name'
+        'itemCodeGroup.id', 'itemCodeGroup.prefix', 'itemCodeGroup.name',
+        'stocks.id', 'stocks.quantity', 'stocks.reservedQuantity', 'stocks.departmentId',
+        'stockDepartment.id', 'stockDepartment.name', 'stockDepartment.abbreviation'
       ]);
 
     if (query.search) {
-      qb.andWhere(
-        '(item.name LIKE :s OR item.code LIKE :s OR item.code1 LIKE :s OR item.code2 LIKE :s OR item.description LIKE :s OR item.notes LIKE :s)',
-        { s: `%${query.search}%` }
-      );
+      const s = getSafeSearchPattern(query.search);
+      if (s) {
+        qb.andWhere(
+          '(item.name LIKE :s OR item.code LIKE :s OR item.code1 LIKE :s OR item.code2 LIKE :s OR item.description LIKE :s OR item.notes LIKE :s)',
+          { s }
+        );
+      }
     }
 
     if (query.itemTypeId) qb.andWhere('item.itemTypeId = :typeId', { typeId: query.itemTypeId });
@@ -157,7 +165,7 @@ export class ItemsReportsService {
       this.itemTypeRepo.manager.find(Currency, { where: { state: 1 } }),
       this.findAllItemTypes(),
       this.findAllQuantityTypes(),
-      this.findAll({ limit: 10000 } as any)
+      this.findAll({ limit: 10000 } as ItemsQueryDto)
     ]);
 
     const workbook = new ExcelJS.Workbook();
@@ -243,7 +251,7 @@ export class ItemsReportsService {
     const maxRows = Math.max(rowsData.length, codeGroups.length, currencies.length, itemTypes.length, quantityTypes.length);
 
     for (let i = 0; i < maxRows; i++) {
-      const rowData: any = {};
+      const rowData: Record<string, unknown> = {};
 
       // 1. Add active columns (A-K)
       if (i < rowsData.length) {

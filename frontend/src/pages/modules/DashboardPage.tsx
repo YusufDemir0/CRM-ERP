@@ -141,7 +141,7 @@ export default function DashboardPage() {
       hover: 'hover:border-emerald-200', 
       desc: 'Hızlı Satış Ekranı' 
     },
-    hasPermission('CUSTOMER_CREATE') && { 
+    hasPermission('PARTIES_CREATE') && { 
       label: 'YENİ CARİ EKLE', 
       icon: <FiUsers />, 
       path: '/parties', 

@@ -151,12 +151,15 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({
             placeholder="ÖR: MERKEZ DEPO" 
           />
         </FormField>
-        <FormField label="Kısa Kod (3-10 Karakter)">
+        <FormField label="Kısa Kod (Tam 4 Harf)">
           <input
-            maxLength={10}
-            className="input-premium font-black tracking-[4px] text-center"
+            maxLength={4}
+            className="input-premium font-black tracking-[4px] text-center uppercase-input"
             {...register('abbreviation')}
-            placeholder="ÖR: DEPO"
+            onInput={(e) => {
+              e.currentTarget.value = e.currentTarget.value.replace(/[^A-Za-zĞÜŞİÖÇğüşıöç]/g, '').toLocaleUpperCase('tr-TR').slice(0, 4);
+            }}
+            placeholder="MERM"
           />
         </FormField>
       </div>

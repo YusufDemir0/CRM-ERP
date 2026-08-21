@@ -6,12 +6,14 @@ import { StocksTransactionsService } from './stocks-transactions.service';
 import { TransactionContextService } from '../../../common/services/transaction-context.service';
 import { LogsService } from '../../logs/logs.service';
 import { PaginatedResult } from '../../../common/dto/pagination.dto';
+import { SalesTransactionsService } from '../../sales/sales-transactions.service';
 export declare class ShipmentsService {
     private readonly shipmentRepo;
     private readonly stocksTransactionsService;
     private readonly transactionContext;
     private readonly logsService;
-    constructor(shipmentRepo: Repository<Shipment>, stocksTransactionsService: StocksTransactionsService, transactionContext: TransactionContextService, logsService: LogsService);
+    private readonly salesTransactionsService;
+    constructor(shipmentRepo: Repository<Shipment>, stocksTransactionsService: StocksTransactionsService, transactionContext: TransactionContextService, logsService: LogsService, salesTransactionsService: SalesTransactionsService);
     findAll(query: ShipmentsQueryDto): Promise<PaginatedResult<Shipment>>;
     findOne(id: string): Promise<Shipment>;
     create(dto: CreateShipmentDto, userId: string): Promise<Shipment>;

@@ -33,6 +33,8 @@ const dayjs_1 = __importDefault(require("dayjs"));
 const transactional_1 = require("@nestjs-cls/transactional");
 const transaction_context_service_1 = require("../../../common/services/transaction-context.service");
 const sql_helper_1 = require("../../../common/utils/sql.helper");
+const department_entity_1 = require("../../departments/entities/department.entity");
+const commercial_account_entity_1 = require("../accounts/entities/commercial-account.entity");
 let TransactionsService = class TransactionsService {
     constructor(txRepo, dataSource, sequenceGenerator, transactionContext) {
         this.txRepo = txRepo;
@@ -40,7 +42,7 @@ let TransactionsService = class TransactionsService {
         this.sequenceGenerator = sequenceGenerator;
         this.transactionContext = transactionContext;
     }
-    async findAll(query) {
+    async findAll(query, currentUser) {
         const qb = this.txRepo.createQueryBuilder('tx')
             .select([
             'tx.id', 'tx.code', 'tx.type', 'tx.amount', 'tx.date',
@@ -62,8 +64,37 @@ let TransactionsService = class TransactionsService {
             qb.andWhere('tx.type = :type', { type: query.type });
         if (query.status)
             qb.andWhere('tx.status = :status', { status: query.status });
-        if (query.commercialAccountId)
-            qb.andWhere('tx.commercialAccountId = :commercialAccountId', { commercialAccountId: query.commercialAccountId });
+        let deptAccountId = null;
+        if (currentUser && !currentUser.isSystemAdmin) {
+            if (currentUser.departmentId) {
+                const department = await this.dataSource.getRepository(department_entity_1.Department).findOne({
+                    where: { id: String(currentUser.departmentId) }
+                });
+                deptAccountId = department?.commercialAccountId || null;
+            }
+            if (deptAccountId) {
+                qb.andWhere('tx.commercialAccountId = :deptAccountId', { deptAccountId });
+            }
+            else {
+                qb.andWhere('1 = 0');
+            }
+        }
+        else {
+            if (query.commercialAccountId) {
+                qb.andWhere('tx.commercialAccountId = :commercialAccountId', { commercialAccountId: query.commercialAccountId });
+            }
+            if (query.departmentId) {
+                const department = await this.dataSource.getRepository(department_entity_1.Department).findOne({
+                    where: { id: String(query.departmentId) }
+                });
+                if (department && department.commercialAccountId) {
+                    qb.andWhere('tx.commercialAccountId = :deptFilterAccountId', { deptFilterAccountId: String(department.commercialAccountId) });
+                }
+                else {
+                    qb.andWhere('1 = 0');
+                }
+            }
+        }
         const allowedSortCols = ['date', 'amount', 'createdAt', 'code', 'party.name', 'commercialAccount.name', 'status'];
         const sortField = allowedSortCols.includes(query.sortBy || '') ? query.sortBy : 'date';
         const finalSortField = sortField.includes('.') ? sortField : `tx.${sortField}`;
@@ -115,6 +146,8 @@ let TransactionsService = class TransactionsService {
             if (dto.type === 'out' && party.creditLimit.gt(0) && newBalance.gt(party.creditLimit)) {
                 throw new common_1.BadRequestException(`İşlem limit engeline takıldı. Yapılacak ödeme/harcama firmanın belirlediğiniz limitini aşıyor.`);
             }
+            party.balance = newBalance;
+            await manager.save(party_entity_1.Party, party);
         }
         const prefix = dto.type === 'in' ? 'MKB' : 'TDY';
         const code = await this.sequenceGenerator.generateTransactionCode(manager, prefix);
@@ -142,45 +175,56 @@ let TransactionsService = class TransactionsService {
             }));
             if (isCredit) {
                 let remainingPayment = new decimal_js_1.Decimal(dto.amount);
-                console.log(`[FIFO Payment] Starting allocation of payment amount ${dto.amount} ${dto.currencyId || 'TRY'} for customer ${party.name}`);
-                const unpaidSales = await manager.find(sale_entity_1.Sale, {
+                const targetSales = [];
+                if (dto.referenceId && (dto.referenceType === 'sale' || dto.referenceType === 'sale_deposit' || !dto.referenceType)) {
+                    const specificSale = await manager.findOne(sale_entity_1.Sale, {
+                        where: { id: String(dto.referenceId), partyId: party.id },
+                        lock: { mode: 'pessimistic_write' },
+                    });
+                    if (specificSale && ['approved', 'shipped', 'invoiced'].includes(specificSale.status)) {
+                        targetSales.push(specificSale);
+                    }
+                }
+                const otherUnpaidSales = await manager.find(sale_entity_1.Sale, {
                     where: [
                         { partyId: party.id, status: 'approved' },
                         { partyId: party.id, status: 'shipped' },
-                        { partyId: party.id, status: 'invoiced' }
+                        { partyId: party.id, status: 'invoiced' },
                     ],
-                    order: { createdAt: 'ASC' }
+                    order: { createdAt: 'ASC' },
                 });
-                for (const sale of unpaidSales) {
-                    if (remainingPayment.lte(0))
+                for (const s of otherUnpaidSales) {
+                    if (!targetSales.some((ts) => String(ts.id) === String(s.id))) {
+                        targetSales.push(s);
+                    }
+                }
+                for (const sale of targetSales) {
+                    if (remainingPayment.lte(0.0001))
                         break;
                     const grandTotal = new decimal_js_1.Decimal(sale.grandTotal || 0);
                     const paidAmount = new decimal_js_1.Decimal(sale.paidAmount || 0);
-                    const remainingDebtOnSale = grandTotal.sub(paidAmount);
+                    const remainingDebtOnSale = grandTotal.sub(paidAmount).toDecimalPlaces(2, decimal_js_1.Decimal.ROUND_HALF_UP);
                     if (remainingDebtOnSale.gt(0)) {
                         const txExchangeRate = exchangeRate;
                         const saleExchangeRate = new decimal_js_1.Decimal(sale.exchangeRate || 1);
                         const remainingPaymentInTl = remainingPayment.mul(txExchangeRate);
-                        const remainingPaymentInSaleCurrency = remainingPaymentInTl.div(saleExchangeRate);
+                        const remainingPaymentInSaleCurrency = remainingPaymentInTl
+                            .div(saleExchangeRate)
+                            .toDecimalPlaces(2, decimal_js_1.Decimal.ROUND_DOWN);
                         const allocationInSaleCurrency = decimal_js_1.Decimal.min(remainingDebtOnSale, remainingPaymentInSaleCurrency);
                         if (allocationInSaleCurrency.gt(0)) {
-                            const newPaidAmount = paidAmount.add(allocationInSaleCurrency);
+                            const newPaidAmount = paidAmount.add(allocationInSaleCurrency).toDecimalPlaces(2, decimal_js_1.Decimal.ROUND_HALF_UP);
                             sale.paidAmount = newPaidAmount;
                             await manager.save(sale_entity_1.Sale, sale);
-                            console.log(`[FIFO Payment] Allocated ${allocationInSaleCurrency} ${sale.currencyId} to Sale Code ${sale.code} (Grand Total: ${grandTotal}, Paid: ${newPaidAmount})`);
-                            const allocationInTxCurrency = allocationInSaleCurrency.mul(saleExchangeRate).div(txExchangeRate);
+                            const allocationInTxCurrency = allocationInSaleCurrency
+                                .mul(saleExchangeRate)
+                                .div(txExchangeRate)
+                                .toDecimalPlaces(2, decimal_js_1.Decimal.ROUND_HALF_UP);
                             remainingPayment = remainingPayment.sub(allocationInTxCurrency);
                         }
                     }
                 }
-                console.log(`[FIFO Payment] Completed allocation. Remaining unallocated: ${remainingPayment}`);
             }
-            const sign = (dto.type === 'in' && !isSupplierRefund) ? '-' : '+';
-            await manager.createQueryBuilder()
-                .update(party_entity_1.Party)
-                .set({ balance: () => `balance ${sign} ${tlAmount.toString()}` })
-                .where('id = :id', { id: party.id })
-                .execute();
         }
         return this.findOne(String(savedTx.id));
     }
@@ -242,16 +286,67 @@ let TransactionsService = class TransactionsService {
                         }
                     }
                 }
-                const sign = (tx.type === 'in' && !isSupplierRefund) ? '+' : '-';
-                await manager.createQueryBuilder()
-                    .update(party_entity_1.Party)
-                    .set({ balance: () => `balance ${sign} ${tlAmount.toString()}` })
-                    .where('id = :id', { id: party.id })
-                    .execute();
+                const currentBalance = new decimal_js_1.Decimal(party.balance || 0);
+                party.balance = isReverseCredit
+                    ? currentBalance.sub(tlAmount)
+                    : currentBalance.add(tlAmount);
+                party.updatedBy = userId;
+                await manager.save(party_entity_1.Party, party);
             }
         }
-        await manager.update(transaction_entity_1.Transaction, tx.id, { status: 'cancelled', updatedBy: userId });
+        tx.status = 'cancelled';
+        tx.updatedBy = userId;
+        await manager.save(transaction_entity_1.Transaction, tx);
         return { success: true, message: 'Muhasebe fişi ve cari hareketi geri alındı.' };
+    }
+    async transfer(dto, userId) {
+        const manager = this.transactionContext.manager;
+        const fromAccount = await manager.findOne(commercial_account_entity_1.CommercialAccount, { where: { id: String(dto.fromAccountId) } });
+        if (!fromAccount)
+            throw new common_1.NotFoundException('Kaynak hesap bulunamadı');
+        const toAccount = await manager.findOne(commercial_account_entity_1.CommercialAccount, { where: { id: String(dto.toAccountId) } });
+        if (!toAccount)
+            throw new common_1.NotFoundException('Hedef hesap bulunamadı');
+        const amountDecimal = new decimal_js_1.Decimal(dto.amount);
+        if (amountDecimal.lte(0))
+            throw new common_1.BadRequestException('Transfer tutarı 0 veya daha küçük olamaz');
+        const currencyId = dto.currencyId || fromAccount.currencyId;
+        const currency = await manager.findOne(currency_entity_1.Currency, { where: { id: String(currencyId) } });
+        if (!currency)
+            throw new common_1.NotFoundException('Para birimi bulunamadı');
+        const exchangeRate = new decimal_js_1.Decimal(currency.exchangeRate);
+        const transferCode = await this.sequenceGenerator.generateTransactionCode(manager, 'TRNS');
+        const outTx = this.txRepo.create({
+            code: `${transferCode}-OUT`,
+            commercialAccountId: fromAccount.id,
+            amount: amountDecimal,
+            currencyId: currency.id,
+            exchangeRate,
+            type: 'out',
+            referenceType: 'transfer',
+            referenceId: null,
+            date: dto.date,
+            description: dto.description || `${fromAccount.name} hesabından ${toAccount.name} hesabına transfer`,
+            status: 'completed',
+            createdBy: userId,
+        });
+        await manager.save(transaction_entity_1.Transaction, outTx);
+        const inTx = this.txRepo.create({
+            code: `${transferCode}-IN`,
+            commercialAccountId: toAccount.id,
+            amount: amountDecimal,
+            currencyId: currency.id,
+            exchangeRate,
+            type: 'in',
+            referenceType: 'transfer',
+            referenceId: null,
+            date: dto.date,
+            description: dto.description || `${fromAccount.name} hesabından ${toAccount.name} hesabına transfer`,
+            status: 'completed',
+            createdBy: userId,
+        });
+        await manager.save(transaction_entity_1.Transaction, inTx);
+        return { success: true, message: 'Transfer başarıyla gerçekleştirildi.' };
     }
     async getStatus() {
         const firstDayOfMonth = (0, dayjs_1.default)().startOf('month').toDate();
@@ -295,6 +390,12 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], TransactionsService.prototype, "cancel", null);
+__decorate([
+    (0, transactional_1.Transactional)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [finance_dto_1.CreateTransferDto, String]),
+    __metadata("design:returntype", Promise)
+], TransactionsService.prototype, "transfer", null);
 exports.TransactionsService = TransactionsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(transaction_entity_1.Transaction)),

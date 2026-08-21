@@ -33,12 +33,12 @@ export const AdvancedApproveSaleModal: React.FC<AdvancedApproveSaleModalProps> =
   const [globalDeptId, setGlobalDeptId] = useState<string>(defaultDeptId);
 
   // Commercial account selection
-  const [selectedAccountId, setSelectedAccountId] = useState<string>((sale as any).commercialAccountId ? String((sale as any).commercialAccountId) : '');
+  const [selectedAccountId, setSelectedAccountId] = useState<string>(sale.commercialAccountId ? String(sale.commercialAccountId) : '');
 
   const { data: accountsData } = useQuery({
     queryKey: ['accounts', 'active-list'],
     queryFn: async () => {
-      const res = await accountsAPI.getAll({ state: 1, limit: 100 });
+      const res = await accountsAPI.getAll({ state: 1, limit: 100, ignorePermissionRestrictions: 'true' });
       return res.data?.data || [];
     },
   });
@@ -53,7 +53,7 @@ export const AdvancedApproveSaleModal: React.FC<AdvancedApproveSaleModalProps> =
 
     sale.items?.forEach(item => {
       initialAllocations[item.itemId] = [
-        { departmentId: defaultDeptId, quantity: Number(item.quantity) }
+        { departmentId: defaultDeptId, quantity: Math.round(Number(item.quantity || 0)) }
       ];
       initialLocals[item.itemId] = defaultDeptId;
     });
@@ -68,7 +68,7 @@ export const AdvancedApproveSaleModal: React.FC<AdvancedApproveSaleModalProps> =
     const nextAllocations = { ...allocations };
     sale.items?.forEach(item => {
       nextAllocations[item.itemId] = [
-        { departmentId: globalDeptId, quantity: Number(item.quantity) }
+        { departmentId: globalDeptId, quantity: Math.round(Number(item.quantity || 0)) }
       ];
     });
     setAllocations(nextAllocations);
@@ -89,7 +89,7 @@ export const AdvancedApproveSaleModal: React.FC<AdvancedApproveSaleModalProps> =
     setAllocations(prev => ({
       ...prev,
       [itemId]: [
-        { departmentId: targetDeptId, quantity: totalQty }
+        { departmentId: targetDeptId, quantity: Math.round(totalQty) }
       ]
     }));
   };
@@ -98,9 +98,16 @@ export const AdvancedApproveSaleModal: React.FC<AdvancedApproveSaleModalProps> =
   const handleAddRow = (itemId: string) => {
     setAllocations(prev => {
       const currentList = prev[itemId] || [];
+      const item = sale.items?.find(i => i.itemId === itemId);
+      let remainingQty = 0;
+      if (item) {
+        const totalQty = Math.round(Number(item.quantity || 0));
+        const allocatedQty = currentList.reduce((sum, r) => sum + Math.round(Number(r.quantity || 0)), 0);
+        remainingQty = Math.max(0, totalQty - allocatedQty);
+      }
       return {
         ...prev,
-        [itemId]: [...currentList, { departmentId: globalDeptId || defaultDeptId, quantity: 0 }]
+        [itemId]: [...currentList, { departmentId: globalDeptId || defaultDeptId, quantity: remainingQty }]
       };
     });
   };
@@ -121,9 +128,18 @@ export const AdvancedApproveSaleModal: React.FC<AdvancedApproveSaleModalProps> =
   const handleUpdateRow = (itemId: string, index: number, field: keyof Allocation, value: any) => {
     setAllocations(prev => {
       const currentList = [...(prev[itemId] || [])];
+      let val = value;
+      if (field === 'quantity') {
+        if (value === '') {
+          val = 0;
+        } else {
+          const parsed = parseInt(value, 10);
+          val = isNaN(parsed) ? 0 : parsed;
+        }
+      }
       currentList[index] = {
         ...currentList[index],
-        [field]: field === 'quantity' ? Number(value) : value
+        [field]: val
       };
       return {
         ...prev,
@@ -181,7 +197,7 @@ export const AdvancedApproveSaleModal: React.FC<AdvancedApproveSaleModalProps> =
   };
 
   return (
-    <div className="loader-overlay items-start pt-[5%] pb-[5%] overflow-y-auto z-[100]">
+    <div className="loader-overlay items-start pt-[5%] pb-[5%] overflow-y-auto z-modal">
       <div className="login-box !max-w-[1400px] w-[95%] relative bg-white border border-slate-200/80 shadow-2xl rounded-3xl p-6 text-slate-800">
         <button className="btn-icon circle absolute top-6 right-6 hover:bg-slate-100 transition-colors" onClick={onClose}>
           <FiX size={20}/>
@@ -308,11 +324,16 @@ export const AdvancedApproveSaleModal: React.FC<AdvancedApproveSaleModalProps> =
                             <div className="relative w-36">
                               <input
                                 type="number"
-                                min="0.0001"
-                                step="any"
+                                min="0"
+                                step="1"
                                 className="input-premium !h-9 text-xs font-black tabular-nums w-full pr-8 border border-slate-200 rounded-xl"
                                 placeholder="Miktar"
-                                value={row.quantity || ''}
+                                value={row.quantity === null || row.quantity === undefined ? '' : row.quantity}
+                                onKeyDown={(e) => {
+                                  if (['e', 'E', '+', '-'].includes(e.key)) {
+                                    e.preventDefault();
+                                  }
+                                }}
                                 onChange={e => handleUpdateRow(item.itemId, idx, 'quantity', e.target.value)}
                               />
                               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400">ADET</span>

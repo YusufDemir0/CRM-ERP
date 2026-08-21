@@ -7,10 +7,11 @@ interface ProductionHeaderProps {
   setEditingId: (id: number | null) => void;
   setFormData: (data: ProductionOrderFormData) => void;
   setIsModalOpen: (isOpen: boolean) => void;
+  canCreate?: boolean;
 }
 
 export const ProductionHeader: React.FC<ProductionHeaderProps> = ({
-  setEditingId, setFormData, setIsModalOpen
+  setEditingId, setFormData, setIsModalOpen, canCreate = true
 }) => {
   return (
     <div className="flex justify-between items-end">
@@ -23,27 +24,29 @@ export const ProductionHeader: React.FC<ProductionHeaderProps> = ({
         </h1>
       </div>
       
-      <button 
-        className="btn btn-primary h-11 px-6 shadow-lg shadow-primary/20 flex items-center gap-2 font-bold" 
-        onClick={() => {
-          setEditingId(null); 
-          setFormData({ 
-            bomId: '', 
-            plannedQuantity: 0, 
-            startDate: getLocalDateString(), 
-            endDate: '', 
-            notes: '', 
-            status: 'draft', 
-            producedQuantity: 0, 
-            wastageQuantity: 0, 
-            sourceDepartmentId:'', 
-            targetDepartmentId:'' 
-          }); 
-          setIsModalOpen(true);
-        }}
-      >
-        <FiPlus size={18} /> Yeni İş Emri
-      </button>
+      {canCreate && (
+        <button 
+          className="btn btn-primary h-11 px-6 shadow-lg shadow-primary/20 flex items-center gap-2 font-bold" 
+          onClick={() => {
+            setEditingId(null); 
+            setFormData({ 
+              bomId: '', 
+              plannedQuantity: 0, 
+              startDate: getLocalDateString(), 
+              endDate: '', 
+              notes: '', 
+              status: 'draft', 
+              producedQuantity: 0, 
+              wastageQuantity: 0, 
+              sourceDepartmentId:'', 
+              targetDepartmentId:'' 
+            }); 
+            setIsModalOpen(true);
+          }}
+        >
+          <FiPlus size={18} /> Yeni İş Emri
+        </button>
+      )}
     </div>
   );
 };

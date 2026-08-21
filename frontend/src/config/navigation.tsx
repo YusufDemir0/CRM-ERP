@@ -22,36 +22,41 @@ export interface NavSection {
 export const navItems: NavSection[] = [
   { section: 'Genel', items: [
     { to: '/', icon: <FiHome />, label: 'Dashboard', keywords: ['ana sayfa', 'dashboard', 'panel'] },
-    { to: '/notes', icon: <FiFile />, label: 'Kişisel Notlarım', keywords: ['not', 'kendi', 'hatırlatıcı'] },
+    { to: '/notes', icon: <FiFile />, label: 'Notlar', keywords: ['not', 'kendi', 'hatırlatıcı'] },
   ]},
-  { section: 'Satış', items: [
-    { to: '/sales', icon: <FiShoppingCart />, label: 'Satışlar', keywords: ['satış', 'sipariş', 'order'], permission: 'SALES_VIEW' },
-    { to: '/mastersale', icon: <FiShoppingCart />, label: 'Yetkili Satışlar', keywords: ['master', 'satış', 'onay', 'sipariş'], permission: 'SALES_MASTER_VIEW' },
-    { to: '/parties', icon: <FiUserCheck />, label: 'Müşteri/Cari', keywords: ['cari', 'müşteri', 'tedarikçi'], permission: 'CUSTOMER_VIEW' },
-    { to: '/items', icon: <FiPackage />, label: 'Ürünler', keywords: ['ürün', 'item', 'malzeme'], permission: 'INVENTORY_VIEW' },
-  ]},
-  { section: 'Üretim', items: [
-    { to: '/boms', icon: <FiBox />, label: 'Ürün Reçeteleri', keywords: ['reçete', 'bom', 'üretim'], permission: 'PRODUCTION_VIEW' },
-    { to: '/production', icon: <FiTool />, label: 'Üretim Emirleri', keywords: ['emir', 'üretim', 'iş emri'], permission: 'PRODUCTION_VIEW' },
-  ]},
-  { section: 'Stok', items: [
-    { to: '/stocks', icon: <FiBox />, label: 'Stoklar', keywords: ['stok', 'envanter', 'depo'], permission: 'INVENTORY_VIEW' },
-    { to: '/stocks/movements', icon: <FiRepeat />, label: 'Stok Hareketleri', keywords: ['stok', 'hareket', 'transfer'], permission: 'INVENTORY_VIEW' },
+  { section: 'Sevk/Depo', items: [
+    { to: '/mastersale', icon: <FiShoppingCart />, label: 'Yetkili Satışlar', keywords: ['master', 'satış', 'onay', 'sipariş'], permission: 'SALES_VIEW_ALL' },
     { to: '/shipments', icon: <FiPackage />, label: 'Sevkiyatlar', keywords: ['sevkiyat', 'shipment', 'teslimat'], permission: 'SHIPMENT_VIEW' },
   ]},
+  { section: 'Satışlar', items: [
+    { to: '/sales', icon: <FiShoppingCart />, label: 'Satışlar', keywords: ['satış', 'sipariş', 'order'], permission: 'SALES_PAGE' },
+  ]},
   { section: 'Hesaplar', items: [
-    { to: '/accounts', icon: <FiCreditCard />, label: 'Hesaplar', keywords: ['kasa', 'banka', 'hesap'], permission: 'FINANCE_VIEW' },
-    { to: '/payments', icon: <FiDollarSign />, label: 'Tahsilat & Ödemeler', keywords: ['tahsilat', 'ödeme', 'kasa', 'banka'], permission: 'FINANCE_VIEW' },
-    { to: '/transactions', icon: <FiRepeat />, label: 'Hesap Hareketleri', keywords: ['işlem', 'hareket', 'transfer'], permission: 'FINANCE_VIEW' },
+    { to: '/accounts', icon: <FiCreditCard />, label: 'Hesaplar', keywords: ['kasa', 'banka', 'hesap'], permission: 'FINANCE_PAGE' },
+    { to: '/transactions', icon: <FiRepeat />, label: 'Hesap Hareketleri', keywords: ['işlem', 'hareket', 'transfer'], permission: 'FINANCE_PAGE' },
+  ]},
+  { section: 'Müşteriler', items: [
+    { to: '/parties', icon: <FiUserCheck />, label: 'Müşteriler', keywords: ['cari', 'müşteri', 'tedarikçi'], permission: 'PARTIES_PAGE' },
+    { to: '/parties/movements', icon: <FiUserCheck />, label: 'Müşteri Hareketleri', keywords: ['cari', 'hareket', 'müşteri'], permission: 'PARTIES_PAGE' },
+  ]},
+  { section: 'Stok', items: [
+    { to: '/stocks', icon: <FiBox />, label: 'Stok', keywords: ['stok', 'envanter', 'depo'], permission: 'INVENTORY_PAGE' },
+    { to: '/stocks/movements', icon: <FiRepeat />, label: 'Stok Hareketleri', keywords: ['stok', 'hareket', 'transfer'], permission: 'INVENTORY_PAGE' },
+  ]},
+  { section: 'Ürünler', items: [
+    { to: '/items', icon: <FiPackage />, label: 'Ürünler', keywords: ['ürün', 'item', 'malzeme'], permission: 'INVENTORY_PAGE' },
+    { to: '/production', icon: <FiTool />, label: 'Üretim Emirleri', keywords: ['emir', 'üretim', 'iş emri'], permission: 'PRODUCTION_PAGE' },
+    { to: '/boms', icon: <FiBox />, label: 'Ürün Reçeteleri', keywords: ['reçete', 'bom', 'üretim'], permission: 'PRODUCTION_PAGE' },
   ]},
   { section: 'Yönetim', items: [
-    { to: '/users', icon: <FiUsers />, label: 'Kullanıcılar', keywords: ['kullanıcı', 'user', 'personel'], permission: 'USER_VIEW' },
-    { to: '/roles', icon: <FiShield />, label: 'Roller & Yetkiler', keywords: ['rol', 'yetki', 'permission'], permission: 'ROLE_VIEW' },
-    { to: '/departments', icon: <FiLayers />, label: 'Departmanlar', keywords: ['departman', 'birim', 'department'], permission: 'SYSTEM_MANAGE' },
+    { to: '/users', icon: <FiUsers />, label: 'Kullanıcı', keywords: ['kullanıcı', 'user', 'personel'], permission: 'USERS_PAGE' },
+    { to: '/roles', icon: <FiShield />, label: 'Roller', keywords: ['rol', 'yetki', 'permission'], permission: 'ROLES_PAGE' },
+    { to: '/departments', icon: <FiLayers />, label: 'Departmanlar', keywords: ['departman', 'birim', 'department'], permission: 'DEPARTMENTS_PAGE' },
+    { to: '/personnel/units', icon: <FiUsers />, label: 'Personel Birimler', keywords: ['personel', 'birim', 'staff', 'unit'], permission: 'DEPARTMENTS_PAGE' },
   ]},
   { section: 'Sistem', items: [
-    { to: '/settings', icon: <FiSettings />, label: 'Ayarlar', keywords: ['ayar', 'sistem', 'config'], permission: 'SYSTEM_MANAGE' },
-    { to: '/logs', icon: <FiList />, label: 'Sistem Logları', keywords: ['log', 'işlem', 'denetim'], permission: 'AUDIT_LOG_VIEW' },
+    { to: '/settings', icon: <FiSettings />, label: 'Ayarlar', keywords: ['ayar', 'sistem', 'config'], permission: 'SYSTEM_PAGE' },
+    { to: '/logs', icon: <FiList />, label: 'Loglar', keywords: ['log', 'işlem', 'denetim'], permission: 'SYSTEM_VIEW_LOGS' },
   ]},
 ];
 

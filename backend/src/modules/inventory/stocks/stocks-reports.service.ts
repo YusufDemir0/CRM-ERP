@@ -7,6 +7,7 @@ import { StocksQueryDto } from '../dto/inventory.dto';
 import { PaginatedResult, PaginationDto } from '../../../common/dto/pagination.dto';
 import { getSafeSearchPattern } from '../../../common/utils/sql.helper';
 import { Decimal } from 'decimal.js';
+import { JwtPayload } from '../../../common/interfaces/jwt-payload.interface';
 
 @Injectable()
 export class StocksReportsService {
@@ -17,7 +18,7 @@ export class StocksReportsService {
     @InjectRepository(StockMovement) private movementRepo: Repository<StockMovement>,
   ) {}
 
-  async findAll(query: StocksQueryDto): Promise<PaginatedResult<Stock>> {
+  async findAll(query: StocksQueryDto, user?: JwtPayload): Promise<PaginatedResult<Stock>> {
     const qb = this.stockRepo.createQueryBuilder('stock')
       .leftJoin('stock.item', 'item')
       .leftJoin('item.itemType', 'itemType')
@@ -31,8 +32,17 @@ export class StocksReportsService {
         'department.id', 'department.name'
       ]);
 
-    if (query.departmentId) qb.andWhere('stock.departmentId = :deptId', { deptId: query.departmentId });
+    if (user && !user.isSystemAdmin) {
+      if (user.departmentId) {
+        qb.andWhere('stock.departmentId = :userDeptId', { userDeptId: String(user.departmentId) });
+      } else {
+        qb.andWhere('1 = 0');
+      }
+    } else if (query.departmentId) {
+      qb.andWhere('stock.departmentId = :deptId', { deptId: query.departmentId });
+    }
     if (query.itemId) qb.andWhere('stock.itemId = :itemId', { itemId: query.itemId });
+    qb.andWhere('stock.quantity <> 0');
     if (query.search) {
       const s = getSafeSearchPattern(query.search);
       qb.andWhere('(item.name LIKE :s OR item.code LIKE :s)', { s });
@@ -70,19 +80,27 @@ export class StocksReportsService {
     };
   }
 
-  async findAllMovements(query: PaginationDto & { type?: string; search?: string }): Promise<PaginatedResult<StockMovement>> {
+  async findAllMovements(query: PaginationDto & { type?: string; search?: string }, user?: JwtPayload): Promise<PaginatedResult<StockMovement>> {
     const qb = this.movementRepo.createQueryBuilder('sm')
       .leftJoin('sm.stock', 'stock')
       .leftJoin('stock.item', 'item')
       .leftJoin('stock.department', 'department')
       .select([
-        'sm.id', 'sm.quantity', 'sm.type', 'sm.referenceType', 'sm.referenceId', 'sm.createdAt', 'sm.notes',
+        'sm.id', 'sm.quantity', 'sm.type', 'sm.referenceType', 'sm.referenceId', 'sm.createdAt', 'sm.notes', 'sm.description',
         'sm.quantityBefore', 'sm.quantityAfter', 'sm.unitCost', 'sm.totalCost',
         'stock.id', 'stock.quantity',
         'item.id', 'item.code', 'item.name',
         'department.id', 'department.name'
       ])
       .orderBy('sm.createdAt', 'DESC');
+
+    if (user && !user.isSystemAdmin) {
+      if (user.departmentId) {
+        qb.andWhere('stock.departmentId = :userDeptId', { userDeptId: String(user.departmentId) });
+      } else {
+        qb.andWhere('1 = 0');
+      }
+    }
 
     if (query.type) {
       qb.andWhere('sm.type = :type', { type: query.type });
@@ -102,12 +120,21 @@ export class StocksReportsService {
     };
   }
 
-  async getMovements(stockId: string, query: PaginationDto): Promise<PaginatedResult<StockMovement>> {
+  async getMovements(stockId: string, query: PaginationDto, user?: JwtPayload): Promise<PaginatedResult<StockMovement>> {
     const qb = this.movementRepo.createQueryBuilder('sm')
+      .leftJoin('sm.stock', 'stock')
       .where('sm.stockId = :stockId', { stockId })
-      .orderBy('sm.createdAt', 'DESC')
-      .skip(query.skip).take(query.limit);
+      .orderBy('sm.createdAt', 'DESC');
 
+    if (user && !user.isSystemAdmin) {
+      if (user.departmentId) {
+        qb.andWhere('stock.departmentId = :userDeptId', { userDeptId: String(user.departmentId) });
+      } else {
+        qb.andWhere('1 = 0');
+      }
+    }
+
+    qb.skip(query.skip).take(query.limit);
     const [data, total] = await qb.getManyAndCount();
     return {
       data,
@@ -115,7 +142,7 @@ export class StocksReportsService {
     };
   }
 
-  async getCriticalStocks(query: PaginationDto): Promise<PaginatedResult<Stock>> {
+  async getCriticalStocks(query: PaginationDto, user?: JwtPayload): Promise<PaginatedResult<Stock>> {
     const qb = this.stockRepo.createQueryBuilder('stock')
       .leftJoin('stock.item', 'item')
       .leftJoin('stock.department', 'department')
@@ -125,8 +152,17 @@ export class StocksReportsService {
         'department.id', 'department.name'
       ])
       .where('stock.quantity <= item.criticalLimit')
-      .andWhere('item.criticalLimit > 0')
-      .orderBy('stock.quantity', 'ASC')
+      .andWhere('item.criticalLimit > 0');
+
+    if (user && !user.isSystemAdmin) {
+      if (user.departmentId) {
+        qb.andWhere('stock.departmentId = :userDeptId', { userDeptId: String(user.departmentId) });
+      } else {
+        qb.andWhere('1 = 0');
+      }
+    }
+
+    qb.orderBy('stock.quantity', 'ASC')
       .skip(query.skip)
       .take(query.limit);
 
@@ -146,18 +182,30 @@ export class StocksReportsService {
     return await qb.getRawOne();
   }
 
-  async getStatus() {
+  async getStatus(user?: JwtPayload) {
+    const qbTotal = this.stockRepo.createQueryBuilder('stock')
+      .select("COUNT(DISTINCT stock.itemId)", "items")
+      .addSelect("SUM(stock.quantity)", "quantity");
+
+    const qbCritical = this.stockRepo.createQueryBuilder('stock')
+      .innerJoin('stock.item', 'item')
+      .where('stock.quantity <= item.criticalLimit')
+      .andWhere('item.criticalLimit > 0')
+      .select("COUNT(*)", "count");
+
+    if (user && !user.isSystemAdmin) {
+      if (user.departmentId) {
+        qbTotal.andWhere('stock.departmentId = :userDeptId', { userDeptId: String(user.departmentId) });
+        qbCritical.andWhere('stock.departmentId = :userDeptId', { userDeptId: String(user.departmentId) });
+      } else {
+        qbTotal.andWhere('1 = 0');
+        qbCritical.andWhere('1 = 0');
+      }
+    }
+
     const [total, critical] = await Promise.all([
-      this.stockRepo.createQueryBuilder('stock')
-        .select("COUNT(DISTINCT stock.itemId)", "items")
-        .addSelect("SUM(stock.quantity)", "quantity")
-        .getRawOne(),
-      this.stockRepo.createQueryBuilder('stock')
-        .innerJoin('stock.item', 'item')
-        .where('stock.quantity <= item.criticalLimit')
-        .andWhere('item.criticalLimit > 0')
-        .select("COUNT(*)", "count")
-        .getRawOne(),
+      qbTotal.getRawOne(),
+      qbCritical.getRawOne(),
     ]);
 
     return {

@@ -23,15 +23,18 @@ const user_permission_entity_1 = require("../../modules/auth/entities/user-permi
 const role_permission_entity_1 = require("../../modules/auth/entities/role-permission.entity");
 const user_role_entity_1 = require("../../modules/auth/entities/user-role.entity");
 const permission_entity_1 = require("../../modules/auth/entities/permission.entity");
+const user_entity_1 = require("../../modules/auth/entities/user.entity");
+const record_state_enum_1 = require("../enums/record-state.enum");
 const cache_manager_1 = require("@nestjs/cache-manager");
 let PermissionsGuard = PermissionsGuard_1 = class PermissionsGuard {
-    constructor(reflector, cacheManager, userRoleRepo, rolePermRepo, userPermRepo, permissionRepo) {
+    constructor(reflector, cacheManager, userRoleRepo, rolePermRepo, userPermRepo, permissionRepo, userRepo) {
         this.reflector = reflector;
         this.cacheManager = cacheManager;
         this.userRoleRepo = userRoleRepo;
         this.rolePermRepo = rolePermRepo;
         this.userPermRepo = userPermRepo;
         this.permissionRepo = permissionRepo;
+        this.userRepo = userRepo;
         this.logger = new common_1.Logger(PermissionsGuard_1.name);
     }
     async canActivate(context) {
@@ -45,24 +48,47 @@ let PermissionsGuard = PermissionsGuard_1 = class PermissionsGuard {
             throw new common_1.ForbiddenException('Yetkilendirme bilgisi bulunamadı');
         }
         const userId = user.sub;
-        const totalPermissions = await this.permissionRepo.count();
-        if (totalPermissions === 0) {
-            this.logger.warn(`No permissions defined in DB — bypassing guard for user ${userId}`);
-            return true;
-        }
-        const userRoles = await this.userRoleRepo.find({
-            where: { userId },
-            relations: ['role'],
-        });
-        const roleIds = userRoles.map((ur) => ur.roleId);
-        const isSystemAdmin = userRoles.some((ur) => ur.role?.isSystemAdmin === true);
-        const cacheKey = `user_perms_${userId}`;
-        const cachedPerms = await this.cacheManager.get(cacheKey);
-        let finalPermissions = [];
-        if (cachedPerms) {
-            finalPermissions = cachedPerms;
+        const stateCacheKey = `user_state_${userId}`;
+        let userState;
+        const cachedState = await this.cacheManager.get(stateCacheKey);
+        if (cachedState) {
+            userState = cachedState;
         }
         else {
+            const dbUser = await this.userRepo.findOne({
+                where: { id: String(userId) },
+                select: ['id', 'state', 'tokenVersion'],
+            });
+            if (dbUser) {
+                userState = { state: dbUser.state, tokenVersion: dbUser.tokenVersion };
+                await this.cacheManager.set(stateCacheKey, userState, 60000);
+            }
+        }
+        if (userState) {
+            if (userState.state !== record_state_enum_1.RecordState.ACTIVE) {
+                this.logger.warn(`Blocked request from inactive user ${userId} (state=${userState.state})`);
+                throw new common_1.ForbiddenException('Hesabınız aktif değil. Lütfen yöneticinizle iletişime geçin.');
+            }
+            if (user.tokenVersion !== undefined && userState.tokenVersion !== user.tokenVersion) {
+                this.logger.warn(`Blocked stale token for user ${userId} (jwt.tv=${user.tokenVersion}, db.tv=${userState.tokenVersion})`);
+                throw new common_1.ForbiddenException('Oturumunuz geçersiz kılınmıştır. Lütfen tekrar giriş yapın.');
+            }
+        }
+        const cacheKey = `user_perms_${userId}`;
+        const cachedData = await this.cacheManager.get(cacheKey);
+        let finalPermissions = [];
+        let isSystemAdmin = false;
+        if (cachedData) {
+            finalPermissions = cachedData.permissions;
+            isSystemAdmin = cachedData.isSystemAdmin;
+        }
+        else {
+            const userRoles = await this.userRoleRepo.find({
+                where: { userId },
+                relations: ['role'],
+            });
+            const roleIds = userRoles.map((ur) => ur.roleId);
+            isSystemAdmin = userRoles.some((ur) => ur.role?.isSystemAdmin === true);
             let rolePermissionKeys = [];
             if (roleIds.length > 0) {
                 const rolePerms = await this.rolePermRepo.find({
@@ -77,11 +103,11 @@ let PermissionsGuard = PermissionsGuard_1 = class PermissionsGuard {
                 where: { userId },
                 relations: ['permission'],
             });
+            const userDenySet = new Set(userPerms.filter(up => up.effect === 'deny').map(up => up.permission?.key));
             const userAllowKeys = userPerms.filter(up => up.effect === 'allow').map(up => up.permission?.key);
-            const userDenyKeys = userPerms.filter(up => up.effect === 'deny').map(up => up.permission?.key);
-            finalPermissions = Array.from(new Set([...rolePermissionKeys, ...userAllowKeys]))
-                .filter(key => key && !userDenyKeys.includes(key));
-            await this.cacheManager.set(cacheKey, finalPermissions, 60000);
+            const allCandidateKeys = [...rolePermissionKeys, ...userAllowKeys];
+            finalPermissions = Array.from(new Set(allCandidateKeys.filter(key => key && !userDenySet.has(key))));
+            await this.cacheManager.set(cacheKey, { permissions: finalPermissions, isSystemAdmin }, 60000);
         }
         request.user.isSystemAdmin = isSystemAdmin;
         request.user.permissions = finalPermissions;
@@ -91,8 +117,8 @@ let PermissionsGuard = PermissionsGuard_1 = class PermissionsGuard {
         if (isSystemAdmin) {
             return true;
         }
-        const hasAll = requiredPermissions.every(key => finalPermissions.includes(key));
-        if (!hasAll) {
+        const hasAny = requiredPermissions.some(key => finalPermissions.includes(key));
+        if (!hasAny) {
             this.logger.warn(`User ${userId} missing one of: ${requiredPermissions.join(', ')}`);
             throw new common_1.ForbiddenException(`Bu işlem için yetkiniz bulunmamaktadır.`);
         }
@@ -107,7 +133,9 @@ exports.PermissionsGuard = PermissionsGuard = PermissionsGuard_1 = __decorate([
     __param(3, (0, typeorm_1.InjectRepository)(role_permission_entity_1.RolePermission)),
     __param(4, (0, typeorm_1.InjectRepository)(user_permission_entity_1.UserPermission)),
     __param(5, (0, typeorm_1.InjectRepository)(permission_entity_1.Permission)),
+    __param(6, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
     __metadata("design:paramtypes", [core_1.Reflector, Object, typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository])

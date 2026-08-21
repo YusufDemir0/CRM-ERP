@@ -77,8 +77,27 @@ export class AuditSubscriber implements EntitySubscriberInterface {
     const fullName = this.cls.get('fullName') || null;
     const ipAddress = this.cls.get('ipAddress') || null;
 
-    const entity = event.entity || (event as any).databaseEntity || {};
-    const entityId = (entity as { id?: string | number })?.id || (event as { databaseEntity?: { id?: string | number } }).databaseEntity?.id || 'unknown';
+    const dbEntity = (event as { databaseEntity?: Record<string, unknown> }).databaseEntity;
+    const rawEntity = (event.entity || dbEntity || {}) as Record<string, unknown>;
+    const entityId = (rawEntity as { id?: string | number })?.id || dbEntity?.id || 'unknown';
+
+    let changes: Record<string, unknown> = { id: entityId };
+    if (action === 'UPDATE') {
+      const updateEvt = event as UpdateEvent<Record<string, unknown>>;
+      const updatedColumns = updateEvt.updatedColumns?.slice(0, 20).map((c) => c.propertyName) || [];
+      const diff: Record<string, { from?: unknown; to?: unknown }> = {};
+
+      for (const col of updatedColumns) {
+        const fromVal = updateEvt.databaseEntity ? updateEvt.databaseEntity[col] : undefined;
+        const toVal = updateEvt.entity ? updateEvt.entity[col] : undefined;
+        diff[col] = { from: fromVal, to: toVal };
+      }
+
+      changes = {
+        updatedFields: updatedColumns,
+        diff,
+      };
+    }
 
     const logPayload = {
       reqId: this.cls.get('reqId'),
@@ -90,11 +109,7 @@ export class AuditSubscriber implements EntitySubscriberInterface {
       username,
       fullName,
       ipAddress,
-      changes: action === 'UPDATE' ? {
-        updatedFields: (event as UpdateEvent<unknown>).updatedColumns
-          .slice(0, 20)
-          .map(c => c.propertyName)
-      } : { id: entityId }
+      changes,
     };
 
     // 1. Stdout (Enterprise Standard)
@@ -123,7 +138,7 @@ export class AuditSubscriber implements EntitySubscriberInterface {
       try {
         const friendlyName = this.getFriendlyEntityName(entityName);
         const moduleName = this.getEntityModule(entityName);
-        const detailsText = this.getEntityFriendlyDescription(entityName, entity, action);
+        const detailsText = this.getEntityFriendlyDescription(entityName, rawEntity, action);
 
         await event.manager.insert(SystemLog, {
           userId: userId ? String(userId) : undefined,
@@ -175,8 +190,8 @@ export class AuditSubscriber implements EntitySubscriberInterface {
     return map[entityName] || 'system';
   }
 
-  private getEntityFriendlyDescription(entityName: string, entity: any, action: string): string {
-    const name = entity?.name || entity?.fullName || entity?.username || entity?.code || entity?.title || '';
+  private getEntityFriendlyDescription(entityName: string, entity: Record<string, unknown> | null | undefined, action: string): string {
+    const name = (entity?.name || entity?.fullName || entity?.username || entity?.code || entity?.title || '') as string;
     const label = name ? `"${name}"` : '';
     const friendlyEntity = this.getFriendlyEntityName(entityName);
 

@@ -5,11 +5,11 @@ import path from 'path';
 async function run() {
   console.log('Connecting to database...');
   const connection = await mysql.createConnection({
-    host: '127.0.0.1',
-    port: 3306,
-    user: 'erp_user',
-    password: 'ermay_db_2026',
-    database: 'ERPCRMDB',
+    host: process.env.DB_HOST || '127.0.0.1',
+    port: parseInt(process.env.DB_PORT || '3306', 10),
+    user: process.env.DB_USERNAME || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_DATABASE || 'ERPCRMDB',
     multipleStatements: true,
   });
 

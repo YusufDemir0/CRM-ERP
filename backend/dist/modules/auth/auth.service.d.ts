@@ -7,6 +7,7 @@ import { UserRole } from './entities/user-role.entity';
 import { RolePermission } from './entities/role-permission.entity';
 import { UserPermission } from './entities/user-permission.entity';
 import { LoginDto, RegisterDto, ForgotPasswordDto, ChangePasswordDto } from './dto/auth.dto';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 export declare class AuthService implements OnModuleInit {
     private userRepo;
     private userRoleRepo;
@@ -38,6 +39,6 @@ export declare class AuthService implements OnModuleInit {
     changePassword(userId: string, dto: ChangePasswordDto): Promise<{
         message: string;
     }>;
-    decodeToken(token: string): any;
+    decodeToken(token: string): JwtPayload | null;
     logout(userId: string, username: string, fullName: string, ipAddress?: string | null): Promise<void>;
 }

@@ -7,7 +7,7 @@ import { Party } from '../../parties/entities/party.entity';
 import { Currency } from '../currencies/entities/currency.entity';
 import { Sale } from '../../sales/entities/sale.entity';
 import { SequenceGeneratorService } from '../../../common/services/sequence-generator.service';
-import { CreateTransactionDto, TransactionsQueryDto } from '../dto/finance.dto';
+import { CreateTransactionDto, TransactionsQueryDto, CreateTransferDto } from '../dto/finance.dto';
 import { AccountingLedger } from '../../parties/entities/ledger.entity';
 import { PaginationDto, PaginatedResult } from '../../../common/dto/pagination.dto';
 import { DateUtils } from '../../../common/utils/date.utils';
@@ -16,6 +16,9 @@ import dayjs from 'dayjs';
 import { Transactional } from '@nestjs-cls/transactional';
 import { TransactionContextService } from '../../../common/services/transaction-context.service';
 import { getSafeSearchPattern } from '../../../common/utils/sql.helper';
+import { Department } from '../../departments/entities/department.entity';
+import { CommercialAccount } from '../accounts/entities/commercial-account.entity';
+import { JwtPayload } from '../../../common/interfaces/jwt-payload.interface';
 
 @Injectable()
 export class TransactionsService {
@@ -26,7 +29,7 @@ export class TransactionsService {
     private transactionContext: TransactionContextService,
   ) {}
 
-  async findAll(query: TransactionsQueryDto): Promise<PaginatedResult<Transaction>> {
+  async findAll(query: TransactionsQueryDto, currentUser?: JwtPayload): Promise<PaginatedResult<Transaction>> {
     const qb = this.txRepo.createQueryBuilder('tx')
       .select([
         'tx.id', 'tx.code', 'tx.type', 'tx.amount', 'tx.date', 
@@ -46,7 +49,35 @@ export class TransactionsService {
     if (query.partyId) qb.andWhere('tx.partyId = :partyId', { partyId: query.partyId });
     if (query.type) qb.andWhere('tx.type = :type', { type: query.type });
     if (query.status) qb.andWhere('tx.status = :status', { status: query.status });
-    if (query.commercialAccountId) qb.andWhere('tx.commercialAccountId = :commercialAccountId', { commercialAccountId: query.commercialAccountId });
+
+    let deptAccountId: string | null = null;
+    if (currentUser && !currentUser.isSystemAdmin) {
+      if (currentUser.departmentId) {
+        const department = await this.dataSource.getRepository(Department).findOne({
+          where: { id: String(currentUser.departmentId) }
+        });
+        deptAccountId = department?.commercialAccountId || null;
+      }
+      if (deptAccountId) {
+        qb.andWhere('tx.commercialAccountId = :deptAccountId', { deptAccountId });
+      } else {
+        qb.andWhere('1 = 0');
+      }
+    } else {
+      if (query.commercialAccountId) {
+        qb.andWhere('tx.commercialAccountId = :commercialAccountId', { commercialAccountId: query.commercialAccountId });
+      }
+      if (query.departmentId) {
+        const department = await this.dataSource.getRepository(Department).findOne({
+          where: { id: String(query.departmentId) }
+        });
+        if (department && department.commercialAccountId) {
+          qb.andWhere('tx.commercialAccountId = :deptFilterAccountId', { deptFilterAccountId: String(department.commercialAccountId) });
+        } else {
+          qb.andWhere('1 = 0');
+        }
+      }
+    }
 
     const allowedSortCols = ['date', 'amount', 'createdAt', 'code', 'party.name', 'commercialAccount.name', 'status'];
     const sortField = allowedSortCols.includes(query.sortBy || '') ? query.sortBy! : 'date';
@@ -110,6 +141,9 @@ export class TransactionsService {
       if (dto.type === 'out' && party.creditLimit.gt(0) && newBalance.gt(party.creditLimit)) {
          throw new BadRequestException(`İşlem limit engeline takıldı. Yapılacak ödeme/harcama firmanın belirlediğiniz limitini aşıyor.`);
       }
+
+      party.balance = newBalance;
+      await manager.save(Party, party);
     }
 
     const prefix = dto.type === 'in' ? 'MKB' : 'TDY';
@@ -141,59 +175,75 @@ export class TransactionsService {
         description: dto.description || `Kasa Fişi: ${code}`
       }));
 
-      // --- FIFO ALLOCATION ---
+      // --- FIFO ALLOCATION WITH REFERENCE ID PRIORITY ---
       if (isCredit) {
         let remainingPayment = new Decimal(dto.amount);
-        console.log(`[FIFO Payment] Starting allocation of payment amount ${dto.amount} ${dto.currencyId || 'TRY'} for customer ${party.name}`);
         
-        const unpaidSales = await manager.find(Sale, {
+        // 1. If user targeted a specific sale via referenceId, prioritize that sale
+        const targetSales: Sale[] = [];
+        if (dto.referenceId && (dto.referenceType === 'sale' || dto.referenceType === 'sale_deposit' || !dto.referenceType)) {
+          const specificSale = await manager.findOne(Sale, {
+            where: { id: String(dto.referenceId), partyId: party.id },
+            lock: { mode: 'pessimistic_write' },
+          });
+          if (specificSale && ['approved', 'shipped', 'invoiced'].includes(specificSale.status)) {
+            targetSales.push(specificSale);
+          }
+        }
+
+        // 2. Fetch other unpaid sales ordered chronologically (FIFO)
+        const otherUnpaidSales = await manager.find(Sale, {
           where: [
             { partyId: party.id, status: 'approved' },
             { partyId: party.id, status: 'shipped' },
-            { partyId: party.id, status: 'invoiced' }
+            { partyId: party.id, status: 'invoiced' },
           ],
-          order: { createdAt: 'ASC' }
+          order: { createdAt: 'ASC' },
         });
 
-        for (const sale of unpaidSales) {
-          if (remainingPayment.lte(0)) break;
+        for (const s of otherUnpaidSales) {
+          if (!targetSales.some((ts) => String(ts.id) === String(s.id))) {
+            targetSales.push(s);
+          }
+        }
+
+        // 3. Process allocation across targetSales
+        for (const sale of targetSales) {
+          if (remainingPayment.lte(0.0001)) break;
 
           const grandTotal = new Decimal(sale.grandTotal || 0);
           const paidAmount = new Decimal(sale.paidAmount || 0);
-          const remainingDebtOnSale = grandTotal.sub(paidAmount);
+          const remainingDebtOnSale = grandTotal.sub(paidAmount).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
 
           if (remainingDebtOnSale.gt(0)) {
             const txExchangeRate = exchangeRate;
             const saleExchangeRate = new Decimal(sale.exchangeRate || 1);
             
             const remainingPaymentInTl = remainingPayment.mul(txExchangeRate);
-            const remainingPaymentInSaleCurrency = remainingPaymentInTl.div(saleExchangeRate);
+            const remainingPaymentInSaleCurrency = remainingPaymentInTl
+              .div(saleExchangeRate)
+              .toDecimalPlaces(2, Decimal.ROUND_DOWN);
 
             const allocationInSaleCurrency = Decimal.min(remainingDebtOnSale, remainingPaymentInSaleCurrency);
             
             if (allocationInSaleCurrency.gt(0)) {
-              const newPaidAmount = paidAmount.add(allocationInSaleCurrency);
+              const newPaidAmount = paidAmount.add(allocationInSaleCurrency).toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
               
               sale.paidAmount = newPaidAmount;
               await manager.save(Sale, sale);
 
-              console.log(`[FIFO Payment] Allocated ${allocationInSaleCurrency} ${sale.currencyId} to Sale Code ${sale.code} (Grand Total: ${grandTotal}, Paid: ${newPaidAmount})`);
-
-              const allocationInTxCurrency = allocationInSaleCurrency.mul(saleExchangeRate).div(txExchangeRate);
+              const allocationInTxCurrency = allocationInSaleCurrency
+                .mul(saleExchangeRate)
+                .div(txExchangeRate)
+                .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
               remainingPayment = remainingPayment.sub(allocationInTxCurrency);
             }
           }
         }
-        console.log(`[FIFO Payment] Completed allocation. Remaining unallocated: ${remainingPayment}`);
       }
       // --- END FIFO ALLOCATION ---
 
-      const sign = (dto.type === 'in' && !isSupplierRefund) ? '-' : '+';
-      await manager.createQueryBuilder()
-        .update(Party)
-        .set({ balance: () => `balance ${sign} ${tlAmount.toString()}` })
-        .where('id = :id', { id: party.id })
-        .execute();
+
     }
 
     return this.findOne(String(savedTx.id));
@@ -272,18 +322,78 @@ export class TransactionsService {
         }
         // --- END REVERSE FIFO ALLOCATION ---
 
-        const sign = (tx.type === 'in' && !isSupplierRefund) ? '+' : '-';
-        await manager.createQueryBuilder()
-          .update(Party)
-          .set({ balance: () => `balance ${sign} ${tlAmount.toString()}` })
-          .where('id = :id', { id: party.id })
-          .execute();
+        // In-memory balance update
+        const currentBalance = new Decimal(party.balance || 0);
+        party.balance = isReverseCredit 
+          ? currentBalance.sub(tlAmount) 
+          : currentBalance.add(tlAmount);
+
+        party.updatedBy = userId;
+        await manager.save(Party, party);
       }
     }
 
-    await manager.update(Transaction, tx.id, { status: 'cancelled', updatedBy: userId });
-
+    tx.status = 'cancelled';
+    tx.updatedBy = userId;
+    await manager.save(Transaction, tx);
     return { success: true, message: 'Muhasebe fişi ve cari hareketi geri alındı.' };
+  }
+
+  @Transactional()
+  async transfer(dto: CreateTransferDto, userId: string): Promise<{ success: boolean; message: string }> {
+    const manager = this.transactionContext.manager;
+
+    const fromAccount = await manager.findOne(CommercialAccount, { where: { id: String(dto.fromAccountId) } });
+    if (!fromAccount) throw new NotFoundException('Kaynak hesap bulunamadı');
+
+    const toAccount = await manager.findOne(CommercialAccount, { where: { id: String(dto.toAccountId) } });
+    if (!toAccount) throw new NotFoundException('Hedef hesap bulunamadı');
+
+    const amountDecimal = new Decimal(dto.amount);
+    if (amountDecimal.lte(0)) throw new BadRequestException('Transfer tutarı 0 veya daha küçük olamaz');
+
+    const currencyId = dto.currencyId || fromAccount.currencyId;
+    const currency = await manager.findOne(Currency, { where: { id: String(currencyId) } });
+    if (!currency) throw new NotFoundException('Para birimi bulunamadı');
+
+    const exchangeRate = new Decimal(currency.exchangeRate);
+    const transferCode = await this.sequenceGenerator.generateTransactionCode(manager, 'TRNS');
+
+    // Create Outgoing Transaction
+    const outTx = this.txRepo.create({
+      code: `${transferCode}-OUT`,
+      commercialAccountId: fromAccount.id,
+      amount: amountDecimal,
+      currencyId: currency.id,
+      exchangeRate,
+      type: 'out',
+      referenceType: 'transfer',
+      referenceId: null,
+      date: dto.date,
+      description: dto.description || `${fromAccount.name} hesabından ${toAccount.name} hesabına transfer`,
+      status: 'completed',
+      createdBy: userId,
+    });
+    await manager.save(Transaction, outTx);
+
+    // Create Incoming Transaction
+    const inTx = this.txRepo.create({
+      code: `${transferCode}-IN`,
+      commercialAccountId: toAccount.id,
+      amount: amountDecimal,
+      currencyId: currency.id,
+      exchangeRate,
+      type: 'in',
+      referenceType: 'transfer',
+      referenceId: null,
+      date: dto.date,
+      description: dto.description || `${fromAccount.name} hesabından ${toAccount.name} hesabına transfer`,
+      status: 'completed',
+      createdBy: userId,
+    });
+    await manager.save(Transaction, inTx);
+
+    return { success: true, message: 'Transfer başarıyla gerçekleştirildi.' };
   }
 
   async getStatus() {

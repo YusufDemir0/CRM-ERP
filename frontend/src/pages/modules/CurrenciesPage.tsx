@@ -12,8 +12,12 @@ import { Decimal } from 'decimal.js';
 import { DataTable, Column } from '../../components/common/DataTable';
 import { useSort } from '../../hooks/useSort';
 import { queryKeys } from '../../services/queryKeys';
+import { useAuth } from '../../hooks/useAuth';
 
 export function CurrenciesPage() {
+  const { hasPermission } = useAuth();
+  const canManage = hasPermission('SYSTEM_EDIT_CURRENCY');
+
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | number | null>(null);
@@ -161,13 +165,15 @@ export function CurrenciesPage() {
           </h1>
         </div>
         
-        <button className="btn btn-primary h-11 shadow-lg shadow-[var(--primary-glow)]" onClick={() => {
-          setEditingId(null); 
-          setFormData({ code: '', name: '', symbol: '', exchangeRate: 1, isDefault: 0 }); 
-          setIsModalOpen(true);
-        }}>
-          <FiPlus size={18} /> Yeni Birim Tanımla
-        </button>
+        {canManage && (
+          <button className="btn btn-primary h-11 shadow-lg shadow-[var(--primary-glow)]" onClick={() => {
+            setEditingId(null); 
+            setFormData({ code: '', name: '', symbol: '', exchangeRate: 1, isDefault: 0 }); 
+            setIsModalOpen(true);
+          }}>
+            <FiPlus size={18} /> Yeni Birim Tanımla
+          </button>
+        )}
       </div>
 
       {/* 🟡 DATA TABLE SECTION */}
@@ -179,13 +185,13 @@ export function CurrenciesPage() {
           sortConfigs={sortConfigs}
           onSort={toggleSort}
           getRowKey={(c) => c.id}
-          onEdit={handleEdit}
+          onEdit={canManage ? handleEdit : undefined}
         />
       </div>
 
       {/* 🟢 MODAL SECTION */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white max-w-[500px] w-full p-6 rounded-2xl shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300 relative">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-black text-slate-900 tracking-tight">
@@ -241,6 +247,11 @@ export function CurrenciesPage() {
                   step="0.0001" 
                   required 
                   value={formData.exchangeRate} 
+                  onKeyDown={(e) => {
+                    if (['e', 'E', '+', '-'].includes(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
                   onChange={e => setFormData({...formData, exchangeRate: Number(e.target.value)})} 
                   disabled={formData.isDefault === 1} 
                   className="h-16 px-6 rounded-2xl border-2 border-primary/20 bg-primary/5 font-black text-2xl text-center text-primary tabular-nums transition-colors outline-none focus:border-primary/40 disabled:opacity-50 disabled:bg-slate-50 disabled:border-slate-100 disabled:text-slate-400" 

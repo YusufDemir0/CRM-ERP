@@ -1,5 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Response } from 'express';
+import { Injectable, Logger, StreamableFile } from '@nestjs/common';
 import { Sale } from './entities/sale.entity';
 import { SaleType } from './entities/sale-type.entity';
 import { SalesReportsService } from './sales-reports.service';
@@ -35,6 +34,10 @@ export class SalesService {
     return this.reportsService.findAll(query, user);
   }
 
+  async findMinimalLookup(user?: JwtPayload): Promise<any[]> {
+    return this.reportsService.findMinimalLookup(user);
+  }
+
   async findOne(id: string): Promise<Sale> {
     return this.reportsService.findOne(id);
   }
@@ -43,8 +46,8 @@ export class SalesService {
     return this.reportsService.getStatus();
   }
 
-  async exportToExcel(query: SalesQueryDto, user: JwtPayload, res: Response) {
-    return this.reportsService.exportToExcel(query, user, res);
+  async exportToExcel(query: SalesQueryDto, user: JwtPayload): Promise<StreamableFile> {
+    return this.reportsService.exportToExcel(query, user);
   }
 
   // ────── TRANSACTIONS DELEGATION ──────
@@ -57,23 +60,27 @@ export class SalesService {
     return this.transactionsService.create(dto, userId);
   }
 
-  async update(id: string, dto: UpdateSaleDto, userId: string): Promise<Sale> {
-    return this.transactionsService.update(id, dto, userId);
+  async update(id: string, dto: UpdateSaleDto, userId: string, user?: JwtPayload): Promise<Sale> {
+    return this.transactionsService.update(id, dto, userId, user);
   }
 
-  async approveSale(saleId: string, dto: ApproveSaleDto, userId: string): Promise<Sale> {
-    return this.transactionsService.approveSale(saleId, dto, userId);
+  async approveSale(saleId: string, dto: ApproveSaleDto, userId: string, user?: JwtPayload): Promise<Sale> {
+    return this.transactionsService.approveSale(saleId, dto, userId, user);
   }
 
-  async cancelSale(saleId: string, userId: string): Promise<Sale> {
-    return this.transactionsService.cancelSale(saleId, userId);
+  async cancelSale(saleId: string, reason: string, userId: string): Promise<Sale> {
+    return this.transactionsService.cancelSale(saleId, reason, userId);
+  }
+
+  async revertToDraft(saleId: string, userId: string): Promise<Sale> {
+    return this.transactionsService.revertToDraft(saleId, userId);
   }
 
   async shipSale(saleId: string, dto: ShipSaleDto, userId: string): Promise<Sale> {
     return this.transactionsService.shipSale(saleId, dto, userId);
   }
 
-  async softDelete(id: string): Promise<void> {
-    return this.transactionsService.softDelete(id);
+  async softDelete(id: string, userId: string, user?: JwtPayload): Promise<void> {
+    return this.transactionsService.softDelete(id, userId, user);
   }
 }

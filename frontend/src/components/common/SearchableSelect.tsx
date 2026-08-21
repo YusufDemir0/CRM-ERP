@@ -5,6 +5,8 @@ import { FiSearch, FiChevronDown, FiX, FiPlus } from 'react-icons/fi';
 interface Option {
   id: number | string;
   label: string;
+  isGreen?: boolean;
+  disabled?: boolean;
   [key: string]: unknown;
 }
 
@@ -17,6 +19,7 @@ interface SearchableSelectProps {
   className?: string;
   required?: boolean;
   onQuickAdd?: () => void;
+  disabled?: boolean;
 }
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -28,6 +31,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   className = '',
   required,
   onQuickAdd,
+  disabled = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -51,14 +55,27 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
   const deferredSearch = useDeferredValue(search);
 
+  const turkishNormalize = (str: string): string => {
+    return str
+      .replace(/İ/g, 'i')
+      .replace(/I/g, 'ı')
+      .toLowerCase()
+      .replace(/ı/g, 'i')
+      .replace(/ğ/g, 'g')
+      .replace(/ü/g, 'u')
+      .replace(/ş/g, 's')
+      .replace(/ö/g, 'o')
+      .replace(/ç/g, 'c');
+  };
+
   const filteredOptions = useMemo(() => {
     if (!deferredSearch) return options;
-    const lowerSearch = deferredSearch.toLowerCase();
-    return options.filter((o) => o.label.toLowerCase().includes(lowerSearch));
+    const normalizedSearch = turkishNormalize(deferredSearch);
+    return options.filter((o) => turkishNormalize(o.label).includes(normalizedSearch));
   }, [options, deferredSearch]);
 
   const virtualizer = useVirtualizer({
-    count: filteredOptions.length,
+    count: isOpen ? filteredOptions.length : 0,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 40,
     overscan: 5,
@@ -71,7 +88,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
             {label} {required && <span className="text-red-500 ml-0.5">*</span>}
           </label>
-          {onQuickAdd && (
+          {onQuickAdd && !disabled && (
             <button 
               type="button" 
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuickAdd(); }}
@@ -85,15 +102,26 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       )}
       <div className="relative">
         <div
-          className="flex items-center justify-between h-12 px-4 rounded-xl border-2 border-slate-100 bg-white cursor-pointer hover:border-primary/20 transition-all shadow-sm"
-          onClick={() => setIsOpen(!isOpen)}
+          tabIndex={disabled ? -1 : 0}
+          className={`flex items-center justify-between h-12 px-4 rounded-xl border-2 border-slate-100 bg-white transition-all shadow-sm focus:border-primary focus:outline-none ${
+            disabled ? 'bg-slate-50 text-slate-400 cursor-not-allowed opacity-75' : 'cursor-pointer hover:border-primary/20'
+          }`}
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          onKeyDown={(e) => {
+            if (disabled) return;
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setIsOpen(!isOpen);
+            }
+          }}
         >
           <span className={`text-sm font-bold ${selectedOption ? 'text-slate-800' : 'text-slate-300'}`}>
             {selectedOption ? selectedOption.label : placeholder}
           </span>
           <div className="flex items-center gap-1.5">
-            {selectedOption && (
+            {selectedOption && !disabled && (
               <button
+                tabIndex={-1}
                 className="w-6 h-6 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 flex items-center justify-center transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -135,17 +163,27 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   virtualizer.getVirtualItems().map((virtualRow) => {
                     const option = filteredOptions[virtualRow.index];
                     const isSelected = String(option.id) === String(value);
+                    const isGreen = !!option.isGreen;
+                    const isDisabled = !!option.disabled;
+                    let rowClass = 'text-slate-600 hover:bg-slate-50';
+                    if (isDisabled) {
+                      rowClass = 'text-slate-350 bg-slate-50/50 cursor-not-allowed opacity-60';
+                    } else if (isSelected) {
+                      rowClass = 'bg-primary/5 text-primary font-black';
+                    } else if (isGreen) {
+                      rowClass = 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-bold';
+                    }
+
                     return (
                       <div
                         key={virtualRow.key}
-                        className={`absolute top-0 left-0 w-full px-4 flex items-center cursor-pointer transition-colors ${
-                          isSelected ? 'bg-primary/5 text-primary font-black' : 'text-slate-600 hover:bg-slate-50'
-                        }`}
+                        className={`absolute top-0 left-0 w-full px-4 flex items-center cursor-pointer transition-colors ${rowClass}`}
                         style={{
                           height: `${virtualRow.size}px`,
                           transform: `translateY(${virtualRow.start}px)`,
                         }}
                         onClick={() => {
+                          if (isDisabled) return;
                           onChange(option);
                           setIsOpen(false);
                           setSearch('');

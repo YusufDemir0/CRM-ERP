@@ -44,6 +44,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.IsString)({ each: true }),
+    (0, class_validator_1.ArrayMinSize)(1, { message: 'En az bir rol seçilmelidir' }),
     __metadata("design:type", Array)
 ], CreateUserDto.prototype, "roleIds", void 0);
 class UpdateUserDto {

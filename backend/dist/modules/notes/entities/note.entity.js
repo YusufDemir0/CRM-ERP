@@ -42,6 +42,10 @@ __decorate([
     __metadata("design:type", Boolean)
 ], UserNote.prototype, "isPinned", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'varchar', length: 50, nullable: true }),
+    __metadata("design:type", String)
+], UserNote.prototype, "status", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'tinyint', width: 1, default: 1 }),
     __metadata("design:type", Number)
 ], UserNote.prototype, "state", void 0);

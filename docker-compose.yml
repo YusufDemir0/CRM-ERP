@@ -157,6 +157,7 @@ services:
       - DB_USERNAME=${DB_USERNAME:-root}
       - DB_PASSWORD=${DB_PASSWORD:?DB password required}
       - DB_DATABASE=${DB_DATABASE:-ERPCRMDB}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}

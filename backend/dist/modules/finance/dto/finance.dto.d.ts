@@ -39,8 +39,16 @@ export declare class CreateTransactionDto {
     amount: string;
     currencyId: string;
     type: 'in' | 'out';
-    referenceType?: 'sale' | 'purchase' | 'manual_adjustment' | 'manual' | 'sale_deposit';
+    referenceType?: 'sale' | 'purchase' | 'manual_adjustment' | 'manual' | 'sale_deposit' | 'transfer';
     referenceId: string;
+    date: string;
+    description?: string;
+}
+export declare class CreateTransferDto {
+    fromAccountId: string;
+    toAccountId: string;
+    amount: string;
+    currencyId?: string;
     date: string;
     description?: string;
 }
@@ -49,7 +57,10 @@ export declare class TransactionsQueryDto extends PaginationDto {
     type?: string;
     status?: string;
     commercialAccountId?: string;
+    referenceType?: string;
+    departmentId?: string;
 }
 export declare class AccountsQueryDto extends PaginationDto {
     state?: number;
+    ignorePermissionRestrictions?: string;
 }

@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PartiesQueryDto = exports.UpdatePartyDto = exports.CreatePartyDto = void 0;
+exports.MovementsQueryDto = exports.PartiesQueryDto = exports.UpdatePartyDto = exports.CreatePartyDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 class CreatePartyDto {
@@ -22,6 +22,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsNotEmpty)(),
+    (0, class_validator_1.Matches)(/^[^0-9]*$/, { message: 'Cari ad-soyad alanında rakam bulunamaz.' }),
     __metadata("design:type", String)
 ], CreatePartyDto.prototype, "name", void 0);
 __decorate([
@@ -110,6 +111,7 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.Matches)(/^[^0-9]*$/, { message: 'Cari ad-soyad alanında rakam bulunamaz.' }),
     __metadata("design:type", String)
 ], UpdatePartyDto.prototype, "name", void 0);
 __decorate([
@@ -216,4 +218,17 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], PartiesQueryDto.prototype, "departmentId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], PartiesQueryDto.prototype, "isMovements", void 0);
+class MovementsQueryDto extends pagination_dto_1.PaginationDto {
+}
+exports.MovementsQueryDto = MovementsQueryDto;
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], MovementsQueryDto.prototype, "partyId", void 0);
 //# sourceMappingURL=party.dto.js.map

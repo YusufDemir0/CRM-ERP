@@ -40,4 +40,33 @@ export declare class PartiesQueryDto extends PaginationDto {
     type?: string;
     state?: number;
     departmentId?: string;
+    isMovements?: string;
+}
+export declare class MovementsQueryDto extends PaginationDto {
+    partyId?: string;
+}
+export interface StatementEntry {
+    id: string;
+    date: string;
+    createdAt: Date | string;
+    type: string;
+    code: string;
+    description: string;
+    debit: number;
+    credit: number;
+    balance?: number;
+    transactionId?: string;
+}
+export interface MovementRow {
+    id: string;
+    date: string;
+    partyName: string | undefined;
+    partyType: string | undefined;
+    partyId: string;
+    source: string;
+    description: string;
+    debit: number;
+    credit: number;
+    currency: string;
+    transactionId?: string;
 }

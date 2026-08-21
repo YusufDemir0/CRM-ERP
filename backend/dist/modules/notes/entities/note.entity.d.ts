@@ -6,6 +6,7 @@ export declare class UserNote {
     content: string;
     color: string;
     isPinned: boolean;
+    status: string;
     state: number;
     createdAt: Date;
     updatedAt: Date;

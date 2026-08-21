@@ -9,6 +9,7 @@ import { SequenceGeneratorService } from '../../common/services/sequence-generat
 import { TransactionContextService } from '../../common/services/transaction-context.service';
 import { OutboxService } from '../../common/services/outbox.service';
 import { SalesReportsService } from './sales-reports.service';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 export declare class SalesTransactionsService {
     private saleRepo;
     private saleItemRepo;
@@ -23,9 +24,13 @@ export declare class SalesTransactionsService {
     constructor(saleRepo: Repository<Sale>, saleItemRepo: Repository<SaleItem>, saleTypeRepo: Repository<SaleType>, sequenceGenerator: SequenceGeneratorService, stocksService: StocksService, logsService: LogsService, transactionContext: TransactionContextService, outboxService: OutboxService, reportsService: SalesReportsService);
     createSaleType(dto: CreateSaleTypeDto, userId: string): Promise<SaleType>;
     create(dto: CreateSaleDto, userId: string): Promise<Sale>;
-    update(id: string, dto: UpdateSaleDto, userId: string): Promise<Sale>;
-    approveSale(saleId: string, dto: ApproveSaleDto, userId: string): Promise<Sale>;
-    cancelSale(saleId: string, userId: string): Promise<Sale>;
+    update(id: string, dto: UpdateSaleDto, userId: string, user?: JwtPayload): Promise<Sale>;
+    approveSale(saleId: string, dto: ApproveSaleDto, userId: string, user?: JwtPayload): Promise<Sale>;
+    cancelSale(saleId: string, reason: string, userId: string): Promise<Sale>;
+    revertToDraft(saleId: string, userId: string): Promise<Sale>;
     shipSale(saleId: string, dto: ShipSaleDto, userId: string): Promise<Sale>;
-    softDelete(id: string): Promise<void>;
+    private processSaleDeposit;
+    private revertSaleDepositIfExists;
+    softDelete(id: string, userId: string, user?: JwtPayload): Promise<void>;
+    private revertSanalDepoStock;
 }

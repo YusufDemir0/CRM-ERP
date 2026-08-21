@@ -17,6 +17,7 @@ const stocks_service_1 = require("../../inventory/stocks/stocks.service");
 const stock_movement_entity_1 = require("../../inventory/stocks/entities/stock-movement.entity");
 const shipment_entity_1 = require("../../inventory/stocks/entities/shipment.entity");
 const rabbitmq_service_1 = require("../../../common/services/rabbitmq.service");
+const decimal_js_1 = require("decimal.js");
 let InventorySaleListener = InventorySaleListener_1 = class InventorySaleListener {
     constructor(stocksService, dataSource, rabbitMQService) {
         this.stocksService = stocksService;
@@ -58,9 +59,10 @@ let InventorySaleListener = InventorySaleListener_1 = class InventorySaleListene
                 this.logger.warn(`Idempotency: Shipment for sale.id=${sale.id} already exists. Skipping.`);
                 return;
             }
+            const outgoingDeptId = sale.departmentId || departmentId || '1';
             const shipment = manager.create(shipment_entity_1.Shipment, {
                 saleId: sale.id,
-                outgoingDepartmentId: sale.departmentId || departmentId,
+                outgoingDepartmentId: outgoingDeptId,
                 deliveryCity: sale.city || 'İstanbul',
                 deliveryDistrict: sale.district || 'Merkez',
                 deliveryAddress: sale.address || 'Adres belirtilmemiş',
@@ -93,12 +95,15 @@ let InventorySaleListener = InventorySaleListener_1 = class InventorySaleListene
     async handleSaleCancelled(payload) {
         const { sale, userId } = payload;
         await this.dataSource.transaction(async (manager) => {
+            const sanalDept = await manager.query("SELECT id FROM departments WHERE name = 'sanaldepo' LIMIT 1");
+            const sanalDeptId = (sanalDept && sanalDept.length > 0) ? String(sanalDept[0].id) : '1';
             const reserveMovements = await manager.find(stock_movement_entity_1.StockMovement, {
                 where: { referenceType: 'sale', referenceId: sale.id },
                 relations: ['stock']
             });
+            const physicalReserveMovements = reserveMovements.filter(m => m.stock && String(m.stock.departmentId) !== String(sanalDeptId));
             const deptUnreserves = new Map();
-            for (const mov of reserveMovements) {
+            for (const mov of physicalReserveMovements) {
                 const stock = mov.stock;
                 if (!stock)
                     continue;
@@ -107,10 +112,26 @@ let InventorySaleListener = InventorySaleListener_1 = class InventorySaleListene
                 list.push({ itemId: stock.itemId, quantity: mov.quantity });
                 deptUnreserves.set(deptId, list);
             }
-            await this.stocksService.revertStockMovementsByReference('sale', sale.id, manager, userId);
+            if (sale.items && sale.items.length > 0) {
+                for (const item of sale.items) {
+                    await this.stocksService.increaseStock(String(item.itemId), sanalDeptId, item.quantity, item.costPrice || 0, manager, {
+                        type: 'revert',
+                        id: sale.id,
+                        description: `Sanal Stok İptal İadesi: ${sale.code}`
+                    }, userId);
+                }
+            }
             for (const [deptId, items] of deptUnreserves.entries()) {
                 if (items.length > 0) {
-                    await this.stocksService.unreserveStockBulk(items, deptId, manager, userId);
+                    const itemsToRelease = items.map(item => ({
+                        itemId: item.itemId,
+                        quantity: new decimal_js_1.Decimal(item.quantity).toNumber()
+                    }));
+                    await this.stocksService.releaseStockBulk(itemsToRelease, deptId, manager, {
+                        type: 'revert',
+                        id: sale.id,
+                        description: `Sipariş İptali Rezervasyon İadesi: ${sale.code}`
+                    }, userId);
                 }
             }
         });

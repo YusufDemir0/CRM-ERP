@@ -15,5 +15,5 @@ export declare class StockMovementHelper {
         userId?: string;
         manager: EntityManager;
     }): StockMovement;
-    static validateStockLimit(itemId: string, departmentId: string, currentQty: Decimal, delta: Decimal): void;
+    static validateStockLimit(itemId: string, departmentId: string, currentQty: Decimal, delta: Decimal, allowNegative?: boolean): void;
 }

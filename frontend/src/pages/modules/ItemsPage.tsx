@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { confirmDialog } from '../../utils/confirmDialog';
 import { Item } from '../../types';
 import { useQuickCreateStore } from '../../store/useQuickCreateStore';
-import { DataTable } from '../../components/common/DataTable';
+import { DataTable, Column } from '../../components/common/DataTable';
 import { useSort } from '../../hooks/useSort';
 import { useDeferredValue } from 'react';
 import { queryKeys } from '../../services/queryKeys';
@@ -17,7 +17,14 @@ import { ItemHeader } from './Items/ItemHeader';
 import { getItemColumns } from './Items/ItemColumns';
 import { BulkImportModal } from '../../components/modals/BulkImportModal';
 
+import { useAuth } from '../../hooks/useAuth';
+
 export default function ItemsPage() {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('INVENTORY_CREATE');
+  const canEdit = hasPermission('INVENTORY_EDIT');
+  const canDelete = hasPermission('INVENTORY_DELETE');
+
   const queryClient = useQueryClient();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -35,6 +42,8 @@ export default function ItemsPage() {
   };
 
   const [filters] = useState<Record<string, string | number | (string | number)[]>>({});
+  const filterUnit = searchParams.get('unit') || '';
+  const setFilterUnit = (u: string) => updateParams({ unit: u, page: 1 });
 
   const updateParams = useCallback((newParams: Record<string, string | number | undefined>) => {
     setSearchParams(prev => {
@@ -157,7 +166,20 @@ export default function ItemsPage() {
       toggleMutation.mutate({ id, state: currentState });
     }
   };
-  const columns = useMemo(() => getItemColumns((_id, _qty) => ({ isOver: false, totalAvailable: 0 })), []);
+  const columns = useMemo<Column<Item>[]>(() => [
+    ...getItemColumns((_id, _qty) => ({ isOver: false, totalAvailable: 0 }))
+  ], []);
+
+  const filteredData = useMemo(() => {
+    let list = sortedData;
+    if (filterUnit) {
+      list = list.filter(item => item.quantityType?.abbreviation === filterUnit);
+    }
+    return list.map((item, index) => ({
+      ...item,
+      seqNo: (page - 1) * limit + index + 1
+    }));
+  }, [sortedData, filterUnit, page, limit]);
 
   useEffect(() => {
     const id = searchParams.get('id');
@@ -190,6 +212,7 @@ export default function ItemsPage() {
         openCreate={openCreate} 
         handleFormSuccess={handleFormSuccess} 
         onImport={() => setIsImportModalOpen(true)}
+        canCreate={canCreate}
       />
 
       {isImportModalOpen && (
@@ -202,17 +225,17 @@ export default function ItemsPage() {
       )}
 
       <div className="flex flex-col gap-4">
-        <DataTable<Item>
-          data={sortedData}
+        <DataTable<any>
+          data={filteredData}
           columns={columns}
           isLoading={loading}
           sortConfigs={sortConfigs}
           onSort={toggleSort}
           getRowKey={(item) => item.id}
           hasState={(item) => item.state === 1}
-          onEdit={handleEdit}
-          onArchive={(item) => toggleState(item.id, 1)}
-          onRestore={(item) => toggleState(item.id, 0)}
+          onEdit={canEdit ? handleEdit : undefined}
+          onArchive={canDelete ? (item) => toggleState(item.id, 1) : undefined}
+          onRestore={canDelete ? (item) => toggleState(item.id, 0) : undefined}
           virtualized={true}
           
           // Integrated Search & Pagination

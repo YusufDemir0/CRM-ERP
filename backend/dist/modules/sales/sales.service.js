@@ -26,14 +26,17 @@ let SalesService = SalesService_1 = class SalesService {
     async findAll(query, user) {
         return this.reportsService.findAll(query, user);
     }
+    async findMinimalLookup(user) {
+        return this.reportsService.findMinimalLookup(user);
+    }
     async findOne(id) {
         return this.reportsService.findOne(id);
     }
     async getStatus() {
         return this.reportsService.getStatus();
     }
-    async exportToExcel(query, user, res) {
-        return this.reportsService.exportToExcel(query, user, res);
+    async exportToExcel(query, user) {
+        return this.reportsService.exportToExcel(query, user);
     }
     async createSaleType(dto, userId) {
         return this.transactionsService.createSaleType(dto, userId);
@@ -41,20 +44,23 @@ let SalesService = SalesService_1 = class SalesService {
     async create(dto, userId) {
         return this.transactionsService.create(dto, userId);
     }
-    async update(id, dto, userId) {
-        return this.transactionsService.update(id, dto, userId);
+    async update(id, dto, userId, user) {
+        return this.transactionsService.update(id, dto, userId, user);
     }
-    async approveSale(saleId, dto, userId) {
-        return this.transactionsService.approveSale(saleId, dto, userId);
+    async approveSale(saleId, dto, userId, user) {
+        return this.transactionsService.approveSale(saleId, dto, userId, user);
     }
-    async cancelSale(saleId, userId) {
-        return this.transactionsService.cancelSale(saleId, userId);
+    async cancelSale(saleId, reason, userId) {
+        return this.transactionsService.cancelSale(saleId, reason, userId);
+    }
+    async revertToDraft(saleId, userId) {
+        return this.transactionsService.revertToDraft(saleId, userId);
     }
     async shipSale(saleId, dto, userId) {
         return this.transactionsService.shipSale(saleId, dto, userId);
     }
-    async softDelete(id) {
-        return this.transactionsService.softDelete(id);
+    async softDelete(id, userId, user) {
+        return this.transactionsService.softDelete(id, userId, user);
     }
 };
 exports.SalesService = SalesService;

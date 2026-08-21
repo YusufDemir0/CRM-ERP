@@ -104,7 +104,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ onClose, onSuc
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in">
+    <div className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in">
       <div className="bg-white w-full max-w-5xl rounded-[2.5rem] shadow-2xl overflow-hidden border border-white/20 flex flex-col md:flex-row max-h-[90vh]">
         
         {/* Left Side: Upload & Results */}

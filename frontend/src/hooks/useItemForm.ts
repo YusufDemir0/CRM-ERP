@@ -88,69 +88,77 @@ export const useItemForm = (
     return () => controller.abort();
   }, [loadLookups]);
 
+  // Memoize initialData primitive key dependencies
+  const initialName = initialData?.name;
+  const initialTypeId = initialData?.itemTypeId || initialData?.itemType?.id;
+  const initialGroupId = initialData?.itemCodeGroupId || initialData?.itemCodeGroup?.id;
+  const initialQtyId = initialData?.quantityTypeId || initialData?.quantityType?.id;
+  const initialCurId = initialData?.currencyId || initialData?.currency?.id;
+  const initialKdv = initialData?.kdv;
+  const initialPurchasePrice = initialData?.purchasePrice;
+  const initialSalePrice = initialData?.salePrice;
+  const initialCriticalLimit = initialData?.criticalLimit;
+  const initialImage = initialData?.image;
+  const initialDescription = initialData?.description;
+  const initialNotes = initialData?.notes;
+
   // Re-apply initial values once lookups are loaded
   useEffect(() => {
-    if (lookups.itemTypes.length > 0 && initialData?.itemTypeId) {
-      setValue('itemTypeId', String(initialData.itemTypeId));
-    } else if (lookups.itemTypes.length > 0 && initialData?.itemType?.id) {
-      setValue('itemTypeId', String(initialData.itemType.id));
+    if (lookups.itemTypes.length > 0 && initialTypeId) {
+      setValue('itemTypeId', String(initialTypeId));
     }
-  }, [lookups.itemTypes, initialData, setValue]);
+  }, [lookups.itemTypes, initialTypeId, setValue]);
 
   useEffect(() => {
-    if (lookups.itemCodeGroups.length > 0 && initialData?.itemCodeGroupId) {
-      setValue('itemCodeGroupId', String(initialData.itemCodeGroupId));
-    } else if (lookups.itemCodeGroups.length > 0 && initialData?.itemCodeGroup?.id) {
-      setValue('itemCodeGroupId', String(initialData.itemCodeGroup.id));
+    if (lookups.itemCodeGroups.length > 0 && initialGroupId) {
+      setValue('itemCodeGroupId', String(initialGroupId));
     }
-  }, [lookups.itemCodeGroups, initialData, setValue]);
+  }, [lookups.itemCodeGroups, initialGroupId, setValue]);
 
   useEffect(() => {
-    if (lookups.quantityTypes.length > 0 && initialData?.quantityTypeId) {
-      setValue('quantityTypeId', String(initialData.quantityTypeId));
-    } else if (lookups.quantityTypes.length > 0 && initialData?.quantityType?.id) {
-      setValue('quantityTypeId', String(initialData.quantityType.id));
+    if (lookups.quantityTypes.length > 0 && initialQtyId) {
+      setValue('quantityTypeId', String(initialQtyId));
     }
-  }, [lookups.quantityTypes, initialData, setValue]);
+  }, [lookups.quantityTypes, initialQtyId, setValue]);
 
   useEffect(() => {
-    if (lookups.currencies.length > 0 && initialData?.currencyId) {
-      setValue('currencyId', String(initialData.currencyId));
-    } else if (lookups.currencies.length > 0 && initialData?.currency?.id) {
-      setValue('currencyId', String(initialData.currency.id));
+    if (lookups.currencies.length > 0 && initialCurId) {
+      setValue('currencyId', String(initialCurId));
     }
-  }, [lookups.currencies, initialData, setValue]);
+  }, [lookups.currencies, initialCurId, setValue]);
 
   // Handle initialData changes for better hydration
   useEffect(() => {
-    if (initialData && editingId) {
-      (Object.entries(initialData) as [keyof ItemFormData | string, unknown][]).forEach(([key, value]) => {
-        if (value === undefined || value === null) return;
-
-        if (['itemTypeId', 'itemCodeGroupId', 'currencyId', 'quantityTypeId'].includes(key)) {
-          setValue(key as keyof ItemFormData, String(value));
-        } else if (key === 'itemType' && typeof value === 'object') {
-          setValue('itemTypeId', String((value as { id: string | number }).id));
-        } else if (key === 'itemCodeGroup' && typeof value === 'object') {
-          setValue('itemCodeGroupId', String((value as { id: string | number }).id));
-        } else if (key === 'quantityType' && typeof value === 'object') {
-          setValue('quantityTypeId', String((value as { id: string | number }).id));
-        } else if (key === 'currency' && typeof value === 'object') {
-          setValue('currencyId', String((value as { id: string | number }).id));
-        } else if (key === 'kdv') {
-          setValue('kdv', String(value));
-        } else if (key === 'purchasePrice') {
-          setValue('purchasePrice', String(value));
-        } else if (key === 'salePrice') {
-          setValue('salePrice', String(value));
-        } else if (key === 'criticalLimit') {
-          setValue('criticalLimit', String(value));
-        } else if (['name', 'image', 'description', 'notes'].includes(key)) {
-          setValue(key as keyof ItemFormData, String(value));
-        }
-      });
+    if (editingId) {
+      if (initialName !== undefined) setValue('name', String(initialName));
+      if (initialTypeId !== undefined) setValue('itemTypeId', String(initialTypeId));
+      if (initialGroupId !== undefined) setValue('itemCodeGroupId', String(initialGroupId));
+      if (initialQtyId !== undefined) setValue('quantityTypeId', String(initialQtyId));
+      if (initialCurId !== undefined) setValue('currencyId', String(initialCurId));
+      if (initialKdv !== undefined) setValue('kdv', String(initialKdv));
+      if (initialPurchasePrice !== undefined) setValue('purchasePrice', String(initialPurchasePrice));
+      if (initialSalePrice !== undefined) setValue('salePrice', String(initialSalePrice));
+      if (initialCriticalLimit !== undefined) setValue('criticalLimit', String(initialCriticalLimit));
+      if (initialImage !== undefined) setValue('image', String(initialImage));
+      if (initialDescription !== undefined) setValue('description', String(initialDescription));
+      if (initialNotes !== undefined) setValue('notes', String(initialNotes));
     }
-  }, [initialData, editingId, setValue]);
+  }, [
+    editingId,
+    initialName,
+    initialTypeId,
+    initialGroupId,
+    initialQtyId,
+    initialCurId,
+    initialKdv,
+    initialPurchasePrice,
+    initialSalePrice,
+    initialCriticalLimit,
+    initialImage,
+    initialDescription,
+    initialNotes,
+    setValue,
+  ]);
 
   // Default currency logic
   useEffect(() => {

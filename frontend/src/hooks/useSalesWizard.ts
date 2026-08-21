@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { partiesAPI, accountsAPI, salesAPI, itemsAPI, staffAPI, departmentsAPI } from '../services/api';
-import { Party, Item, SaleType, Account, Staff, Department } from '../types';
+import { Party, Item, SaleType, Account, Staff, Department, Sale, CreateSaleDto } from '../types';
 import { useSalesWizardStore } from '../store/useSalesWizardStore';
 import { queryKeys } from '../services/queryKeys';
 import toast from 'react-hot-toast';
@@ -26,7 +26,7 @@ export const useSalesWizard = (onCompleted: () => void) => {
 
   const { data: accounts = [] } = useQuery({
     queryKey: queryKeys.accounts.lookup,
-    queryFn: () => accountsAPI.getAll({ limit: 200 }).then(r => r.data.data),
+    queryFn: () => accountsAPI.getAll({ limit: 200, ignorePermissionRestrictions: 'true' }).then(r => r.data.data),
     staleTime: 10 * 60 * 1000,
   });
 
@@ -38,7 +38,7 @@ export const useSalesWizard = (onCompleted: () => void) => {
 
   const { data: items = [] } = useQuery({
     queryKey: queryKeys.items.lookup,
-    queryFn: () => itemsAPI.getAll({ limit: 500 }).then(r => r.data.data),
+    queryFn: () => itemsAPI.getAll({ limit: 5000, state: 1 }).then(r => r.data.data),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -92,11 +92,14 @@ export const useSalesWizard = (onCompleted: () => void) => {
         partyId: data.customerId ? String(data.customerId) : "",
         staffId: data.staffId ? String(data.staffId) : undefined,
         phone: data.phone,
-        address: `${data.address || ''} ${data.district || ''}`.trim(),
+        address: data.address || '',
+        city: data.cityId || '',
+        district: data.district || '',
         deliveryDate: data.deliveryDate,
         currencyId: String(currencyId),
         deposit: String(data.deposit || 0),
-        discountAmount: calculatedDiscount.toString(),
+        discountAmount: '0',
+        representativePrice: String(data.representativePrice || 0),
         commercialAccountId: data.paymentAccountId ? String(data.paymentAccountId) : undefined,
         taxNumber: data.taxId,
         notes: data.description,
@@ -118,15 +121,20 @@ export const useSalesWizard = (onCompleted: () => void) => {
         }))
       };
       
-      await salesAPI.create(payload);
+      if (store.draftData.id) {
+        await salesAPI.update(store.draftData.id, payload as unknown as Partial<Sale>);
+        toast.success("Satış başarıyla güncellendi.");
+      } else {
+        await salesAPI.create(payload as unknown as CreateSaleDto);
+        toast.success("Satış başarıyla oluşturuldu.");
+      }
       invalidateAfterSale(queryClient);
       queryClient.refetchQueries({ queryKey: ['parties'] });
-      toast.success("Satış başarıyla oluşturuldu.");
       store.reset();
       onCompleted();
-    } catch (error: any) {
-      console.error('Sale Creation Error:', error.response?.data || error);
-      toast.error(error.response?.data?.message || "Satış kaydedilirken hata oluştu.");
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err.response?.data?.message || "Satış kaydedilirken hata oluştu.");
     } finally {
       setLoading(false);
     }
@@ -135,7 +143,7 @@ export const useSalesWizard = (onCompleted: () => void) => {
   return useMemo(() => ({
     customers,
     accounts,
-    staff: filteredStaff,
+    staff: staff,
     items,
     saleTypes,
     department,

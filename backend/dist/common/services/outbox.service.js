@@ -21,12 +21,14 @@ const nestjs_cls_1 = require("nestjs-cls");
 const event_emitter_1 = require("@nestjs/event-emitter");
 const outbox_event_entity_1 = require("../entities/outbox-event.entity");
 const transaction_context_service_1 = require("./transaction-context.service");
+const cache_manager_1 = require("@nestjs/cache-manager");
 let OutboxService = OutboxService_1 = class OutboxService {
-    constructor(outboxRepo, transactionContext, cls, eventEmitter) {
+    constructor(outboxRepo, transactionContext, cls, eventEmitter, cacheManager) {
         this.outboxRepo = outboxRepo;
         this.transactionContext = transactionContext;
         this.cls = cls;
         this.eventEmitter = eventEmitter;
+        this.cacheManager = cacheManager;
         this.logger = new common_1.Logger(OutboxService_1.name);
     }
     async saveEvent(params) {
@@ -42,18 +44,36 @@ let OutboxService = OutboxService_1 = class OutboxService {
         });
         const saved = await activeManager.save(outbox_event_entity_1.OutboxEvent, event);
         setImmediate(() => {
-            this.eventEmitter.emit('outbox.new-event', { eventId: saved.id });
+            this.notifyWorker(saved.id);
         });
         return saved;
+    }
+    notifyWorker(eventId) {
+        try {
+            this.eventEmitter.emit('outbox.new-event', { eventId });
+            if (this.cacheManager) {
+                const cm = this.cacheManager;
+                const store = cm.store || cm.stores?.[0];
+                const redisClient = store?.client;
+                if (redisClient && typeof redisClient.publish === 'function') {
+                    redisClient.publish('outbox:events', JSON.stringify({ eventId })).catch(() => { });
+                }
+            }
+        }
+        catch (err) {
+            this.logger.debug(`Worker notification offloaded to fallback poll: ${err?.message || err}`);
+        }
     }
 };
 exports.OutboxService = OutboxService;
 exports.OutboxService = OutboxService = OutboxService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(outbox_event_entity_1.OutboxEvent)),
+    __param(4, (0, common_1.Optional)()),
+    __param(4, (0, common_1.Inject)(cache_manager_1.CACHE_MANAGER)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         transaction_context_service_1.TransactionContextService,
         nestjs_cls_1.ClsService,
-        event_emitter_1.EventEmitter2])
+        event_emitter_1.EventEmitter2, Object])
 ], OutboxService);
 //# sourceMappingURL=outbox.service.js.map

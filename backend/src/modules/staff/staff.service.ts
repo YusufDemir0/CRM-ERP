@@ -15,6 +15,7 @@ export class StaffService {
   async create(createStaffDto: CreateStaffDto, userId: string) {
     const staff = this.staffRepository.create({
       ...createStaffDto,
+      unit: createStaffDto.unit || 'MAĞAZA',
       entryDate: createStaffDto.entryDate || new Date().toISOString().split('T')[0],
       createdBy: userId,
       updatedBy: userId,

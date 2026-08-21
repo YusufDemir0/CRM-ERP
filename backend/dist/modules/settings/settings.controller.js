@@ -16,6 +16,7 @@ exports.SettingsController = void 0;
 const common_1 = require("@nestjs/common");
 const settings_service_1 = require("./settings.service");
 const setting_dto_1 = require("./dto/setting.dto");
+const permissions_decorator_1 = require("../../common/decorators/permissions.decorator");
 let SettingsController = class SettingsController {
     constructor(settingsService) {
         this.settingsService = settingsService;
@@ -36,12 +37,14 @@ let SettingsController = class SettingsController {
 exports.SettingsController = SettingsController;
 __decorate([
     (0, common_1.Get)(),
+    (0, permissions_decorator_1.RequirePermissions)('SYSTEM_VIEW'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], SettingsController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':key'),
+    (0, permissions_decorator_1.RequirePermissions)('SYSTEM_VIEW'),
     __param(0, (0, common_1.Param)('key')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -49,6 +52,7 @@ __decorate([
 ], SettingsController.prototype, "findByKey", null);
 __decorate([
     (0, common_1.Put)(':key'),
+    (0, permissions_decorator_1.RequirePermissions)('SYSTEM_EDIT_INFO'),
     __param(0, (0, common_1.Param)('key')),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -57,6 +61,7 @@ __decorate([
 ], SettingsController.prototype, "update", null);
 __decorate([
     (0, common_1.Put)(),
+    (0, permissions_decorator_1.RequirePermissions)('SYSTEM_EDIT_INFO'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [setting_dto_1.BulkUpdateSettingsDto]),

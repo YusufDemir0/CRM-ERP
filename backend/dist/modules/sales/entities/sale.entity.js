@@ -22,6 +22,7 @@ const decimal_transformer_1 = require("../../../common/transformers/decimal.tran
 const staff_entity_1 = require("../../staff/entities/staff.entity");
 const commercial_account_entity_1 = require("../../finance/accounts/entities/commercial-account.entity");
 const department_entity_1 = require("../../departments/entities/department.entity");
+const user_entity_1 = require("../../auth/entities/user.entity");
 let Sale = class Sale extends base_entity_1.BaseEntity {
     constructor() {
         super(...arguments);
@@ -176,6 +177,18 @@ __decorate([
     __metadata("design:type", Number)
 ], Sale.prototype, "installments", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ name: 'cancelled_by_id', type: 'bigint', nullable: true }),
+    __metadata("design:type", Object)
+], Sale.prototype, "cancelledById", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'cancelled_at', type: 'timestamp', nullable: true }),
+    __metadata("design:type", Object)
+], Sale.prototype, "cancelledAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ name: 'cancel_reason', type: 'text', nullable: true }),
+    __metadata("design:type", Object)
+], Sale.prototype, "cancelReason", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => party_entity_1.Party),
     (0, typeorm_1.JoinColumn)({ name: 'party_id' }),
     __metadata("design:type", party_entity_1.Party)
@@ -205,6 +218,11 @@ __decorate([
     (0, typeorm_1.JoinColumn)({ name: 'department_id' }),
     __metadata("design:type", Object)
 ], Sale.prototype, "department", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: true }),
+    (0, typeorm_1.JoinColumn)({ name: 'cancelled_by_id' }),
+    __metadata("design:type", Object)
+], Sale.prototype, "cancelledBy", void 0);
 __decorate([
     (0, typeorm_1.OneToMany)(() => sale_item_entity_1.SaleItem, (si) => si.sale),
     __metadata("design:type", Array)

@@ -74,6 +74,7 @@ let StocksTransactionsService = StocksTransactionsService_1 = class StocksTransa
         if (!itemIds || itemIds.length === 0)
             return;
         const uniqueIds = Array.from(new Set(itemIds));
+        const placeholders = uniqueIds.map(() => '?').join(',');
         await manager.query(`
       UPDATE items 
       SET total_stock = (
@@ -81,8 +82,8 @@ let StocksTransactionsService = StocksTransactionsService_1 = class StocksTransa
         FROM stocks 
         WHERE stocks.item_id = items.id
       )
-      WHERE items.id IN (${uniqueIds.join(',')})
-    `);
+      WHERE items.id IN (${placeholders})
+    `, uniqueIds);
     }
     async decreaseStock(itemId, departmentId, quantity, manager = this.transactionContext.manager, referenceInfo, userId) {
         const qty = new decimal_js_1.Decimal(quantity);
@@ -144,6 +145,11 @@ let StocksTransactionsService = StocksTransactionsService_1 = class StocksTransa
             reducedItems.set(item.itemId, (reducedItems.get(item.itemId) || new decimal_js_1.Decimal(0)).add(q));
         }
         const uniqueItemIds = Array.from(reducedItems.keys()).sort();
+        for (const itemId of uniqueItemIds) {
+            await manager.query(`INSERT INTO \`stocks\` (\`item_id\`, \`department_id\`, \`quantity\`, \`reserved_quantity\`, \`state\`)
+         VALUES (?, ?, 0, 0, 1)
+         ON DUPLICATE KEY UPDATE \`item_id\` = \`item_id\``, [itemId, departmentId]);
+        }
         const stocks = await manager.find(stock_entity_1.Stock, {
             where: { itemId: (0, typeorm_2.In)(uniqueItemIds), departmentId },
             lock: { mode: 'pessimistic_write' }
@@ -153,17 +159,10 @@ let StocksTransactionsService = StocksTransactionsService_1 = class StocksTransa
         const movements = [];
         for (const itemId of uniqueItemIds) {
             const qty = reducedItems.get(itemId);
-            let stock = stockMap.get(itemId);
-            if (!stock) {
-                stock = manager.create(stock_entity_1.Stock, { itemId, departmentId, quantity: new decimal_js_1.Decimal(0), reservedQuantity: new decimal_js_1.Decimal(0) });
-                stock = await manager.save(stock_entity_1.Stock, stock);
-            }
+            const stock = stockMap.get(itemId);
             const qBefore = new decimal_js_1.Decimal(stock.quantity);
             stock.reservedQuantity = new decimal_js_1.Decimal(stock.reservedQuantity || 0).add(qty);
             stock.updatedBy = userId || null;
-            if (!stocks.find((s) => s.id === stock.id)) {
-                stocks.push(stock);
-            }
             movements.push(manager.create(stock_movement_entity_1.StockMovement, {
                 stockId: stock.id,
                 quantity: qty,
@@ -264,9 +263,24 @@ let StocksTransactionsService = StocksTransactionsService_1 = class StocksTransa
         const movements = [];
         for (const itemId of uniqueItemIds) {
             const qty = reducedItems.get(itemId);
-            const stock = stockMap.get(itemId);
+            let stock = stockMap.get(itemId);
             if (!stock) {
-                throw new common_1.BadRequestException(`Stok kaydı bulunamadı. Ürün ID: ${itemId}`);
+                stock = manager.create(stock_entity_1.Stock, {
+                    itemId,
+                    departmentId,
+                    quantity: new decimal_js_1.Decimal(0),
+                    reservedQuantity: new decimal_js_1.Decimal(0),
+                    createdBy: userId || null
+                });
+                stock = await manager.save(stock_entity_1.Stock, stock);
+                stock = await manager.findOne(stock_entity_1.Stock, {
+                    where: { id: stock.id },
+                    relations: ['item'],
+                    lock: { mode: 'pessimistic_write' }
+                });
+                if (!stock) {
+                    throw new common_1.BadRequestException(`Stok kaydı oluşturulamadı. Ürün ID: ${itemId}`);
+                }
             }
             stock_movement_helper_1.StockMovementHelper.validateStockLimit(itemId, departmentId, new decimal_js_1.Decimal(stock.quantity), qty);
             const quantityBefore = new decimal_js_1.Decimal(stock.quantity);

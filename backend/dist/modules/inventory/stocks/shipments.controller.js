@@ -29,13 +29,8 @@ let ShipmentsController = class ShipmentsController {
     getMetrics() {
         return this.shipmentsService.getMetrics();
     }
-    async exportExcel(query, res) {
-        const file = await this.shipmentsService.exportToExcel(query);
-        res.set({
-            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition': 'attachment; filename="sevkiyat_havuzu.xlsx"',
-        });
-        file.getStream().pipe(res);
+    async exportExcel(query) {
+        return this.shipmentsService.exportToExcel(query);
     }
     findOne(id) {
         return this.shipmentsService.findOne(id);
@@ -69,10 +64,11 @@ __decorate([
 __decorate([
     (0, common_1.Get)('export-excel'),
     (0, permissions_decorator_1.RequirePermissions)('SHIPMENT_VIEW'),
+    (0, common_1.Header)('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+    (0, common_1.Header)('Content-Disposition', 'attachment; filename="sevkiyat_havuzu.xlsx"'),
     __param(0, (0, common_1.Query)()),
-    __param(1, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [shipment_dto_1.ShipmentsQueryDto, Object]),
+    __metadata("design:paramtypes", [shipment_dto_1.ShipmentsQueryDto]),
     __metadata("design:returntype", Promise)
 ], ShipmentsController.prototype, "exportExcel", null);
 __decorate([

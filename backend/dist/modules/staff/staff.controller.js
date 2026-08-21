@@ -18,6 +18,7 @@ const staff_service_1 = require("./staff.service");
 const create_staff_dto_1 = require("./dto/create-staff.dto");
 const update_staff_dto_1 = require("./dto/update-staff.dto");
 const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
+const permissions_decorator_1 = require("../../common/decorators/permissions.decorator");
 let StaffController = class StaffController {
     constructor(staffService) {
         this.staffService = staffService;
@@ -44,6 +45,7 @@ let StaffController = class StaffController {
 exports.StaffController = StaffController;
 __decorate([
     (0, common_1.Post)(),
+    (0, permissions_decorator_1.RequirePermissions)('USERS_CREATE'),
     __param(0, (0, common_1.Body)()),
     __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
@@ -52,6 +54,7 @@ __decorate([
 ], StaffController.prototype, "create", null);
 __decorate([
     (0, common_1.Get)(),
+    (0, permissions_decorator_1.RequirePermissions)('USERS_VIEW_DEPT', 'USERS_VIEW_ALL'),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
@@ -59,6 +62,7 @@ __decorate([
 ], StaffController.prototype, "findAll", null);
 __decorate([
     (0, common_1.Get)(':id'),
+    (0, permissions_decorator_1.RequirePermissions)('USERS_VIEW_DEPT', 'USERS_VIEW_ALL'),
     __param(0, (0, common_1.Param)('id')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -66,6 +70,7 @@ __decorate([
 ], StaffController.prototype, "findOne", null);
 __decorate([
     (0, common_1.Put)(':id'),
+    (0, permissions_decorator_1.RequirePermissions)('USERS_EDIT'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, common_1.Request)()),
@@ -75,6 +80,7 @@ __decorate([
 ], StaffController.prototype, "update", null);
 __decorate([
     (0, common_1.Patch)(':id/toggle-active'),
+    (0, permissions_decorator_1.RequirePermissions)('USERS_LOCK_ACCOUNT'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
@@ -83,6 +89,7 @@ __decorate([
 ], StaffController.prototype, "toggleActive", null);
 __decorate([
     (0, common_1.Delete)(':id'),
+    (0, permissions_decorator_1.RequirePermissions)('USERS_DELETE'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),

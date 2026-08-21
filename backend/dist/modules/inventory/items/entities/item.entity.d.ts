@@ -5,6 +5,7 @@ import { ItemCodeGroup } from './item-code-group.entity';
 import { Party } from '../../../parties/entities/party.entity';
 import { Currency } from '../../../finance/currencies/entities/currency.entity';
 import { QuantityType } from './quantity-type.entity';
+import { Stock } from '../../stocks/entities/stock.entity';
 export declare class Item extends BaseEntity {
     name: string;
     itemTypeId: string;
@@ -30,4 +31,5 @@ export declare class Item extends BaseEntity {
     provider: Party;
     currency: Currency;
     quantityType: QuantityType;
+    stocks: Stock[];
 }

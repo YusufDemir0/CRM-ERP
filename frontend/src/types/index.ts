@@ -46,7 +46,15 @@ export interface Staff extends BaseEntity {
   department?: Department;
   isActive: boolean;
   tckn?: string;
+  unit?: string;
 }
+
+export interface Vehicle extends BaseEntity {
+  name: string;
+  plate: string;
+  description?: string | null;
+}
+
 
 export interface CreateStaffDto {
   firstName: string;
@@ -56,6 +64,7 @@ export interface CreateStaffDto {
   departmentId: string;
   isActive?: boolean;
   tckn?: string;
+  unit?: string;
 }
 
 export type UpdateStaffDto = Partial<CreateStaffDto>;
@@ -115,6 +124,7 @@ export interface Account extends BaseEntity {
   currency?: Currency;
   criticalLimit: string; // DB-03: Decimal → JSON string
   description: string | null;
+  balance?: string;
 }
 
 export interface ItemType extends BaseEntity {
@@ -157,6 +167,7 @@ export interface Item extends BaseEntity {
   notes?: string | null;
   providerId?: string | null;
   provider?: Party;
+  stocks?: Stock[];
 }
 
 export interface SaleType extends BaseEntity {
@@ -193,7 +204,19 @@ export interface Sale extends BaseEntity {
   paymentType?: string | null;
   maturityDays?: number;
   installments?: number;
+  staffId?: string | null;
+  staff?: Staff;
+  commercialAccountId?: string | null;
+  commercialAccount?: Account;
+  departmentId?: string | null;
+  department?: Department;
+  city?: string | null;
+  district?: string | null;
   items?: SaleItem[];
+  cancelReason?: string | null;
+  cancelledAt?: string | null;
+  cancelledById?: string | null;
+  cancelledBy?: User | null;
 }
 
 export interface SaleItem extends BaseEntity {
@@ -401,15 +424,26 @@ export interface Note extends BaseEntity {
   title: string;
   content: string;
   color?: string;
+  isPinned: boolean;
+  status?: string;
+  userId?: string;
 }
 
 export interface CreateNoteDto {
-  title?: string;
+  title: string;
   content: string;
   color?: string;
+  isPinned?: boolean;
+  status?: string;
 }
 
-export type UpdateNoteDto = Partial<CreateNoteDto>;
+export interface UpdateNoteDto {
+  title?: string;
+  content?: string;
+  color?: string;
+  isPinned?: boolean;
+  status?: string;
+}
 
 export interface CreateSaleItemDto {
   itemId: string | number;

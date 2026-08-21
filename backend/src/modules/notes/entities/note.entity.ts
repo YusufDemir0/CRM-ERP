@@ -23,6 +23,9 @@ export class UserNote {
   @Column({ name: 'is_pinned', type: 'tinyint', width: 1, default: 0 })
   isPinned: boolean;
 
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  status: string;
+
   @Column({ type: 'tinyint', width: 1, default: 1 })
   state: number;
 

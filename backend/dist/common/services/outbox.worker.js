@@ -24,18 +24,35 @@ const typeorm_2 = require("typeorm");
 const event_emitter_1 = require("@nestjs/event-emitter");
 const outbox_event_entity_1 = require("../entities/outbox-event.entity");
 const rabbitmq_service_1 = require("./rabbitmq.service");
+const cache_manager_1 = require("@nestjs/cache-manager");
 const dayjs_1 = __importDefault(require("dayjs"));
 let OutboxWorker = OutboxWorker_1 = class OutboxWorker {
-    constructor(outboxRepo, rabbitmq, eventEmitter) {
+    constructor(outboxRepo, rabbitmq, eventEmitter, cacheManager) {
         this.outboxRepo = outboxRepo;
         this.rabbitmq = rabbitmq;
         this.eventEmitter = eventEmitter;
+        this.cacheManager = cacheManager;
         this.logger = new common_1.Logger(OutboxWorker_1.name);
         this.isProcessing = false;
         this.processingPromise = null;
     }
     onModuleInit() {
-        this.logger.log('OutboxWorker initialized — listening for outbox.new-event');
+        this.logger.log('OutboxWorker initialized — listening for outbox.new-event and Redis signals');
+        try {
+            if (this.cacheManager) {
+                const cm = this.cacheManager;
+                const store = cm.store || cm.stores?.[0];
+                const redisClient = store?.client;
+                if (redisClient && typeof redisClient.subscribe === 'function') {
+                    redisClient.subscribe('outbox:events', () => {
+                        this.onNewEvent().catch(() => { });
+                    });
+                }
+            }
+        }
+        catch (e) {
+            this.logger.debug(`Redis pub/sub subscription skipped: ${e?.message || e}`);
+        }
     }
     async onNewEvent() {
         if (this.isProcessing)
@@ -123,7 +140,9 @@ let OutboxWorker = OutboxWorker_1 = class OutboxWorker {
             .update(outbox_event_entity_1.OutboxEvent)
             .set({ status: outbox_event_entity_1.OutboxStatus.PENDING })
             .where('status = :status', { status: outbox_event_entity_1.OutboxStatus.PROCESSING })
-            .andWhere('updatedAt < :threshold', { threshold: staleThreshold })
+            .andWhere('(processedAt < :threshold OR (processedAt IS NULL AND createdAt < :threshold))', {
+            threshold: staleThreshold,
+        })
             .execute();
         if (result.affected && result.affected > 0) {
             this.logger.warn(`Recovered ${result.affected} stale PROCESSING events back to PENDING.`);
@@ -168,8 +187,10 @@ __decorate([
 exports.OutboxWorker = OutboxWorker = OutboxWorker_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(outbox_event_entity_1.OutboxEvent)),
+    __param(3, (0, common_1.Optional)()),
+    __param(3, (0, common_1.Inject)(cache_manager_1.CACHE_MANAGER)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         rabbitmq_service_1.RabbitMQService,
-        event_emitter_1.EventEmitter2])
+        event_emitter_1.EventEmitter2, Object])
 ], OutboxWorker);
 //# sourceMappingURL=outbox.worker.js.map

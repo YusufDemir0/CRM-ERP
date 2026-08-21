@@ -10,4 +10,5 @@ export declare class CommercialAccount extends BaseEntity {
     criticalLimit: Decimal;
     description: string | null;
     currency: Currency;
+    balance?: string;
 }

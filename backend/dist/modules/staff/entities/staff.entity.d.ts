@@ -16,6 +16,7 @@ export declare class Staff {
     tckn: string | null;
     departmentId: string;
     isActive: boolean;
+    unit: string | null;
     department: Department;
     creator: User;
     updator: User;

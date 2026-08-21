@@ -13,6 +13,7 @@ import { Role, Permission } from '../../types';
 import { useSort } from '../../hooks/useSort';
 import { useDeferredValue } from 'react';
 import { queryKeys } from '../../services/queryKeys';
+import { useAuth } from '../../hooks/useAuth';
 
 const MODULE_TRANSLATIONS: Record<string, string> = {
   'inventory': 'Stok ve Envanter',
@@ -151,6 +152,11 @@ const ModuleSection = memo(({
 });
 
 export function RolesPage() {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('ROLES_CREATE');
+  const canEdit = hasPermission('ROLES_EDIT');
+  const canDelete = hasPermission('ROLES_DELETE');
+
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -411,11 +417,13 @@ export function RolesPage() {
               </button>
             ))}
           </div>
-          <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
-            setEditingId(null); setFormData({ name: '', permissionIds:[] }); setIsModalOpen(true);
-          }}>
-            <FiPlus size={20} /> Yeni Rol Tanımla
-          </button>
+          {canCreate && (
+            <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
+              setEditingId(null); setFormData({ name: '', permissionIds:[] }); setIsModalOpen(true);
+            }}>
+              <FiPlus size={20} /> Yeni Rol Tanımla
+            </button>
+          )}
         </div>
       </div>
 
@@ -428,9 +436,9 @@ export function RolesPage() {
           onSort={toggleSort}
           getRowKey={(r) => r.id}
           hasState={(r) => r.state === 1}
-          onEdit={handleEdit}
-          onArchive={(r) => toggleState(r.id, 1)}
-          onRestore={(r) => toggleState(r.id, 0)}
+          onEdit={canEdit ? handleEdit : undefined}
+          onArchive={canDelete ? (r) => toggleState(r.id, 1) : undefined}
+          onRestore={canDelete ? (r) => toggleState(r.id, 0) : undefined}
           getRowOpacity={(r) => r.state === 0 ? 0.5 : 1}
           total={paginationMeta.total}
           page={page}
@@ -441,7 +449,7 @@ export function RolesPage() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white max-w-[1100px] w-full p-6 rounded-3xl shadow-premium-lg border border-slate-100 flex flex-col gap-5 animate-in zoom-in-95 duration-300 relative max-h-[85vh] overflow-hidden">
             <div className="flex justify-between items-center shrink-0">
               <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2 uppercase">

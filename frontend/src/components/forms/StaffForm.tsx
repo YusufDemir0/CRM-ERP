@@ -59,6 +59,7 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
     departmentId?: string;
     isActive: boolean;
     tckn: string;
+    unit: string;
   }
 
   const [formData, setFormData] = useState<StaffFormData>(() => {
@@ -69,11 +70,14 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
       fullName: initialData ? `${initialData.firstName || ''} ${initialData.lastName || ''}`.trim() : (cached?.fullName || ''),
       phone: initialData?.phone || cached?.phone || '',
       entryDate: initialData?.entryDate ? dayjs(initialData.entryDate).format('YYYY-MM-DD') : (cached?.entryDate || dayjs().format('YYYY-MM-DD')),
-      departmentId: mode === 'quick' 
-        ? (authUser?.departmentId ? String(authUser.departmentId) : undefined)
-        : (initialData?.departmentId ? String(initialData.departmentId) : (cached?.departmentId || undefined)),
+      departmentId: initialData?.departmentId 
+        ? String(initialData.departmentId)
+        : (mode === 'quick' 
+            ? (authUser?.departmentId ? String(authUser.departmentId) : undefined)
+            : (cached?.departmentId || undefined)),
       isActive: initialData?.isActive ?? cached?.isActive ?? true,
       tckn: initialData?.tckn || cached?.tckn || '',
+      unit: initialData?.unit || cached?.unit || '',
     };
   });
 
@@ -107,19 +111,20 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
     let firstName = formData.firstName;
     let lastName = formData.lastName;
 
+    if (formData.entryDate && (dayjs(formData.entryDate).isSame(dayjs(), 'day') || dayjs(formData.entryDate).isAfter(dayjs(), 'day'))) {
+      toast.error('İşe giriş tarihi bugünün veya geleceğin bir tarihi olamaz!');
+      return;
+    }
+
     // Quick modda: tek fullName inputundan ad/soyad ayır
     if (mode === 'quick') {
       const parts = formData.fullName.trim().split(/\s+/);
-      if (parts.length === 0 || (parts.length === 1 && parts[0] === '')) {
-        toast.error('Lütfen ad soyad alanını doldurun.');
+      if (parts.length < 2 || parts[0] === '' || parts[1] === '') {
+        toast.error('Lütfen ad ve soyad bilgisini birlikte girin (örn: Ahmet Yılmaz).');
         return;
-      } else if (parts.length === 1) {
-        firstName = parts[0];
-        lastName = '';
-      } else {
-        lastName = parts[parts.length - 1];
-        firstName = parts.slice(0, -1).join(' ');
       }
+      lastName = parts[parts.length - 1];
+      firstName = parts.slice(0, -1).join(' ');
     } else {
       if (!formData.firstName) {
         toast.error('Lütfen ad alanını doldurun.');
@@ -134,7 +139,8 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
       entryDate: formData.entryDate,
       departmentId: formData.departmentId ? String(formData.departmentId) : undefined,
       isActive: formData.isActive,
-      tckn: formData.tckn || undefined
+      tckn: formData.tckn || undefined,
+      unit: formData.unit || undefined
     };
     
     mutation.mutate(dataToSubmit);
@@ -218,6 +224,8 @@ export const StaffForm: React.FC<StaffFormProps> = ({ initialData, editingId, on
               value={formData.entryDate}
               onChange={(e) => setFormData(prev => ({ ...prev, entryDate: e.target.value }))}
               min="2000-01-01"
+              max={dayjs().subtract(1, 'day').format('YYYY-MM-DD')}
+              onKeyDown={(e) => e.preventDefault()}
             />
           </div>
         </FormField>

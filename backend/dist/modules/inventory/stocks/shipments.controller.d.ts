@@ -1,6 +1,6 @@
+import { StreamableFile } from '@nestjs/common';
 import { ShipmentsService } from './shipments.service';
 import { DispatchShipmentDto, ShipmentsQueryDto } from './dto/shipment.dto';
-import { Response } from 'express';
 export declare class ShipmentsController {
     private readonly shipmentsService;
     constructor(shipmentsService: ShipmentsService);
@@ -18,7 +18,7 @@ export declare class ShipmentsController {
             count: number;
         }[];
     }>;
-    exportExcel(query: ShipmentsQueryDto, res: Response): Promise<void>;
+    exportExcel(query: ShipmentsQueryDto): Promise<StreamableFile>;
     findOne(id: string): Promise<import("./entities/shipment.entity").Shipment>;
     dispatch(id: string, dto: DispatchShipmentDto, userId: string): Promise<import("./entities/shipment.entity").Shipment>;
     complete(id: string, userId: string): Promise<import("./entities/shipment.entity").Shipment>;

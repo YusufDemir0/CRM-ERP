@@ -16,9 +16,11 @@ import { Decimal } from 'decimal.js';
 import { useSort } from '../../hooks/useSort';
 import { useDebounce } from '../../hooks/useDebounce';
 import { queryKeys } from '../../services/queryKeys';
+import { useAuth } from '../../hooks/useAuth';
 
 export function StocksPage() {
   const queryClient = useQueryClient();
+  const { hasPermission } = useAuth();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -175,8 +177,8 @@ export function StocksPage() {
       return;
     }
     adjustMutation.mutate({
-      itemId: Number(formData.itemId),
-      departmentId: Number(formData.departmentId),
+      itemId: String(formData.itemId),
+      departmentId: String(formData.departmentId),
       quantity: new Decimal(formData.quantity).toNumber(),
       type: formData.type as 'in' | 'out',
       description: formData.description
@@ -195,9 +197,9 @@ export function StocksPage() {
     }
     
     transferMutation.mutate({
-      itemId: Number(transferData.itemId),
-      fromDepartmentId: Number(transferData.fromDepartmentId),
-      toDepartmentId: Number(transferData.toDepartmentId),
+      itemId: String(transferData.itemId),
+      fromDepartmentId: String(transferData.fromDepartmentId),
+      toDepartmentId: String(transferData.toDepartmentId),
       quantity: new Decimal(transferData.quantity).toNumber(),
       description: transferData.description
     });
@@ -345,18 +347,22 @@ export function StocksPage() {
               </button>
             ))}
           </div>
-          <button className="h-12 px-6 bg-amber-500 text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
-            setTransferData({ itemId: '', fromDepartmentId: '', toDepartmentId: '', quantity: 0, description: '' });
-            setIsTransferModalOpen(true);
-          }}>
-            <FiRepeat size={20} /> Transfer / Sevk
-          </button>
-          <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
-            setFormData({ itemId: '', departmentId: '', quantity: 0, type: 'in', description: '' });
-            setIsModalOpen(true);
-          }}>
-            <FiPlus size={20} /> Manuel Fiş Ekle
-          </button>
+          {hasPermission('INVENTORY_EDIT') && (
+            <>
+              <button className="h-12 px-6 bg-amber-500 text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
+                setTransferData({ itemId: '', fromDepartmentId: '', toDepartmentId: '', quantity: 0, description: '' });
+                setIsTransferModalOpen(true);
+              }}>
+                <FiRepeat size={20} /> Transfer / Sevk
+              </button>
+              <button className="h-12 px-6 bg-primary text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
+                setFormData({ itemId: '', departmentId: '', quantity: 0, type: 'in', description: '' });
+                setIsModalOpen(true);
+              }}>
+                <FiPlus size={20} /> Manuel Fiş Ekle
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -368,7 +374,6 @@ export function StocksPage() {
         sortConfigs={sortConfigs}
         onSort={toggleSort}
         getRowKey={(s) => s.id}
-        onEdit={(s) => fetchMovements(s)}
         
         // Integrated Search & Pagination
         search={searchTerm}

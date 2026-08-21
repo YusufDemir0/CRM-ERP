@@ -20,7 +20,7 @@ export const ProductionModal: React.FC<ProductionModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white max-w-[800px] w-full p-6 rounded-2xl shadow-premium-lg border border-slate-100 flex flex-col gap-8 animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">
@@ -146,6 +146,7 @@ export const ProductionModal: React.FC<ProductionModalProps> = ({
                 value={formData.startDate} 
                 onChange={e => setFormData({...formData, startDate: e.target.value})} 
                 min={new Date().toISOString().split('T')[0]}
+                onKeyDown={(e) => e.preventDefault()}
                 className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors" 
               />
             </div>
@@ -156,6 +157,7 @@ export const ProductionModal: React.FC<ProductionModalProps> = ({
                 value={formData.endDate} 
                 onChange={e => setFormData({...formData, endDate: e.target.value})} 
                 min={formData.startDate || new Date().toISOString().split('T')[0]}
+                onKeyDown={(e) => e.preventDefault()}
                 className="h-14 px-5 rounded-2xl border border-slate-100 bg-slate-50 font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-colors" 
               />
             </div>

@@ -19,6 +19,7 @@ const item_code_group_entity_1 = require("./item-code-group.entity");
 const party_entity_1 = require("../../../parties/entities/party.entity");
 const currency_entity_1 = require("../../../finance/currencies/entities/currency.entity");
 const quantity_type_entity_1 = require("./quantity-type.entity");
+const stock_entity_1 = require("../../stocks/entities/stock.entity");
 const decimal_transformer_1 = require("../../../../common/transformers/decimal.transformer");
 let Item = class Item extends base_entity_1.BaseEntity {
     constructor() {
@@ -143,6 +144,10 @@ __decorate([
     (0, typeorm_1.JoinColumn)({ name: 'quantity_type_id' }),
     __metadata("design:type", quantity_type_entity_1.QuantityType)
 ], Item.prototype, "quantityType", void 0);
+__decorate([
+    (0, typeorm_1.OneToMany)(() => stock_entity_1.Stock, (stock) => stock.item),
+    __metadata("design:type", Array)
+], Item.prototype, "stocks", void 0);
 exports.Item = Item = __decorate([
     (0, typeorm_1.Entity)('items'),
     (0, typeorm_1.Index)('IDX_ITEM_FULLTEXT', ['name', 'code', 'code1', 'code2', 'description', 'notes'], { fulltext: true })

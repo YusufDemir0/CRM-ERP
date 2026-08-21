@@ -1,26 +1,11 @@
 import { NotesService } from './notes.service';
 import { UserNote } from './entities/note.entity';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 export declare class NotesController {
     private readonly notesService;
     constructor(notesService: NotesService);
-    findAll(req: {
-        user: {
-            id: string;
-        };
-    }): Promise<UserNote[]>;
-    create(req: {
-        user: {
-            id: string;
-        };
-    }, data: Partial<UserNote>): Promise<UserNote>;
-    update(req: {
-        user: {
-            id: string;
-        };
-    }, id: string, data: Partial<UserNote>): Promise<UserNote>;
-    remove(req: {
-        user: {
-            id: string;
-        };
-    }, id: string): Promise<void>;
+    findAll(user: JwtPayload): Promise<UserNote[]>;
+    create(user: JwtPayload, data: Partial<UserNote>): Promise<UserNote>;
+    update(user: JwtPayload, id: string, data: Partial<UserNote>): Promise<UserNote>;
+    remove(user: JwtPayload, id: string): Promise<void>;
 }

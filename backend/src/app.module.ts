@@ -106,18 +106,28 @@ import { HealthModule } from './infrastructure/health/health.module';
         },
       }),
     }),
-    // 🔥 ENTERPRISE: Redis cache with config from redis.config.ts
+    // 🔥 ENTERPRISE: Redis cache with config from redis.config.ts (Supports Upstash rediss://)
     CacheModule.registerAsync({
       isGlobal: true,
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (config: ConfigService) => ({
-        store: redisStore,
-        host: config.get('redis.host'),
-        port: config.get('redis.port'),
-        password: config.get('redis.password'),
-        ttl: config.get('redis.ttl'),
-      }),
+      useFactory: async (config: ConfigService) => {
+        const redisUrl = config.get<string>('redis.url');
+        if (redisUrl) {
+          return {
+            store: redisStore,
+            url: redisUrl,
+            ttl: config.get('redis.ttl', 60000),
+          };
+        }
+        return {
+          store: redisStore,
+          host: config.get('redis.host'),
+          port: config.get('redis.port'),
+          password: config.get('redis.password'),
+          ttl: config.get('redis.ttl', 60000),
+        };
+      },
     }),
     RabbitMQModule,
     TelemetryModule, AuthModule, UsersModule, RolesModule, DepartmentsModule, PartiesModule, InventoryModule,

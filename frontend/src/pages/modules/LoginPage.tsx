@@ -64,10 +64,12 @@ export default function LoginPage() {
       const msg = errorData.response?.data?.message || errorData.message;
       const safeMsg = Array.isArray(msg) ? msg[0] : (typeof msg === 'string' ? msg : '');
 
-      if (safeMsg === 'INVALID_USERNAME') {
-        setError('Kullanıcı adı bulunamadı.');
-      } else if (safeMsg === 'INVALID_PASSWORD') {
-        setError('Girdiğiniz şifre yanlış.');
+      if (safeMsg.includes('Böyle bir kullanıcı bulunmamaktadır') || safeMsg === 'INVALID_USERNAME') {
+        setError('Böyle bir kullanıcı bulunmamaktadır. Lütfen YETKİLİ ile iletişime geçiniz.');
+      } else if (safeMsg.includes('Hatalı şifre') || safeMsg === 'INVALID_PASSWORD') {
+        setError('Hatalı şifre girişi yaptınız. Lütfen tekrar deneyiniz.');
+      } else if (safeMsg) {
+        setError(safeMsg);
       } else {
         setError('Giriş başarısız. Bilgilerinizi kontrol edin.');
       }
@@ -83,15 +85,14 @@ export default function LoginPage() {
 
   return (
     <div className="relative min-h-screen w-full flex flex-col items-center justify-center bg-[var(--background)] font-sans overflow-hidden">
-      
+
       {/* 🎈 Balloon Toast Notification */}
       {toast && (
         <div className="fixed top-8 right-8 z-[100] animate-in slide-in-from-right-8 fade-in duration-500">
           <div className="bg-white rounded-2xl shadow-premium border border-slate-100 p-4 flex items-center gap-4 max-w-sm">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-              toast.type === 'info' ? 'bg-indigo-50 text-indigo-600' : 
-              toast.type === 'error' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
-            }`}>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${toast.type === 'info' ? 'bg-indigo-50 text-indigo-600' :
+                toast.type === 'error' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
+              }`}>
               <FiInfo size={20} />
             </div>
             <div className="flex-1">
@@ -109,7 +110,7 @@ export default function LoginPage() {
       <div className="absolute inset-0 z-0">
         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-[var(--primary-glow)] blur-[120px] rounded-full opacity-50" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-[var(--primary-glow)] blur-[120px] rounded-full opacity-30" />
-        <div className="absolute inset-0 opacity-[0.03]" 
+        <div className="absolute inset-0 opacity-[0.03]"
           style={{ backgroundImage: 'radial-gradient(var(--primary) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
       </div>
 
@@ -125,11 +126,11 @@ export default function LoginPage() {
       {/* ⚪ Centered Login Card */}
       <div className="relative z-20 w-full max-w-[480px] px-6">
         <div className="bg-[var(--surface)] rounded-[var(--radius-xl)] shadow-[var(--shadow-premium)] p-8 sm:p-10 border border-[var(--border)] flex flex-col gap-6 animate-slide-up">
-          
+
           <div className="text-center">
             <h1 className="text-xl font-black text-slate-800 tracking-tight mb-1">Hesabınıza Giriş Yapın</h1>
             <p className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-widest mb-1">KİMLİK DOĞRULAMA GEREKLİ</p>
-            
+
             {/* Premium Real-time Turkish Digital Clock Widget */}
             <div className="mt-4 p-4 bg-gradient-to-br from-indigo-50/50 to-primary/5 border border-indigo-100/50 rounded-2xl flex flex-col items-center justify-center gap-1 shadow-md shadow-indigo-100/20 backdrop-blur-sm">
               <span className="text-3xl font-black bg-gradient-to-r from-slate-900 to-indigo-950 bg-clip-text text-transparent tracking-widest font-mono select-none">
@@ -160,7 +161,7 @@ export default function LoginPage() {
               <div className="flex items-center justify-between px-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Kullanıcı Adı</label>
               </div>
-              <input 
+              <input
                 type="text"
                 autoFocus
                 value={username}
@@ -173,14 +174,14 @@ export default function LoginPage() {
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between px-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Şifre</label>
-                <span 
+                <span
                   onClick={handleForgotPassword}
                   className="text-[9px] font-bold text-[var(--primary)] cursor-pointer hover:underline uppercase tracking-tighter"
                 >
                   Şifremi Unuttum
                 </span>
               </div>
-              <input 
+              <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -189,12 +190,11 @@ export default function LoginPage() {
               />
             </div>
 
-            <button 
+            <button
               type="submit"
               disabled={!!success}
-              className={`mt-4 w-full h-14 text-white rounded-[var(--radius-md)] text-xs font-black uppercase tracking-widest shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3 ${
-                success ? 'bg-emerald-500 shadow-emerald-200' : 'bg-[var(--primary)] shadow-[var(--primary-glow)] hover:brightness-110'
-              }`}
+              className={`mt-4 w-full h-14 text-white rounded-[var(--radius-md)] text-xs font-black uppercase tracking-widest shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3 ${success ? 'bg-emerald-500 shadow-emerald-200' : 'bg-[var(--primary)] shadow-[var(--primary-glow)] hover:brightness-110'
+                }`}
             >
               {success ? 'Giriş Başarılı' : 'OTURUMU AÇ'}
             </button>

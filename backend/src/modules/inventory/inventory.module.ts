@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FinanceModule } from '../finance/finance.module';
 import { LogsModule } from '../logs/logs.module';
@@ -15,6 +15,7 @@ import { QuantityType } from './items/entities/quantity-type.entity';
 import { Stock } from './stocks/entities/stock.entity';
 import { StockMovement } from './stocks/entities/stock-movement.entity';
 import { Shipment } from './stocks/entities/shipment.entity';
+import { Vehicle } from './stocks/entities/vehicle.entity';
 import { SequenceGeneratorService } from '../../common/services/sequence-generator.service';
 
 import { BomItem } from '../production/entities/bom-item.entity';
@@ -24,27 +25,32 @@ import { ItemsReportsService } from './items/items-reports.service';
 import { ItemsTransactionsService } from './items/items-transactions.service';
 import { ShipmentsController } from './stocks/shipments.controller';
 import { ShipmentsService } from './stocks/shipments.service';
+import { VehiclesController } from './stocks/vehicles.controller';
+import { VehiclesService } from './stocks/vehicles.service';
+import { SalesModule } from '../sales/sales.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Item, ItemType, ItemSequence, ItemCodeGroup, 
-      ItemCodeSequence, QuantityType, Stock, StockMovement, Shipment,
+      ItemCodeSequence, QuantityType, Stock, StockMovement, Shipment, Vehicle,
       BomItem
     ]),
     FinanceModule,
     LogsModule,
+    forwardRef(() => SalesModule),
   ],
-  controllers: [ItemsController, StocksController, ShipmentsController],
+  controllers: [ItemsController, StocksController, ShipmentsController, VehiclesController],
   providers: [
     ItemsService, ItemsReportsService, ItemsTransactionsService,
     StocksService, StocksReportsService, StocksTransactionsService, 
-    ShipmentsService, SequenceGeneratorService
+    ShipmentsService, VehiclesService, SequenceGeneratorService
   ],
   exports: [
     ItemsService, ItemsReportsService, ItemsTransactionsService,
     StocksService, StocksReportsService, StocksTransactionsService, 
-    ShipmentsService, SequenceGeneratorService
+    ShipmentsService, VehiclesService, SequenceGeneratorService
   ],
 })
 export class InventoryModule {}
+

@@ -10,6 +10,7 @@ import { DecimalTransformer } from '../../../common/transformers/decimal.transfo
 import { Staff } from '../../staff/entities/staff.entity';
 import { CommercialAccount } from '../../finance/accounts/entities/commercial-account.entity';
 import { Department } from '../../departments/entities/department.entity';
+import { User } from '../../auth/entities/user.entity';
 
 @Entity('sales')
 @Unique(['code'])
@@ -122,6 +123,15 @@ export class Sale extends BaseEntity {
   @Column({ name: 'installments', type: 'int', default: 1 })
   installments: number;
 
+  @Column({ name: 'cancelled_by_id', type: 'bigint', nullable: true })
+  cancelledById: string | null;
+
+  @Column({ name: 'cancelled_at', type: 'timestamp', nullable: true })
+  cancelledAt: Date | null;
+
+  @Column({ name: 'cancel_reason', type: 'text', nullable: true })
+  cancelReason: string | null;
+
   @ManyToOne(() => Party)
   @JoinColumn({ name: 'party_id' })
   party: Party;
@@ -145,6 +155,10 @@ export class Sale extends BaseEntity {
   @ManyToOne(() => Department, { nullable: true })
   @JoinColumn({ name: 'department_id' })
   department: Department | null;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'cancelled_by_id' })
+  cancelledBy: User | null;
 
   @OneToMany(() => SaleItem, (si) => si.sale)
   items: SaleItem[];

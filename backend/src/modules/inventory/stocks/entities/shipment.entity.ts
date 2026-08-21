@@ -1,6 +1,8 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn, Index, ManyToMany, JoinTable } from 'typeorm';
 import { Sale } from '../../../sales/entities/sale.entity';
 import { Department } from '../../../departments/entities/department.entity';
+import { Vehicle } from './vehicle.entity';
+import { Staff } from '../../../staff/entities/staff.entity';
 
 @Entity('shipments')
 export class Shipment {
@@ -56,4 +58,21 @@ export class Shipment {
   @ManyToOne(() => Department)
   @JoinColumn({ name: 'outgoing_department_id' })
   outgoingDepartment: Department;
+
+  @ManyToMany(() => Vehicle)
+  @JoinTable({
+    name: 'shipment_vehicles',
+    joinColumn: { name: 'shipment_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'vehicle_id', referencedColumnName: 'id' }
+  })
+  vehicles: Vehicle[];
+
+  @ManyToMany(() => Staff)
+  @JoinTable({
+    name: 'shipment_staff',
+    joinColumn: { name: 'shipment_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'staff_id', referencedColumnName: 'id' }
+  })
+  assignedStaff: Staff[];
 }
+

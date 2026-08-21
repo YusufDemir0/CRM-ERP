@@ -75,7 +75,7 @@ export class DashboardService {
       }
     }
 
-    const partyWhere: any = { 
+    const partyWhere: Record<string, unknown> = { 
       state: 1, 
       type: 'customer' 
     };

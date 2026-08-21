@@ -51,10 +51,18 @@ export class StockMovementHelper {
     });
   }
 
-  static validateStockLimit(itemId: string, departmentId: string, currentQty: Decimal, delta: Decimal) {
+  static validateStockLimit(
+    itemId: string,
+    departmentId: string,
+    currentQty: Decimal,
+    delta: Decimal,
+    allowNegative = false,
+  ) {
     const after = currentQty.sub(delta);
-    if (after.lt(0)) {
-      console.warn(`[STOK UYARISI] Stok seviyesi sıfırın altına düştü! Ürün ID: ${itemId}, Depo ID: ${departmentId}, Yeni Stok: ${after.toString()}`);
+    if (after.lt(0) && !allowNegative) {
+      throw new BadRequestException(
+        `Yetersiz Stok! Ürün ID: ${itemId}, Depo ID: ${departmentId}. Mevcut Stok: ${currentQty.toString()}, Çıkış Yapılmak İstenen: ${delta.toString()}, Kalan: ${after.toString()}`
+      );
     }
   }
 }

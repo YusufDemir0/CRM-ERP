@@ -33,8 +33,8 @@ export class Transaction extends BaseEntity {
   @Column({ type: 'enum', enum: ['in', 'out'] })
   type: 'in' | 'out';
 
-  @Column({ name: 'reference_type', type: 'enum', enum: ['sale', 'purchase', 'manual_adjustment', 'manual', 'sale_deposit'], nullable: true })
-  referenceType: 'sale' | 'purchase' | 'manual_adjustment' | 'manual' | 'sale_deposit' | null;
+  @Column({ name: 'reference_type', type: 'enum', enum: ['sale', 'purchase', 'manual_adjustment', 'manual', 'sale_deposit', 'transfer'], nullable: true })
+  referenceType: 'sale' | 'purchase' | 'manual_adjustment' | 'manual' | 'sale_deposit' | 'transfer' | null;
 
   @Column({ name: 'reference_id', type: 'bigint', nullable: true })
   referenceId: string | null;

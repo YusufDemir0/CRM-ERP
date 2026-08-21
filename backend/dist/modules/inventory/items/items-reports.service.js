@@ -55,6 +55,7 @@ const item_type_entity_1 = require("./entities/item-type.entity");
 const quantity_type_entity_1 = require("./entities/quantity-type.entity");
 const item_code_group_entity_1 = require("./entities/item-code-group.entity");
 const currency_entity_1 = require("../../finance/currencies/entities/currency.entity");
+const sql_helper_1 = require("../../../common/utils/sql.helper");
 let ItemsReportsService = class ItemsReportsService {
     constructor(itemRepo, itemTypeRepo, qtyTypeRepo, codeGroupRepo) {
         this.itemRepo = itemRepo;
@@ -69,6 +70,8 @@ let ItemsReportsService = class ItemsReportsService {
             .leftJoin('item.provider', 'provider')
             .leftJoin('item.currency', 'currency')
             .leftJoin('item.itemCodeGroup', 'itemCodeGroup')
+            .leftJoin('item.stocks', 'stocks')
+            .leftJoin('stocks.department', 'stockDepartment')
             .select([
             'item.id', 'item.name', 'item.code', 'item.code1', 'item.code2',
             'item.purchasePrice', 'item.salePrice', 'item.totalStock',
@@ -77,10 +80,15 @@ let ItemsReportsService = class ItemsReportsService {
             'quantityType.id', 'quantityType.abbreviation',
             'provider.id', 'provider.name',
             'currency.id', 'currency.symbol', 'currency.code',
-            'itemCodeGroup.id', 'itemCodeGroup.prefix', 'itemCodeGroup.name'
+            'itemCodeGroup.id', 'itemCodeGroup.prefix', 'itemCodeGroup.name',
+            'stocks.id', 'stocks.quantity', 'stocks.reservedQuantity', 'stocks.departmentId',
+            'stockDepartment.id', 'stockDepartment.name', 'stockDepartment.abbreviation'
         ]);
         if (query.search) {
-            qb.andWhere('(item.name LIKE :s OR item.code LIKE :s OR item.code1 LIKE :s OR item.code2 LIKE :s OR item.description LIKE :s OR item.notes LIKE :s)', { s: `%${query.search}%` });
+            const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
+            if (s) {
+                qb.andWhere('(item.name LIKE :s OR item.code LIKE :s OR item.code1 LIKE :s OR item.code2 LIKE :s OR item.description LIKE :s OR item.notes LIKE :s)', { s });
+            }
         }
         if (query.itemTypeId)
             qb.andWhere('item.itemTypeId = :typeId', { typeId: query.itemTypeId });

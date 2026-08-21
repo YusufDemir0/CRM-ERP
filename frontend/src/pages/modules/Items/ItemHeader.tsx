@@ -9,10 +9,11 @@ interface ItemHeaderProps {
   openCreate: (type: QuickCreateType, options: QuickCreateOptions) => void;
   handleFormSuccess: (data?: unknown) => void;
   onImport: () => void;
+  canCreate?: boolean;
 }
 
 export const ItemHeader: React.FC<ItemHeaderProps> = ({
-  filterTab, setFilterTab, setPage, openCreate, handleFormSuccess, onImport
+  filterTab, setFilterTab, setPage, openCreate, handleFormSuccess, onImport, canCreate
 }) => {
   const tabs = [
     { id: 'active', label: 'Aktif', icon: <FiActivity /> },
@@ -48,18 +49,22 @@ export const ItemHeader: React.FC<ItemHeaderProps> = ({
             </button>
           ))}
         </div>
-        <button 
-          className="btn bg-emerald-600 hover:bg-emerald-700 text-white h-11 px-6 shadow-lg shadow-emerald-200 flex items-center gap-2 font-bold" 
-          onClick={onImport}
-        >
-          <FiLayers size={18} /> TOPLU AKTAR
-        </button>
-        <button 
-          className="btn btn-primary h-11 px-6 shadow-lg shadow-primary/20 flex items-center gap-2 font-bold" 
-          onClick={() => openCreate('item', { onSuccess: handleFormSuccess })}
-        >
-          <FiPlus size={18} /> Yeni Ürün
-        </button>
+        {canCreate && (
+          <>
+            <button 
+              className="btn bg-emerald-600 hover:bg-emerald-700 text-white h-11 px-6 shadow-lg shadow-emerald-200 flex items-center gap-2 font-bold" 
+              onClick={onImport}
+            >
+              <FiLayers size={18} /> TOPLU AKTAR
+            </button>
+            <button 
+              className="btn btn-primary h-11 px-6 shadow-lg shadow-primary/20 flex items-center gap-2 font-bold" 
+              onClick={() => openCreate('item', { onSuccess: handleFormSuccess })}
+            >
+              <FiPlus size={18} /> Yeni Ürün
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

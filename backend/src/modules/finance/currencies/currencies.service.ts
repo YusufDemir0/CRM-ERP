@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Decimal } from 'decimal.js';
 import { Currency } from './entities/currency.entity';
 import { CreateCurrencyDto, UpdateCurrencyDto } from '../dto/finance.dto';
 
@@ -41,7 +42,7 @@ export class CurrenciesService {
     
     if (dto.name !== undefined) curr.name = dto.name;
     if (dto.symbol !== undefined) curr.symbol = dto.symbol;
-    if (dto.exchangeRate !== undefined) curr.exchangeRate = dto.exchangeRate;
+    if (dto.exchangeRate !== undefined) curr.exchangeRate = new Decimal(dto.exchangeRate);
     if (dto.isDefault !== undefined) curr.isDefault = dto.isDefault;
     if (dto.state !== undefined) curr.state = dto.state;
 

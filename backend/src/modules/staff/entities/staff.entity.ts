@@ -49,6 +49,9 @@ export class Staff {
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
+  @Column({ type: 'varchar', nullable: true, default: null })
+  unit: string | null;
+
   @ManyToOne(() => Department)
   @JoinColumn({ name: 'department_id' })
   department: Department;

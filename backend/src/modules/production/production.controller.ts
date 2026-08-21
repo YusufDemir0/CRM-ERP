@@ -9,6 +9,7 @@ import {
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 
 @Controller('production')
 export class ProductionController {
@@ -16,37 +17,41 @@ export class ProductionController {
 
   // ────── BOMs (Reçeteler) ──────
   @Get('boms')
-  @RequirePermissions('PRODUCTION_VIEW')
+  @RequirePermissions('PRODUCTION_MANAGE_BOM', 'PRODUCTION_VIEW_OWN', 'PRODUCTION_VIEW_DEPT', 'PRODUCTION_VIEW_ALL')
   findAllBoms(@Query() query: BomQueryDto) { return this.prodService.findAllBoms(query); }
 
   @Get('boms/:id')
-  @RequirePermissions('PRODUCTION_VIEW')
+  @RequirePermissions('PRODUCTION_MANAGE_BOM', 'PRODUCTION_VIEW_OWN', 'PRODUCTION_VIEW_DEPT', 'PRODUCTION_VIEW_ALL')
   findOneBom(@Param('id') id: string) { return this.prodService.findOneBom(id); }
 
   @Post('boms')
-  @RequirePermissions('PRODUCTION_CREATE')
+  @RequirePermissions('PRODUCTION_MANAGE_BOM')
   createBom(@Body() dto: CreateBomDto, @CurrentUser('sub') userId: string) { 
     return this.prodService.createBom(dto, userId); 
   }
 
   @Put('boms/:id')
-  @RequirePermissions('PRODUCTION_EDIT')
+  @RequirePermissions('PRODUCTION_MANAGE_BOM')
   updateBom(@Param('id') id: string, @Body() dto: UpdateBomDto, @CurrentUser('sub') userId: string) {
     return this.prodService.updateBom(id, dto, userId);
   }
 
   @Delete('boms/:id')
-  @RequirePermissions('PRODUCTION_DELETE')
+  @RequirePermissions('PRODUCTION_MANAGE_BOM')
   deleteBom(@Param('id') id: string) { return this.prodService.deleteBom(id); }
 
   // ────── PRODUCTION ORDERS (Üretim Emirleri) ──────
   @Get('orders')
-  @RequirePermissions('PRODUCTION_VIEW')
-  findAllOrders(@Query() query: ProductionOrderQueryDto) { return this.prodService.findAllOrders(query); }
+  @RequirePermissions('PRODUCTION_VIEW_OWN', 'PRODUCTION_VIEW_DEPT', 'PRODUCTION_VIEW_ALL')
+  findAllOrders(@Query() query: ProductionOrderQueryDto, @CurrentUser() user: JwtPayload) { 
+    return this.prodService.findAllOrders(query, user); 
+  }
 
   @Get('orders/:id')
-  @RequirePermissions('PRODUCTION_VIEW')
-  findOneOrder(@Param('id') id: string) { return this.prodService.findOneOrder(id); }
+  @RequirePermissions('PRODUCTION_VIEW_OWN', 'PRODUCTION_VIEW_DEPT', 'PRODUCTION_VIEW_ALL')
+  findOneOrder(@Param('id') id: string, @CurrentUser() user: JwtPayload) { 
+    return this.prodService.findOneOrder(id, user); 
+  }
 
   @Post('orders')
   @RequirePermissions('PRODUCTION_CREATE')
@@ -65,6 +70,6 @@ export class ProductionController {
   deleteOrder(@Param('id') id: string) { return this.prodService.deleteOrder(id); }
 
   @Get('status')
-  @RequirePermissions('PRODUCTION_VIEW')
+  @RequirePermissions('PRODUCTION_VIEW_OWN', 'PRODUCTION_VIEW_DEPT', 'PRODUCTION_VIEW_ALL')
   getStatus() { return this.prodService.getStatus(); }
 }

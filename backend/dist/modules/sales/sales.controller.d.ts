@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { StreamableFile } from '@nestjs/common';
 import { SalesService } from './sales.service';
 import { CreateSaleDto, UpdateSaleDto, CreateSaleTypeDto, ApproveSaleDto, SalesQueryDto, ShipSaleDto } from './dto/sale.dto';
 import { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
@@ -12,13 +12,17 @@ export declare class SalesController {
         monthlyOrders: import("decimal.js").Decimal;
         pendingOrders: import("decimal.js").Decimal;
     }>;
-    export(query: SalesQueryDto, user: JwtPayload, res: Response): Promise<void>;
+    export(query: SalesQueryDto, user: JwtPayload): Promise<StreamableFile>;
     findAll(query: SalesQueryDto, user: JwtPayload): Promise<import("../../common/dto/pagination.dto").PaginatedResult<import("./entities/sale.entity").Sale>>;
-    findOne(id: string): Promise<import("./entities/sale.entity").Sale>;
+    findMinimalLookup(user: JwtPayload): Promise<any[]>;
+    findOne(id: string, user: JwtPayload): Promise<import("./entities/sale.entity").Sale>;
     create(dto: CreateSaleDto, userId: string): Promise<import("./entities/sale.entity").Sale>;
-    update(id: string, dto: UpdateSaleDto, userId: string): Promise<import("./entities/sale.entity").Sale>;
-    approve(id: string, dto: ApproveSaleDto, userId: string): Promise<import("./entities/sale.entity").Sale>;
-    cancel(id: string, userId: string): Promise<import("./entities/sale.entity").Sale>;
+    update(id: string, dto: UpdateSaleDto, user: JwtPayload): Promise<import("./entities/sale.entity").Sale>;
+    approve(id: string, dto: ApproveSaleDto, user: JwtPayload): Promise<import("./entities/sale.entity").Sale>;
+    cancel(id: string, dto: {
+        reason: string;
+    }, userId: string): Promise<import("./entities/sale.entity").Sale>;
+    revertToDraft(id: string, userId: string): Promise<import("./entities/sale.entity").Sale>;
     ship(id: string, dto: ShipSaleDto, userId: string): Promise<import("./entities/sale.entity").Sale>;
-    remove(id: string): Promise<void>;
+    remove(id: string, user: JwtPayload): Promise<void>;
 }

@@ -206,7 +206,7 @@ let ProductionService = ProductionService_1 = class ProductionService {
         }
         await this.bomRepo.softDelete(id);
     }
-    async findAllOrders(query) {
+    async findAllOrders(query, currentUser) {
         const qb = this.poRepo.createQueryBuilder('po')
             .leftJoin('po.bom', 'bom')
             .leftJoin('po.sourceDepartment', 'sourceDept')
@@ -218,9 +218,20 @@ let ProductionService = ProductionService_1 = class ProductionService {
             'sourceDept.id', 'sourceDept.name',
             'targetDept.id', 'targetDept.name'
         ]);
+        const hasViewAll = currentUser?.isSystemAdmin ||
+            currentUser?.permissions?.includes('PRODUCTION_VIEW_ALL');
+        if (!hasViewAll) {
+            const hasViewDept = currentUser?.permissions?.includes('PRODUCTION_VIEW_DEPT');
+            if (hasViewDept && currentUser?.departmentId) {
+                qb.andWhere('(po.sourceDepartmentId = :deptId OR po.targetDepartmentId = :deptId)', { deptId: String(currentUser.departmentId) });
+            }
+            else {
+                qb.andWhere('po.createdBy = :userId', { userId: String(currentUser?.sub) });
+            }
+        }
         if (query.search) {
             const s = (0, sql_helper_1.getSafeSearchPattern)(query.search);
-            qb.where('(po.code LIKE :s OR bom.name LIKE :s)', { s });
+            qb.andWhere('(po.code LIKE :s OR bom.name LIKE :s)', { s });
         }
         if (query.status)
             qb.andWhere('po.status = :status', { status: query.status });
@@ -244,13 +255,30 @@ let ProductionService = ProductionService_1 = class ProductionService {
             },
         };
     }
-    async findOneOrder(id) {
+    async findOneOrder(id, currentUser) {
         const po = await this.transactionContext.manager.findOne(production_order_entity_1.ProductionOrder, {
             where: { id },
             relations: ['bom', 'bom.items', 'bom.items.item', 'sourceDepartment', 'targetDepartment'],
         });
         if (!po)
             throw new common_1.NotFoundException('Üretim emri bulunamadı');
+        const hasViewAll = currentUser?.isSystemAdmin ||
+            currentUser?.permissions?.includes('PRODUCTION_VIEW_ALL');
+        if (!hasViewAll) {
+            const hasViewDept = currentUser?.permissions?.includes('PRODUCTION_VIEW_DEPT');
+            if (hasViewDept && currentUser?.departmentId) {
+                const isDeptRelated = String(po.sourceDepartmentId) === String(currentUser.departmentId) ||
+                    String(po.targetDepartmentId) === String(currentUser.departmentId);
+                if (!isDeptRelated) {
+                    throw new common_1.ForbiddenException('Bu üretim emrini görüntüleme yetkiniz bulunmamaktadır.');
+                }
+            }
+            else {
+                if (String(po.createdBy) !== String(currentUser?.sub)) {
+                    throw new common_1.ForbiddenException('Bu üretim emrini görüntüleme yetkiniz bulunmamaktadır.');
+                }
+            }
+        }
         return po;
     }
     async createOrder(dto, userId) {

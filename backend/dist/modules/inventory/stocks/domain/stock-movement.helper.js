@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StockMovementHelper = void 0;
+const common_1 = require("@nestjs/common");
 const decimal_js_1 = require("decimal.js");
 const stock_movement_entity_1 = require("../entities/stock-movement.entity");
 class StockMovementHelper {
@@ -39,10 +40,10 @@ class StockMovementHelper {
             createdBy: userId,
         });
     }
-    static validateStockLimit(itemId, departmentId, currentQty, delta) {
+    static validateStockLimit(itemId, departmentId, currentQty, delta, allowNegative = false) {
         const after = currentQty.sub(delta);
-        if (after.lt(0)) {
-            console.warn(`[STOK UYARISI] Stok seviyesi sıfırın altına düştü! Ürün ID: ${itemId}, Depo ID: ${departmentId}, Yeni Stok: ${after.toString()}`);
+        if (after.lt(0) && !allowNegative) {
+            throw new common_1.BadRequestException(`Yetersiz Stok! Ürün ID: ${itemId}, Depo ID: ${departmentId}. Mevcut Stok: ${currentQty.toString()}, Çıkış Yapılmak İstenen: ${delta.toString()}, Kalan: ${after.toString()}`);
         }
     }
 }

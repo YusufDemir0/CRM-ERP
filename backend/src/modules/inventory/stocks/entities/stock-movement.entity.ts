@@ -1,4 +1,5 @@
 import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Transform } from 'class-transformer';
 import { Decimal } from 'decimal.js';
 import { BaseEntity } from '../../../../common/entities/base.entity';
 import { Stock } from './stock.entity';
@@ -10,21 +11,26 @@ export class StockMovement extends BaseEntity {
   @Column({ name: 'stock_id', type: 'bigint' })
   stockId: string;
 
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ type: 'decimal', precision: 15, scale: 4, transformer: new DecimalTransformer() })
   quantity: Decimal;
 
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'quantity_before', type: 'decimal', precision: 15, scale: 4, transformer: new DecimalTransformer() })
   quantityBefore: Decimal;
 
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'quantity_after', type: 'decimal', precision: 15, scale: 4, transformer: new DecimalTransformer() })
   quantityAfter: Decimal;
 
   @Column({ type: 'enum', enum: ['in', 'out'] })
   type: 'in' | 'out';
   
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'unit_cost', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
   unitCost: Decimal;
 
+  @Transform(({ value }) => value ? String(value) : value)
   @Column({ name: 'total_cost', type: 'decimal', precision: 15, scale: 4, default: 0, transformer: new DecimalTransformer() })
   totalCost: Decimal;
 

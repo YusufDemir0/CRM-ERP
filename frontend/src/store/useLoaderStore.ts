@@ -16,7 +16,7 @@ interface LoaderState {
   hide: () => void;
 }
 
-const DEFAULT_MESSAGE = 'İŞLEM YAPILIYOR...';
+const DEFAULT_MESSAGE = 'İŞLEM YAPILIYOR. LÜTFEN KLAVYE MOUSE İLE TIKLAMA YAPMAYINIZ.';
 const MIN_DURATION = 500;
 
 export const useLoaderStore = create<LoaderState>((set, get) => ({

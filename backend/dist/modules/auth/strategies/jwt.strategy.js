@@ -19,6 +19,8 @@ const passport_1 = require("@nestjs/passport");
 const passport_jwt_1 = require("passport-jwt");
 const config_1 = require("@nestjs/config");
 const typeorm_1 = require("typeorm");
+const user_entity_1 = require("../entities/user.entity");
+const record_state_enum_1 = require("../../../common/enums/record-state.enum");
 const cache_manager_1 = require("@nestjs/cache-manager");
 const common_2 = require("@nestjs/common");
 let JwtStrategy = JwtStrategy_1 = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
@@ -38,6 +40,30 @@ let JwtStrategy = JwtStrategy_1 = class JwtStrategy extends (0, passport_1.Passp
         this.logger = new common_1.Logger(JwtStrategy_1.name);
     }
     async validate(payload) {
+        if (!payload || !payload.sub) {
+            throw new common_1.UnauthorizedException('Geçersiz token yapısı.');
+        }
+        const userId = String(payload.sub);
+        const stateCacheKey = `user_state_${userId}`;
+        let userState = await this.cacheManager.get(stateCacheKey);
+        if (!userState) {
+            const userRepo = this.dataSource.getRepository(user_entity_1.User);
+            const dbUser = await userRepo.findOne({
+                where: { id: userId },
+                select: ['id', 'state', 'tokenVersion'],
+            });
+            if (!dbUser) {
+                throw new common_1.UnauthorizedException('Kullanıcı bulunamadı veya silinmiş.');
+            }
+            userState = { state: dbUser.state, tokenVersion: dbUser.tokenVersion };
+            await this.cacheManager.set(stateCacheKey, userState, 30000);
+        }
+        if (userState.state !== record_state_enum_1.RecordState.ACTIVE) {
+            throw new common_1.UnauthorizedException('Hesabınız aktif değil veya engellenmiştir.');
+        }
+        if (payload.tokenVersion !== undefined && userState.tokenVersion !== payload.tokenVersion) {
+            throw new common_1.UnauthorizedException('Oturumunuz geçersiz kılınmıştır. Lütfen tekrar giriş yapın.');
+        }
         return {
             id: payload.sub,
             sub: payload.sub,

@@ -1,10 +1,9 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards, StreamableFile, Header } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ShipmentsService } from './shipments.service';
 import { DispatchShipmentDto, ShipmentsQueryDto } from './dto/shipment.dto';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
-import { Response } from 'express';
 
 @Controller('shipments')
 @UseGuards(AuthGuard('jwt'))
@@ -25,13 +24,10 @@ export class ShipmentsController {
 
   @Get('export-excel')
   @RequirePermissions('SHIPMENT_VIEW')
-  async exportExcel(@Query() query: ShipmentsQueryDto, @Res() res: Response) {
-    const file = await this.shipmentsService.exportToExcel(query);
-    res.set({
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': 'attachment; filename="sevkiyat_havuzu.xlsx"',
-    });
-    file.getStream().pipe(res);
+  @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  @Header('Content-Disposition', 'attachment; filename="sevkiyat_havuzu.xlsx"')
+  async exportExcel(@Query() query: ShipmentsQueryDto): Promise<StreamableFile> {
+    return this.shipmentsService.exportToExcel(query);
   }
 
   @Get(':id')

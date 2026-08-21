@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Party, Account } from '../types';
+import { Party, Account, Sale } from '../types';
 import { SelectedItem } from '../pages/modules/SalesWizard/types';
+import { Decimal } from 'decimal.js';
 import dayjs from 'dayjs';
 
 export interface DraftSaleData {
+  id?: string | number;
   customer: Party | null;
   staffId: string;
   phone: string;
@@ -22,17 +24,18 @@ export interface DraftSaleData {
   deposit: string;
   discountAmount: string;
   isTaxed: boolean;
-  isInvoiced: boolean; // NEW: Faturalı/Faturasız
+  isInvoiced: boolean | null; // NEW: Faturalı/Faturasız
   representativePrice: string; // NEW: Temsilci tarafından girilen fiyat
   selectedItems: SelectedItem[];
   step: number; // 1-7 for logistics steps
-  phase: 'customer' | 'logistics' | 'products' | 'offer' | 'summary';
+  phase: 'customer' | 'logistics' | 'products' | 'preview' | 'offer' | 'summary';
   maturityDays: number;
   paymentType: 'NAKİT' | 'VADELİ';
   installments: number;
 }
 
 const initialDraft: DraftSaleData = {
+  id: undefined,
   customer: null,
   staffId: '',
   phone: '',
@@ -50,8 +53,8 @@ const initialDraft: DraftSaleData = {
   deposit: '',
   discountAmount: '0',
   isTaxed: true,
-  isInvoiced: true,
-  representativePrice: '0',
+  isInvoiced: null,
+  representativePrice: '',
   selectedItems: [],
   step: 1,
   phase: 'customer',
@@ -66,6 +69,7 @@ interface SalesWizardState {
   setPhase: (phase: DraftSaleData['phase']) => void;
   setStep: (step: number) => void;
   startQuickSale: (customer: Party | null) => void;
+  loadDraftSale: (sale: Sale) => void;
   reset: () => void;
 }
 
@@ -79,9 +83,15 @@ export const useSalesWizardStore = create<SalesWizardState>()(
       setPhase: (phase) => set((state) => ({
         draftData: { ...state.draftData, phase }
       })),
-      setStep: (step) => set((state) => ({
-        draftData: { ...state.draftData, step }
-      })),
+      setStep: (step) => set((state) => {
+        let phase: 'customer' | 'logistics' | 'products' | 'preview' = 'customer';
+        if (step >= 3 && step <= 7) phase = 'logistics';
+        else if (step >= 8 && step <= 10) phase = 'products';
+        else if (step >= 11) phase = 'preview';
+        return {
+          draftData: { ...state.draftData, step, phase }
+        };
+      }),
       startQuickSale: (customer) => {
         set({
           draftData: {
@@ -96,6 +106,51 @@ export const useSalesWizardStore = create<SalesWizardState>()(
             district: customer?.districtName || '',
             phase: 'customer',
             step: 1
+          }
+        });
+      },
+      loadDraftSale: (sale) => {
+        const selectedItems: SelectedItem[] = (sale.items || []).map(si => {
+          return {
+            ...(si.item || {}),
+            id: String(si.itemId || si.item?.id),
+            quantity: Number(si.quantity || 0),
+            unitPrice: Number(si.price || 0),
+            taxRate: Number(si.kdvRate || si.item?.kdv || 20),
+          } as SelectedItem;
+        });
+
+        const repPrice = new Decimal(sale.grandTotal || 0);
+
+        set({
+          draftData: {
+            ...initialDraft,
+            id: sale.id,
+            customer: sale.party || null,
+            staffId: sale.staffId ? String(sale.staffId) : '',
+            phone: sale.phone || sale.party?.phone1 || '',
+            phone2: sale.party?.phone2 || '',
+            address: sale.address || sale.party?.address || '',
+            cityId: sale.city || (sale.party?.cityId ? String(sale.party.cityId) : ''),
+            district: sale.district || sale.party?.districtName || '',
+            date: sale.createdAt ? dayjs(sale.createdAt).format('YYYY-MM-DD') : '',
+            deliveryDate: sale.deliveryDate ? dayjs(sale.deliveryDate).format('YYYY-MM-DD') : '',
+            paymentAccount: sale.commercialAccount || null,
+            taxId: sale.taxNumber || sale.party?.taxNumber || '',
+            description: sale.notes || '',
+            email: sale.email || sale.party?.email || '',
+            source: sale.source || '',
+            deposit: String(sale.deposit || 0),
+            discountAmount: String(sale.discountAmount || 0),
+            isTaxed: true,
+            isInvoiced: sale.saleType?.abbreviation === 'TPT',
+            representativePrice: repPrice.gt(0) ? repPrice.toFixed(2) : '',
+            selectedItems,
+            phase: 'customer',
+            step: 1,
+            maturityDays: Number(sale.maturityDays || 0),
+            paymentType: sale.paymentType === 'VADELİ' ? 'VADELİ' : 'NAKİT',
+            installments: Number(sale.installments || 1),
           }
         });
       },

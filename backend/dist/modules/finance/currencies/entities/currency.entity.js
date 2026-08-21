@@ -11,7 +11,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Currency = void 0;
 const typeorm_1 = require("typeorm");
+const decimal_js_1 = require("decimal.js");
 const base_entity_1 = require("../../../../common/entities/base.entity");
+const decimal_transformer_1 = require("../../../../common/transformers/decimal.transformer");
 let Currency = class Currency extends base_entity_1.BaseEntity {
 };
 exports.Currency = Currency;
@@ -28,8 +30,8 @@ __decorate([
     __metadata("design:type", String)
 ], Currency.prototype, "symbol", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ name: 'exchange_rate', type: 'decimal', precision: 15, scale: 6, default: 1 }),
-    __metadata("design:type", Number)
+    (0, typeorm_1.Column)({ name: 'exchange_rate', type: 'decimal', precision: 15, scale: 6, default: 1, transformer: new decimal_transformer_1.DecimalTransformer() }),
+    __metadata("design:type", decimal_js_1.Decimal)
 ], Currency.prototype, "exchangeRate", void 0);
 __decorate([
     (0, typeorm_1.Column)({ name: 'is_default', type: 'tinyint', default: 0 }),

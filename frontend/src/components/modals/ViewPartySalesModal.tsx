@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FiX, FiShoppingCart, FiDollarSign, FiCheck, FiTrendingUp } from 'react-icons/fi';
+import { FiX, FiShoppingCart, FiDollarSign, FiCheck, FiTrendingUp, FiFileText, FiClock } from 'react-icons/fi';
 import { Party, Sale } from '../../types';
-import { salesAPI } from '../../services/api';
+import { salesAPI, partiesAPI } from '../../services/api';
 import Decimal from 'decimal.js';
+import { ViewSaleModal } from './ViewSaleModal';
+import toast from 'react-hot-toast';
 
 interface ViewPartySalesModalProps {
   party: Party;
@@ -14,11 +16,32 @@ export const ViewPartySalesModal: React.FC<ViewPartySalesModalProps> = ({
   party,
   onClose,
 }) => {
+  const [activeTab, setActiveTab] = useState<'sales' | 'statement'>('sales');
   const [page, setPage] = useState(1);
+  const [selectedSaleForDetails, setSelectedSaleForDetails] = useState<Sale | null>(null);
+  const [isFetchingDetails, setIsFetchingDetails] = useState(false);
   const limit = 20;
 
-  const { data: salesData, isLoading } = useQuery({
+  const handleOpenSaleDetails = async (saleOrId: Sale | string | number) => {
+    const saleId = typeof saleOrId === 'object' ? saleOrId.id : saleOrId;
+    setIsFetchingDetails(true);
+    const loadingToast = toast.loading("Sipariş detayları yükleniyor...");
+    try {
+      const res = await salesAPI.getOne(saleId);
+      setSelectedSaleForDetails(res.data);
+      toast.dismiss(loadingToast);
+    } catch (e) {
+      toast.error("Satış detayı getirilemedi.");
+      toast.dismiss(loadingToast);
+    } finally {
+      setIsFetchingDetails(false);
+    }
+  };
+
+  // Satış Geçmişi Query
+  const { data: salesData, isLoading: isSalesLoading } = useQuery({
     queryKey: ['sales', 'by-party', party.id, page],
+    enabled: activeTab === 'sales',
     queryFn: async () => {
       const res = await salesAPI.getAll({
         partyId: String(party.id),
@@ -27,6 +50,16 @@ export const ViewPartySalesModal: React.FC<ViewPartySalesModalProps> = ({
         sortBy: 'createdAt',
         sortOrder: 'DESC',
       });
+      return res.data;
+    },
+  });
+
+  // Cari Ekstre Query
+  const { data: statementData = [], isLoading: isStatementLoading } = useQuery({
+    queryKey: ['parties', 'statement', party.id],
+    enabled: activeTab === 'statement',
+    queryFn: async () => {
+      const res = await partiesAPI.getStatement(party.id);
       return res.data;
     },
   });
@@ -72,9 +105,28 @@ export const ViewPartySalesModal: React.FC<ViewPartySalesModalProps> = ({
     );
   };
 
+  const getStatementTypeBadge = (type: string) => {
+    const typeMap: Record<string, { label: string; className: string }> = {
+      SALE: { label: 'SİPARİŞ', className: 'bg-amber-50 text-amber-600 border border-amber-100' },
+      CANCEL_SALE: { label: 'SİPARİŞ İPTALİ', className: 'bg-rose-50 text-rose-600 border border-rose-100' },
+      DEPOSIT: { label: 'KAPORA', className: 'bg-indigo-50 text-indigo-600 border border-indigo-100' },
+      CANCEL_DEPOSIT: { label: 'KAPORA İPTALİ', className: 'bg-rose-50 text-rose-600 border border-rose-100' },
+      PAYMENT_IN: { label: 'TAHSİLAT', className: 'bg-emerald-50 text-emerald-600 border border-emerald-100' },
+      PAYMENT_OUT: { label: 'ÖDEME', className: 'bg-slate-100 text-slate-600 border border-slate-200' },
+      CANCEL: { label: 'İADE / İPTAL', className: 'bg-rose-50 text-rose-600 border border-rose-100' },
+      SHIPMENT: { label: 'SEVKİYAT', className: 'bg-purple-50 text-purple-600 border border-purple-100' },
+    };
+    const current = typeMap[type] || { label: type, className: 'bg-slate-50 text-slate-400 border border-slate-200' };
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[9px] font-black tracking-widest ${current.className}`}>
+        {current.label}
+      </span>
+    );
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white max-w-[950px] w-full rounded-3xl shadow-2xl border border-slate-100 flex flex-col animate-in zoom-in-95 duration-300 relative overflow-hidden" style={{ maxHeight: '90vh' }}>
+    <div className="fixed inset-0 z-modal flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="bg-white max-w-[980px] w-full rounded-3xl shadow-2xl border border-slate-100 flex flex-col animate-in zoom-in-95 duration-300 relative overflow-hidden" style={{ maxHeight: '90vh' }}>
         
         {/* HEADER */}
         <div className="p-6 pb-4 flex-shrink-0 border-b border-slate-50">
@@ -87,153 +139,258 @@ export const ViewPartySalesModal: React.FC<ViewPartySalesModalProps> = ({
 
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-primary flex items-center justify-center text-white shadow-lg shadow-indigo-100">
-              <FiShoppingCart size={24} />
+              {activeTab === 'sales' ? <FiShoppingCart size={24} /> : <FiFileText size={24} />}
             </div>
             <div>
               <h2 className="text-xl font-black text-slate-900 tracking-tight">{party.name}</h2>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Müşteri Satış Geçmişi</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Cari Detay & İşlem Geçmişi</p>
             </div>
           </div>
         </div>
 
+        {/* TABS HEADER */}
+        <div className="px-6 flex gap-4 border-b border-slate-100 bg-slate-50/50 flex-shrink-0">
+          <button
+            onClick={() => setActiveTab('sales')}
+            className={`py-3.5 px-4 text-xs font-black uppercase tracking-widest border-b-2 transition-all ${
+              activeTab === 'sales' ? 'border-primary text-primary' : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            {party.type === 'customer' ? 'Satış Geçmişi' : 'Tedarik Geçmişi'}
+          </button>
+          <button
+            onClick={() => setActiveTab('statement')}
+            className={`py-3.5 px-4 text-xs font-black uppercase tracking-widest border-b-2 transition-all ${
+              activeTab === 'statement' ? 'border-primary text-primary' : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            Cari Ekstre (Hesap Özeti)
+          </button>
+        </div>
+
         {/* CONTENT */}
         <div className="flex-1 overflow-y-auto p-6 flex flex-col min-h-0">
-          {isLoading ? (
-            <div className="py-20 flex flex-col items-center justify-center gap-4 my-auto">
-              <div className="w-12 h-12 border-4 border-slate-100 border-t-primary rounded-full animate-spin"></div>
-              <p className="text-xs font-black text-slate-400 uppercase tracking-widest animate-pulse">Geçmiş Satışlar Yükleniyor...</p>
-            </div>
-          ) : sales.length === 0 ? (
-            <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-300 my-auto">
-              <FiShoppingCart size={40} className="stroke-[1.5]" />
-              <span className="text-xs font-black uppercase tracking-widest text-slate-400">Bu müşteriye ait satış kaydı bulunamadı.</span>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-6">
-              {/* TOP STATS CARDS */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Toplam Satış */}
-                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group shadow-sm transition-all hover:shadow-md">
-                  <div className="absolute -right-2 -top-2 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-all group-hover:scale-110 text-slate-900">
-                    <FiTrendingUp size={45} />
-                  </div>
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">TOPLAM SATIŞ</span>
-                  <div className="text-xl font-black text-slate-800 text-right mt-2 tabular-nums tracking-tighter">
-                    {formatAmount(totalSales)} <span className="text-xs font-bold text-slate-400 ml-0.5">{party.currency?.symbol || '₺'}</span>
-                  </div>
-                </div>
-
-                {/* Toplam Tahsilat */}
-                <div className="bg-emerald-50/50 border border-emerald-100/50 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group shadow-sm transition-all hover:shadow-md">
-                  <div className="absolute -right-2 -top-2 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-all group-hover:scale-110 text-emerald-600">
-                    <FiCheck size={45} />
-                  </div>
-                  <span className="text-[9px] font-black text-emerald-600/70 uppercase tracking-widest">TOPLAM TAHSİLAT</span>
-                  <div className="text-xl font-black text-emerald-600 text-right mt-2 tabular-nums tracking-tighter">
-                    {formatAmount(totalPaid)} <span className="text-xs font-bold text-emerald-600/70 ml-0.5">{party.currency?.symbol || '₺'}</span>
-                  </div>
-                </div>
-
-                {/* Kalan Borç */}
-                <div className="bg-rose-50/50 border border-rose-100/50 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group shadow-sm transition-all hover:shadow-md">
-                  <div className="absolute -right-2 -top-2 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-all group-hover:scale-110 text-rose-600">
-                    <FiDollarSign size={45} />
-                  </div>
-                  <span className="text-[9px] font-black text-rose-600/70 uppercase tracking-widest">KALAN BORÇ</span>
-                  <div className="text-xl font-black text-rose-600 text-right mt-2 tabular-nums tracking-tighter">
-                    {formatAmount(totalRemaining)} <span className="text-xs font-bold text-rose-600/70 ml-0.5">{party.currency?.symbol || '₺'}</span>
-                  </div>
-                </div>
+          {activeTab === 'sales' ? (
+            /* TAB 1: SATIŞ/TEDARİK GEÇMİŞİ */
+            isSalesLoading ? (
+              <div className="py-20 flex flex-col items-center justify-center gap-4 my-auto">
+                <div className="w-12 h-12 border-4 border-slate-100 border-t-primary rounded-full animate-spin"></div>
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest animate-pulse">
+                  {party.type === 'customer' ? 'Geçmiş Satışlar Yükleniyor...' : 'Geçmiş Tedarikler Yükleniyor...'}
+                </p>
               </div>
+            ) : sales.length === 0 ? (
+              <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-300 my-auto">
+                <FiShoppingCart size={40} className="stroke-[1.5]" />
+                <span className="text-xs font-black uppercase tracking-widest text-slate-400">
+                  {party.type === 'customer' ? 'Bu müşteriye ait satış kaydı bulunamadı.' : 'Bu tedarikçiye ait tedarik kaydı bulunamadı.'}
+                </span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-6">
+                {/* TOP STATS CARDS */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Toplam Satış / Tedarik */}
+                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group shadow-sm transition-all hover:shadow-md">
+                    <div className="absolute -right-2 -top-2 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-all group-hover:scale-110 text-slate-900">
+                      <FiTrendingUp size={45} />
+                    </div>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                      {party.type === 'customer' ? 'TOPLAM SATIŞ' : 'TOPLAM TEDARİK'}
+                    </span>
+                    <div className="text-xl font-black text-slate-800 text-right mt-2 tabular-nums tracking-tighter">
+                      {formatAmount(totalSales)} <span className="text-xs font-bold text-slate-400 ml-0.5">{party.currency?.symbol || '₺'}</span>
+                    </div>
+                  </div>
 
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    <th className="px-4 py-3 rounded-l-xl">Sipariş No</th>
-                    <th className="px-4 py-3">Tarih</th>
-                    <th className="px-4 py-3">Ödeme Şekli</th>
-                    <th className="px-4 py-3 text-right">Tutar</th>
-                    <th className="px-4 py-3 text-right">Ödenen (Kapora/Tahsilat)</th>
-                    <th className="px-4 py-3 text-right">Kalan Borç</th>
-                    <th className="px-4 py-3 text-center rounded-r-xl">Durum</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {sales.map((sale: Sale) => {
-                    const gTotal = new Decimal(sale.grandTotal || 0);
-                    const pAmount = new Decimal(sale.paidAmount || 0);
-                    const remaining = Decimal.max(0, gTotal.minus(pAmount));
-                    
-                    return (
-                      <tr key={sale.id} className="hover:bg-slate-50/40 transition-colors">
-                        <td className="px-4 py-3.5">
-                          <span className="text-[10px] font-black text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg tracking-wider">
-                            {sale.code}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5 text-xs font-bold text-slate-500">
-                          {new Date(sale.createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                        </td>
-                        <td className="px-4 py-3.5 text-xs font-black text-slate-600 uppercase tracking-tight">
-                          {sale.paymentType || 'VADELİ'}
-                        </td>
-                        <td className="px-4 py-3.5 text-right font-black text-sm text-slate-800 tabular-nums">
-                          {formatAmount(sale.grandTotal)} <span className="text-[10px] font-bold text-slate-400 ml-0.5">{sale.currency?.symbol || '₺'}</span>
-                        </td>
-                        <td className="px-4 py-3.5 text-right font-black text-sm text-success tabular-nums">
-                          {formatAmount(pAmount)} <span className="text-[10px] font-bold text-slate-400 ml-0.5">{sale.currency?.symbol || '₺'}</span>
-                        </td>
-                        <td className={`px-4 py-3.5 text-right font-black text-sm tabular-nums ${remaining.gt(0) ? 'text-danger' : 'text-slate-400'}`}>
-                          {formatAmount(remaining)} <span className="text-[10px] font-bold text-slate-400 ml-0.5">{sale.currency?.symbol || '₺'}</span>
-                        </td>
-                        <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                          {getStatusBadge(sale.status)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                  {/* Toplam Tahsilat / Ödeme */}
+                  <div className="bg-emerald-50/50 border border-emerald-100/50 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group shadow-sm transition-all hover:shadow-md">
+                    <div className="absolute -right-2 -top-2 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-all group-hover:scale-110 text-emerald-600">
+                      <FiCheck size={45} />
+                    </div>
+                    <span className="text-[9px] font-black text-emerald-600/70 uppercase tracking-widest">
+                      {party.type === 'customer' ? 'TOPLAM TAHSİLAT' : 'TOPLAM ÖDEME'}
+                    </span>
+                    <div className="text-xl font-black text-emerald-600 text-right mt-2 tabular-nums tracking-tighter">
+                      {formatAmount(totalPaid)} <span className="text-xs font-bold text-emerald-600/70 ml-0.5">{party.currency?.symbol || '₺'}</span>
+                    </div>
+                  </div>
 
-              {/* PAGINATION */}
-              {meta.totalPages > 1 && (
-                <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-100">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Toplam {meta.total} kayıttan {((page - 1) * limit) + 1} - {Math.min(page * limit, meta.total)} arası gösteriliyor
-                  </span>
-                  <div className="flex gap-1">
-                    <button
-                      disabled={page === 1}
-                      onClick={() => setPage(p => Math.max(1, p - 1))}
-                      className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 disabled:opacity-40 text-slate-600 disabled:hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
-                    >
-                      Önceki
-                    </button>
-                    {Array.from({ length: meta.totalPages }, (_, i) => i + 1).map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => setPage(p)}
-                        className={`w-7 h-7 flex items-center justify-center rounded-xl text-[10px] font-black transition-all ${
-                          page === p ? 'bg-slate-800 text-white shadow-md' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                    <button
-                      disabled={page === meta.totalPages}
-                      onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
-                      className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 disabled:opacity-40 text-slate-600 disabled:hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
-                    >
-                      Sonraki
-                    </button>
+                  {/* Kalan Borç */}
+                  <div className="bg-rose-50/50 border border-rose-100/50 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group shadow-sm transition-all hover:shadow-md">
+                    <div className="absolute -right-2 -top-2 p-4 opacity-[0.03] group-hover:opacity-[0.08] transition-all group-hover:scale-110 text-rose-600">
+                      <FiDollarSign size={45} />
+                    </div>
+                    <span className="text-[9px] font-black text-rose-600/70 uppercase tracking-widest">
+                      {party.type === 'customer' ? 'KALAN BORÇ' : 'KALAN BORCUMUZ'}
+                    </span>
+                    <div className="text-xl font-black text-rose-600 text-right mt-2 tabular-nums tracking-tighter">
+                      {formatAmount(totalRemaining)} <span className="text-xs font-bold text-rose-600/70 ml-0.5">{party.currency?.symbol || '₺'}</span>
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
+
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      <th className="px-4 py-3 rounded-l-xl">{party.type === 'customer' ? 'Sipariş No' : 'Tedarik No'}</th>
+                      <th className="px-4 py-3">Tarih</th>
+                      <th className="px-4 py-3">Ödeme Şekli</th>
+                      <th className="px-4 py-3 text-right">Tutar</th>
+                      <th className="px-4 py-3 text-right">{party.type === 'customer' ? 'Ödenen (Kapora/Tahsilat)' : 'Ödenen'}</th>
+                      <th className="px-4 py-3 text-right">{party.type === 'customer' ? 'Kalan Borç' : 'Kalan Borç'}</th>
+                      <th className="px-4 py-3 text-center rounded-r-xl">Durum</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {sales.map((sale: Sale) => {
+                      const gTotal = new Decimal(sale.grandTotal || 0);
+                      const pAmount = new Decimal(sale.paidAmount || 0);
+                      const remaining = Decimal.max(0, gTotal.minus(pAmount));
+                      
+                      return (
+                        <tr 
+                          key={sale.id} 
+                          className="hover:bg-slate-50/40 transition-colors cursor-pointer"
+                          onClick={() => !isFetchingDetails && handleOpenSaleDetails(sale)}
+                        >
+                          <td className="px-4 py-3.5">
+                            <span className="text-[10px] font-black text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg tracking-wider">
+                              {sale.code}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-xs font-bold text-slate-500">
+                            {new Date(sale.createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                          </td>
+                          <td className="px-4 py-3.5 text-xs font-black text-slate-600 uppercase tracking-tight">
+                            {sale.paymentType || 'VADELİ'}
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-black text-sm text-slate-800 tabular-nums">
+                            {formatAmount(sale.grandTotal)} <span className="text-[10px] font-bold text-slate-400 ml-0.5">{sale.currency?.symbol || '₺'}</span>
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-black text-sm text-success tabular-nums">
+                            {formatAmount(pAmount)} <span className="text-[10px] font-bold text-slate-400 ml-0.5">{sale.currency?.symbol || '₺'}</span>
+                          </td>
+                          <td className={`px-4 py-3.5 text-right font-black text-sm tabular-nums ${remaining.gt(0) ? 'text-danger' : 'text-slate-400'}`}>
+                            {formatAmount(remaining)} <span className="text-[10px] font-bold text-slate-400 ml-0.5">{sale.currency?.symbol || '₺'}</span>
+                          </td>
+                          <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                            {getStatusBadge(sale.status)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+
+                {/* PAGINATION */}
+                {meta.totalPages > 1 && (
+                  <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-100">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      Toplam {meta.total} kayıttan {((page - 1) * limit) + 1} - {Math.min(page * limit, meta.total)} arası gösteriliyor
+                    </span>
+                    <div className="flex gap-1">
+                      <button
+                        disabled={page === 1}
+                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                        className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 disabled:opacity-40 text-slate-600 disabled:hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                      >
+                        Önceki
+                      </button>
+                      {Array.from({ length: meta.totalPages }, (_, i) => i + 1).map((p) => (
+                        <button
+                          key={p}
+                          onClick={() => setPage(p)}
+                          className={`w-7 h-7 flex items-center justify-center rounded-xl text-[10px] font-black transition-all ${
+                            page === p ? 'bg-slate-800 text-white shadow-md' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                      <button
+                        disabled={page === meta.totalPages}
+                        onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
+                        className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 disabled:opacity-40 text-slate-600 disabled:hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+                      >
+                        Sonraki
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          ) : (
+            /* TAB 2: CARİ HESAP EKSTRESİ (Ledger Timeline) */
+            isStatementLoading ? (
+              <div className="py-20 flex flex-col items-center justify-center gap-4 my-auto">
+                <div className="w-12 h-12 border-4 border-slate-100 border-t-primary rounded-full animate-spin"></div>
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest animate-pulse">Hesap Ekstresi Yükleniyor...</p>
+              </div>
+            ) : statementData.length === 0 ? (
+              <div className="py-20 flex flex-col items-center justify-center gap-3 text-slate-300 my-auto">
+                <FiFileText size={40} className="stroke-[1.5]" />
+                <span className="text-xs font-black uppercase tracking-widest text-slate-400">Bu müşteriye ait hesap hareketi bulunamadı.</span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-6">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      <th className="px-4 py-3 rounded-l-xl">Tarih</th>
+                      <th className="px-4 py-3">İşlem Türü</th>
+                      <th className="px-4 py-3">Açıklama / Belge</th>
+                      <th className="px-4 py-3 text-right">Borç (Borçlanan)</th>
+                      <th className="px-4 py-3 text-right">Alacak (Ödenen)</th>
+                      <th className="px-4 py-3 text-right rounded-r-xl">Bakiye</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {statementData.map((item: any) => {
+                      const debit = new Decimal(item.debit || 0);
+                      const credit = new Decimal(item.credit || 0);
+                      const balance = new Decimal(item.balance || 0).negated();
+
+                      return (
+                        <tr 
+                          key={item.id} 
+                          className={`hover:bg-slate-50/40 transition-colors ${item.transactionId ? 'cursor-pointer' : ''}`}
+                          onClick={() => item.transactionId && !isFetchingDetails && handleOpenSaleDetails(item.transactionId)}
+                        >
+                          <td className="px-4 py-3.5 text-xs font-bold text-slate-500">
+                            {new Date(item.date).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            {getStatementTypeBadge(item.type)}
+                          </td>
+                          <td className="px-4 py-3.5 text-xs font-black text-slate-700 tracking-tight">
+                            {item.description || '-'}
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-black text-sm text-slate-800 tabular-nums">
+                            {!debit.isZero() ? `${formatAmount(debit)} ${party.currency?.symbol || '₺'}` : '-'}
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-black text-sm text-success tabular-nums">
+                            {!credit.isZero() ? `${formatAmount(credit)} ${party.currency?.symbol || '₺'}` : '-'}
+                          </td>
+                          <td className={`px-4 py-3.5 text-right font-black text-sm tabular-nums ${balance.lt(0) ? 'text-danger' : (balance.gt(0) ? 'text-success' : 'text-slate-400')}`}>
+                            {balance.isZero() ? '0,00' : (balance.gt(0) ? '+' : '') + formatAmount(balance)} <span className="text-[10px] font-bold text-slate-400 ml-0.5">{party.currency?.symbol || '₺'}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )
           )}
         </div>
       </div>
+      {selectedSaleForDetails && (
+        <ViewSaleModal 
+          sale={selectedSaleForDetails} 
+          onClose={() => setSelectedSaleForDetails(null)} 
+        />
+      )}
     </div>
   );
 };
