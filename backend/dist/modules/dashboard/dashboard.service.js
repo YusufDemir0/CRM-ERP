@@ -25,6 +25,7 @@ const item_entity_1 = require("../inventory/items/entities/item.entity");
 const transaction_entity_1 = require("../finance/transactions/entities/transaction.entity");
 const department_entity_1 = require("../departments/entities/department.entity");
 const sale_entity_1 = require("../sales/entities/sale.entity");
+const decimal_js_1 = require("decimal.js");
 const dayjs_1 = __importDefault(require("dayjs"));
 let DashboardService = class DashboardService {
     constructor(userRepo, partyRepo, itemRepo, txRepo, deptRepo, saleRepo) {
@@ -43,20 +44,23 @@ let DashboardService = class DashboardService {
         const thisMonthEnd = now.toDate();
         const lastMonthStart = now.subtract(1, 'month').startOf('month').toDate();
         const lastMonthEnd = now.subtract(1, 'month').toDate();
-        const isSystemAdmin = user.isSystemAdmin === true;
+        const isSystemAdmin = user.isSystemAdmin === true ||
+            (!!user.role && ['ADMIN', 'SYSTEM_ADMIN', 'SUPER_ADMIN'].includes(user.role.toUpperCase())) ||
+            (Array.isArray(user.permissions) && (user.permissions.includes('SALES_VIEW_ALL') || user.permissions.includes('sales_view_all')));
         const userDeptId = user.departmentId ? String(user.departmentId) : null;
         const userId = user.sub ? String(user.sub) : null;
+        const confirmedStatuses = ['approved', 'shipped', 'invoiced'];
         const todayQb = this.saleRepo.createQueryBuilder('sale')
             .where("sale.createdAt BETWEEN :start AND :end", { start: todayStart, end: todayEnd })
-            .andWhere("sale.status != 'cancelled'");
+            .andWhere("sale.status IN (:...confirmedStatuses)", { confirmedStatuses });
         const thisMonthQb = this.saleRepo.createQueryBuilder('sale')
             .where("sale.createdAt BETWEEN :start AND :end", { start: thisMonthStart, end: thisMonthEnd })
-            .andWhere("sale.status != 'cancelled'");
+            .andWhere("sale.status IN (:...confirmedStatuses)", { confirmedStatuses });
         const lastMonthQb = this.saleRepo.createQueryBuilder('sale')
             .where("sale.createdAt BETWEEN :start AND :end", { start: lastMonthStart, end: lastMonthEnd })
-            .andWhere("sale.status != 'cancelled'");
+            .andWhere("sale.status IN (:...confirmedStatuses)", { confirmedStatuses });
         const countQb = this.saleRepo.createQueryBuilder('sale')
-            .where("sale.status IN ('approved', 'shipped', 'invoiced')");
+            .where("sale.status IN (:...confirmedStatuses)", { confirmedStatuses });
         if (!isSystemAdmin) {
             if (userDeptId) {
                 todayQb.andWhere("sale.departmentId = :deptId", { deptId: userDeptId });
@@ -84,7 +88,7 @@ let DashboardService = class DashboardService {
             this.partyRepo.count({ where: partyWhere }),
             countQb.getCount(),
             todayQb
-                .select("SUM(sale.grandTotal * sale.exchangeRate)", "revenue")
+                .select("SUM(sale.grandTotal * sale.exchangeRate - sale.kdv * sale.exchangeRate)", "revenue")
                 .getRawOne(),
             thisMonthQb
                 .select("SUM(sale.grandTotal * sale.exchangeRate - sale.kdv * sale.exchangeRate)", "revenue")
@@ -98,18 +102,18 @@ let DashboardService = class DashboardService {
                 .getRawOne()
         ]);
         return {
-            totalCustomers,
-            totalSalesCount,
-            todaySales: todayRevenueStats?.revenue || 0,
+            totalCustomers: Number(totalCustomers || 0),
+            totalSalesCount: Number(totalSalesCount || 0),
+            todaySales: new decimal_js_1.Decimal(todayRevenueStats?.revenue || 0).toNumber(),
             thisMonth: {
-                revenue: thisMonthStats?.revenue || 0,
-                count: thisMonthStats?.count || 0,
-                profit: thisMonthStats?.profit || 0
+                revenue: new decimal_js_1.Decimal(thisMonthStats?.revenue || 0).toNumber(),
+                count: Number(thisMonthStats?.count || 0),
+                profit: new decimal_js_1.Decimal(thisMonthStats?.profit || 0).toNumber()
             },
             lastMonth: {
-                revenue: lastMonthStats?.revenue || 0,
-                count: lastMonthStats?.count || 0,
-                profit: lastMonthStats?.profit || 0
+                revenue: new decimal_js_1.Decimal(lastMonthStats?.revenue || 0).toNumber(),
+                count: Number(lastMonthStats?.count || 0),
+                profit: new decimal_js_1.Decimal(lastMonthStats?.profit || 0).toNumber()
             }
         };
     }

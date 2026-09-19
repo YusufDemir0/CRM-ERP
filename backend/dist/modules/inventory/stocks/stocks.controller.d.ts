@@ -6,6 +6,7 @@ export declare class StocksController {
     private readonly stocksService;
     constructor(stocksService: StocksService);
     findAll(query: StocksQueryDto, user: JwtPayload): Promise<import("../../../common/dto/pagination.dto").PaginatedResult<import("./entities/stock.entity").Stock>>;
+    getDepartmentStockSummary(departmentId: string, user: JwtPayload): Promise<any>;
     getCriticalStocks(user: JwtPayload): Promise<import("./entities/stock.entity").Stock[] | import("../../../common/dto/pagination.dto").PaginatedResult<import("./entities/stock.entity").Stock>>;
     findAllMovements(query: PaginationDto & {
         type?: string;

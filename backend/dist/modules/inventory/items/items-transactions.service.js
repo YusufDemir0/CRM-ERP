@@ -52,6 +52,7 @@ const typeorm_2 = require("typeorm");
 const decimal_js_1 = require("decimal.js");
 const transactional_1 = require("@nestjs-cls/transactional");
 const ExcelJS = __importStar(require("exceljs"));
+const crypto = __importStar(require("crypto"));
 const item_entity_1 = require("./entities/item.entity");
 const item_type_entity_1 = require("./entities/item-type.entity");
 const quantity_type_entity_1 = require("./entities/quantity-type.entity");
@@ -383,9 +384,11 @@ let ItemsTransactionsService = class ItemsTransactionsService {
         return importResult;
     }
     async softDelete(id, currentUserId) {
-        await this.reportsService.findOne(id);
+        const item = await this.reportsService.findOne(id);
         await this.validateUsage(id);
+        const suffix = `_del_${crypto.randomUUID().substring(0, 8)}`;
         await this.itemRepo.update(id, {
+            code: `${item.code}${suffix}`.substring(0, 50),
             state: 0,
             updatedBy: currentUserId || null,
         });
@@ -403,6 +406,18 @@ let ItemsTransactionsService = class ItemsTransactionsService {
         const bomUsage = await manager.count(bom_item_entity_1.BomItem, { where: { itemId: id } });
         if (bomUsage > 0)
             throw new common_1.BadRequestException(`Bu ürün ${bomUsage} adet üretim reçetesinde (BOM) kullanılmaktadır.`);
+        const activeSaleResult = await manager.createQueryBuilder()
+            .select('COUNT(*)', 'total')
+            .from('sale_items', 'si')
+            .innerJoin('sales', 'sale', 'sale.id = si.sale_id')
+            .where('si.item_id = :id', { id })
+            .andWhere("sale.status IN ('draft', 'approved', 'preparing', 'shipped')")
+            .andWhere('sale.deleted_at IS NULL')
+            .getRawOne();
+        const activeSaleCount = Number(activeSaleResult?.total || 0);
+        if (activeSaleCount > 0) {
+            throw new common_1.BadRequestException(`Bu ürün ${activeSaleCount} adet aktif sipariş/satış kaydında yer almaktadır. Önce ilgili siparişleri tamamlamalı veya iptal etmelisiniz.`);
+        }
     }
     async createItemType(dto, userId) {
         const type = this.itemTypeRepo.create({ ...dto, createdBy: userId });

@@ -38,6 +38,9 @@ let SalesService = SalesService_1 = class SalesService {
     async exportToExcel(query, user) {
         return this.reportsService.exportToExcel(query, user);
     }
+    async getPeriodSummary(query, user) {
+        return this.reportsService.getPeriodSummary(query, user);
+    }
     async createSaleType(dto, userId) {
         return this.transactionsService.createSaleType(dto, userId);
     }

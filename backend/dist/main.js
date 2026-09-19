@@ -22,31 +22,30 @@ async function bootstrap() {
     app.useLogger(logger);
     const configService = app.get(config_1.ConfigService);
     app.setGlobalPrefix('api');
-    app.use((0, helmet_1.default)());
-    logger.log('✅ Helmet security headers enabled');
+    app.use((0, helmet_1.default)({
+        crossOriginResourcePolicy: false,
+    }));
     app.use((0, compression_1.default)());
-    logger.log('✅ Response compression enabled');
     app.getHttpAdapter().getInstance().set('trust proxy', 1);
     app.use((0, cookie_parser_1.default)());
-    const allowedOriginsRaw = configService.get('ALLOWED_ORIGINS');
-    const allowedOrigins = allowedOriginsRaw
-        ? allowedOriginsRaw.split(',').map(o => o.trim())
-        : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5143'];
     app.enableCors({
         origin: (origin, callback) => {
-            if (!origin)
-                return callback(null, true);
-            if (allowedOrigins.includes(origin) ||
-                allowedOrigins.includes('*') ||
-                origin.endsWith('.vercel.app') ||
-                origin.endsWith('.onrender.com')) {
-                return callback(null, true);
-            }
-            return callback(null, true);
+            callback(null, true);
         },
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
         credentials: true,
-        exposedHeaders: ['X-CSRF-TOKEN'],
+        allowedHeaders: [
+            'Content-Type',
+            'Authorization',
+            'X-Requested-With',
+            'Accept',
+            'Origin',
+            'X-CSRF-TOKEN',
+            'Cookie',
+        ],
+        exposedHeaders: ['Set-Cookie', 'X-CSRF-TOKEN'],
+        preflightContinue: false,
+        optionsSuccessStatus: 204,
     });
     app.useGlobalPipes(new common_1.ValidationPipe({
         whitelist: true,
@@ -59,11 +58,9 @@ async function bootstrap() {
     app.useGlobalInterceptors(new common_1.ClassSerializerInterceptor(app.get(core_1.Reflector)));
     app.useGlobalFilters(new all_exceptions_filter_1.AllExceptionsFilter());
     app.enableShutdownHooks();
-    logger.log('✅ Graceful shutdown hooks enabled');
-    const port = configService.get('APP_PORT') || 5143;
+    const port = process.env.PORT || configService.get('APP_PORT') || 5143;
     await app.listen(port, '0.0.0.0');
-    logger.log(`🚀 ERP Backend API running on http://0.0.0.0:${port}/api`);
-    logger.log(`📊 Health check: http://localhost:${port}/api/health`);
+    logger.log(`🚀 ERP Backend API running on port ${port}`);
 }
 bootstrap();
 //# sourceMappingURL=main.js.map

@@ -12,6 +12,7 @@ export declare class SalesController {
         monthlyOrders: import("decimal.js").Decimal;
         pendingOrders: import("decimal.js").Decimal;
     }>;
+    getPeriodSummary(year: string, month: string, departmentId: string, user: JwtPayload): Promise<any>;
     export(query: SalesQueryDto, user: JwtPayload): Promise<StreamableFile>;
     findAll(query: SalesQueryDto, user: JwtPayload): Promise<import("../../common/dto/pagination.dto").PaginatedResult<import("./entities/sale.entity").Sale>>;
     findMinimalLookup(user: JwtPayload): Promise<any[]>;

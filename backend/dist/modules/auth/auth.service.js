@@ -76,6 +76,19 @@ let AuthService = AuthService_1 = class AuthService {
             relations: ['roles'],
         });
         if (!user) {
+            try {
+                await this.userRepo.manager.insert(log_entity_1.SystemLog, {
+                    username: dto.username,
+                    action: 'LOGIN_FAILED',
+                    module: 'auth',
+                    tag: 'WARNING',
+                    details: `'${dto.username}' kullanıcı adı ile başarısız giriş denemesi (Kullanıcı bulunamadı).`,
+                    ipAddress: ipAddress || '127.0.0.1',
+                });
+            }
+            catch (e) {
+                this.logger.error(`Failed to write failed login log: ${e.message}`);
+            }
             throw new common_1.UnauthorizedException('Böyle bir kullanıcı bulunmamaktadır. Lütfen YETKİLİ ile iletişime geçiniz.');
         }
         if (user.state === 2) {
@@ -98,6 +111,23 @@ let AuthService = AuthService_1 = class AuthService {
                 updates.failedLoginAttempts = 0;
             }
             await this.userRepo.update(user.id, updates);
+            try {
+                await this.userRepo.manager.insert(log_entity_1.SystemLog, {
+                    userId: String(user.id),
+                    username: user.username,
+                    fullName: user.fullName,
+                    action: failedAttempts >= 5 ? 'ACCOUNT_LOCKED' : 'LOGIN_FAILED',
+                    module: 'auth',
+                    tag: failedAttempts >= 5 ? 'CRITICAL' : 'WARNING',
+                    details: failedAttempts >= 5
+                        ? `${user.fullName} (${user.username}) hesabı 5 hatalı deneme sebebiyle 15 dakika kilitlendi.`
+                        : `${user.fullName} (${user.username}) için hatalı şifre denemesi yapıldı (${failedAttempts}. deneme).`,
+                    ipAddress: ipAddress || '127.0.0.1',
+                });
+            }
+            catch (e) {
+                this.logger.error(`Failed to write failed login log: ${e.message}`);
+            }
             throw new common_1.UnauthorizedException('Hatalı şifre girişi yaptınız. Lütfen tekrar deneyiniz.');
         }
         if (user.failedLoginAttempts > 0 || user.lockedUntil) {

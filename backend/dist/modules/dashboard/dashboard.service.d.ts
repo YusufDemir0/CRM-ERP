@@ -17,16 +17,16 @@ export declare class DashboardService {
     getSummary(user: JwtPayload): Promise<{
         totalCustomers: number;
         totalSalesCount: number;
-        todaySales: any;
+        todaySales: number;
         thisMonth: {
-            revenue: any;
-            count: any;
-            profit: any;
+            revenue: number;
+            count: number;
+            profit: number;
         };
         lastMonth: {
-            revenue: any;
-            count: any;
-            profit: any;
+            revenue: number;
+            count: number;
+            profit: number;
         };
     }>;
 }

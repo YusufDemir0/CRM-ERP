@@ -25,6 +25,9 @@ export declare class StocksService {
         totalQuantity: string;
         criticalCount: number;
     }>;
+    getDepartmentStockSummary(query: {
+        departmentId?: string;
+    }, user?: JwtPayload): Promise<any>;
     decreaseStock(itemId: string, departmentId: string, quantity: number | Decimal, manager?: EntityManager, referenceInfo?: {
         type: StockMovement['referenceType'];
         id: string;

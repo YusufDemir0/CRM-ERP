@@ -53,10 +53,43 @@ let LogsService = class LogsService {
             }
         };
     }
+    sanitizeData(data) {
+        const SENSITIVE_KEYS = new Set([
+            'password', 'token', 'refreshtoken', 'access_token', 'refresh_token',
+            'secret', 'creditcard', 'cvv', 'cardnumber', 'tckn', 'tc_no', 'tcno'
+        ]);
+        const clean = {};
+        for (const [key, value] of Object.entries(data)) {
+            if (SENSITIVE_KEYS.has(key.toLowerCase())) {
+                clean[key] = '***MASKED***';
+            }
+            else if (value && typeof value === 'object' && !Array.isArray(value)) {
+                clean[key] = this.sanitizeData(value);
+            }
+            else {
+                clean[key] = value;
+            }
+        }
+        return clean;
+    }
     logActivity(data) {
+        let safeDetails = data.details;
+        if (safeDetails) {
+            try {
+                if (typeof safeDetails === 'string' && (safeDetails.startsWith('{') || safeDetails.startsWith('['))) {
+                    const parsed = JSON.parse(safeDetails);
+                    if (typeof parsed === 'object' && parsed !== null) {
+                        safeDetails = JSON.stringify(this.sanitizeData(parsed));
+                    }
+                }
+            }
+            catch {
+            }
+        }
         const logPayload = {
             timestamp: new Date().toISOString(),
             ...data,
+            details: safeDetails,
         };
         try {
             this.logger.log(JSON.stringify(logPayload));

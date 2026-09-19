@@ -288,6 +288,132 @@ let SalesReportsService = class SalesReportsService {
         }));
         return map;
     }
+    async getPeriodSummary(query, user) {
+        const year = Number(query.year) || (0, dayjs_1.default)().year();
+        const month = query.month ? Number(query.month) : undefined;
+        let startDate;
+        let endDate;
+        let periodType;
+        let label;
+        const monthNames = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+        if (month && month >= 1 && month <= 12) {
+            periodType = 'monthly';
+            startDate = (0, dayjs_1.default)(`${year}-${String(month).padStart(2, '0')}-01`).startOf('month').toDate();
+            endDate = (0, dayjs_1.default)(startDate).endOf('month').toDate();
+            label = `${monthNames[month]} ${year}`;
+        }
+        else {
+            periodType = 'yearly';
+            startDate = (0, dayjs_1.default)(`${year}-01-01`).startOf('year').toDate();
+            endDate = (0, dayjs_1.default)(`${year}-12-31`).endOf('year').toDate();
+            label = `${year} Yılı`;
+        }
+        const qb = this.saleRepo.createQueryBuilder('sale')
+            .leftJoin('sale.party', 'party')
+            .leftJoin('sale.currency', 'currency')
+            .leftJoin('sale.department', 'department')
+            .select([
+            'sale.id', 'sale.code', 'sale.createdAt', 'sale.status',
+            'sale.grandTotal', 'sale.exchangeRate', 'sale.paymentType', 'sale.paidAmount',
+            'party.id', 'party.name',
+            'currency.id', 'currency.symbol',
+            'department.id', 'department.name'
+        ])
+            .where('sale.createdAt >= :startDate AND sale.createdAt <= :endDate', { startDate, endDate });
+        let departmentScopeName = 'Tüm Şirket / Tüm Departmanlar';
+        if (user && !user.isSystemAdmin) {
+            const hasViewAll = user.permissions?.includes('SALES_VIEW_ALL') ||
+                user.permissions?.includes('sales_view_all') ||
+                user.permissions?.includes('SALES_MASTER_VIEW') ||
+                user.permissions?.includes('sales_master_view');
+            if (hasViewAll) {
+                if (query.departmentId) {
+                    qb.andWhere('sale.departmentId = :deptId', { deptId: query.departmentId });
+                }
+            }
+            else {
+                const hasViewDept = user.permissions?.includes('SALES_VIEW_DEPT') ||
+                    user.permissions?.includes('sales_view_dept');
+                if (hasViewDept && user.departmentId) {
+                    qb.andWhere('sale.departmentId = :userDeptId', { userDeptId: String(user.departmentId) });
+                }
+                else {
+                    qb.andWhere('sale.createdBy = :userId', { userId: String(user.sub) });
+                }
+            }
+        }
+        else if (query.departmentId) {
+            qb.andWhere('sale.departmentId = :deptId', { deptId: query.departmentId });
+        }
+        const sales = await qb.orderBy('sale.createdAt', 'DESC').getMany();
+        if (query.departmentId && sales.length > 0 && sales[0].department) {
+            departmentScopeName = sales[0].department.name;
+        }
+        else if (user && !user.isSystemAdmin && user.departmentId && sales.length > 0 && sales[0].department) {
+            departmentScopeName = sales[0].department.name;
+        }
+        let totalRevenue = new decimal_js_1.Decimal(0);
+        let completedRevenue = new decimal_js_1.Decimal(0);
+        let pendingRevenue = new decimal_js_1.Decimal(0);
+        let cancelledRevenue = new decimal_js_1.Decimal(0);
+        let totalCount = 0;
+        let completedCount = 0;
+        let pendingCount = 0;
+        let cancelledCount = 0;
+        const completedStatuses = ['approved', 'shipped', 'completed', 'invoiced'];
+        sales.forEach(sale => {
+            const grandTotal = new decimal_js_1.Decimal(sale.grandTotal || 0);
+            const rate = new decimal_js_1.Decimal(sale.exchangeRate || 1);
+            const tlAmount = grandTotal.mul(rate);
+            totalRevenue = totalRevenue.add(tlAmount);
+            totalCount++;
+            if (completedStatuses.includes(sale.status)) {
+                completedRevenue = completedRevenue.add(tlAmount);
+                completedCount++;
+            }
+            else if (sale.status === 'cancelled') {
+                cancelledRevenue = cancelledRevenue.add(tlAmount);
+                cancelledCount++;
+            }
+            else {
+                pendingRevenue = pendingRevenue.add(tlAmount);
+                pendingCount++;
+            }
+        });
+        return {
+            period: {
+                type: periodType,
+                year,
+                month: month || null,
+                label,
+                startDate: (0, dayjs_1.default)(startDate).format('YYYY-MM-DD'),
+                endDate: (0, dayjs_1.default)(endDate).format('YYYY-MM-DD'),
+            },
+            departmentName: departmentScopeName,
+            summary: {
+                totalRevenue: totalRevenue.toDecimalPlaces(2).toNumber(),
+                completedRevenue: completedRevenue.toDecimalPlaces(2).toNumber(),
+                pendingRevenue: pendingRevenue.toDecimalPlaces(2).toNumber(),
+                cancelledRevenue: cancelledRevenue.toDecimalPlaces(2).toNumber(),
+                totalCount,
+                completedCount,
+                pendingCount,
+                cancelledCount,
+            },
+            sales: sales.map(s => ({
+                id: s.id,
+                code: s.code,
+                date: (0, dayjs_1.default)(s.createdAt).format('DD.MM.YYYY'),
+                partyName: s.party?.name || '—',
+                departmentName: s.department?.name || '—',
+                status: s.status,
+                grandTotal: new decimal_js_1.Decimal(s.grandTotal || 0).toNumber(),
+                tlTotal: new decimal_js_1.Decimal(s.grandTotal || 0).mul(s.exchangeRate || 1).toDecimalPlaces(2).toNumber(),
+                currencySymbol: s.currency?.symbol || '₺',
+                paymentType: s.paymentType || 'NAKİT',
+            })),
+        };
+    }
 };
 exports.SalesReportsService = SalesReportsService;
 exports.SalesReportsService = SalesReportsService = __decorate([

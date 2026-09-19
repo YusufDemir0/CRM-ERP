@@ -21,6 +21,11 @@ export declare class SalesService {
         pendingOrders: import("decimal.js").Decimal;
     }>;
     exportToExcel(query: SalesQueryDto, user: JwtPayload): Promise<StreamableFile>;
+    getPeriodSummary(query: {
+        year: number | string;
+        month?: number | string;
+        departmentId?: string;
+    }, user: JwtPayload): Promise<any>;
     createSaleType(dto: CreateSaleTypeDto, userId: string): Promise<SaleType>;
     create(dto: CreateSaleDto, userId: string): Promise<Sale>;
     update(id: string, dto: UpdateSaleDto, userId: string, user?: JwtPayload): Promise<Sale>;

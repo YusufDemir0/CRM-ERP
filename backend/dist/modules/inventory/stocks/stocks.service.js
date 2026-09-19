@@ -42,6 +42,9 @@ let StocksService = StocksService_1 = class StocksService {
     async getStatus(user) {
         return this.reportsService.getStatus(user);
     }
+    async getDepartmentStockSummary(query, user) {
+        return this.reportsService.getDepartmentStockSummary(query, user);
+    }
     async decreaseStock(itemId, departmentId, quantity, manager, referenceInfo, userId) {
         return this.transactionsService.decreaseStock(itemId, departmentId, quantity, manager, referenceInfo, userId);
     }

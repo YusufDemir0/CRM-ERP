@@ -29,6 +29,9 @@ let SalesController = class SalesController {
     getStatus() {
         return this.salesService.getStatus();
     }
+    getPeriodSummary(year, month, departmentId, user) {
+        return this.salesService.getPeriodSummary({ year, month, departmentId }, user);
+    }
     export(query, user) {
         return this.salesService.exportToExcel(query, user);
     }
@@ -122,6 +125,17 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], SalesController.prototype, "getStatus", null);
+__decorate([
+    (0, common_1.Get)('reports/period-summary'),
+    (0, permissions_decorator_1.RequirePermissions)('SALES_VIEW_OWN', 'SALES_VIEW_DEPT', 'SALES_VIEW_ALL'),
+    __param(0, (0, common_1.Query)('year')),
+    __param(1, (0, common_1.Query)('month')),
+    __param(2, (0, common_1.Query)('departmentId')),
+    __param(3, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String, Object]),
+    __metadata("design:returntype", void 0)
+], SalesController.prototype, "getPeriodSummary", null);
 __decorate([
     (0, common_1.Get)('export'),
     (0, permissions_decorator_1.RequirePermissions)('SALES_VIEW_OWN', 'SALES_VIEW_DEPT', 'SALES_VIEW_ALL'),

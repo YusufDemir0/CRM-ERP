@@ -22,4 +22,9 @@ export declare class SalesReportsService {
     }>;
     exportToExcel(query: SalesQueryDto, user: JwtPayload): Promise<StreamableFile>;
     fetchItemData(manager: EntityManager, itemIds: string[]): Promise<Map<string, ItemData>>;
+    getPeriodSummary(query: {
+        year: number | string;
+        month?: number | string;
+        departmentId?: string;
+    }, user: JwtPayload): Promise<any>;
 }

@@ -9,6 +9,7 @@ export declare class StocksReportsService {
     private movementRepo;
     private readonly logger;
     constructor(stockRepo: Repository<Stock>, movementRepo: Repository<StockMovement>);
+    private checkViewAll;
     findAll(query: StocksQueryDto, user?: JwtPayload): Promise<PaginatedResult<Stock>>;
     findAllMovements(query: PaginationDto & {
         type?: string;
@@ -22,4 +23,7 @@ export declare class StocksReportsService {
         totalQuantity: string;
         criticalCount: number;
     }>;
+    getDepartmentStockSummary(query: {
+        departmentId?: string;
+    }, user?: JwtPayload): Promise<any>;
 }

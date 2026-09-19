@@ -26,6 +26,7 @@ export declare class LogsService implements OnModuleInit {
             totalPages: number;
         };
     }>;
+    private sanitizeData;
     logActivity(data: Partial<SystemLog>): void;
     addLog(data: Partial<SystemLog>): Promise<SystemLog | null>;
     getNotifications(limit?: number): Promise<SystemLog[]>;

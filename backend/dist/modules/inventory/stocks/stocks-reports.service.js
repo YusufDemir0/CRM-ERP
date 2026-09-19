@@ -11,14 +11,20 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 var StocksReportsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StocksReportsService = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
+const dayjs_1 = __importDefault(require("dayjs"));
 const stock_entity_1 = require("./entities/stock.entity");
 const stock_movement_entity_1 = require("./entities/stock-movement.entity");
+const item_entity_1 = require("../items/entities/item.entity");
+const department_entity_1 = require("../../departments/entities/department.entity");
 const sql_helper_1 = require("../../../common/utils/sql.helper");
 const decimal_js_1 = require("decimal.js");
 let StocksReportsService = StocksReportsService_1 = class StocksReportsService {
@@ -26,6 +32,14 @@ let StocksReportsService = StocksReportsService_1 = class StocksReportsService {
         this.stockRepo = stockRepo;
         this.movementRepo = movementRepo;
         this.logger = new common_1.Logger(StocksReportsService_1.name);
+    }
+    checkViewAll(user) {
+        if (!user)
+            return false;
+        if (user.isSystemAdmin)
+            return true;
+        return !!(user.permissions?.includes('INVENTORY_VIEW_ALL') ||
+            user.permissions?.includes('inventory_view_all'));
     }
     async findAll(query, user) {
         const qb = this.stockRepo.createQueryBuilder('stock')
@@ -40,8 +54,9 @@ let StocksReportsService = StocksReportsService_1 = class StocksReportsService {
             'quantityType.id', 'quantityType.abbreviation',
             'department.id', 'department.name'
         ]);
-        if (user && !user.isSystemAdmin) {
-            if (user.departmentId) {
+        const hasViewAll = this.checkViewAll(user);
+        if (!hasViewAll) {
+            if (user?.departmentId) {
                 qb.andWhere('stock.departmentId = :userDeptId', { userDeptId: String(user.departmentId) });
             }
             else {
@@ -97,8 +112,9 @@ let StocksReportsService = StocksReportsService_1 = class StocksReportsService {
             'department.id', 'department.name'
         ])
             .orderBy('sm.createdAt', 'DESC');
-        if (user && !user.isSystemAdmin) {
-            if (user.departmentId) {
+        const hasViewAll = this.checkViewAll(user);
+        if (!hasViewAll) {
+            if (user?.departmentId) {
                 qb.andWhere('stock.departmentId = :userDeptId', { userDeptId: String(user.departmentId) });
             }
             else {
@@ -124,8 +140,9 @@ let StocksReportsService = StocksReportsService_1 = class StocksReportsService {
             .leftJoin('sm.stock', 'stock')
             .where('sm.stockId = :stockId', { stockId })
             .orderBy('sm.createdAt', 'DESC');
-        if (user && !user.isSystemAdmin) {
-            if (user.departmentId) {
+        const hasViewAll = this.checkViewAll(user);
+        if (!hasViewAll) {
+            if (user?.departmentId) {
                 qb.andWhere('stock.departmentId = :userDeptId', { userDeptId: String(user.departmentId) });
             }
             else {
@@ -150,8 +167,9 @@ let StocksReportsService = StocksReportsService_1 = class StocksReportsService {
         ])
             .where('stock.quantity <= item.criticalLimit')
             .andWhere('item.criticalLimit > 0');
-        if (user && !user.isSystemAdmin) {
-            if (user.departmentId) {
+        const hasViewAll = this.checkViewAll(user);
+        if (!hasViewAll) {
+            if (user?.departmentId) {
                 qb.andWhere('stock.departmentId = :userDeptId', { userDeptId: String(user.departmentId) });
             }
             else {
@@ -183,8 +201,9 @@ let StocksReportsService = StocksReportsService_1 = class StocksReportsService {
             .where('stock.quantity <= item.criticalLimit')
             .andWhere('item.criticalLimit > 0')
             .select("COUNT(*)", "count");
-        if (user && !user.isSystemAdmin) {
-            if (user.departmentId) {
+        const hasViewAll = this.checkViewAll(user);
+        if (!hasViewAll) {
+            if (user?.departmentId) {
                 qbTotal.andWhere('stock.departmentId = :userDeptId', { userDeptId: String(user.departmentId) });
                 qbCritical.andWhere('stock.departmentId = :userDeptId', { userDeptId: String(user.departmentId) });
             }
@@ -201,6 +220,84 @@ let StocksReportsService = StocksReportsService_1 = class StocksReportsService {
             totalItems: Number(total.items || 0),
             totalQuantity: new decimal_js_1.Decimal(total.quantity || 0).toFixed(2),
             criticalCount: Number(critical.count || 0),
+        };
+    }
+    async getDepartmentStockSummary(query, user) {
+        const hasViewAll = this.checkViewAll(user);
+        const deptQb = this.stockRepo.manager.getRepository(department_entity_1.Department).createQueryBuilder('dept')
+            .where('dept.state = 1');
+        if (!hasViewAll) {
+            if (user?.departmentId) {
+                deptQb.andWhere('dept.id = :userDeptId', { userDeptId: String(user.departmentId) });
+            }
+            else {
+                deptQb.andWhere('1 = 0');
+            }
+        }
+        else if (query.departmentId) {
+            deptQb.andWhere('dept.id = :deptId', { deptId: String(query.departmentId) });
+        }
+        const departments = await deptQb.orderBy('dept.name', 'ASC').getMany();
+        const allItems = await this.stockRepo.manager.getRepository(item_entity_1.Item).createQueryBuilder('item')
+            .leftJoinAndSelect('item.itemType', 'itemType')
+            .leftJoinAndSelect('item.quantityType', 'quantityType')
+            .where('item.state = 1')
+            .orderBy('item.name', 'ASC')
+            .getMany();
+        const result = [];
+        for (const dept of departments) {
+            const stocks = await this.stockRepo.find({
+                where: { departmentId: dept.id },
+            });
+            const stockMap = new Map();
+            stocks.forEach(s => stockMap.set(String(s.itemId), s));
+            const inStock = [];
+            const criticalStock = [];
+            const outOfStock = [];
+            for (const item of allItems) {
+                const stock = stockMap.get(String(item.id));
+                const quantity = stock ? new decimal_js_1.Decimal(stock.quantity || 0) : new decimal_js_1.Decimal(0);
+                const reservedQuantity = stock ? new decimal_js_1.Decimal(stock.reservedQuantity || 0) : new decimal_js_1.Decimal(0);
+                const criticalLimit = new decimal_js_1.Decimal(item.criticalLimit || 0);
+                const itemDto = {
+                    id: item.id,
+                    code: item.code,
+                    name: item.name,
+                    category: item.itemType?.name || 'Genel',
+                    unit: item.quantityType?.abbreviation || 'ADET',
+                    quantity: quantity.toNumber(),
+                    reservedQuantity: reservedQuantity.toNumber(),
+                    criticalLimit: criticalLimit.toNumber(),
+                };
+                if (quantity.lte(0)) {
+                    outOfStock.push(itemDto);
+                }
+                else if (criticalLimit.gt(0) && quantity.lte(criticalLimit)) {
+                    criticalStock.push(itemDto);
+                }
+                else {
+                    inStock.push(itemDto);
+                }
+            }
+            result.push({
+                departmentId: dept.id,
+                departmentName: dept.name,
+                counts: {
+                    totalItems: allItems.length,
+                    inStockCount: inStock.length,
+                    criticalCount: criticalStock.length,
+                    outOfStockCount: outOfStock.length,
+                },
+                inStock,
+                criticalStock,
+                outOfStock,
+            });
+        }
+        return {
+            reportDate: (0, dayjs_1.default)().format('DD.MM.YYYY HH:mm'),
+            departmentCount: departments.length,
+            scope: hasViewAll && !query.departmentId ? 'Tüm Departmanlar / Depolar' : (departments[0]?.name || 'Departman'),
+            departments: result,
         };
     }
 };

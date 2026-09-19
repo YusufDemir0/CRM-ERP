@@ -26,6 +26,9 @@ let StocksController = class StocksController {
     findAll(query, user) {
         return this.stocksService.findAll(query, user);
     }
+    getDepartmentStockSummary(departmentId, user) {
+        return this.stocksService.getDepartmentStockSummary({ departmentId }, user);
+    }
     getCriticalStocks(user) { return this.stocksService.getCriticalStocks({}, user); }
     findAllMovements(query, user) {
         return this.stocksService.findAllMovements(query, user);
@@ -51,6 +54,15 @@ __decorate([
     __metadata("design:paramtypes", [inventory_dto_1.StocksQueryDto, Object]),
     __metadata("design:returntype", void 0)
 ], StocksController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('reports/department-summary'),
+    (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW_DEPT', 'INVENTORY_VIEW_ALL'),
+    __param(0, (0, common_1.Query)('departmentId')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], StocksController.prototype, "getDepartmentStockSummary", null);
 __decorate([
     (0, common_1.Get)('critical'),
     (0, permissions_decorator_1.RequirePermissions)('INVENTORY_VIEW_DEPT', 'INVENTORY_VIEW_ALL'),
