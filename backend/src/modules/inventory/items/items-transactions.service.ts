@@ -4,6 +4,7 @@ import { Repository, In } from 'typeorm';
 import { Decimal } from 'decimal.js';
 import { Transactional } from '@nestjs-cls/transactional';
 import * as ExcelJS from 'exceljs';
+import * as crypto from 'crypto';
 
 import { Item } from './entities/item.entity';
 import { ItemType } from './entities/item-type.entity';
@@ -411,10 +412,13 @@ export class ItemsTransactionsService {
   }
 
   async softDelete(id: string, currentUserId: string): Promise<void> {
-    await this.reportsService.findOne(id);
+    const item = await this.reportsService.findOne(id);
     await this.validateUsage(id);
 
+    // SEC-06 & DB-05: Suffix unique code to prevent unique constraint collision on soft delete
+    const suffix = `_del_${crypto.randomUUID().substring(0, 8)}`;
     await this.itemRepo.update(id, {
+      code: `${item.code}${suffix}`.substring(0, 50),
       state: 0,
       updatedBy: currentUserId || null,
     });
@@ -433,6 +437,21 @@ export class ItemsTransactionsService {
 
     const bomUsage = await manager.count(BomItem, { where: { itemId: id } });
     if (bomUsage > 0) throw new BadRequestException(`Bu ürün ${bomUsage} adet üretim reçetesinde (BOM) kullanılmaktadır.`);
+
+    // Check active sales orders containing this item
+    const activeSaleResult = await manager.createQueryBuilder()
+      .select('COUNT(*)', 'total')
+      .from('sale_items', 'si')
+      .innerJoin('sales', 'sale', 'sale.id = si.sale_id')
+      .where('si.item_id = :id', { id })
+      .andWhere("sale.status IN ('draft', 'approved', 'preparing', 'shipped')")
+      .andWhere('sale.deleted_at IS NULL')
+      .getRawOne();
+
+    const activeSaleCount = Number(activeSaleResult?.total || 0);
+    if (activeSaleCount > 0) {
+      throw new BadRequestException(`Bu ürün ${activeSaleCount} adet aktif sipariş/satış kaydında yer almaktadır. Önce ilgili siparişleri tamamlamalı veya iptal etmelisiniz.`);
+    }
   }
 
   // ────── ITEM TYPES ──────

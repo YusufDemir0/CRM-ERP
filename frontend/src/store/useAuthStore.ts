@@ -18,6 +18,7 @@ export interface AuthUser {
   } | null;
   roles: string[];
   permissions: string[];
+  isSystemAdmin?: boolean;
 }
 
 // ────── STORE INTERFACE ──────
@@ -43,6 +44,13 @@ function normalizeRoles(roles: (string | Role)[] | undefined): string[] {
   return roles.map((r) => typeof r === 'string' ? r : r.name || '');
 }
 
+function checkIsSystemAdmin(roles: string[], permissions: string[] = []): boolean {
+  return (
+    roles.some(r => ['ADMIN', 'SYSTEM_ADMIN', 'SUPER_ADMIN'].includes(r.toUpperCase())) ||
+    (permissions.includes('SALES_VIEW_ALL') && permissions.includes('SYSTEM_PAGE'))
+  );
+}
+
 // ────── ZUSTAND STORE ──────
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -57,11 +65,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const res = await authAPI.profile();
       const u = res.data;
+      const roles = normalizeRoles(u.roles);
+      const permissions = u.permissions || [];
+      const isSystemAdmin = checkIsSystemAdmin(roles, permissions);
+
       set({
         user: {
           ...u,
-          roles: normalizeRoles(u.roles),
-          permissions: u.permissions || [],
+          roles,
+          permissions,
+          isSystemAdmin,
         },
         isAuthenticated: true,
         isLoading: false,
@@ -74,12 +87,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (username: string, password: string) => {
     const res = await authAPI.login({ username, password });
     const { user: userData } = res.data;
+    const roles = normalizeRoles(userData.roles);
+    const permissions = userData.permissions || [];
+    const isSystemAdmin = checkIsSystemAdmin(roles, permissions);
 
     set({
       user: {
         ...userData,
-        roles: normalizeRoles(userData.roles),
-        permissions: userData.permissions || [],
+        roles,
+        permissions,
+        isSystemAdmin,
       },
       isAuthenticated: true,
       isLoading: false,

@@ -160,7 +160,7 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <h1 className="text-3xl font-black tracking-tight text-slate-900">Dashboard</h1>
-          <p className="text-slate-500 font-medium mt-1">Hoş geldiniz, {user?.fullName}. {user?.roles?.includes('admin') ? 'İşte sistem geneli özeti.' : 'İşte bugünün özeti.'}</p>
+          <p className="text-slate-500 font-medium mt-1">Hoş geldiniz, {user?.fullName}. {user?.isSystemAdmin ? 'İşte sistem geneli özeti.' : 'İşte bugünün özeti.'}</p>
         </div>
         <div className="text-sm font-bold text-slate-400 uppercase tracking-widest bg-white border border-slate-100 px-4 py-2 rounded-xl shadow-sm">
           {dayjs().format('DD MMMM YYYY')}

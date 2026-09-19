@@ -39,25 +39,32 @@ export class DashboardService {
     const lastMonthStart = now.subtract(1, 'month').startOf('month').toDate();
     const lastMonthEnd = now.subtract(1, 'month').toDate();
 
-    const isSystemAdmin = user.isSystemAdmin === true;
+    const isSystemAdmin = 
+      user.isSystemAdmin === true || 
+      (!!user.role && ['ADMIN', 'SYSTEM_ADMIN', 'SUPER_ADMIN'].includes(user.role.toUpperCase())) ||
+      (Array.isArray(user.permissions) && (user.permissions.includes('SALES_VIEW_ALL') || user.permissions.includes('sales_view_all')));
+
     const userDeptId = user.departmentId ? String(user.departmentId) : null;
     const userId = user.sub ? String(user.sub) : null;
+
+    // Confirmed sale statuses for accurate financial reporting
+    const confirmedStatuses = ['approved', 'shipped', 'invoiced'];
 
     // Base query builders for Sales
     const todayQb = this.saleRepo.createQueryBuilder('sale')
       .where("sale.createdAt BETWEEN :start AND :end", { start: todayStart, end: todayEnd })
-      .andWhere("sale.status != 'cancelled'");
+      .andWhere("sale.status IN (:...confirmedStatuses)", { confirmedStatuses });
 
     const thisMonthQb = this.saleRepo.createQueryBuilder('sale')
       .where("sale.createdAt BETWEEN :start AND :end", { start: thisMonthStart, end: thisMonthEnd })
-      .andWhere("sale.status != 'cancelled'");
+      .andWhere("sale.status IN (:...confirmedStatuses)", { confirmedStatuses });
 
     const lastMonthQb = this.saleRepo.createQueryBuilder('sale')
       .where("sale.createdAt BETWEEN :start AND :end", { start: lastMonthStart, end: lastMonthEnd })
-      .andWhere("sale.status != 'cancelled'");
+      .andWhere("sale.status IN (:...confirmedStatuses)", { confirmedStatuses });
 
     const countQb = this.saleRepo.createQueryBuilder('sale')
-      .where("sale.status IN ('approved', 'shipped', 'invoiced')");
+      .where("sale.status IN (:...confirmedStatuses)", { confirmedStatuses });
 
     // Apply permissions filtering
     if (!isSystemAdmin) {
@@ -99,7 +106,7 @@ export class DashboardService {
       countQb.getCount(),
       
       todayQb
-        .select("SUM(sale.grandTotal * sale.exchangeRate)", "revenue")
+        .select("SUM(sale.grandTotal * sale.exchangeRate - sale.kdv * sale.exchangeRate)", "revenue")
         .getRawOne(),
 
       thisMonthQb
@@ -116,18 +123,18 @@ export class DashboardService {
     ]);
     
     return {
-      totalCustomers,
-      totalSalesCount,
-      todaySales: todayRevenueStats?.revenue || 0,
+      totalCustomers: Number(totalCustomers || 0),
+      totalSalesCount: Number(totalSalesCount || 0),
+      todaySales: new Decimal(todayRevenueStats?.revenue || 0).toNumber(),
       thisMonth: {
-        revenue: thisMonthStats?.revenue || 0,
-        count: thisMonthStats?.count || 0,
-        profit: thisMonthStats?.profit || 0
+        revenue: new Decimal(thisMonthStats?.revenue || 0).toNumber(),
+        count: Number(thisMonthStats?.count || 0),
+        profit: new Decimal(thisMonthStats?.profit || 0).toNumber()
       },
       lastMonth: {
-        revenue: lastMonthStats?.revenue || 0,
-        count: lastMonthStats?.count || 0,
-        profit: lastMonthStats?.profit || 0
+        revenue: new Decimal(lastMonthStats?.revenue || 0).toNumber(),
+        count: Number(lastMonthStats?.count || 0),
+        profit: new Decimal(lastMonthStats?.profit || 0).toNumber()
       }
     };
   }

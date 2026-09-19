@@ -22,8 +22,7 @@ import { SearchableSelect } from '../../components/common/SearchableSelect';
 export default function TransactionsPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
-  const isSystemAdmin = user?.roles?.includes('Admin') || false;
+  const { user, isSystemAdmin } = useAuth();
   
   const page = Number(searchParams.get('page')) || 1;
   const searchTerm = searchParams.get('q') || '';

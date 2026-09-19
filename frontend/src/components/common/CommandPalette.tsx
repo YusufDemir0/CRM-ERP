@@ -37,13 +37,20 @@ export const CommandPalette: React.FC = () => {
   const showAddItem = hasPermission('INVENTORY_CREATE');
   const hasQuickActions = showSalesWizard || showAddParty || showAddItem;
 
+  const showParties = hasPermission('PARTIES_PAGE');
+  const showItems = hasPermission('INVENTORY_PAGE');
   const showStocks = hasPermission('INVENTORY_PAGE');
-  const showTransactions = hasPermission('FINANCE_PAGE');
   const showSales = hasPermission('SALES_PAGE');
+  const showAccounts = hasPermission('FINANCE_PAGE');
+  const showTransactions = hasPermission('FINANCE_PAGE');
+  const showProduction = hasPermission('PRODUCTION_PAGE');
+  const showShipments = hasPermission('SHIPMENT_VIEW');
 
   const showSettings = hasPermission('SYSTEM_PAGE');
   const showUsers = hasPermission('USERS_PAGE');
-  const hasSystemActions = showSettings || showUsers;
+  const showDepartments = hasPermission('DEPARTMENTS_PAGE');
+  const showRoles = hasPermission('ROLES_PAGE');
+  const hasSystemActions = showSettings || showUsers || showDepartments || showRoles;
 
   return (
     <Command.Dialog 
@@ -58,7 +65,7 @@ export const CommandPalette: React.FC = () => {
         <div className="flex items-center px-6 border-b border-slate-50">
           <FiSearch className="text-slate-400 mr-4" size={20} />
           <Command.Input 
-            placeholder="Ne yapmak istiyorsunuz? (Örn: 'Satış', 'Cari')"
+            placeholder="Ne yapmak istiyorsunuz? (Örn: 'Satış', 'Cari', 'Stok', 'Üretim')"
             className="flex-1 h-16 bg-transparent border-none outline-none text-lg font-medium text-slate-800 placeholder:text-slate-300"
           />
           <div className="px-2 py-1 bg-slate-100 rounded text-[10px] font-black text-slate-400">ESC</div>
@@ -72,44 +79,65 @@ export const CommandPalette: React.FC = () => {
           {hasQuickActions && (
             <Command.Group heading="Hızlı İşlemler" className="px-2 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
               {showSalesWizard && (
-                <Item icon={<FiPlus />} label="Yeni Satış Faturası" onSelect={() => runCommand(() => {
+                <Item icon={<FiPlus />} label="Yeni Satış Faturası (Sihirbaz)" onSelect={() => runCommand(() => {
                   useSalesWizardStore.getState().reset();
                   navigate('/sales/wizard');
                 })} />
               )}
               {showAddParty && (
-                <Item icon={<FiUsers />} label="Yeni Cari/Müşteri Ekle" onSelect={() => runCommand(() => openCreate('party'))} />
+                <Item icon={<FiUsers />} label="Yeni Cari / Müşteri Ekle" onSelect={() => runCommand(() => openCreate('party'))} />
               )}
               {showAddItem && (
-                <Item icon={<FiBox />} label="Yeni Ürün Kaydı" onSelect={() => runCommand(() => openCreate('item'))} />
+                <Item icon={<FiBox />} label="Yeni Ürün / Stok Kartı Ekle" onSelect={() => runCommand(() => openCreate('item'))} />
               )}
             </Command.Group>
           )}
 
           <Command.Separator className="h-px bg-slate-50 my-2" />
 
-          <Command.Group heading="Navigasyon" className="px-2 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            <Item icon={<FiLayout />} label="Dashboard / Özet" onSelect={() => runCommand(() => navigate('/'))} />
-            {showStocks && (
-              <Item icon={<FiBox />} label="Stok Durumu" onSelect={() => runCommand(() => navigate('/stocks'))} />
+          <Command.Group heading="Modüller & Navigasyon" className="px-2 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            <Item icon={<FiLayout />} label="Dashboard / Genel Özet" onSelect={() => runCommand(() => navigate('/'))} />
+            {showParties && (
+              <Item icon={<FiUsers />} label="Cari Hesaplar & Müşteriler" onSelect={() => runCommand(() => navigate('/parties'))} />
             )}
-            {showTransactions && (
-              <Item icon={<FiTrendingUp />} label="Finansal Hareketler" onSelect={() => runCommand(() => navigate('/transactions'))} />
+            {showItems && (
+              <Item icon={<FiBox />} label="Ürün Kartları" onSelect={() => runCommand(() => navigate('/items'))} />
+            )}
+            {showStocks && (
+              <Item icon={<FiBox />} label="Stok Takibi & Depolar" onSelect={() => runCommand(() => navigate('/stocks'))} />
             )}
             {showSales && (
-              <Item icon={<FiFileText />} label="Satış Listesi" onSelect={() => runCommand(() => navigate('/sales'))} />
+              <Item icon={<FiFileText />} label="Satış & Sipariş Takibi" onSelect={() => runCommand(() => navigate('/sales'))} />
+            )}
+            {showShipments && (
+              <Item icon={<FiFileText />} label="Sevkiyat & İrsaliye Takibi" onSelect={() => runCommand(() => navigate('/shipments'))} />
+            )}
+            {showAccounts && (
+              <Item icon={<FiTrendingUp />} label="Kasa & Banka Hesapları" onSelect={() => runCommand(() => navigate('/accounts'))} />
+            )}
+            {showTransactions && (
+              <Item icon={<FiTrendingUp />} label="Finansal Hareketler (Tahsilat / Ödeme)" onSelect={() => runCommand(() => navigate('/transactions'))} />
+            )}
+            {showProduction && (
+              <Item icon={<FiBox />} label="Üretim & İş Emirleri" onSelect={() => runCommand(() => navigate('/production'))} />
             )}
           </Command.Group>
 
           {hasSystemActions && (
             <>
               <Command.Separator className="h-px bg-slate-50 my-2" />
-              <Command.Group heading="Sistem" className="px-2 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                {showSettings && (
-                  <Item icon={<FiSettings />} label="Sistem Ayarları" onSelect={() => runCommand(() => navigate('/settings'))} />
+              <Command.Group heading="Sistem & Yönetim" className="px-2 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                {showDepartments && (
+                  <Item icon={<FiSettings />} label="Departman Yönetimi" onSelect={() => runCommand(() => navigate('/departments'))} />
+                )}
+                {showRoles && (
+                  <Item icon={<FiSettings />} label="Rol & Yetki Matrisi" onSelect={() => runCommand(() => navigate('/roles'))} />
                 )}
                 {showUsers && (
                   <Item icon={<FiUsers />} label="Kullanıcı Yönetimi" onSelect={() => runCommand(() => navigate('/users'))} />
+                )}
+                {showSettings && (
+                  <Item icon={<FiSettings />} label="Sistem Ayarları" onSelect={() => runCommand(() => navigate('/settings'))} />
                 )}
               </Command.Group>
             </>

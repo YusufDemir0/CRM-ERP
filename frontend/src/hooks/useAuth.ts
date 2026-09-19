@@ -9,6 +9,7 @@ interface AuthHookType {
   isLoading: boolean;
   hasPermission: (key: string) => boolean;
   isAuthenticated: boolean;
+  isSystemAdmin: boolean;
 }
 
 /**
@@ -22,6 +23,7 @@ export function useAuth(): AuthHookType {
     logout: s.logout,
     isLoading: s.isLoading,
     hasPermission: s.hasPermission,
-    isAuthenticated: s.isAuthenticated
+    isAuthenticated: s.isAuthenticated,
+    isSystemAdmin: s.user?.isSystemAdmin === true,
   })));
 }
