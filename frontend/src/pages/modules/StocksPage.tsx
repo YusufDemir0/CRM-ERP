@@ -5,11 +5,12 @@ import { stocksAPI, itemsAPI, departmentsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import { 
   FiX, FiRepeat, FiSearch, FiArrowRight, FiPlus, 
-  FiFilter, FiPackage, FiHome, FiActivity, FiAlertTriangle, FiArchive
+  FiFilter, FiPackage, FiHome, FiActivity, FiAlertTriangle, FiArchive, FiFileText
 } from 'react-icons/fi';
 import { StockAdjustmentModal } from '../../components/modals/StockAdjustmentModal';
 import { StockTransferModal } from '../../components/modals/StockTransferModal';
 import { StockMovementsModal } from '../../components/modals/StockMovementsModal';
+import { StockReportModal } from '../../components/modals/StockReportModal';
 import { Stock, Item, Department, StockMovement, StockAdjustmentDto, StockTransferDto } from '../../types';
 import { DataTable, Column, ActionButton } from '../../components/common/DataTable';
 import { Decimal } from 'decimal.js';
@@ -77,6 +78,7 @@ export function StocksPage() {
 
   const [isMovementsModalOpen, setIsMovementsModalOpen] = useState(false);
   const [selectedStockForLog, setSelectedStockForLog] = useState<Stock | null>(null);
+  const [isStockReportModalOpen, setIsStockReportModalOpen] = useState(false);
 
   // ────── QUERIES ──────
 
@@ -347,6 +349,15 @@ export function StocksPage() {
               </button>
             ))}
           </div>
+
+          <button 
+            className="h-12 px-5 bg-white text-slate-700 border border-slate-200 rounded-2xl font-bold text-xs uppercase tracking-wider hover:bg-slate-50 hover:text-primary hover:border-slate-300 transition-all flex items-center gap-2 shadow-sm"
+            onClick={() => setIsStockReportModalOpen(true)}
+            title="Departman Bazlı Stok Envanter Raporu (PDF)"
+          >
+            <FiFileText size={18} className="text-primary" /> STOK RAPORU (PDF)
+          </button>
+
           {hasPermission('INVENTORY_EDIT') && (
             <>
               <button className="h-12 px-6 bg-amber-500 text-white rounded-2xl font-black text-sm shadow-premium flex items-center gap-2 hover:scale-[1.02] active:scale-95 transition-colors" onClick={() => {
@@ -416,6 +427,11 @@ export function StocksPage() {
           onClose={() => setIsMovementsModalOpen(false)}
         />
       )}
+
+      <StockReportModal
+        isOpen={isStockReportModalOpen}
+        onClose={() => setIsStockReportModalOpen(false)}
+      />
     </div>
   );
 }

@@ -50,6 +50,10 @@ export class SalesService {
     return this.reportsService.exportToExcel(query, user);
   }
 
+  async getPeriodSummary(query: { year: number | string; month?: number | string; departmentId?: string }, user: JwtPayload): Promise<any> {
+    return this.reportsService.getPeriodSummary(query, user);
+  }
+
   // ────── TRANSACTIONS DELEGATION ──────
 
   async createSaleType(dto: CreateSaleTypeDto, userId: string): Promise<SaleType> {

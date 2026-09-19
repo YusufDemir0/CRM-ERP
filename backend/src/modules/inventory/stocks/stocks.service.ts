@@ -51,6 +51,10 @@ export class StocksService {
     return this.reportsService.getStatus(user);
   }
 
+  async getDepartmentStockSummary(query: { departmentId?: string }, user?: JwtPayload) {
+    return this.reportsService.getDepartmentStockSummary(query, user);
+  }
+
   // ────── TRANSACTIONS DELEGATION ──────
 
   async decreaseStock(

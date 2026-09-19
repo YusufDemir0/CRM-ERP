@@ -17,6 +17,12 @@ export class StocksController {
     return this.stocksService.findAll(query, user);
   }
 
+  @Get('reports/department-summary')
+  @RequirePermissions('INVENTORY_VIEW_DEPT', 'INVENTORY_VIEW_ALL')
+  getDepartmentStockSummary(@Query('departmentId') departmentId: string, @CurrentUser() user: JwtPayload) {
+    return this.stocksService.getDepartmentStockSummary({ departmentId }, user);
+  }
+
   @Get('critical')
   @RequirePermissions('INVENTORY_VIEW_DEPT', 'INVENTORY_VIEW_ALL')
   getCriticalStocks(@CurrentUser() user: JwtPayload) { return this.stocksService.getCriticalStocks({}, user); }

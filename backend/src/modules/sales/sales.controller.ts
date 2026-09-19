@@ -27,6 +27,17 @@ export class SalesController {
   }
 
   // ────── SALES ──────
+  @Get('reports/period-summary')
+  @RequirePermissions('SALES_VIEW_OWN', 'SALES_VIEW_DEPT', 'SALES_VIEW_ALL')
+  getPeriodSummary(
+    @Query('year') year: string,
+    @Query('month') month: string,
+    @Query('departmentId') departmentId: string,
+    @CurrentUser() user: JwtPayload
+  ) {
+    return this.salesService.getPeriodSummary({ year, month, departmentId }, user);
+  }
+
   @Get('export')
   @RequirePermissions('SALES_VIEW_OWN', 'SALES_VIEW_DEPT', 'SALES_VIEW_ALL')
   @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')

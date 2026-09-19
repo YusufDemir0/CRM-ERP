@@ -36,4 +36,6 @@ export const salesAPI = {
   getStatus: (config?: AxiosRequestConfig) => api.get('/sales/status', config),
   ship: (id: string | number, data: { items?: Array<{ itemId: string | number; quantity: string | number }>; payments?: Array<{ commercialAccountId: string | number; amount: string | number }>; vehicleIds?: string[]; assignedStaffIds?: string[] }, config?: AxiosRequestConfig) => api.post(`/sales/${id}/ship`, data, config),
   export: (params?: PaginationParams, config?: AxiosRequestConfig) => api.get('/sales/export', { params, responseType: 'blob', ...config }),
+  getPeriodSummary: (params: { year: number | string; month?: number | string; departmentId?: string }, config?: AxiosRequestConfig) => api.get<any>('/sales/reports/period-summary', { params, ...config }),
 };
+

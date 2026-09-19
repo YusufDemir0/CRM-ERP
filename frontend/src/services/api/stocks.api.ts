@@ -31,4 +31,6 @@ export const stocksAPI = {
   adjust: (data: StockAdjustmentDto, config?: AxiosRequestConfig) => api.post('/stocks/adjust', data, config),
   transfer: (data: StockTransferDto, config?: AxiosRequestConfig) => api.post('/stocks/transfer', data, config),
   search: (query: string, config?: AxiosRequestConfig) => api.get<Array<{ itemId: number; itemName: string; totalQuantity: string; departmentQuantities: Record<number, string> }>>(`/stocks/search?q=${query}`, config),
+  getDepartmentSummary: (params?: { departmentId?: string }, config?: AxiosRequestConfig) => api.get<any>('/stocks/reports/department-summary', { params, ...config }),
 };
+

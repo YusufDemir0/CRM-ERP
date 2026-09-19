@@ -13,6 +13,7 @@ import { ApproveSaleModal } from '../components/modals/ApproveSaleModal';
 import { ViewSaleModal } from '../components/modals/ViewSaleModal';
 import CancelSaleModal from '../components/modals/CancelSaleModal';
 import { ReportErrorModal } from '../components/modals/ReportErrorModal';
+import { SalesReportModal } from '../components/modals/SalesReportModal';
 import { DataTable, Column } from '../components/common/DataTable';
 import { SaleWizard } from './modules/SalesWizard/SaleWizard';
 import { Decimal } from 'decimal.js';
@@ -81,6 +82,7 @@ export default function SalesPage() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isReportErrorOpen, setIsReportErrorOpen] = useState(false);
   const [selectedSaleForError, setSelectedSaleForError] = useState<Sale | null>(null);
+  const [isPdfReportModalOpen, setIsPdfReportModalOpen] = useState(false);
 
   const handleReportError = (sale: Sale) => {
     setSelectedSaleForError(sale);
@@ -301,6 +303,7 @@ export default function SalesPage() {
         onSearchTermChange={(term) => updateParams({ q: term, page: 1 })}
         onNewSale={handleNewSale}
         onExport={handleExport}
+        onPdfReport={() => setIsPdfReportModalOpen(true)}
         canCreate={canCreate}
         departments={departments}
         selectedDeptFilterId={selectedDeptFilterId}
@@ -364,6 +367,11 @@ export default function SalesPage() {
           setSelectedSaleForError(null);
         }}
         sale={selectedSaleForError}
+      />
+
+      <SalesReportModal
+        isOpen={isPdfReportModalOpen}
+        onClose={() => setIsPdfReportModalOpen(false)}
       />
     </div>
   );

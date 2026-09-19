@@ -10,6 +10,7 @@ import { ShipmentWizardModal } from '../components/modals/ShipmentWizardModal';
 import { ViewSaleModal } from '../components/modals/ViewSaleModal';
 import CancelSaleModal from '../components/modals/CancelSaleModal';
 import { ReportErrorModal } from '../components/modals/ReportErrorModal';
+import { SalesReportModal } from '../components/modals/SalesReportModal';
 import { SalesHeader } from '../components/sales/SalesHeader';
 import { SalesTable } from '../components/sales/SalesTable';
 import { useDebounce } from '../hooks/useDebounce';
@@ -79,6 +80,8 @@ export default function MasterSalesPage() {
     setSelectedSaleForError(sale);
     setIsReportErrorOpen(true);
   };
+
+  const [isPdfReportModalOpen, setIsPdfReportModalOpen] = useState(false);
 
   // ────── QUERIES ──────
 
@@ -325,6 +328,7 @@ export default function MasterSalesPage() {
         onSearchTermChange={(term) => updateParams({ q: term, page: 1 })}
         onNewSale={handleNewSale}
         onExport={handleExport}
+        onPdfReport={() => setIsPdfReportModalOpen(true)}
         canCreate={canCreate}
       />
 
@@ -404,6 +408,11 @@ export default function MasterSalesPage() {
           setSelectedSaleForError(null);
         }}
         sale={selectedSaleForError}
+      />
+
+      <SalesReportModal
+        isOpen={isPdfReportModalOpen}
+        onClose={() => setIsPdfReportModalOpen(false)}
       />
     </div>
   );

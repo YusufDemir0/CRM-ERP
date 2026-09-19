@@ -1,5 +1,5 @@
 import { Department } from '../../types';
-import { FiShoppingBag, FiPlus, FiClock, FiCheckCircle, FiTruck, FiInfo, FiSearch, FiDownload, FiAlertOctagon } from 'react-icons/fi';
+import { FiShoppingBag, FiPlus, FiClock, FiCheckCircle, FiTruck, FiInfo, FiSearch, FiDownload, FiAlertOctagon, FiFileText } from 'react-icons/fi';
 
 interface SalesHeaderProps {
   filterStatus: 'draft' | 'approved' | 'shipped' | 'cancelled' | 'all';
@@ -8,6 +8,7 @@ interface SalesHeaderProps {
   onSearchTermChange: (term: string) => void;
   onNewSale: () => void;
   onExport: () => void;
+  onPdfReport?: () => void;
   onReportError?: () => void;
   canCreate?: boolean;
   departments?: Department[];
@@ -22,6 +23,7 @@ export const SalesHeader: React.FC<SalesHeaderProps> = ({
   onSearchTermChange,
   onNewSale,
   onExport,
+  onPdfReport,
   onReportError,
   canCreate = true,
   departments = [],
@@ -69,6 +71,16 @@ export const SalesHeader: React.FC<SalesHeaderProps> = ({
           >
             <FiDownload size={18} /> RAPOR AL (EXCEL)
           </button>
+
+          {onPdfReport && (
+            <button 
+              className="h-14 px-5 bg-white text-slate-700 border border-slate-200 rounded-2xl font-bold text-xs uppercase tracking-wider hover:bg-slate-50 hover:text-primary hover:border-slate-300 transition-all flex items-center gap-2 shadow-sm"
+              onClick={onPdfReport}
+              title="Aylık ve Yıllık Satış Raporu (PDF)"
+            >
+              <FiFileText size={18} className="text-primary" /> SATIŞ RAPORU (PDF)
+            </button>
+          )}
 
           {onReportError && (
             <button 
