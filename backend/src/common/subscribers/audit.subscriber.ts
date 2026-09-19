@@ -125,6 +125,9 @@ export class AuditSubscriber implements EntitySubscriberInterface {
       'Role',
       'Party',
       'Item',
+      'Stock',
+      'StockMovement',
+      'Shipment',
       'Bom',
       'ProductionOrder',
       'CommercialAccount',
@@ -132,6 +135,7 @@ export class AuditSubscriber implements EntitySubscriberInterface {
       'Sale',
       'Department',
       'Staff',
+      'Note',
     ];
 
     if (trackedEntities.includes(entityName) && process.env.DB_LOGGING_ENABLED !== 'false') {
@@ -139,16 +143,19 @@ export class AuditSubscriber implements EntitySubscriberInterface {
         const friendlyName = this.getFriendlyEntityName(entityName);
         const moduleName = this.getEntityModule(entityName);
         const detailsText = this.getEntityFriendlyDescription(entityName, rawEntity, action);
+        
+        const actionVerb = action === 'INSERT' ? 'Eklendi' : action === 'UPDATE' ? 'Güncellendi' : action === 'DELETE' ? 'Silindi' : action;
+        const actionText = `${friendlyName} ${actionVerb}`;
 
         await event.manager.insert(SystemLog, {
           userId: userId ? String(userId) : undefined,
-          username: username || undefined,
-          fullName: fullName || undefined,
-          action,
+          username: username || 'SİSTEM',
+          fullName: fullName || 'Sistem / Otomatik İşlem',
+          action: actionText,
           module: moduleName || undefined,
-          tag: 'INFO',
+          tag: action === 'DELETE' ? 'WARNING' : 'INFO',
           details: detailsText || undefined,
-          ipAddress: ipAddress || undefined,
+          ipAddress: ipAddress || '127.0.0.1',
         });
       } catch (err) {
         this.logger.error(`Failed to save DB audit log for ${entityName}: ${err.message}`);
@@ -160,15 +167,19 @@ export class AuditSubscriber implements EntitySubscriberInterface {
     const map: Record<string, string> = {
       'User': 'Kullanıcı',
       'Role': 'Rol',
-      'Party': 'Müşteri/Cari',
-      'Item': 'Ürün',
+      'Party': 'Müşteri / Cari',
+      'Item': 'Ürün / Stok Kartı',
+      'Stock': 'Depo Stoğu',
+      'StockMovement': 'Stok Hareketi',
+      'Shipment': 'Sevkiyat / İrsaliye',
       'Bom': 'Ürün Reçetesi',
       'ProductionOrder': 'Üretim Emri',
-      'CommercialAccount': 'Kasa/Banka Hesabı',
+      'CommercialAccount': 'Kasa / Banka Hesabı',
       'Transaction': 'Hesap Hareketi',
-      'Sale': 'Satış',
+      'Sale': 'Satış & Sipariş',
       'Department': 'Departman',
       'Staff': 'Personel',
+      'Note': 'Not',
     };
     return map[entityName] || entityName;
   }
@@ -179,6 +190,9 @@ export class AuditSubscriber implements EntitySubscriberInterface {
       'Role': 'roles',
       'Party': 'parties',
       'Item': 'items',
+      'Stock': 'stocks',
+      'StockMovement': 'stocks',
+      'Shipment': 'shipments',
       'Bom': 'production',
       'ProductionOrder': 'production',
       'CommercialAccount': 'finance',
@@ -186,6 +200,7 @@ export class AuditSubscriber implements EntitySubscriberInterface {
       'Sale': 'sales',
       'Department': 'departments',
       'Staff': 'staff',
+      'Note': 'notes',
     };
     return map[entityName] || 'system';
   }

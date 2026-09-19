@@ -20,7 +20,23 @@ export class AuditInterceptor implements NestInterceptor {
     const userId = request.user?.sub || request.user?.id || null;
     const username = request.user?.username || null;
     const fullName = request.user?.fullName || null;
-    const ipAddress = request.ip || request.headers['x-forwarded-for'] || null;
+    const forwarded = request.headers['x-forwarded-for'];
+    let rawIp = '';
+    if (typeof forwarded === 'string') {
+      rawIp = forwarded.split(',')[0].trim();
+    } else if (Array.isArray(forwarded)) {
+      rawIp = forwarded[0];
+    } else {
+      rawIp = request.ip || request.socket?.remoteAddress || '127.0.0.1';
+    }
+
+    if (rawIp.startsWith('::ffff:')) {
+      rawIp = rawIp.replace('::ffff:', '');
+    }
+    if (rawIp === '::1' || rawIp === '::') {
+      rawIp = '127.0.0.1';
+    }
+    const ipAddress = rawIp || '127.0.0.1';
 
     if (userId) {
       this.cls.set('userId', userId);
@@ -31,9 +47,7 @@ export class AuditInterceptor implements NestInterceptor {
     if (fullName) {
       this.cls.set('fullName', fullName);
     }
-    if (ipAddress) {
-      this.cls.set('ipAddress', ipAddress);
-    }
+    this.cls.set('ipAddress', ipAddress);
 
     return next.handle();
   }

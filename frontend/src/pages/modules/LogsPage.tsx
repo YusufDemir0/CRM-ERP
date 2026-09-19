@@ -1,7 +1,7 @@
 import { useState, useDeferredValue, useEffect } from 'react';
 import { 
   FiRefreshCw, FiInfo, FiAlertTriangle, FiXCircle, FiCheckCircle, 
-  FiSearch, FiActivity, FiShield, FiCpu, FiClock, FiFilter
+  FiSearch, FiActivity, FiShield, FiCpu, FiClock, FiFilter, FiGlobe, FiUser
 } from 'react-icons/fi';
 import { logsAPI } from '../../services/api';
 import toast from 'react-hot-toast';
@@ -115,20 +115,26 @@ export default function LogsPage() {
 
   const columns: Column<SystemLog>[] = [
     { 
-      header: 'ZAMAN DAMGASI', 
+      header: 'ZAMAN & BAĞLANTI (IP)', 
       className: 'tabular-nums',
       accessor: (log) => (
-        <div className="flex items-center gap-2">
-          <FiClock size={14} className="text-slate-400" />
-          <span className="text-xs font-bold text-slate-600 tabular-nums">
-            {formatDisplayDateTime(log.createdAt)}
-          </span>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <FiClock size={13} className="text-slate-400 shrink-0" />
+            <span className="text-xs font-bold text-slate-800 tabular-nums">
+              {formatDisplayDateTime(log.createdAt)}
+            </span>
+          </div>
+          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-mono text-[11px] font-bold w-fit border border-slate-200/60 shadow-2xs">
+            <FiGlobe size={11} className="text-primary shrink-0" />
+            <span>{log.ipAddress || '127.0.0.1'}</span>
+          </div>
         </div>
       ),
       sortKey: 'createdAt'
     },
     { 
-      header: 'ÖNCELİK', 
+      header: 'DURUM', 
       accessor: (log) => (
         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
           log.tag === 'ERROR' || log.tag === 'CRITICAL' ? 'bg-red-100 text-red-600' :
@@ -142,27 +148,36 @@ export default function LogsPage() {
       sortKey: 'tag'
     },
     { 
-      header: 'OPERATÖR', 
+      header: 'İŞLEMİ YAPAN HESAP', 
       accessor: (log) => (
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-black text-slate-600">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-black text-primary shrink-0">
             {(log.fullName || log.username || 'S')[0].toUpperCase()}
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-black text-slate-900 leading-tight">{log.fullName || log.username || 'SİSTEM'}</span>
-            <span className="text-[10px] font-bold text-slate-400 tracking-tight">{log.ipAddress || 'INTERNAL'}</span>
+            <span className="text-sm font-black text-slate-900 leading-tight">
+              {log.fullName || log.username || 'SİSTEM'}
+            </span>
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 mt-0.5">
+              <span className="text-primary font-semibold">@{log.username || 'system'}</span>
+              <span className="text-slate-300">•</span>
+              <span className="font-mono text-slate-500 flex items-center gap-1">
+                <FiGlobe size={10} className="text-slate-400" />
+                {log.ipAddress || '127.0.0.1'}
+              </span>
+            </div>
           </div>
         </div>
       ),
       sortKey: 'username'
     },
     { 
-      header: 'AKTİVİTE / MODÜL', 
+      header: 'YAPILAN İŞLEM & MODÜL', 
       accessor: (log) => {
         const translated = translateLog(log);
         return (
           <div>
-            <div className="text-sm font-black text-primary mb-0.5">{translated.title}</div>
+            <div className="text-sm font-black text-slate-800 mb-0.5">{translated.title}</div>
             <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400">
               <FiCpu size={10} /> {log.module?.toUpperCase() || 'SİSTEM ÇEKİRDEĞİ'}
             </div>
@@ -174,8 +189,8 @@ export default function LogsPage() {
     { 
       header: 'İŞLEM DETAYLARI', 
       accessor: (log) => (
-        <div className="text-xs font-bold text-slate-500 max-w-[300px] truncate-2-lines line-clamp-2">
-          {log.details || 'EK VERİ YOK'}
+        <div className="text-xs font-medium text-slate-600 max-w-[320px] truncate-2-lines line-clamp-2" title={log.details || ''}>
+          {log.details || 'Ek detay bulunmuyor.'}
         </div>
       )
     }
