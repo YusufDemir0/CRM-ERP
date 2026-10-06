@@ -39,4 +39,9 @@ export const configValidationSchema = Joi.object({
 
   // Docker Compose internals (not used by app, but validated to prevent startup errors)
   MYSQL_ROOT_PASSWORD: Joi.string().optional(),
+
+  // ErmayWeb entegrasyonu: anahtar yoksa /integration uçları 503 döner (varsayılan anahtar yok)
+  INTEGRATION_KEY: Joi.string().min(32).allow('').optional(),
+  ERMAY_WEB_URL: Joi.string().uri({ scheme: ['http', 'https'] }).optional(),
+  WEBHOOK_SECRET: Joi.string().optional(),
 });

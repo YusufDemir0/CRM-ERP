@@ -55,8 +55,18 @@ export class SalesTransactionsService {
     return this.saleTypeRepo.save(type);
   }
 
+  /**
+   * Sunucu içi seçenekler (HTTP DTO'sunda yoktur; kullanıcı bunları gönderemez):
+   * @param options.departmentId Satışın departmanı (ör. web entegrasyonu → MWDS).
+   * @param options.salePriceOverrides Ürün ID → satış fiyatı; ERP fiyatı yerine kullanılır
+   *        (web'deki ERP karşılığı olmayan ürünler için deneme ürün satırları).
+   */
   @Transactional()
-  async create(dto: CreateSaleDto, userId: string): Promise<Sale> {
+  async create(
+    dto: CreateSaleDto,
+    userId: string,
+    options: { departmentId?: string; salePriceOverrides?: Map<string, Decimal> } = {},
+  ): Promise<Sale> {
     const manager = this.transactionContext.manager;
 
     const party = await manager.findOne(Party, { where: { id: dto.partyId }, lock: { mode: 'pessimistic_write' } });
@@ -81,13 +91,17 @@ export class SalesTransactionsService {
     }
 
     const user = await manager.findOne(User, { where: { id: userId } });
-    const userDeptId = user?.departmentId || 1;
+    const effectiveDeptId = options.departmentId || user?.departmentId || 1;
 
-    const code = await this.sequenceGenerator.generateSaleCode(manager, String(userDeptId));
+    const code = await this.sequenceGenerator.generateSaleCode(manager, String(effectiveDeptId));
 
     const isRetail = saleType.abbreviation === 'PRK';
 
     const itemDataMap = await this.reportsService.fetchItemData(manager, dto.items.map(i => i.itemId));
+    options.salePriceOverrides?.forEach((price, itemId) => {
+      const data = itemDataMap.get(itemId);
+      if (data) data.salePrice = price;
+    });
     const calcResult = SaleCalculator.calculate(
       dto.items,
       itemDataMap,
@@ -112,6 +126,8 @@ export class SalesTransactionsService {
 
     const sale = manager.create(Sale, {
       ...saleFields,
+      // Mağaza taslaklarında departman onayda (çıkış deposu) atanır; yalnız sunucu içi çağrı önceden verir
+      ...(options.departmentId ? { departmentId: options.departmentId } : {}),
       code,
       exchangeRate: currentExchangeRate,
       status: 'draft',

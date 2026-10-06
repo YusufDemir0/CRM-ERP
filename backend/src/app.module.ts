@@ -50,6 +50,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { LogsModule } from './modules/logs/logs.module';
 import { NotesModule } from './modules/notes/notes.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { IntegrationModule } from './modules/integration/integration.module';
 import { StaffModule } from './modules/staff/staff.module';
 import { HealthModule } from './infrastructure/health/health.module';
 
@@ -132,7 +133,7 @@ import { HealthModule } from './infrastructure/health/health.module';
     RabbitMQModule,
     TelemetryModule, AuthModule, UsersModule, RolesModule, DepartmentsModule, PartiesModule, InventoryModule,
     SalesModule, FinanceModule, ProductionModule, DashboardModule, SettingsModule,
-    LogsModule, NotesModule, WebhooksModule, StaffModule, CommonModule, HealthModule, StorageModule,
+    LogsModule, NotesModule, WebhooksModule, IntegrationModule, StaffModule, CommonModule, HealthModule, StorageModule,
   ],
   providers:[
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },

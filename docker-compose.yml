@@ -118,6 +118,9 @@ services:
       - DB_LOGGING_ENABLED=${DB_LOGGING_ENABLED:-false}
       - METRICS_PORT=9464
       - SERVICE_NAME=ermay-api
+      # ErmayWeb entegrasyonu (ErmayWeb .env'deki ERP_INTEGRATION_KEY ile aynı değer)
+      - INTEGRATION_KEY=${INTEGRATION_KEY:-}
+      - ERMAY_WEB_URL=${ERMAY_WEB_URL:-http://172.17.0.1:5000}
     command: ["node", "dist/main.js"]
     depends_on:
       db:

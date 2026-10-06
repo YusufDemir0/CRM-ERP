@@ -28,6 +28,24 @@ export class StocksTransactionsService {
     private transactionContext: TransactionContextService,
   ) {}
 
+  private virtualWarehouseId: string | null = null;
+
+  /**
+   * Sanal depo (satış taslağında stok düşülen depo) eksiye düşebilir.
+   * Depo kimliği ada göre çözülür; ortama göre değişen sabit ID kullanılmaz.
+   */
+  private async allowsNegativeStock(manager: EntityManager, departmentId: string, description?: string): Promise<boolean> {
+    if (description?.includes('Sanal Stok')) return true;
+    if (this.virtualWarehouseId === null) {
+      const rows: Array<{ id: string | number }> = await manager.query(
+        "SELECT id FROM departments WHERE name = 'sanaldepo' LIMIT 1"
+      );
+      if (rows.length === 0) return false;
+      this.virtualWarehouseId = String(rows[0].id);
+    }
+    return String(departmentId) === this.virtualWarehouseId;
+  }
+
   private async updateMovingAverageCost(
     manager: EntityManager,
     itemId: string,
@@ -107,7 +125,8 @@ export class StocksTransactionsService {
       throw new BadRequestException(`Stok kaydı bulunamadı. (Ürün ID: ${itemId}, Depo ID: ${departmentId})`);
     }
 
-    StockMovementHelper.validateStockLimit(itemId, departmentId, new Decimal(stock.quantity), qty);
+    const isSanal = await this.allowsNegativeStock(manager, departmentId, referenceInfo?.description);
+    StockMovementHelper.validateStockLimit(itemId, departmentId, new Decimal(stock.quantity), qty, isSanal);
 
     const movement = StockMovementHelper.applyMovement({
       stock, quantity: qty, type: 'out', referenceInfo, userId, manager
@@ -152,7 +171,8 @@ export class StocksTransactionsService {
         throw new BadRequestException(`Stok kaydı bulunamadı. (Ürün ID: ${itemId}, Depo ID: ${departmentId})`);
       }
 
-      StockMovementHelper.validateStockLimit(itemId, departmentId, new Decimal(stock.quantity), qty);
+      const isSanal = await this.allowsNegativeStock(manager, departmentId, referenceInfo?.description);
+      StockMovementHelper.validateStockLimit(itemId, departmentId, new Decimal(stock.quantity), qty, isSanal);
 
       const movement = StockMovementHelper.applyMovement({
         stock, quantity: qty, type: 'out', referenceInfo, userId, manager
@@ -366,7 +386,8 @@ export class StocksTransactionsService {
         }
       }
 
-      StockMovementHelper.validateStockLimit(itemId, departmentId, new Decimal(stock.quantity), qty);
+      const isSanal = await this.allowsNegativeStock(manager, departmentId, referenceInfo?.description);
+      StockMovementHelper.validateStockLimit(itemId, departmentId, new Decimal(stock.quantity), qty, isSanal);
 
       const quantityBefore = new Decimal(stock.quantity);
       const quantityAfter = quantityBefore.sub(qty);

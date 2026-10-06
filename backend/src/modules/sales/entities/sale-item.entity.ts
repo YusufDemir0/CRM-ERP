@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, DeleteDateColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, PrimaryColumn, CreateDateColumn, UpdateDateColumn, DeleteDateColumn } from 'typeorm';
 import { Transform } from 'class-transformer';
 import { Decimal } from 'decimal.js';
 import { Sale } from './sale.entity';
@@ -7,13 +7,10 @@ import { DecimalTransformer } from '../../../common/transformers/decimal.transfo
 
 @Entity('sale_items')
 export class SaleItem {
-  @PrimaryGeneratedColumn('increment', { type: 'bigint' })
-  id: string;
-
-  @Column({ name: 'sale_id', type: 'bigint' })
+  @PrimaryColumn({ name: 'sale_id', type: 'bigint' })
   saleId: string;
 
-  @Column({ name: 'item_id', type: 'bigint' })
+  @PrimaryColumn({ name: 'item_id', type: 'bigint' })
   itemId: string;
 
   @Transform(({ value }) => value ? String(value) : value)
